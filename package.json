@@ -1,0 +1,77 @@
+{
+  "name": "pixel-nest",
+  "productName": "像素小窝",
+  "version": "0.1.0",
+  "description": "住在桌面上的像素宠物：有自己的生活、性格、日记和秘密。",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.pixelnest.desktop",
+    "productName": "PixelNest",
+    "executableName": "PixelNest",
+    "copyright": "Pixel Nest",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "assets/**"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "像素小窝",
+      "uninstallDisplayName": "像素小窝",
+      "deleteAppDataOnUninstall": true,
+      "include": "build/installer.nsh",
+      "artifactName": "像素小窝-安装包-${version}.exe",
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "language": "2052"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg"
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "public.app-category.entertainment",
+      "identity": null
+    },
+    "dmg": {
+      "artifactName": "像素小窝-${version}.dmg",
+      "title": "像素小窝"
+    }
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.4"
+  }
+}
