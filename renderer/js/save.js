@@ -28,7 +28,7 @@
       // 旧版本迁移：透明模式没了 → 小场景；小屋没了 → 森林
       if (s.settings.mode === 'clear') s.settings.mode = 'band';
       if (s.settings.lastMode === 'clear' || s.settings.lastMode === 'mini') s.settings.lastMode = 'band';
-      if (!['snow', 'lake', 'forest', 'meadow', 'farm'].includes(s.settings.scene)) s.settings.scene = 'forest';
+      if (!(PP.WORLD || []).some((w) => w[0] === s.settings.scene)) s.settings.scene = 'forest';
       if (s.settings.decor) delete s.settings.decor.cabin;
       if (s.settings.autoQuiet == null) s.settings.autoQuiet = true;
       if (s.settings.trayMenu == null) s.settings.trayMenu = 'simple';

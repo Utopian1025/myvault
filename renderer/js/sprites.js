@@ -181,10 +181,28 @@
       mint:  { base: '#74cfa0', dark: '#45a476', light: '#fff0b0', paw: '#45a476', inner: '#ffd17a', nose: '#2f6a50', name: '小龙' },
       shiny: { base: '#f58aa4', dark: '#d35676', light: '#fff0b0', paw: '#d35676', inner: '#ffe07a', nose: '#842c46', name: '樱龙' },
     },
+    // ---- 海底的伙伴 ----
+    turtle: {
+      green: { base: '#8cc878', dark: '#5a9a54', light: '#e8f2c8', paw: '#7ab868', inner: '#ff9aa8', nose: '#3e6e38', shell: '#7a5a3a', shell2: '#a8804a', rim: '#c8a060', name: '小海龟' },
+      hawks: { base: '#c8b888', dark: '#8a7a58', light: '#f4ecd0', paw: '#b8a878', inner: '#ff9aa8', nose: '#5a4a30', shell: '#6a3e22', shell2: '#c8843a', rim: '#e8b060', name: '玳瑁' },
+      shiny: { base: '#a8e0f0', dark: '#6ab0d0', light: '#f0fbff', paw: '#98d0e8', inner: '#ff9acc', nose: '#3a6a8a', shell: '#4a5ab8', shell2: '#8a9aff', rim: '#c8d0ff', name: '星海龟' },
+    },
+    crab: {
+      red:    { base: '#ec6a4a', dark: '#b8402a', light: '#ffd0b8', paw: '#d8553a', inner: '#ff9aa8', nose: '#8a2a1a', name: '小螃蟹' },
+      hermit: { base: '#f0a050', dark: '#c0702a', light: '#ffe2b8', paw: '#e08a3a', inner: '#ff9aa8', nose: '#8a4a1a', name: '寄居蟹', hermit: true, shellCol: '#f4e2c8' },
+      blue:   { base: '#5a9ae0', dark: '#2e62a8', light: '#d0e8ff', paw: '#4a86cc', inner: '#ff9aa8', nose: '#1a3a6a', name: '蓝蟹' },
+      shiny:  { base: '#ffd84a', dark: '#d8a020', light: '#fff6c8', paw: '#f0c030', inner: '#ff9aa8', nose: '#8a6010', name: '金蟹' },
+    },
+    octopus: {
+      pink:   { base: '#f28aa8', dark: '#c85a7a', light: '#ffd6e2', paw: '#e07898', inner: '#ff9aa8', nose: '#8a2a4a', name: '小章鱼' },
+      orange: { base: '#f2964a', dark: '#c8682a', light: '#ffdcb8', paw: '#e0843a', inner: '#ff9aa8', nose: '#8a3a1a', name: '橘章鱼' },
+      purple: { base: '#a88ae0', dark: '#7458b8', light: '#e8dcff', paw: '#9478d0', inner: '#ff9acc', nose: '#3a2a6a', name: '紫章鱼' },
+      shiny:  { base: '#7ae0d0', dark: '#3aa898', light: '#e0fff8', paw: '#5ad0c0', inner: '#ffb0d0', nose: '#1a5a50', name: '荧光章鱼' },
+    },
   };
 
   const K = OUT;
-  const CUSTOM = new Set(['penguin', 'hamster', 'frog', 'chick', 'duck', 'hedgehog']);
+  const CUSTOM = new Set(['penguin', 'hamster', 'frog', 'chick', 'duck', 'hedgehog', 'turtle', 'crab', 'octopus']);
 
   // ---------- 主绘制 ----------
   // p = {species, pal, facing, anim, t, eyes, look:[x,y], mouth, blush, ears, wag, hat, cheeks, stretch, knead}
@@ -370,6 +388,9 @@
     else if (sp === 'chick') drawChick(b, p, g);
     else if (sp === 'duck') drawDuck(b, p, g);
     else if (sp === 'hedgehog') drawHedgehog(b, p, g);
+    else if (sp === 'turtle') drawTurtle(b, p, g);
+    else if (sp === 'crab') drawCrab(b, p, g);
+    else if (sp === 'octopus') drawOctopus(b, p, g);
     else {
       drawTail(b, sp, C, g);
       if (sp === 'dragon') {
@@ -703,6 +724,82 @@
       rect(b, cx + 1, fy - (bob < 0 ? 1 : 0), 4, 2, C.paw);
     }
     p.__geo = { kind: 'penguin', cx, cy, ry, rx, lie, f };
+  }
+
+  // 海龟：背着一个有花纹的龟壳，头和四只鳍从壳里伸出来；睡觉时头缩回去一半
+  function drawTurtle(b, p, g) {
+    const C = p.pal, f = g.f, t = g.t, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const move = ['walk', 'run'].includes(anim) ? Math.floor(t * 6) % 2 : 0;
+    let [cy, ry, rx] = blobFit(g, p, lie ? 23.4 : 22, lie ? 5.4 : 6.2, 11.2);
+    const cx = 16 + (g.jsk || 0) * 0.4;
+    // 鳍
+    ell(b, cx - rx + 0.5, cy + ry - 2.2 - move, 3.6, 2, C.base); ell(b, cx + rx - 0.5, cy + ry - 2.2 - (1 - move), 3.6, 2, C.base);
+    ell(b, cx - rx + 3, cy + ry - 0.6, 2.4, 1.6, C.paw); ell(b, cx + rx - 3, cy + ry - 0.6, 2.4, 1.6, C.paw);
+    // 龟壳：一圈浅色的边 + 一块块六边形（在后面）
+    ell(b, cx, cy - 1.4, rx, ry + 1.4, C.rim);
+    ell(b, cx, cy - 2, rx - 1.2, ry, C.shell);
+    for (const [dx, dy] of [[0, -5], [-5.4, -2.6], [5.4, -2.6], [-3, 1], [3, 1]]) ell(b, cx + dx, cy + dy - 0.6, 2.2, 1.5, C.shell2);
+    // 头：从壳前面探出来（睡觉时缩回去一半）
+    const hx = cx + f * 1.2, hy = lie ? cy + 0.6 : cy - 3, hr = lie ? 4.2 : 6;
+    ell(b, hx, hy + 0.4, hr + 1.8, hr + 0.6, '#3a2418');
+    ell(b, hx, hy, hr + 0.8, hr - 0.4, C.base);
+    g.hx = hx - f * 0.6; g.hy = hy + 0.4; g.hrx = hr; g.hry = hr - 0.6;
+    p.__geo = { kind: 'turtle', hatX: hx, hatY: hy - hr + 6.5 };
+  }
+  // 螃蟹：扁扁宽宽的壳，一对眼睛举在小柄上，两只大钳子，横着走
+  function drawCrab(b, p, g) {
+    const C = p.pal, f = g.f, t = g.t, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const walk = ['walk', 'run'].includes(anim) ? Math.floor(t * 10) % 2 : 0;
+    const snip = anim === 'eat' || anim === 'groom' || anim === 'dance' ? Math.floor(t * 6) % 2 : 0;
+    let [cy, ry, rx] = blobFit(g, p, lie ? 23.6 : 21.6, lie ? 4.6 : 5.6, 10);
+    const cx = 16 + (g.jsk || 0) * 0.4;
+    // 腿：每边三条
+    for (let k = 0; k < 3; k++) for (const sd of [-1, 1]) {
+      const lx = cx + sd * (rx - 2 - k * 2.4), ly = cy + ry - 2, w = (walk + k) % 2;
+      rect(b, Math.round(lx + sd * 1), Math.round(ly), 2, 1, C.paw); rect(b, Math.round(lx + sd * (2 + w)), Math.round(ly + 1), 1, 3 - (lie ? 2 : 0), C.paw);
+    }
+    // 钳子
+    for (const sd of [-1, 1]) {
+      const kx = cx + sd * (rx + 1.6), ky = cy - (lie ? 0 : 3.6) - (sd === -1 ? snip : 1 - snip) * 1.4;
+      rect(b, Math.round(cx + sd * (rx - 1) - (sd < 0 ? 2 : 0)), Math.round(cy - 1), 3, 2, C.base);
+      ell(b, kx, ky, 3.2, 2.8, C.base);
+      ell(b, kx + sd * 1.2, ky - 2.6, 1.6, 1.4, C.base);
+    }
+    // 眼柄
+    const ey = lie ? cy - ry + 1.4 : cy - ry - 3.2;
+    if (!lie) for (const ex of [cx - 4 + f * 0.6, cx + 4 + f * 0.6]) rect(b, Math.round(ex - 0.5), Math.round(ey), 2, Math.round(cy - ry - ey + 1), C.dark);
+    for (const ex of [cx - 4 + f * 0.6, cx + 4 + f * 0.6]) ell(b, ex, ey, 2.4, 2.2, C.light);
+    // 壳
+    if (C.hermit) { const sx = cx - f * 4, sy = cy - 4.4; ell(b, sx, sy, 7, 6, C.shellCol); for (let k = 0; k < 3; k++) ell(b, sx + k * 0.6, sy - 1 - k * 1.8, 5 - k * 1.4, 1, '#e0c4a0'); }
+    ell(b, cx, cy, rx, ry, C.base);
+    g.hx = cx; g.hy = ey; g.hrx = 6; g.hry = 4;
+    p.__geo = { kind: 'crab', hatX: cx, hatY: cy - ry + 3 };
+  }
+  // 章鱼：一个圆圆的大脑袋，下面八条（画六条）软软的触手在慢慢晃
+  function drawOctopus(b, p, g) {
+    const C = p.pal, f = g.f, t = g.t, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const air = anim === 'jump' || anim === 'fall';
+    let [cy, ry, rx] = blobFit(g, p, lie ? 18.6 : 15.4, lie ? 6.8 : 8.2, lie ? 10 : 8.6);
+    const cx = 16 + (g.jsk || 0) * 0.5;
+    const n = 6, foot = lie ? 28 : 28.6;
+    for (let k = 0; k < n; k++) {
+      const a = (k - (n - 1) / 2) / ((n - 1) / 2); // -1..1
+      const x0 = cx + a * (rx - 2.4), y0 = cy + ry - 3;
+      const len = air ? foot - y0 + 2 : foot - y0;
+      for (let i = 0; i <= len; i++) {
+        const k2 = i / Math.max(1, len), sway = Math.sin(t * 2.4 + k * 1.3 + i * 0.5) * (0.6 + k2 * 1.2) * (lie ? 0.3 : 1);
+        const xx = x0 + a * k2 * (lie ? 6 : 3.4) + sway, w = Math.max(1, Math.round(2.6 - k2 * 1.6));
+        rect(b, Math.round(xx - w / 2), Math.round(y0 + i), w, 1, C.base);
+      }
+    }
+    ell(b, cx, cy, rx, ry, C.base);
+    // 头顶的斑点
+    for (const [dx, dy, r] of [[-3.6, -4, 1.4], [2.6, -5, 1], [4.4, -1.6, 0.9]]) ell(b, cx + dx, cy + dy, r, r * 0.9, C.light);
+    g.hx = cx; g.hy = cy + 1.4; g.hrx = rx; g.hry = ry;
+    p.__geo = { kind: 'octopus', hatX: cx + f * 0.5, hatY: cy - ry + 6.5, suck: true };
   }
 
   // 通用：按果冻弹簧/被拎起来调整一个“圆团子”身体
@@ -1167,6 +1264,8 @@
     bread: ['.oooo.', 'oyyyyo', 'oyyyyo', 'oooooo'],
     apple: ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
     melon: ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
+    kelp: ['.g..g.', 'gg.gg.', '.gg.gg', 'gg.gg.', '.gg.g.', '..g...'],
+    shrimp: ['..rrr.', '.r...r', 'rRrr..', 'rrRr..', '.rrRr.', '...rr.'],
     yuzu: ['..g.', '.yy.', 'yyyy', 'yyyy', '.yy.'],
     mud: ['.ooo.', 'ooOoo', '.ooo.'],
   };
@@ -1220,6 +1319,8 @@
     treat_bread: () => ['.oooo.', 'oOOOOo', 'oOOOOo', 'oooooo'],
     treat_apple: () => ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
     treat_melon: () => ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
+    treat_kelp: () => ['.g..g.', 'gg.gg.', '.gg.gg', 'gg.gg.', '.gg.g.', '..g...'],
+    treat_shrimp: () => ['..rrr.', '.r...r', 'rRrr..', 'rrRr..', '.rrRr.', '...rr.'],
     treat_cake: () => ['..y..', '..r..', '.www.', 'ppppp', 'wwwww', 'ppppp'],
     cake: () => ['..y..y..', '..r..r..', '.wwwwww.', 'pppppppp', 'wwwwwwww', 'pppppppp'],
     cup: () => ['kkkkkk.', 'kwwwwkk', 'kwoowk.k', 'kwwwwkk', '.kkkk..'],

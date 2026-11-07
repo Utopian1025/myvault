@@ -161,7 +161,8 @@
           ${eco ? `<div class="eco"><div><b>家</b>：${esc(eco.home)}</div><div><b>现在</b>：${esc(eco.now)}</div>
             <div><b>醒着的时候</b>：${esc(eco.active)}${eco.hibernate ? ' · 冬天会冬眠' : ''}</div>
             <div><b>吃什么</b>：${esc(eco.diet)}</div><div><b>喜欢</b>：${esc(eco.likes)}</div><div><b>讨厌</b>：${esc(eco.hates)}</div>
-            <details><summary>它的一天</summary><div class="muted" style="line-height:1.6">${esc(eco.about)}</div></details></div>` : ''}
+            <details><summary>它的一天</summary><div class="muted" style="line-height:1.6">${esc(eco.about)}</div></details>
+            ${eco.year ? `<details><summary>一年四季</summary><div class="muted" style="line-height:1.7">${eco.year.map(([n, t]) => `<b>${n}</b>：${esc(t)}`).join('<br>')}</div></details>` : ''}</div>` : ''}
           <div>最爱吃：${p.sp.favName} · 才艺：${p.sp.trick}（双击）</div>
           ${p.sp.sig ? `<div>它的习性：${p.sp.sig}</div>` : ''}
           <div>被摸了 ${p.d.stats.pets} 次 · 被戳了 ${p.d.stats.pokes} 次 · 送过你 ${p.d.stats.gifts} 份礼物</div>
@@ -349,16 +350,20 @@
       const s = G.save.settings, api = window.petAPI;
       const opts = [];
       for (const p of G.all) opts.push({ key: 'pet:' + p.d.id, label: p.name, species: p.d.species, pal: p.pal, coat: p.d.shiny ? 'shiny' : p.d.coat, lop: p.d.lop });
-      for (const k of PP.SPECIES_LIST) { const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c }); }
+      // 已经领养的用它自己的花色；没领养过的物种再补一个默认花色（同一种不重复出现）
+      const have = new Set(G.all.map((p) => p.d.species));
+      for (const k of PP.SPECIES_LIST) { if (have.has(k)) continue; const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c }); }
+      // 只画动物本身：透明底、没有框；按它实际占的范围裁好、放大到铺满图标
       const draw = (o, size) => {
+        const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop });
+        const tmp = document.createElement('canvas'); tmp.width = tmp.height = 64; const tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false;
+        PP.SPR.blit(tc, buf, 0, 0, 2);
+        const d = tc.getImageData(0, 0, 64, 64).data; let x0 = 64, y0 = 64, x1 = 0, y1 = 0;
+        for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (d[(y * 64 + x) * 4 + 3] > 20) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+        const bw = x1 - x0 + 1, bh = y1 - y0 + 1, sc = Math.max(1, Math.floor((size * 0.96) / Math.max(bw, bh)));
         const cv = document.createElement('canvas'); cv.width = cv.height = size;
         const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
-        // 圆角底色 + 动物（头部放大一点更像图标）
-        const r = size * 0.18; c.fillStyle = '#fff3c4'; c.beginPath(); c.moveTo(r, 0); c.arcTo(size, 0, size, size, r); c.arcTo(size, size, 0, size, r); c.arcTo(0, size, 0, 0, r); c.arcTo(0, 0, size, 0, r); c.fill();
-        c.lineWidth = Math.max(2, size / 32); c.strokeStyle = '#231c20'; c.stroke();
-        const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop });
-        const sc = Math.max(1, Math.floor(size / 26));
-        PP.SPR.blit(c, buf, Math.round(size / 2 - 16 * sc), Math.round(size * 0.97 - 31 * sc), sc);
+        c.drawImage(tmp, x0, y0, bw, bh, Math.round((size - bw * sc) / 2), Math.round((size - bh * sc) / 2), bw * sc, bh * sc);
         return cv;
       };
       const box = $(`<div class="appicon"><p class="lead">选一只，托盘图标${navigator.platform.startsWith('Win') ? '、桌面和开始菜单的快捷方式' : ''}就会变成它。</p><div class="grid"></div><div class="row"><button class="small reset">恢复默认图标</button></div><p class="muted tip"></p></div>`);

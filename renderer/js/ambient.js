@@ -8,7 +8,8 @@
 
   // 粉噪（比白噪音柔和很多）/ 褐噪（低沉）
   function makeNoise(kind) {
-    const len = ac.sampleRate * 6, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    // 30 秒一段（以前 6 秒，循环太短能听出重复）
+    const len = ac.sampleRate * 30, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
     let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
     for (let i = 0; i < len; i++) {
       const w = Math.random() * 2 - 1;
@@ -20,18 +21,26 @@
       }
     }
     // 首尾交叉淡化，循环时听不出接缝
-    const f = Math.floor(ac.sampleRate * 0.25);
+    const f = Math.floor(ac.sampleRate * 1.5);
     for (let i = 0; i < f; i++) { const a = i / f; d[i] = d[i] * a + d[len - f + i] * (1 - a); }
     return b;
   }
   function bed(buf, bus, type, freq, q, type2, freq2) {
-    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration - 0.25;
+    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration - 1.5;
     src.playbackRate.value = 0.94 + Math.random() * 0.12;
+    // 慢慢起伏：音色和音量各有一个很慢的、互不同步的变化（几十秒一个周期），听起来像真的风雨而不是录音循环
+    const lfo = ac.createOscillator(); lfo.frequency.value = 0.013 + Math.random() * 0.03;
+    const lfoAmt = ac.createGain(); lfoAmt.gain.value = freq * 0.18;
     const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
     let tail = f;
     if (type2) { const f2 = ac.createBiquadFilter(); f2.type = type2; f2.frequency.value = freq2; f.connect(f2); tail = f2; }
     const g = ac.createGain(); g.gain.value = 0;
-    src.connect(f); tail.connect(g).connect(bus); src.start(0, Math.random() * 4);
+    const swell = ac.createGain(); swell.gain.value = 1;
+    const lfo2 = ac.createOscillator(); lfo2.frequency.value = 0.021 + Math.random() * 0.04;
+    const lfo2Amt = ac.createGain(); lfo2Amt.gain.value = 0.22;
+    lfo.connect(lfoAmt).connect(f.frequency); lfo2.connect(lfo2Amt).connect(swell.gain);
+    lfo.start(); lfo2.start();
+    src.connect(f); tail.connect(swell).connect(g).connect(bus); src.start(0, Math.random() * (buf.duration - 3));
     return { src, f, g };
   }
   function init() {
@@ -46,13 +55,15 @@
     outLP = ac.createBiquadFilter(); outLP.type = 'lowpass'; outLP.frequency.value = 12000;
     outBus = ac.createGain(); outBus.connect(outLP).connect(master);
     inBus = ac.createGain(); inBus.connect(master);
-    pinkBuf = makeNoise('pink'); brownBuf = makeNoise('brown');
+    // 每种声音用自己的一段噪声（不共用），从随机位置开始，互相之间不会“同步”重复
+    const P = () => makeNoise('pink'), B = () => makeNoise('brown');
+    pinkBuf = P(); brownBuf = B(); const brown2 = B(), brown3 = B(), pink2 = P();
     beds = {
       rain: bed(pinkBuf, outBus, 'highpass', 500, 0.5, 'lowpass', 4200),   // 雨丝：沙沙
-      rainBody: bed(brownBuf, outBus, 'lowpass', 700, 0.6),                // 雨落地：厚一点的底
-      wind: bed(brownBuf, outBus, 'bandpass', 420, 0.7),                    // 风：慢慢起伏
+      rainBody: bed(brown2, outBus, 'lowpass', 700, 0.6),                // 雨落地：厚一点的底
+      wind: bed(brown3, outBus, 'bandpass', 420, 0.7),                    // 风：慢慢起伏
       water: bed(brownBuf, outBus, 'lowpass', 520, 0.5),                   // 湖水
-      snowHush: bed(pinkBuf, outBus, 'lowpass', 900, 0.4),                 // 下雪时很轻的“嘶——”
+      snowHush: bed(pink2, outBus, 'lowpass', 900, 0.4),                 // 下雪时很轻的“嘶——”
       fire: bed(brownBuf, inBus, 'lowpass', 320, 0.6),                     // 炉火低低的呼呼声
     };
     return true;
@@ -103,9 +114,9 @@
     if (!init()) return;
     if (ac.state === 'suspended') ac.resume().catch(() => {});
     const s = G.save.settings, e = PP.env.get();
-    const scene = (PP.scene && PP.scene.view()) || 'forest', inside = false;
+    const scene = (PP.scene && PP.scene.view()) || 'forest', under = scene === 'sea', inside = !!(PP.scene && PP.scene.inside && PP.scene.inside()) || under;
     // 雪原在山上：下雨在这里是下雪（和画面一致）
-    const F = scene === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0, storm: 0 }) : e.fx;
+    const F = under ? Object.assign({}, e.fx, { rain: 0, snow: 0, storm: 0, wind: 0 }) : scene === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0, storm: 0 }) : e.fx;
     // 你在打字工作的时候，环境声自动调小一些
     const duck = PP.F && PP.F.working && PP.F.working() ? 0.45 : 1;
     master.gain.setTargetAtTime(0.9 * (s.ambientVol != null ? s.ambientVol : 0.5) * duck, ac.currentTime, 0.8);
@@ -125,19 +136,19 @@
     set(beds.wind, wind * (1 + Math.sin(G.t * 0.21) * 0.35), 1.2);
     beds.wind.f.frequency.setTargetAtTime(330 + Math.sin(G.t * 0.13) * 120 + F.wind * 40, ac.currentTime, 1.5);
     // 湖水：结冰就没声音
-    set(beds.water, scene === 'lake' && season !== 'winter' ? 0.05 + Math.sin(G.t * 0.35) * 0.015 : scene === 'forest' && season !== 'winter' ? 0.022 : 0, 0.8);
+    set(beds.water, under ? 0.08 + Math.sin(G.t * 0.25) * 0.02 : scene === 'beach' ? 0.06 + Math.sin(G.t * 0.5) * 0.03 : scene === 'lake' && season !== 'winter' ? 0.05 + Math.sin(G.t * 0.35) * 0.015 : scene === 'forest' && season !== 'winter' ? 0.022 : 0, 0.8);
     set(beds.snowHush, F.snow ? 0.008 + F.snow * 0.01 : 0);
-    const fireOn = inside && (season === 'winter' || (e.weather.temp != null && e.weather.temp < 12) || night || F.rain > 0.6);
+    const fireOn = inside && !under && (season === 'winter' || (e.weather.temp != null && e.weather.temp < 12) || night || F.rain > 0.6);
     set(beds.fire, fireOn ? 0.035 : 0);
 
     const now = performance.now(), dt = Math.min(1, (now - (last || now)) / 1000); last = now;
     const quietWx = F.rain || F.snow || F.storm;
     const dawn = e.time.phase === 'dawn';
-    if (!quietWx && !night && season !== 'winter' && Math.random() < dt * (scene === 'forest' ? 0.18 : 0.1) * (dawn ? 2.5 : 1)) bird();
+    if (!under && !quietWx && !night && season !== 'winter' && Math.random() < dt * (scene === 'forest' || scene === 'jungle' ? 0.18 : 0.1) * (dawn ? 2.5 : 1)) bird();
     if (night && scene === 'forest' && !quietWx && Math.random() < dt * 0.025) owl();
-    if (night && (season === 'summer' || season === 'autumn') && !F.rain && Math.random() < dt * 1.2) cricket();
+    if (!under && night && (season === 'summer' || season === 'autumn') && !F.rain && Math.random() < dt * 1.2) cricket();
     if (night && season === 'summer' && scene === 'lake' && !F.rain && Math.random() < dt * 0.15) frog();
-    if (scene === 'lake' && Math.random() < dt * (season !== 'winter' ? 0.2 : 0.08)) drip(); // 湖水 / 温泉咕嘟
+    if ((scene === 'lake' || under) && Math.random() < dt * (under ? 0.5 : season !== 'winter' ? 0.2 : 0.08)) drip(); // 湖水 / 温泉咕嘟
     if (F.rain && F.rain < 0.6 && Math.random() < dt * 6) rainTick();
     if (fireOn && Math.random() < dt * 2.2) crackle();
     if (F.storm && Math.random() < dt * 0.03) thunder(false);

@@ -101,11 +101,30 @@
     else { P(7, 7, '#ffd84a'); for (let y = 3; y < 12; y += 2) P(3, y, '#b07a46', 6, 1); }
     orb.classList.toggle('mini', m === 'mini');
   }
+  // 大家在哪：每只在哪个地方、在干嘛；点一下过去看它，在家的可以进家里看或者叫出来
+  function whereList() {
+    const list = G.all.filter((p) => !p.d.hidden);
+    if (!list.length || !PP.eco) return '';
+    const rows = list.map((p) => {
+      const d = PP.eco.describe(p), home = p.d.inHome;
+      const btns = home ? `<button class="small" data-pid="${p.d.id}" data-w="in">进家看</button><button class="small" data-pid="${p.d.id}" data-w="out">叫出来</button>` : `<button class="small" data-pid="${p.d.id}" data-w="go">去看</button>`;
+      return `<div class="w"><b>${esc(p.name)}</b><span title="${esc(d.now)}">${esc(d.now)}</span>${btns}</div>`;
+    }).join('');
+    return `<div class="where"><span>大家在哪</span>${rows}</div>`;
+  }
+  function whereGo(p, w) {
+    if (w === 'in') { PP.scene.enter(p.d.species); return; }
+    if (w === 'out') { if (PP.scene.view() !== p.d.scene || PP.scene.inside()) { PP.scene.leave(); if (PP.scene.view() !== p.d.scene) { PP.scene.go(p.d.scene); setTimeout(() => PP.eco.callOut(p.d.species), 900); return; } } PP.eco.callOut(p.d.species); return; }
+    const sc = p.eco && p.eco.state === 'travel' ? p.eco.to : p.d.scene;
+    if (PP.scene.inside()) PP.scene.leave();
+    PP.scene.go(sc);
+  }
   function showPop() {
     hidePop();
     const s = S();
     pop = $(`<div class="orb-pop"><div class="modes">${PP.MODES.map(([k, n, d]) => `<button class="small ${s.mode === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div>
       <div class="scenes">${Object.entries(PP.SCENES).map(([k, v]) => `<button class="small ${s.scene === k && PP.scene.active() ? 'on' : ''}" data-s="${k}">${v.name}</button>`).join('')}</div>
+      ${whereList()}
       <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
       <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
       <div class="env">${esc(PP.env.label())}</div></div>`);
@@ -117,6 +136,7 @@
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.m) PP.setMode(b.dataset.m);
       if (b.dataset.s) PP.scene.go(b.dataset.s);
+      if (b.dataset.pid) { const p = G.all.find((x) => x.d.id === b.dataset.pid); if (p) whereGo(p, b.dataset.w); }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showPop(); return; }
       if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showPop(); return; }
       if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showPop(); return; }

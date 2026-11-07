@@ -189,7 +189,51 @@
       },
     },
   });
-  PP.SPECIES_LIST = ['cat', 'dog', 'rabbit', 'hamster', 'penguin', 'fox', 'frog', 'chick', 'duck', 'pig', 'capybara', 'hedgehog'];
+  // 海底的伙伴
+  const tidal = curve((h) => (h >= 22 || h < 5 ? 0.85 : h >= 12 && h < 15 ? 0.5 : 0.15)); // 海龟：白天慢慢游，中午打个盹
+  const nightCrab = curve((h) => (h >= 9 && h < 16 ? 0.75 : h >= 16 && h < 19 ? 0.3 : 0.1)); // 螃蟹：傍晚和夜里出来
+  Object.assign(PP.SPECIES, {
+    turtle: {
+      name: '海龟', coats: ['green', 'hawks'], fav: 'treat_kelp', favName: '海草', favIcon: 'kelp',
+      chrono: tidal, roam: 0.35, speed: 20, run: 60, pitch: 340,
+      bias: { extro: 0.05, playful: -0.1, lazy: 0.35, timid: 0.1, curious: 0.2, clingy: 0.1, greedy: 0.1, neat: 0.2 },
+      trick: '缩壳', desc: '慢悠悠的老实人，在珊瑚礁和海草地之间游来游去', sig: '慢慢游 · 啃海草 · 夏天上岸在沙滩里下蛋 · 一害羞就缩进壳里',
+      lines: {
+        greet: ['…你好呀', '（慢慢伸出头）', '好久不见～'],
+        hungry: ['想吃海草…', '肚子有点空', '（嚼嚼空气）'],
+        happy: ['（眯眼）', '暖洋洋的', '嗯～'],
+        idle: ['不急，慢慢来', '水流好舒服', '今天游到哪儿呢', '…（发呆）', '珊瑚又长高了'],
+        alone: ['（缩进壳里）', '我在壳里想事情'],
+      },
+    },
+    crab: {
+      name: '螃蟹', coats: ['red', 'hermit', 'blue'], fav: 'treat_shrimp', favName: '小虾', favIcon: 'shrimp',
+      chrono: nightCrab, roam: 0.7, speed: 34, run: 120, pitch: 1300,
+      bias: { extro: 0.1, playful: 0.25, lazy: -0.1, timid: 0.2, curious: 0.3, clingy: -0.1, greedy: 0.25, neat: 0.15 },
+      trick: '挥钳子', desc: '只会横着走，钳子挥得很凶其实胆子很小，爱捡亮晶晶的东西', sig: '横着走 · 挥钳子打招呼 · 在沙里挖洞 · 退潮去潮池觅食',
+      lines: {
+        greet: ['（挥钳子）', '咔咔！', '你来啦～'],
+        hungry: ['有小虾吗', '咔…饿了', '（钳子敲敲地）'],
+        happy: ['咔咔咔！', '（横着转圈）', '嘿嘿'],
+        idle: ['横着走才快', '这颗石子好亮', '咔？', '沙子里有东西', '（吐泡泡）'],
+        alone: ['（钻进沙里）', '咔…'],
+      },
+    },
+    octopus: {
+      name: '章鱼', coats: ['pink', 'orange', 'purple'], fav: 'treat_shrimp', favName: '小虾', favIcon: 'shrimp',
+      chrono: PP.SPECIES.hedgehog.chrono, roam: 0.5, speed: 28, run: 140, pitch: 700,
+      bias: { extro: -0.15, playful: 0.3, lazy: 0.05, timid: 0.2, curious: 0.5, clingy: 0.05, greedy: 0.15, neat: 0.35 },
+      trick: '喷墨', desc: '海里最聪明的家伙，会变颜色、会开罐子，喜欢收集贝壳摆在家门口', sig: '变颜色 · 收集贝壳 · 住在沉船的罐子里 · 受惊会喷一团墨',
+      lines: {
+        greet: ['（八只手一起挥）', '咕噜～', '欢迎！'],
+        hungry: ['想吃小虾', '（触手卷卷）', '咕…饿'],
+        happy: ['（变成粉红色）', '咕噜咕噜！', '开心～'],
+        idle: ['这个贝壳我要了', '我在想事情', '（变了个颜色）', '那个罐子里有什么', '咕噜'],
+        alone: ['（钻进罐子）', '让我躲一会儿'],
+      },
+    },
+  });
+  PP.SPECIES_LIST = ['cat', 'dog', 'rabbit', 'hamster', 'penguin', 'fox', 'frog', 'chick', 'duck', 'pig', 'capybara', 'hedgehog', 'turtle', 'crab', 'octopus'];
 
   PP.TRAITS = [
     ['extro', '社牛', '社恐'],

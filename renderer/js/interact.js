@@ -21,7 +21,7 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .hoverbar:hover, .editbar:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover');
     setInteractive(!!(G.hoverPet || G.hoverItem || G.hoverHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
   };
 
@@ -188,7 +188,7 @@
   function onDown(e) {
     markActive();
     const x = e.clientX, y = e.clientY;
-    if (e.target.closest && e.target.closest('.panel,.menu,.dock,.orb,.orb-pop,.hoverbar,.editbar')) return;
+    if (e.target.closest && e.target.closest('.panel,.menu,.dock,.orb,.orb-pop,.homepop,.hoverbar,.editbar')) return;
     PP.ui.closeMenu();
     if (G.editing) { PP.scene.editDown(x, y, e.button); return; }
     const pet = topPet(x, y), item = pet ? null : topItem(x, y);
