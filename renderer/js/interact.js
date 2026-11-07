@@ -38,12 +38,13 @@
   PP.markActive = markActive;
 
   function topPet(x, y) {
-    for (let i = G.pets.length - 1; i >= 0; i--) if (G.pets[i].hit(x, y)) return G.pets[i];
+    // 近处（画在上面）的优先
+    const order = G.pets.slice().sort((a, b) => b.y - a.y);
+    for (const p of order) if (p.hit(x, y)) return p;
     return null;
   }
   function topItem(x, y) {
-    if (!PP.showItems()) return null;
-    for (let i = G.items.length - 1; i >= 0; i--) { const it = G.items[i]; if (!it.dead && !it.carriedBy && it.hit(x, y)) return it; }
+    for (let i = G.items.length - 1; i >= 0; i--) { const it = G.items[i]; if (!it.dead && !it.carriedBy && PP.itemShown(it) && it.hit(x, y)) return it; }
     return null;
   }
 
@@ -177,7 +178,7 @@
       if (Math.hypot(x - hx, y - hy) < 320) {
         p.cooldown.hunt = 12;
         if (p.d.species === 'hedgehog') { p.curlT = 3; p.interrupt(); continue; } // 刺猬：被吓到缩成球
-        if (p.calm || ['capybara', 'frog', 'pig'].includes(p.d.species)) continue;
+        if (p.calm || ['capybara', 'frog', 'pig'].includes(p.d.species) || (PP.F && PP.F.working())) continue;
         p.run('hunt', PP.ACTIONS.hunt);
         return;
       }
@@ -315,7 +316,6 @@
       api.onCursor((pt) => { if (!press && !dragPet) onMove(pt.x, pt.y); });
       if (api.onKey) api.onKey(() => { markActive(); G.user.lastKey = Date.now(); if (!G.user.typing) { G.user.typing = true; G.user.typingSince = Date.now(); } PP.F && PP.F.onKey(); });
       if (api.onWheel) api.onWheel((dy) => { markActive(); PP.F && PP.F.onWheel(dy); });
-      if (api.onAgent) api.onAgent((m) => PP.F && PP.F.setAgent(m.state, m.text));
       api.onIdle((sec) => {
         const now = Date.now();
         if (sec < 1) {

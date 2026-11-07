@@ -4,8 +4,8 @@
   const U = PP.U, G = PP.G;
 
   const NEED_KEYS = ['hunger', 'thirst', 'bladder', 'energy', 'fun', 'social', 'battery'];
-  // 这些动作需要整只露出来（提醒、AI 反应）
-  const POP = new Set(['remind', 'remindDrink', 'bigStretch', 'agentThink', 'agentDone', 'agentWait', 'landing', 'emerge', 'enterDoor']);
+  // 这些动作需要整只露出来（提醒）
+  const POP = new Set(['remind', 'remindDrink', 'bigStretch', 'landing', 'emerge', 'enterDoor']);
   PP.NEED_NAMES = { hunger: '饱腹', thirst: '口渴', bladder: '如厕', energy: '精力', fun: '快乐', social: '陪伴', battery: '独处电量' };
 
   function randomTraits(species) {
@@ -100,10 +100,14 @@
       if (this.sulk > 0) return '在生你的气';
       return m > 80 ? '超开心' : m > 62 ? '心情不错' : m > 45 ? '还行' : m > 28 ? '有点低落' : '很难过';
     }
-    get headPos() { const S = G.S * (this.scaleMul || 1); return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + this.sinkPx()]; }
+    get headPos() { const S = G.S * (this.scaleMul || 1); return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + this.sinkPx() + (this.wade || 0)]; }
     get busy() { return this.held || this.airborne; }
+    // 脚下的地面：场景里按前后排 / 水面 / 高处算，极简模式就是屏幕底边
+    get floor() { return PP.eco ? PP.eco.floorY(this) : G.ground; }
+    // 被鼠标指着（或者它的图标环开着）：原地停下来看着你
+    get frozen() { return (G.hoverPet === this || PP.ringPet === this) && !this.held && !this.airborne && !this.doorBusy() && !this.transit; }
     // 乖乖待着：这只单独设置的，或者全局“工作模式”
-    get calm() { return !!(this.d.calm || (G.save && G.save.settings.work)); }
+    get calm() { return !!(this.d.calm || (G.save && (G.save.settings.work || G.save.settings.mode === 'mini'))); }
     // 只露个头：沉到屏幕底边以下的像素数
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
@@ -111,7 +115,7 @@
       if (this.inDoor || this.outing) return false;
       const S = G.S * (this.scaleMul || 1);
       const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
-      return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top && my < Math.min(this.y + G.S, G.ground + 2);
+      return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top + (this.wade || 0) && my < this.y + G.S * 2;
     }
     hitHead(mx, my) {
       const S = G.S; const [hx, hy] = this.headPos;
@@ -120,7 +124,8 @@
 
     // ---------- 说话 / 表情 ----------
     say(text, dur = 3.2, kind = 'say') {
-      if (G.save.settings.quiet && kind === 'say' && !this._forceSay) return;
+      if (!text) return;
+      if ((G.save.settings.quiet || (PP.F && PP.F.working && PP.F.working())) && kind === 'say' && !this._forceSay) return;
       this.bubble = { text, icon: null, t: 0, dur, kind };
       PP.audio && PP.audio.chirp(this);
     }
@@ -159,7 +164,7 @@
       this.gen = null; this.action = null; this.waitT = 0; this.waitFn = null; this.target = null;
     }
     cleanupAction() {
-      this.sleeping = false; this.transform = null; this.cheeks = this.cheeks && this.action === 'stash';
+      this.sleeping = false; this.sinkOut = 0; this.transit = false; this.transform = null; this.cheeks = this.cheeks && this.action === 'stash';
       if (this.partner && this.partner.partner === this) this.partner.partner = null;
       this.partner = null;
       this.ears = 'up'; this.wag = null; this.blush = false;
@@ -177,8 +182,12 @@
     }
 
     // 走路
-    goto(x, run = false) {
+    goto(x, run = false, lane) {
       this.target = U.clamp(x, 20, G.W - 20); this.running = run;
+      // 极简模式：只在右下角那一小块走动
+      if (G.save && G.save.settings.mode === 'mini' && PP.miniZone) { const [a, b] = PP.miniZone(); this.target = U.clamp(this.target, a, b); }
+      // 场景里走路时顺便换一排（往前 / 往后），看起来是在场景里走，不是在一条线上
+      if (lane != null) this.tLane = lane; else if (!this.surf && PP.scene && PP.scene.active() && Math.random() < 0.6) this.tLane = U.clamp((this.lane != null ? this.lane : 0.75) + U.rand(-0.35, 0.35), 0.15, 1);
       return () => this.target == null;
     }
 
@@ -208,20 +217,27 @@
       this.peek = !this.held && !this.airborne && (this.action === 'peekIdle' || (headOnly && !POP.has(this.action)));
 
       if (this.held) { this.hopY = 0; this.updateHeld(dt); return; }
-      // 被鼠标指着：停下来看着你（方便点它、摸它；进出门时除外）
-      if (G.hoverPet === this && !this.airborne && !this.doorBusy() && this.target != null) {
-        this.target = null; this.hopP = 0; this.hopY = 0; this.y = G.ground;
-        if (['walk', 'run', 'jump', 'land'].includes(this.anim)) this.anim = 'idle';
-        this.facing = Math.sign(G.mouse.x - this.x) || this.facing;
+      // 被鼠标指着：完全停下来、看着你，等你点图标（进出门、跳跃途中除外）
+      if (this.frozen) {
+        if (this.target != null) this._resume = this.target;
+        this.target = null; this.hopP = 0; this.hopY = 0; this.y = this.floor;
+        if (['walk', 'run', 'jump', 'land', 'fall'].includes(this.anim)) this.anim = 'idle';
+        if (!this.sleeping) this.facing = Math.sign(G.mouse.x - this.x) || this.facing;
+        this.updateLook(dt);
+        return;
       }
+      if (this._resume != null) { if (this.waitFn && this.target == null) this.target = this._resume; this._resume = null; }
       if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
+      // 换排
+      if (this.tLane != null) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * 0.9); }
+      const floor = this.floor;
 
       // 走路
       if (this.target != null) {
         const dx = this.target - this.x;
         const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1);
         const sp = this.sp;
-        if (Math.abs(dx) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; this.y = G.ground; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
+        if (Math.abs(dx) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; if (this.tLane != null) { this.lane = this.tLane; this.tLane = null; } this.y = this.floor; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
         else if (sp.gait === 'hop' && !this.peek) {
           // 一蹦一蹦地走：只有在空中的时候才前进
           this.facing = dx > 0 ? 1 : -1;
@@ -237,14 +253,15 @@
             this.hopY = 0; this.anim = 'land';
             if (!this._landed) { this._landed = true; this.jolt(-1.4, 0); }
           }
-          this.y = G.ground + this.hopY;
+          this.y = floor + this.hopY;
         } else {
           this.facing = dx > 0 ? 1 : -1;
           this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt * (this.calm ? 0.7 : 1));
           this.anim = this.running ? 'run' : 'walk';
           if (this.dizzy > 0) this.x += Math.sin(this.t * 9) * 0.8;
         }
-      } else if (this.hopY) { this.hopY = 0; this.y = G.ground; }
+      } else if (this.hopY) { this.hopY = 0; }
+      if (!this.transit && !this.hopY && !this.airborne) this.y = this.target != null && this.sp.gait === 'hop' ? this.y : floor;
 
       // 行为生成器
       if (this.gen) {
@@ -292,6 +309,7 @@
       if (G.save.settings.peek && PP.F && PP.F.main() === this) { this.run('peekIdle', PP.ACTIONS.peekIdle); return; }
       if (this.d.species === 'hedgehog' && this.curlT > 0) { this.run('curl', PP.ACTIONS.curl, this.curlT); this.curlT = 0; return; }
       const n = this.n, tr = this.tr, now = this.t;
+      const sceneOn = PP.scene && PP.scene.active();
       const userActive = Date.now() - G.user.lastActive < 60000 && G.mouse.onScreen;
       const quiet = G.save.settings.quiet;
       const others = G.pets.filter((p) => p !== this && !p.held);
@@ -331,8 +349,13 @@
       if (spc === 'pig') add('root', !(this.cooldown.root > 0) && n.energy > 25 ? 0.4 : 0);
       if (spc === 'hedgehog') add('forage', !(this.cooldown.forage > 0) && n.energy > 25 ? 0.25 : 0);
       if (spc === 'chick' || spc === 'duck') add('peck', 0.3);
-      // 场景：想去自己喜欢的地方；极简模式下主角跟着你
-      if (PP.scene) { PP.scene.decideHook(this, add); PP.scene.miniHook(this, add); }
+      // 场景里：吃喝拉撒睡都按各自的习性来（去哪儿吃、回家睡、躲雨……见 eco.js）
+      if (sceneOn && PP.eco) {
+        for (let i = sc.length - 1; i >= 0; i--) if (['eat', 'drink', 'toilet', 'sleep', 'dirty', 'soak', 'root', 'forage', 'peck', 'stash', 'wander', 'explore', 'knock'].includes(sc[i][0])) sc.splice(i, 1);
+        if (PP.eco.decide(this, add)) return;
+      }
+      // 工作的时候：不来找你、不追鼠标
+      if (PP.F && PP.F.working && PP.F.working()) for (let i = sc.length - 1; i >= 0; i--) if (['cursor_play', 'seek_user', 'bug', 'special'].includes(sc[i][0])) sc.splice(i, 1);
       const roam = this.sp.roam != null ? this.sp.roam : 1;
       for (const it of sc) if (['wander', 'explore', 'play', 'special'].includes(it[0])) it[1] *= roam;
       if (this.sulk > 0) { sc.length = 0; add('alone', 1); add('idle', 0.5); }
@@ -345,6 +368,7 @@
 
       // 平方放大紧急需求，同时保留随机性
       const choice = U.weighted(sc.map(([a, s]) => [a, s * s + 0.02]));
+      if (choice === 'eco' && this._ecoNext) { this.run('eco', PP.ACTIONS.eco, this._ecoNext); this._ecoNext = null; return; }
       const A = PP.ACTIONS[choice] || PP.ACTIONS.idle;
       this.run(choice, A);
     }
@@ -371,17 +395,22 @@
         E.next -= dt;
         if (E.next <= 0) { E.next = U.rand(0.8, 3.5); const a = Math.random() * Math.PI * 2, r = Math.random() < 0.4 ? 0 : U.rand(0.5, 1.1); E.gx = Math.cos(a) * r; E.gy = Math.sin(a) * r * 0.7; }
       }
-      if (this.action === 'agentThink') { E.gx = -0.9; E.gy = -1; }
       // 眼球弹簧：快速但有一点点过冲，转动看起来是“滑”过去的
-      const k = 160, c = 20;
-      E.vx += (k * (E.gx - E.x) - c * E.vx) * dt; E.vy += (k * (E.gy - E.y) - c * E.vy) * dt;
-      E.x += E.vx * dt; E.y += E.vy * dt;
+      // 分小步积分：一帧太长时弹簧不会“炸掉”（以前卡顿时眼珠会飞出去，画图卡死）
+      const k = 160, c = 20, n = Math.ceil(dt / 0.012), h = dt / n;
+      for (let i = 0; i < n; i++) {
+        E.vx += (k * (E.gx - E.x) - c * E.vx) * h; E.vy += (k * (E.gy - E.y) - c * E.vy) * h;
+        E.x += E.vx * h; E.y += E.vy * h;
+      }
+      if (!isFinite(E.x) || !isFinite(E.y)) { E.x = E.y = E.vx = E.vy = 0; }
+      E.x = U.clamp(E.x, -1.5, 1.5); E.y = U.clamp(E.y, -1.5, 1.5);
       this.look = [E.x, E.y];
     }
 
     // ---------- 被拎起来 ----------
     pickUp() {
       if (this.doorBusy()) { this.inDoor = false; this.doorClip = null; this.y = G.ground; }
+      this.surf = null; this.wade = 0; this.sinkOut = 0; this.transit = false;
       this.interrupt(true);
       this.held = true; this.airborne = false; this.anim = 'held';
       this.heldT = 0; this.shake = 0; this.lastVx = 0;
@@ -429,9 +458,10 @@
       if (this.x > G.W - 20) { this.x = G.W - 20; this.vx = -Math.abs(this.vx) * 0.5; }
       this.anim = this.vy < 0 ? 'jump' : 'fall';
       this.eyes = this.vy > 300 ? 'wide' : this.eyes;
-      if (this.y >= G.ground) {
-        const h = G.ground - this.fallFrom;
-        this.y = G.ground; this.airborne = false; this.vx = 0; this.vy = 0;
+      const fl = this.floor;
+      if (this.y >= fl) {
+        const h = fl - this.fallFrom;
+        this.y = fl; this.airborne = false; this.vx = 0; this.vy = 0;
         this.squash = 0; this.jolt(-Math.min(7, 1.5 + h / 70), (Math.random() - 0.5) * 6);
         PP.puff(this.x, this.y, 4);
         if (!this.thrown) { this.anim = 'idle'; return; }
@@ -465,11 +495,15 @@
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
       });
       const SS = S * (this.scaleMul || 1);
-      const sink = this.sinkPx(); // 只露头：沉到屏幕底下，只露出半个脑袋
+      // 只露头（沉到屏幕底下）/ 泡在水里（下半身在水下）/ 钻进洞里（慢慢沉下去）
+      const sink = this.sinkPx() + (this.wade || 0) + (this.sinkOut ? this.sinkOut * 30 * SS : 0);
       const px = Math.round(this.x - 16 * SS), py = Math.round(this.y - 31 * SS + sink);
-      if (sink) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, G.W, G.ground + 1); ctx.clip(); }
+      const clipY = this.sinkPx() ? G.ground + 1 : this.y + 1;
+      if (sink) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, G.W, clipY); ctx.clip(); }
       PP.SPR.blit(ctx, buf, px, py, SS);
       if (sink) ctx.restore();
+      // 水里：身边一圈小水纹
+      if (this.wade && this.surf && this.surf.water && Math.floor(this.t * 3) % 2 === 0) { ctx.fillStyle = 'rgba(230,246,255,.85)'; ctx.fillRect(Math.round(this.x - 12 * SS), Math.round(this.y), Math.round(6 * SS), Math.max(1, SS)); ctx.fillRect(Math.round(this.x + 6 * SS), Math.round(this.y), Math.round(6 * SS), Math.max(1, SS)); }
       if (this.d.shiny && Math.random() < 0.03) PP.fx({ x: this.x + U.rand(-12, 12) * S, y: this.y - U.rand(4, 26) * S, vy: -10, icon: 'sparkle', life: 0.8, s: 1 });
     }
     renderOverlay(ctx) {

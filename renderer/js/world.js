@@ -21,7 +21,7 @@
   PP.Item = class Item {
     constructor(o) {
       Object.assign(this, { id: U.uid(), type: 'ball', x: 100, y: 0, vx: 0, vy: 0, level: 1, held: false, carriedBy: null, life: Infinity, data: {} }, o);
-      if (!this.y) this.y = G.ground;
+      if (!this.y) this.y = PP.itemFloor ? PP.itemFloor(this) : G.ground;
     }
     get sprite() {
       switch (this.type) {
@@ -52,12 +52,13 @@
     update(dt) {
       if (this.held || this.carriedBy) return;
       const physical = ['ball', 'treat', 'gift', 'cup', 'holiday', 'poop'].includes(this.type);
-      if (!physical) { this.y = G.ground; return; }
-      if (this.y < G.ground || this.vy !== 0 || this.vx !== 0) {
+      const fl = PP.itemFloor ? PP.itemFloor(this) : G.ground;
+      if (!physical) { this.y = fl; return; }
+      if (this.y < fl || this.vy !== 0 || this.vx !== 0) {
         this.vy += 1400 * dt;
         this.x += this.vx * dt; this.y += this.vy * dt;
-        if (this.y >= G.ground) {
-          this.y = G.ground;
+        if (this.y >= fl) {
+          this.y = fl;
           if (Math.abs(this.vy) > 120 && this.type === 'ball') { this.vy = -this.vy * 0.55; }
           else this.vy = 0;
           this.vx *= this.type === 'ball' ? 0.92 : 0.6;
@@ -129,12 +130,30 @@
       // 极简：只留主角（正在走回门里的也先留着，等它进去）
       const main = vis.find((p) => p.d.id === s.mainId) || vis.find((p) => p.d.id === s.miniMain) || vis[0];
       G.pets = vis.filter((p) => p === main || (p.action === 'enterDoor' && G.pets.includes(p)));
+    } else if (PP.eco) {
+      // 场景里：只显示正在这个场景、没在家里、没在路上的（刚叫回电脑的也等它走进门）
+      G.pets = vis.filter((p) => PP.eco.visible(p) || (p.action === 'enterDoor' && G.pets.includes(p)));
     } else G.pets = vis;
   };
-  PP.addPet = (p) => { G.all.push(p); PP.syncPets(); };
+  // 新来的 / 从电脑里叫出来的：先出现在你正在看的这个场景，之后自己回家
+  PP.hereNow = (p) => { if (PP.scene && G.save && G.save.settings.mode !== 'mini') { p.d.scene = PP.scene.view(); p.d.inHome = false; p.eco = null; p._shown = true; } };
+  PP.addPet = (p) => { PP.hereNow(p); G.all.push(p); PP.syncPets(); };
   PP.removePet = (p) => { G.all = G.all.filter((q) => q !== p); PP.syncPets(); };
-  PP.findItem = (type, pred) => G.items.find((i) => i.type === type && !i.dead && (!pred || pred(i)));
-  PP.addItem = (o) => { const it = new PP.Item(o); G.items.push(it); return it; };
+  // 物品属于某个地方：极简模式（mini）或者某个场景；只在那个地方看得到、用得到
+  PP.place = () => (G.save && G.save.settings.mode === 'mini' ? 'mini' : (PP.scene && PP.scene.view()) || 'forest');
+  const HOMEY = new Set(['food', 'water', 'bed', 'litter']); // 家里用的东西：只在极简模式
+  PP.itemHere = (i) => HOMEY.has(i.type) || (i.scene || 'mini') === PP.place();
+  // 画出来的：饭碗水碗这些“家里的东西”不画（场景里大家在野外吃喝）
+  PP.itemShown = (i) => !HOMEY.has(i.type) && (i.scene || 'mini') === PP.place();
+  // 物品落在哪：场景里落在地面的某一排
+  PP.itemFloor = (i) => {
+    if (!G.save || G.save.settings.mode === 'mini' || !PP.scene) return G.ground;
+    const l = PP.scene.layout(); if (!l) return G.ground;
+    const back = l.g.y0 + (l.L.base + 1) * l.g.u;
+    return Math.round(back + (G.ground - back) * (i.lane != null ? i.lane : (i.lane = 0.6 + Math.random() * 0.35)));
+  };
+  PP.findItem = (type, pred) => G.items.find((i) => i.type === type && !i.dead && PP.itemHere(i) && (!pred || pred(i)));
+  PP.addItem = (o) => { const it = new PP.Item(o); if (!it.scene && !HOMEY.has(it.type)) it.scene = PP.place(); G.items.push(it); return it; };
 
   // ---------- 粒子 ----------
   // kind: icon | text | dot | leaf | snow | firefly | star | confetti | score

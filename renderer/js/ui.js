@@ -143,7 +143,7 @@
           <div>相伴第 <b>${days}</b> 天</div>
           <div class="tags">${traits.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
           <div>对你：<span class="hearts">${hearts}</span> ${p.affName}</div>
-          <div>现在：${p.moodName}${p.action ? ` · ${actName(p.action)}` : ''}</div>`;
+          <div>现在：${p.moodName}${p.action === 'eco' && p.ecoTask ? ` · ${esc(p.ecoTask.label || '')}` : p.action ? ` · ${actName(p.action)}` : ''}</div>`;
         box.querySelector('.rename').onclick = () => {
           const nm = box.querySelector('.nm');
           nm.innerHTML = `<input maxlength="8" value="${esc(p.name)}"> <button class="small ok">好</button>`;
@@ -156,7 +156,12 @@
           return `<div class="need"><span>${nm}</span><i><em style="width:${v}%" class="${v < 25 ? 'low' : ''}"></em></i></div>`;
         }).join('');
         const rels = G.pets.filter((o) => o !== p).map((o) => { const r = p.relWith(o); return `${esc(o.name)} ${r > 70 ? '好朋友' : r > 45 ? '朋友' : r > 25 ? '一般' : '不太合'}`; });
+        const eco = PP.eco ? PP.eco.describe(p) : null;
         box.querySelector('.more').innerHTML = `
+          ${eco ? `<div class="eco"><div><b>家</b>：${esc(eco.home)}</div><div><b>现在</b>：${esc(eco.now)}</div>
+            <div><b>醒着的时候</b>：${esc(eco.active)}${eco.hibernate ? ' · 冬天会冬眠' : ''}</div>
+            <div><b>吃什么</b>：${esc(eco.diet)}</div><div><b>喜欢</b>：${esc(eco.likes)}</div><div><b>讨厌</b>：${esc(eco.hates)}</div>
+            <details><summary>它的一天</summary><div class="muted" style="line-height:1.6">${esc(eco.about)}</div></details></div>` : ''}
           <div>最爱吃：${p.sp.favName} · 才艺：${p.sp.trick}（双击）</div>
           ${p.sp.sig ? `<div>它的习性：${p.sp.sig}</div>` : ''}
           <div>被摸了 ${p.d.stats.pets} 次 · 被戳了 ${p.d.stats.pokes} 次 · 送过你 ${p.d.stats.gifts} 份礼物</div>
@@ -180,7 +185,7 @@
       if (!G.all.length) { ui.adopt(); return; }
       const box = $(`<div class="overview"></div>`);
       for (const p of G.all) {
-        const r = $(`<button class="ov"><b>${esc(p.name)}</b><span>${p.d.hidden ? '放假中（不显示）' : p.moodName}</span><span>${p.d.hidden ? '' : actName(p.action)}</span></button>`);
+        const r = $(`<button class="ov"><b>${esc(p.name)}</b><span>${p.d.hidden ? '放假中（不显示）' : p.moodName}</span><span>${p.d.hidden ? '' : PP.eco ? esc(PP.eco.describe(p).now) : actName(p.action)}</span></button>`);
         r.onclick = () => ui.petPanel(p);
         box.appendChild(r);
       }
@@ -310,8 +315,9 @@
         <label>喝水提醒 每 <input type="number" class="water" min="0" max="240" step="5" style="width:64px"> 分钟（0 = 关）</label>
         <label>站立提醒 每 <input type="number" class="stretch" min="0" max="240" step="5" style="width:64px"> 分钟（0 = 关）</label>
         <label>番茄钟 专注 <input type="number" class="pf" min="5" max="120" style="width:56px"> 分钟，休息 <input type="number" class="pb" min="1" max="60" style="width:56px"> 分钟</label>
-        <div><b>每天定时提醒</b></div><div class="list"></div>
-        <div class="row"><input class="nt" type="time" value="15:00"><input class="nx" maxlength="16" placeholder="提醒内容，比如：开会"><button class="small add">添加</button></div>
+        <div><b>定时提醒</b>（每天，或者每周固定几天）</div><div class="list"></div>
+        <div class="row"><input class="nt" type="time" value="15:00"><input class="nx" maxlength="16" placeholder="提醒内容，比如：周会"><button class="small add">添加</button></div>
+        <div class="row weekdays"><span class="muted">重复：</span>${['一', '二', '三', '四', '五', '六', '日'].map((d, i) => `<label class="wd"><input type="checkbox" value="${i + 1}">周${d}</label>`).join('')}<span class="muted">（都不勾 = 每天）</span></div>
         <div class="muted">提醒由“主角”宠物来做（右键宠物 → 设为主角）：喝水时它先跑去喝一口再叫你；站立提醒时它会变大、伸个大懒腰。只在你在电脑前时提醒，番茄钟专注期间不打扰。</div>
       </div>`);
       const q = (c) => box.querySelector(c);
@@ -323,54 +329,54 @@
       q('.pb').onchange = (e) => { s.pomo.brk = U.clamp(+e.target.value || 5, 1, 60); PP.save.soon(); };
       const renderList = () => {
         const L = q('.list');
-        L.innerHTML = (s.rem.list || []).map((r, i) => `<div class="row" style="margin:2px 0"><label><input type="checkbox" data-i="${i}" ${r.on ? 'checked' : ''}> ${esc(r.time)} ${esc(r.text)}</label><button class="small del" data-i="${i}">删除</button></div>`).join('') || '<div class="muted">还没有</div>';
+        const when = (r) => !r.days || !r.days.length || r.days.length === 7 ? '每天' : r.days.length === 5 && [1, 2, 3, 4, 5].every((d) => r.days.includes(d)) ? '工作日' : '每周' + r.days.slice().sort().map((d) => '一二三四五六日'[d - 1]).join('、');
+        L.innerHTML = (s.rem.list || []).map((r, i) => `<div class="row" style="margin:2px 0"><label><input type="checkbox" data-i="${i}" ${r.on ? 'checked' : ''}> <b>${when(r)}</b> ${esc(r.time)} ${esc(r.text)}</label><button class="small del" data-i="${i}">删除</button></div>`).join('') || '<div class="muted">还没有</div>';
         L.querySelectorAll('input[type=checkbox]').forEach((c) => (c.onchange = () => { s.rem.list[+c.dataset.i].on = c.checked; PP.save.soon(); }));
         L.querySelectorAll('.del').forEach((b) => (b.onclick = () => { s.rem.list.splice(+b.dataset.i, 1); renderList(); PP.save.soon(); }));
       };
       renderList();
-      q('.add').onclick = () => { const t = q('.nt').value, x = q('.nx').value.trim(); if (!t || !x) return; s.rem.list.push({ time: t, text: x, on: true }); q('.nx').value = ''; renderList(); PP.save.soon(); };
+      q('.add').onclick = () => {
+        const t = q('.nt').value, x = q('.nx').value.trim(); if (!t || !x) return;
+        const days = [...box.querySelectorAll('.weekdays input:checked')].map((c) => +c.value);
+        s.rem.list.push({ time: t, text: x, on: true, days: days.length && days.length < 7 ? days : null });
+        q('.nx').value = ''; box.querySelectorAll('.weekdays input').forEach((c) => (c.checked = false)); renderList(); PP.save.soon();
+      };
       ui.panel('提醒 & 番茄钟', box, { wide: true });
     },
 
-    // AI 联动：讲清楚它是什么，一键接入
-    aiPanel() {
-      const box = $(`<div class="settings ai">
-        <p class="lead">如果你用 <b>Claude Code</b>（在终端里写代码的 AI 助手），可以让主角宠物陪着它一起干活：</p>
-        <ul class="muted" style="margin:0 0 8px 16px;padding:0;line-height:1.7">
-          <li>你给 AI 提问后 → 宠物托着腮、头上冒“…”，<b>陪它一起想</b></li>
-          <li>AI 做完了 → 宠物<b>跳起来喵一声</b>告诉你，你可以先去干别的</li>
-          <li>AI 需要你点“允许” → 宠物<b>转过来朝你招手</b></li>
-        </ul>
-        <div class="status muted">检查中…</div>
-        <div class="row"><button class="primary install">一键接入 Claude Code</button><button class="small remove">断开</button></div>
-        <div style="margin-top:10px"><b>试一试效果</b>（不用 AI 也能看）</div>
-        <div class="row"><button class="small t1">AI 开始思考</button><button class="small t2">AI 做完了</button><button class="small t3">AI 需要你确认</button></div>
-        <details style="margin-top:10px"><summary class="muted">手动配置 / 其他 AI 工具</summary>
-          <div class="muted">接入其实就是往 ~/.claude/settings.json 里加几条 hooks。其他工具也可以：在合适的时候访问 http://127.0.0.1:47231/agent/thinking（思考）、/agent/done（完成）、/agent/waiting（等你确认）、/agent/idle（结束）即可，后面可以加 ?text=想让它说的话</div>
-          <textarea class="hook" readonly rows="6" style="width:100%;font-size:11px"></textarea>
-          <div class="row"><button class="small copy">复制</button></div>
-        </details>
-      </div>`);
-      const q = (c) => box.querySelector(c);
-      const api = window.petAPI;
-      const refresh = () => {
-        if (!api || !api.hookStatus) { q('.status').textContent = '网页试玩版不能接入，安装桌面版后可以。下面的按钮可以先看看效果。'; q('.install').disabled = true; q('.remove').disabled = true; return; }
-        api.hookStatus().then((st) => {
-          q('.status').innerHTML = st.installed ? '状态：<b>已接入</b> ✓ 之后在 Claude Code 里提问，主角宠物就会有反应（已经开着的 Claude Code 需要重开一次）' : st.hasClaudeDir ? '状态：还没接入' : '状态：还没接入（没找到 Claude Code 的配置目录，没装也没关系，接入后装上就能用）';
-          q('.install').textContent = st.installed ? '重新接入' : '一键接入 Claude Code';
-        });
+    // 软件图标：托盘、桌面快捷方式、开始菜单的图标换成喜欢的动物
+    appIconPanel() {
+      const s = G.save.settings, api = window.petAPI;
+      const opts = [];
+      for (const p of G.all) opts.push({ key: 'pet:' + p.d.id, label: p.name, species: p.d.species, pal: p.pal, coat: p.d.shiny ? 'shiny' : p.d.coat, lop: p.d.lop });
+      for (const k of PP.SPECIES_LIST) { const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c }); }
+      const draw = (o, size) => {
+        const cv = document.createElement('canvas'); cv.width = cv.height = size;
+        const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+        // 圆角底色 + 动物（头部放大一点更像图标）
+        const r = size * 0.18; c.fillStyle = '#fff3c4'; c.beginPath(); c.moveTo(r, 0); c.arcTo(size, 0, size, size, r); c.arcTo(size, size, 0, size, r); c.arcTo(0, size, 0, 0, r); c.arcTo(0, 0, size, 0, r); c.fill();
+        c.lineWidth = Math.max(2, size / 32); c.strokeStyle = '#231c20'; c.stroke();
+        const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop });
+        const sc = Math.max(1, Math.floor(size / 26));
+        PP.SPR.blit(c, buf, Math.round(size / 2 - 16 * sc), Math.round(size * 0.97 - 31 * sc), sc);
+        return cv;
       };
-      refresh();
-      if (api && api.hookInstall) {
-        q('.install').onclick = () => api.hookInstall().then((r) => { ui.toast(r.ok ? '接入好了！原来的设置已备份' : '没成功：' + r.msg, r.ok ? 'info' : 'info'); refresh(); });
-        q('.remove').onclick = () => api.hookUninstall().then((r) => { ui.toast(r.msg); refresh(); });
-        api.hookConfig().then((t) => (q('.hook').value = t));
+      const box = $(`<div class="appicon"><p class="lead">选一只，托盘图标${navigator.platform.startsWith('Win') ? '、桌面和开始菜单的快捷方式' : ''}就会变成它。</p><div class="grid"></div><div class="row"><button class="small reset">恢复默认图标</button></div><p class="muted tip"></p></div>`);
+      const grid = box.querySelector('.grid');
+      for (const o of opts) {
+        const b = $(`<button class="ic ${s.appIcon === o.key ? 'on' : ''}" title="${esc(o.label)}"><span>${esc(o.label)}</span></button>`);
+        b.prepend(draw(o, 64));
+        b.onclick = async () => {
+          s.appIcon = o.key; PP.save.soon();
+          grid.querySelectorAll('.ic').forEach((x) => x.classList.toggle('on', x === b));
+          if (!api || !api.setAppIcon) { box.querySelector('.tip').textContent = '网页试玩版不能换软件图标，安装桌面版后可以。'; return; }
+          const r = await api.setAppIcon({ png: draw(o, 256).toDataURL('image/png') });
+          box.querySelector('.tip').textContent = r.ok ? `换好了！${r.shortcuts ? '桌面图标如果没马上变，刷新一下桌面（F5）就好。' : ''}` : '没换成：' + (r.msg || '');
+        };
+        grid.appendChild(b);
       }
-      q('.copy').onclick = () => { q('.hook').select(); document.execCommand('copy'); ui.toast('已复制'); };
-      q('.t1').onclick = () => PP.F.setAgent('thinking');
-      q('.t2').onclick = () => PP.F.setAgent('done');
-      q('.t3').onclick = () => PP.F.setAgent('waiting');
-      ui.panel('AI 联动', box, { wide: true });
+      box.querySelector('.reset').onclick = async () => { s.appIcon = null; PP.save.soon(); grid.querySelectorAll('.ic').forEach((x) => x.classList.remove('on')); if (api && api.setAppIcon) await api.setAppIcon(null); box.querySelector('.tip').textContent = '已恢复默认图标'; };
+      ui.panel('软件图标', box, { wide: true });
     },
     dropTreat(x, sprite) { dropTreat(x, sprite); },
     thoughts(p) { thoughts(p); },

@@ -102,9 +102,13 @@
     if (!on()) { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.6); return; }
     if (!init()) return;
     if (ac.state === 'suspended') ac.resume().catch(() => {});
-    const s = G.save.settings, e = PP.env.get(), F = e.fx;
-    master.gain.setTargetAtTime(0.9 * (s.ambientVol != null ? s.ambientVol : 0.5), ac.currentTime, 0.8);
-    const scene = s.scene || 'forest', inside = scene === 'cabin';
+    const s = G.save.settings, e = PP.env.get();
+    const scene = (PP.scene && PP.scene.view()) || 'forest', inside = false;
+    // 雪原在山上：下雨在这里是下雪（和画面一致）
+    const F = scene === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0, storm: 0 }) : e.fx;
+    // 你在打字工作的时候，环境声自动调小一些
+    const duck = PP.F && PP.F.working && PP.F.working() ? 0.45 : 1;
+    master.gain.setTargetAtTime(0.9 * (s.ambientVol != null ? s.ambientVol : 0.5) * duck, ac.currentTime, 0.8);
     const night = e.time.phase === 'night', season = e.season;
     // 屋里：外面的声音隔着墙，闷一点、小一点
     if (inside !== wasInside) {
@@ -121,7 +125,7 @@
     set(beds.wind, wind * (1 + Math.sin(G.t * 0.21) * 0.35), 1.2);
     beds.wind.f.frequency.setTargetAtTime(330 + Math.sin(G.t * 0.13) * 120 + F.wind * 40, ac.currentTime, 1.5);
     // 湖水：结冰就没声音
-    set(beds.water, scene === 'lake' && season !== 'winter' ? 0.05 + Math.sin(G.t * 0.35) * 0.015 : 0, 0.8);
+    set(beds.water, scene === 'lake' && season !== 'winter' ? 0.05 + Math.sin(G.t * 0.35) * 0.015 : scene === 'forest' && season !== 'winter' ? 0.022 : 0, 0.8);
     set(beds.snowHush, F.snow ? 0.008 + F.snow * 0.01 : 0);
     const fireOn = inside && (season === 'winter' || (e.weather.temp != null && e.weather.temp < 12) || night || F.rain > 0.6);
     set(beds.fire, fireOn ? 0.035 : 0);
@@ -133,7 +137,7 @@
     if (night && scene === 'forest' && !quietWx && Math.random() < dt * 0.025) owl();
     if (night && (season === 'summer' || season === 'autumn') && !F.rain && Math.random() < dt * 1.2) cricket();
     if (night && season === 'summer' && scene === 'lake' && !F.rain && Math.random() < dt * 0.15) frog();
-    if (scene === 'lake' && season !== 'winter' && Math.random() < dt * 0.2) drip();
+    if (scene === 'lake' && Math.random() < dt * (season !== 'winter' ? 0.2 : 0.08)) drip(); // 湖水 / 温泉咕嘟
     if (F.rain && F.rain < 0.6 && Math.random() < dt * 6) rainTick();
     if (fireOn && Math.random() < dt * 2.2) crackle();
     if (F.storm && Math.random() < dt * 0.03) thunder(false);

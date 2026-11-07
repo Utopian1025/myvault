@@ -1,5 +1,5 @@
 // 桌面猫的功能：追鼠标、摸头呼噜、打字拍键盘/过热、滚动扒卷纸、伸懒腰/喝水提醒、
-// 自定义提醒、番茄钟、头顶便签、AI 思考/完成反应、看视频时躲角落偷看
+// 自定义提醒、番茄钟、头顶便签、看视频时躲角落偷看
 (function () {
   const PP = (window.PP = window.PP || {});
   const U = PP.U, G = PP.G, A = PP.ACTIONS;
@@ -7,12 +7,11 @@
   const F = (PP.F = {
     keys: [], heat: 0, heatSaid: false,
     roll: { len: 0, last: 0 },
-    agent: { state: 'idle', since: 0 },
     pomo: { phase: 'off', end: 0, start: 0 },
     lastWater: Date.now(), lastStretch: Date.now(), firedToday: {},
 
     main() {
-      // 主角：你指定的那只（负责提醒、陪打字、AI 联动）；没指定就是第一只
+      // 主角：你指定的那只（负责提醒、陪打字）；没指定就是第一只
       const vis = G.pets.filter((p) => !p.held);
       if (!vis.length) return null;
       const id = G.save.settings.mainId;
@@ -22,11 +21,23 @@
     name() { return (G.save.settings.ownerName || '').trim(); },
     call(text) { const n = F.name(); return n ? `${n}，${text}` : text; },
 
+    // 你在工作吗？（最近 40 秒内一直在打字）——“工作时自动安静”打开时，大家就不来打扰你
+    working() {
+      if (!G.save || G.save.settings.autoQuiet === false) return false;
+      const now = Date.now();
+      return F.keys.filter((t) => now - t < 40000).length >= 12 || (G.user.typing && now - G.user.typingSince > 3000);
+    },
     // ---------- 输入 ----------
     onKey() {
       const now = Date.now();
       F.keys.push(now);
       if (F.keys.length > 80) F.keys.shift();
+      const s = F.S();
+      // 全屏场景时开始打字：说明你要干活了，场景自动收起来
+      if (s.mode === 'full' && s.autoQuiet !== false && F.keys.filter((t) => now - t < 4000).length >= 8) {
+        PP.setMode('band', true); PP.ui.toast('开始打字了，全屏场景自动收起（Esc 也能退出）');
+      }
+      if (F.working()) return; // 工作中：不搬键盘过来陪打字
       // 开始打字：猫过来拍键盘陪你
       const p = F.main();
       if (p && !p.sleeping && !p.peek && p.action !== 'knead' && !F.busy(p) && !(p.cooldown.type > 0)) {
@@ -41,17 +52,7 @@
       F.roll.last = Date.now();
       if (p.action !== 'rollPaper' && !F.busy(p)) p.run('rollPaper', A.rollPaper);
     },
-    setAgent(state, text) {
-      F.agent = { state, since: Date.now(), text };
-      const p = F.main();
-      if (!p) return;
-      if (state === 'thinking') { if (p.action !== 'agentThink') { p.peekPop = 1; p.run('agentThink', A.agentThink); } }
-      else if (state === 'done') { p.peekPop = 1; p.run('agentDone', A.agentDone, text); PP.diary.add(p, 'AI 帮主人做完了一件事，我跳起来告诉主人了。'); }
-      else if (state === 'error') { p.peekPop = 1; p.run('agentDone', A.agentDone, text, true); }
-      else if (state === 'waiting') { p.run('agentWait', A.agentWait, text); }
-      else if (p.action === 'agentThink') p.interrupt();
-    },
-    busy(p) { return ['agentThink', 'agentDone', 'agentWait', 'bigStretch', 'remind', 'remindDrink', 'held', 'landing', 'hunt'].includes(p.action) || p.held || p.airborne; },
+    busy(p) { return ['bigStretch', 'remind', 'remindDrink', 'held', 'landing', 'hunt'].includes(p.action) || p.held || p.airborne; },
 
     // ---------- 每帧 ----------
     tick(dt) {
@@ -88,10 +89,12 @@
       if (s.rem.stretch > 0 && userHere && now - F.lastStretch > s.rem.stretch * 60000 && !quietPomo) {
         F.lastStretch = now; p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call(U.pick(['坐太久啦，站起来活动一下吧！', '起来站一站，伸个懒腰～', '站起来走两步吧！'])));
       }
-      // 自定义提醒（每天 HH:MM）
+      // 自定义提醒（每天 / 每周几 HH:MM）
       const d = new Date(), hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, day = U.dateKey(d);
+      const wd = d.getDay() === 0 ? 7 : d.getDay(); // 1=周一 … 7=周日
       for (const r of s.rem.list || []) {
         if (!r.on || r.time !== hm) continue;
+        if (r.days && r.days.length && !r.days.includes(wd)) continue;
         const k = day + r.time + r.text;
         if (F.firedToday[k]) continue;
         F.firedToday[k] = true;
@@ -192,47 +195,6 @@
   };
 
   // AI 在思考：托腮、眼睛往上看、头上冒点点点
-  A.agentThink = function* () {
-    const p = this;
-    p.peek = false;
-    p.anim = 'think'; p.eyes = 'open'; p.mouth = 'none';
-    let t = 0;
-    while (F.agent.state === 'thinking' && t < 1800) {
-      if (t % 3 === 0) p.think('dots', 2.6);
-      yield 1; t += 1;
-      if (t % 7 === 0) p.setExpr('closed', 'none', 0.25);
-    }
-    p.anim = 'idle'; p.mouth = 'w';
-  };
-  // AI 做完了：开心地跳起来喵一声
-  A.agentDone = function* (text, err) {
-    const p = this;
-    p.peek = false;
-    if (err) { p.setExpr('sad', 'frown', 2); p._forceSay = true; p.say(text || '好像出错了…', 3.5); p._forceSay = false; PP.audio.meow(p, true); yield 2.5; return; }
-    p.anim = 'idle'; p.eyes = 'happy'; p.mouth = 'open';
-    for (let i = 0; i < 2; i++) {
-      p.jolt(-2.5, 0); yield 0.12;
-      p.airborne = true; p.thrown = false; p.vy = -520; p.vx = 0; p.fallFrom = p.y;
-      yield () => !p.airborne; p.jolt(-3.5, 0); yield 0.15;
-    }
-    PP.audio.meow(p);
-    p._forceSay = true; p.say(text || F.call('做完啦！'), 3.5); p._forceSay = false;
-    PP.hearts(p.x, p.headPos[1] - 20, 2);
-    yield 2; p.eyes = 'open'; p.mouth = 'w';
-    F.agent.state = 'idle';
-  };
-
-  // AI 在等你确认（比如要不要允许它执行命令）：转过来朝你招手
-  A.agentWait = function* (text) {
-    const p = this;
-    p.anim = 'idle'; p.eyes = 'wide'; p.look = [0, -1]; p.jolt(-2.5, 0);
-    PP.audio.meow(p);
-    p._forceSay = true; p.say(text || F.call('AI 在等你确认一下～'), 6); p._forceSay = false;
-    for (let i = 0; i < 6 && F.agent.state === 'waiting'; i++) { p.think('excl', 1.2); p.jolt(-1.5, i % 2 ? 2 : -2); yield 1.5; }
-    p.eyes = 'open';
-  };
-
-  // 滚动页面：猫抱着卷纸往下扒
   A.rollPaper = function* () {
     const p = this;
     p.anim = 'roll'; p.eyes = 'open'; p.look = [0, 1];

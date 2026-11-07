@@ -13,29 +13,38 @@
     const s = S(), old = s.mode;
     if (!MODE_NAME[m] || old === m) return;
     if (m === 'mini') {
-      const main = PP.F && PP.F.main();
+      // 主角：你指定的那只；没指定就挑一只醒着、在外面的
+      const main = (s.mainId && G.all.find((p) => p.d.id === s.mainId && !p.d.hidden)) || PP.F.main() || G.all.find((p) => !p.d.hidden);
       s.miniMain = main ? main.d.id : null;
+      // 场景里的动物继续在后台过日子，只有主角跟你来
+      for (const p of G.pets) if (p !== main) PP.eco.toOffscreen(p);
       s.mode = 'mini';
-      // 其他小伙伴走进小门里，只留主角
-      for (const p of G.pets) if (p !== main && !p.outing) PP.petEnter(p, () => PP.syncPets());
-      for (const p of G.pets) if (p.outing) p.outing = null;
-      PP.syncPets();
-      setTimeout(() => PP.syncPets(), 5000);
+      if (main) {
+        const wasShown = G.pets.includes(main);
+        if (main.d.inHome) { main.d.inHome = false; main.eco = null; }
+        main.eco = null; main.surf = null; main.wade = 0; main.interrupt(true);
+        PP.syncPets();
+        if (!wasShown) PP.petEmerge(main, G.W - 120, 200);
+        else { main.y = G.ground; main.run('trail', PP.ACTIONS.cornerWalk); }
+      } else PP.syncPets();
     } else {
       s.lastMode = m; s.mode = m;
       if (old === 'mini') {
-        const before = new Set(G.pets);
-        PP.syncPets();
-        G.pets.filter((p) => !before.has(p)).forEach((p, i) => PP.petEmerge(p, U.rand(G.W * 0.15, G.W * 0.85), 200 + i * 380));
+        // 主角回到你正在看的这个场景，其他动物原本就在各自的地方
+        const main = G.all.find((p) => p.d.id === s.miniMain);
+        if (main) { main.d.scene = PP.scene.view(); main.d.inHome = false; main.eco = null; main.lane = 0.8; }
       }
+      PP.eco.onView(PP.scene.view());
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出）', band: '小场景', clear: '透明', mini: '极简：只留主角' }[m]);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '小场景', mini: '极简：只留主角在右下角' }[m]);
     drawOrb(); placeOrb(); setFullFlag(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
   };
   function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); }
   PP.exitFull = () => { if (S().mode === 'full') PP.setMode('band'); };
+  // 极简模式里，主角只在右下角这一小块活动（不跑到你干活的地方去）
+  PP.miniZone = () => [Math.max(20, G.W - 300 * Math.max(1, G.S) / 2), G.W - 70];
   PP.toggleMini = () => PP.setMode(S().mode === 'mini' ? (S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band') : 'mini');
-  PP.showItems = () => S().mode !== 'mini';
+  PP.showItems = () => true;
 
   // ---------- 悬浮小按钮：平时几乎透明，可以拖到任何地方 ----------
   let orb = null, pop = null, popT = 0;
@@ -52,7 +61,7 @@
       const mv = (ev) => {
         if (!down) return;
         if (Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4) { down.moved = true; hidePop(); }
-        if (down.moved) { S().orb = { x: U.clamp(down.ox + ev.clientX - down.x, 40, G.W - 34) / G.W, y: U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) / G.H }; placeOrb(); }
+        if (down.moved) { S().orb = { x: U.clamp(down.ox + ev.clientX - down.x, 4, G.W - 70) / G.W, y: U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) / G.H }; placeOrb(); }
       };
       const up = () => {
         window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
@@ -73,11 +82,12 @@
   function placeOrb() {
     if (!orb) return;
     const o = S().orb, sh = PP.scene.bandHeight();
-    const x = o ? U.clamp(o.x * G.W, 40, G.W - 34) : G.W - 42;
+    // 爪子菜单按钮固定在切换按钮的右边，所以切换按钮最多放到离右边 70 像素
+    const x = o ? U.clamp(o.x * G.W, 4, G.W - 70) : G.W - 78;
     const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
     orb.style.left = x + 'px'; orb.style.top = y + 'px';
     const dock = document.querySelector('.dock');
-    if (dock) { dock.style.left = x - 36 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; }
+    if (dock) { dock.style.left = x + 36 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; dock.style.right = 'auto'; }
   }
   // 小图标：一扇小门（极简模式下门是关着的）
   function drawOrb() {
@@ -127,19 +137,31 @@
     menu: ['..........', '..........', '..........', '..........', 'kk..kk..kk', 'kk..kk..kk', '..........', '..........', '..........', '..........'],
     pick: ['kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........', 'kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........'],
     pet: ['..........', '.kk....kk.', 'kppk..kppk', 'kpppkkpppk', 'kppppppppk', '.kppppppk.', '..kppppk..', '...kppk...', '....kk....', '..........'],
+    info: ['kkkkkkkkkk', 'kwwwwwwwwk', 'kwbbwwwwwk', 'kbbbbwkkwk', 'kwbbwwwwwk', 'kbbbbwkkwk', 'kwwwwwwwwk', 'kwkkkkkkwk', 'kwwwwwwwwk', 'kkkkkkkkkk'],
   };
   const ICOL = { k: '#231c20', w: '#ffffff', y: '#ffcf33', r: '#e33b3b', g: '#3fa34d', b: '#4b9bcc', o: '#ff8a2a', p: '#ff7aa0' };
   function drawIconTo(cv, name, p) {
     const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); c.imageSmoothingEnabled = false;
     if (name === 'fav' && p) {
       // 喂：画它最爱吃的东西
-      try { const [w, h] = PP.SPR.iconSize(p.sp.favIcon); const s = Math.max(1, Math.floor(18 / Math.max(w, h))); PP.SPR.drawIcon(c, p.sp.favIcon, Math.round((20 - w * s) / 2), Math.round((20 - h * s) / 2), s); return; } catch (e) { name = 'pet'; }
+      try {
+        const [w, h] = PP.SPR.iconSize(p.sp.favIcon); const s = Math.max(1, Math.floor(16 / Math.max(w, h)));
+        const x = Math.round((20 - w * s) / 2), y = Math.round((20 - h * s) / 2);
+        // 先画一圈深色描边（白色的骨头、鱼之类在白按钮上也看得见）
+        const t = document.createElement('canvas'); t.width = t.height = 20; const tc = t.getContext('2d'); tc.imageSmoothingEnabled = false;
+        PP.SPR.drawIcon(tc, p.sp.favIcon, x, y, s);
+        const o = document.createElement('canvas'); o.width = o.height = 20; const oc = o.getContext('2d');
+        for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) oc.drawImage(t, dx, dy);
+        oc.globalCompositeOperation = 'source-in'; oc.fillStyle = '#231c20'; oc.fillRect(0, 0, 20, 20);
+        c.drawImage(o, 0, 0); c.drawImage(t, 0, 0); return;
+      } catch (e) { name = 'pet'; }
     }
     const m = ICON[name] || ICON.menu;
     m.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { c.fillStyle = ICOL[ch]; c.fillRect(x * 2, y * 2, 2, 2); } }));
   }
   let ring = null, ringPet = null, hoverSince = 0, lastHover = null, hideT = 0;
-  const BTN = [['hide', '回电脑里'], ['calm', '乖乖待着'], ['head', '只露个头'], ['main', '设为主角'], ['fav', '喂它'], ['pick', '选择谁在桌面上'], ['menu', '更多']];
+  const BTN = [['info', '档案'], ['fav', '喂它'], ['main', '设为主角'], ['calm', '乖乖待着'], ['head', '只露个头'], ['hide', '回电脑里'], ['pick', '选择谁在桌面上'], ['menu', '更多']];
+  Object.defineProperty(PP, 'ringPet', { get: () => ringPet });
   function barTick() {
     if (!G.save) return;
     const hp = G.hoverPet;
@@ -149,16 +171,24 @@
     if (hp && !G.editing && !menuOpen && performance.now() - hoverSince > 250 && hp !== ringPet) showBar(hp);
     if (ring && !hp && !over) { if (!hideT) hideT = performance.now(); if (performance.now() - hideT > 800) hideBar(); } else hideT = 0;
     if (ring && ringPet) {
-      if (!G.pets.includes(ringPet) || ringPet.inDoor || ringPet.outing || ringPet.held) { hideBar(); return; }
+      if (!G.pets.includes(ringPet) || ringPet.inDoor || ringPet.held) { hideBar(); return; }
       const S = G.S * (ringPet.scaleMul || 1);
-      const cx = ringPet.x, cy = ringPet.y - 13 * S + ringPet.sinkPx();
-      const R = 15 * S + 26;
       const btns = ring.querySelectorAll('button'), n = btns.length;
+      // 按钮大小跟着宠物大小走：宠物小（或者极简模式）按钮也小
+      const bs = Math.round(U.clamp(16 + S * 4, 20, 30) * (G.save.settings.mode === 'mini' ? 0.85 : 1));
+      ring.style.setProperty('--bs', bs + 'px');
+      const cx = ringPet.x, cy = ringPet.y - 13 * S + ringPet.sinkPx() + (ringPet.wade || 0);
+      // 弧的半径：保证按钮之间不挤在一起
+      const span = Math.PI * 0.9;
+      const R = Math.max(12 * S + bs * 0.9, ((n - 1) * bs * 1.12) / span);
+      // 弧的方向：默认在头顶；贴着屏幕右边 / 左边 / 上边时往里转
+      let mid = -Math.PI / 2;
+      if (cx > G.W - R - bs) mid = -Math.PI * 0.78; else if (cx < R + bs) mid = -Math.PI * 0.22;
+      if (cy - R < bs) mid = cx > G.W / 2 ? Math.PI : 0;
       btns.forEach((b, i) => {
-        // 在宠物上方排成一道弧（从左下绕到右下），不会钻到屏幕底下
-        const a = Math.PI * (1.08 + (0.84 * i) / (n - 1));
-        const x = U.clamp(cx + Math.cos(a) * R, 16, G.W - 16), y = U.clamp(cy + Math.sin(a) * R, 16, G.H - 16);
-        b.style.left = x - 15 + 'px'; b.style.top = y - 15 + 'px';
+        const a = mid - span / 2 + (span * i) / (n - 1);
+        const x = U.clamp(cx + Math.cos(a) * R, bs / 2 + 2, G.W - bs / 2 - 2), y = U.clamp(cy + Math.sin(a) * R, bs / 2 + 2, G.H - bs / 2 - 2);
+        b.style.left = x - bs / 2 + 'px'; b.style.top = y - bs / 2 + 'px';
       });
       const d = ringPet.d;
       ring.querySelector('[data-c=calm]').classList.toggle('on', !!d.calm);
@@ -179,6 +209,7 @@
       const b = e.target.closest('button'); if (!b || !ringPet) return;
       const id = ringPet.d.id, c = b.dataset.c;
       if (c === 'hide') { PP.menuRun(`pet:${id}:show`); hideBar(); }
+      else if (c === 'info') { const p = ringPet; hideBar(); PP.ui.petPanel(p); }
       else if (c === 'menu') { const r = b.getBoundingClientRect(); const p = ringPet; hideBar(); PP.ui.petMenu(p, r.left, r.top); }
       else if (c === 'pick') { hideBar(); pickPets(); }
       else { PP.menuRun(`pet:${id}:${c}`); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 250); }
@@ -221,7 +252,7 @@
     if (s.mode === 'mini' && toShow.length + G.all.filter((p) => want[p.d.id] && !p.d.hidden).length > 1) { s.mode = s.lastMode && s.lastMode !== 'mini' ? s.lastMode : 'band'; drawOrb(); }
     toHide.forEach((p) => { if (G.pets.includes(p)) PP.petEnter(p, () => { p.d.hidden = true; PP.syncPets(); PP.save.soon(); }); else p.d.hidden = true; });
     const before = new Set(G.pets);
-    toShow.forEach((p) => (p.d.hidden = false));
+    toShow.forEach((p) => { p.d.hidden = false; PP.hereNow(p); });
     PP.syncPets();
     G.pets.filter((p) => !before.has(p)).forEach((p, i) => PP.petEmerge(p, U.rand(G.W * 0.15, G.W * 0.85), 150 + i * 400));
     PP.ui.toast(`桌面上：${G.all.filter((p) => want[p.d.id]).length} 只，回电脑休息：${G.all.filter((p) => !want[p.d.id]).length} 只`);
@@ -254,8 +285,8 @@
   PP.cityPanel = cityPanel;
 
   // ---------- 菜单大小 ----------
-  PP.MENU_SCALES = [[0.75, '小'], [0.85, '适中'], [1, '标准'], [1.15, '大']];
-  function applyMenuScale() { document.documentElement.style.setProperty('--ms', String(S().menuScale || 0.85)); }
+  PP.MENU_SCALES = [[0.62, '很小'], [0.7, '小'], [0.8, '适中'], [0.9, '标准'], [1.05, '大']];
+  function applyMenuScale() { document.documentElement.style.setProperty('--ms', String(S().menuScale || 0.8)); }
   PP.applyMenuScale = applyMenuScale;
 
   // ---------- 菜单：点别处就收起（点击会穿透到你的其他窗口） ----------

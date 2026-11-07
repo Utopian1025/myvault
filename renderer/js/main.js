@@ -14,7 +14,7 @@
     ctx.imageSmoothingEnabled = false;
     const bar = document.body.classList.contains('web') ? 44 : 2;
     G.ground = G.H - bar;
-    for (const p of G.pets) { p.x = U.clamp(p.x, 20, G.W - 20); if (!p.airborne && !p.held) p.y = G.ground; }
+    for (const p of G.pets) { p.x = U.clamp(p.x, 20, G.W - 20); if (!p.airborne && !p.held) p.y = p.floor; }
     for (const it of G.items) { it.x = U.clamp(it.x, 12, G.W - 12); if (!it.held) it.y = Math.min(it.y, G.ground); }
   }
 
@@ -35,7 +35,8 @@
     const s = G.save;
     if (s.items && s.items.length) s.items.forEach((o) => PP.addItem(o)); else defaultItems();
     G.all = (s.pets || []).filter((d) => PP.SPECIES[d.species]).map((d) => new PP.Pet(d));
-    for (const p of G.all) p.y = G.ground;
+    for (const p of G.all) { p.y = G.ground; if (p.d.lane != null) p.lane = p.d.lane; }
+    PP.eco && PP.eco.init();
     PP.syncPets();
     PP.ui.init();
     PP.modes.init();
@@ -43,8 +44,9 @@
     PP.bindInput();
     const away = PP.save.catchUp();
     PP.started = true;
-    // 打开时：大家一个个从电脑里的小门走出来
-    G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
+    // 打开时：极简模式下主角从小门里走出来；场景里大家本来就在各自的地方过日子
+    if (s.settings.mode === 'mini') G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
+    else PP.eco && PP.eco.onView(PP.scene.view());
     const emergeT = 300 + G.pets.length * 650 + 2600;
     if (!G.all.length) setTimeout(() => PP.ui.adopt(), 400);
     else if (away > 5 * 60000) {
@@ -78,7 +80,8 @@
     G.t += dt;
     for (const p of G.pets) p.update(dt);
     separate();
-    for (const it of G.items) it.update(dt);
+    for (const it of G.items) if (PP.itemHere(it)) it.update(dt);
+    PP.eco && PP.eco.tick(dt);
     G.items = G.items.filter((i) => !i.dead);
     PP.world.updateParticles(dt);
     PP.doorsUpdate(dt);
@@ -96,7 +99,7 @@
     for (let i = 0; i < G.pets.length; i++) for (let j = i + 1; j < G.pets.length; j++) {
       const a = G.pets[i], b = G.pets[j];
       if (a.outing || b.outing || a.held || b.held || a.airborne || b.airborne || a.partner === b || a.sleeping || b.sleeping) continue;
-      if (a.target != null || b.target != null) continue;
+      if (a.target != null || b.target != null || a.transit || b.transit || a.surf || b.surf || Math.abs(a.y - b.y) > 8 * S) continue; // 前后排错开的不用挤
       const dx = b.x - a.x;
       if (Math.abs(dx) < 12 * S) { const push = (12 * S - Math.abs(dx)) * 0.05 * (dx >= 0 ? 1 : -1); a.x -= push; b.x += push; }
     }
@@ -106,10 +109,11 @@
     ctx.clearRect(0, 0, G.W, G.H);
     PP.scene.render(ctx);
     const order = { bed: 0, litter: 1, food: 2, water: 2 };
-    const items = (PP.showItems() ? G.items : []).slice().sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5));
+    const items = G.items.filter((i) => PP.itemShown(i)).sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5) || a.y - b.y);
     for (const it of items) if ((order[it.type] ?? 5) < 5) it.render(ctx);
     for (const it of items) if ((order[it.type] ?? 5) >= 5 && !it.held) it.render(ctx);
-    const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.sleeping ? -1 : 0) - (b.sleeping ? -1 : 0));
+    // 远的先画、近的后画（场景里有前后排）；被拎着的最后画
+    const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.airborne ? 0 : a.y) - (b.airborne ? 0 : b.y));
     PP.doorsRenderBack(ctx);
     for (const p of pets) p.render(ctx);
     PP.doorsRenderFront(ctx);

@@ -1,0 +1,725 @@
+// 生态：每只动物都有自己的家、作息、口味和脾气，在五个场景里过自己的日子。
+// 看不到的地方它们也在生活：去吃饭、串门、回家睡觉、躲雨——等你切过去，正好撞见。
+(function () {
+  const PP = (window.PP = window.PP || {});
+  const U = PP.U, G = PP.G, A = PP.ACTIONS;
+  const sf = (a) => new Set(a);
+
+  // ---------- 每种动物的习性 ----------
+  // home：家在哪个场景 · avoid：什么天气躲回家（数值越大越讨厌）· foods/water/fun：去哪儿吃、喝、玩
+  // 每一项：scene 场景 · spot 设施 · kind 干什么 · label 在干嘛 · w 喜好程度 · season 季节限制 · when 额外条件
+  const ALL = ['spring', 'summer', 'autumn', 'winter'], WARM = ['spring', 'summer', 'autumn'];
+  const HAB = {
+    cat: {
+      home: 'farm', about: '住在农场谷仓的阁楼里。一天要睡十几个小时，清晨和傍晚最精神：先去谷仓门口吃猫粮，再到草垛边蹲老鼠，或者溜到湖边码头盯着水里的鱼。晒太阳一定要挑高处——栅栏顶、谷仓屋顶。最讨厌下雨和大风，雨一来就躲回阁楼。',
+      likes: '晒太阳 · 高处 · 码头看鱼 · 抓老鼠', hates: '下雨 · 大风 · 下雪', diet: '猫粮、湖里的小鱼、老鼠',
+      avoid: { drizzle: 0.6, rain: 1, heavyrain: 1, storm: 1, sleet: 1, snow: 0.8, heavysnow: 1, windy: 0.6 }, cold: 0, heat: 33,
+      foods: [{ scene: 'farm', spot: 'catbowl', kind: 'eat', label: '在谷仓门口吃猫粮', w: 1 }, { scene: 'lake', spot: 'dock', kind: 'fish', label: '蹲在码头钓鱼', w: 1.3, season: WARM, noIce: 1 }, { scene: 'farm', spot: 'hay', kind: 'hunt', label: '在草垛边蹲老鼠', w: 0.8 }],
+      water: [{ scene: 'farm', spot: 'trough' }, { scene: 'lake', spot: 'shore' }],
+      fun: [{ scene: 'farm', spot: 'fence', kind: 'perch', label: '趴在栅栏顶上晒太阳', w: 1.2, when: 'sunny' }, { scene: 'farm', spot: 'barnroof', kind: 'perch', label: '在谷仓屋顶上看风景', w: 0.7 }, { scene: 'lake', spot: 'dock', kind: 'watch', label: '蹲在码头盯着鱼看', w: 0.9, noIce: 1 }, { scene: 'farm', spot: 'hay', kind: 'knead', label: '在干草堆上踩奶', w: 0.8 }, { scene: 'meadow', spot: 'flowers', kind: 'pounce', label: '在花丛里扑蝴蝶', w: 0.7, season: ['spring', 'summer'] }],
+    },
+    dog: {
+      home: 'farm', about: '住在农场门口的狗窝，自认是农场的保安。白天精力旺盛：绕着院子巡逻，跑到草地上疯跑、刨土找骨头。天一黑就回窝睡。下雪天反而兴奋，会去雪地里打滚；只有大雨和打雷会让它缩回窝里。',
+      likes: '巡逻 · 疯跑 · 刨土 · 雪地打滚 · 交朋友', hates: '打雷 · 大雨', diet: '狗粮、骨头',
+      avoid: { rain: 0.6, heavyrain: 1, storm: 1, sleet: 0.7, heavysnow: 0.7 }, cold: -12, heat: 32,
+      foods: [{ scene: 'farm', spot: 'dogbowl', kind: 'eat', label: '在狗窝旁边吃饭', w: 1.2 }, { scene: 'meadow', spot: 'grass', kind: 'dig', label: '在草地上刨骨头', w: 0.5 }],
+      water: [{ scene: 'farm', spot: 'trough' }, { scene: 'forest', spot: 'brook' }, { scene: 'meadow', spot: 'puddle' }],
+      fun: [{ scene: 'farm', spot: 'yard', kind: 'patrol', label: '在农场巡逻', w: 1.2 }, { scene: 'meadow', spot: 'grass', kind: 'zoom', label: '在草地上撒欢疯跑', w: 1 }, { scene: 'meadow', spot: 'hill', kind: 'dig', label: '在小山坡上刨坑', w: 0.6 }, { scene: 'forest', spot: 'leaves', kind: 'sniff', label: '在林子里到处闻', w: 0.5 }, { scene: 'snow', spot: 'snowfield', kind: 'roll', label: '在雪地里打滚', w: 1.4, when: 'snowy' }],
+    },
+    rabbit: {
+      home: 'meadow', about: '住在草地灌木丛下的兔子洞里。晨昏两头最活跃（天刚亮、天快黑），中午和半夜都窝在洞里。主食是三叶草和嫩草，夏秋会偷偷溜去农场菜园啃胡萝卜。胆子很小：打雷、刮大风、下雨都会立刻钻回洞里；开心的时候会原地起跳转体。',
+      likes: '三叶草 · 胡萝卜 · 挖洞 · 原地起跳', hates: '下雨 · 打雷 · 大风 · 狐狸', diet: '三叶草、嫩草、胡萝卜，冬天啃干草',
+      avoid: { drizzle: 0.6, rain: 1, heavyrain: 1, storm: 1, sleet: 1, snow: 0.7, heavysnow: 1, windy: 0.8, fog: 0.3 }, cold: -5, heat: 30,
+      foods: [{ scene: 'meadow', spot: 'clover', kind: 'graze', label: '在三叶草地上吃草', w: 1.5, season: WARM }, { scene: 'farm', spot: 'veg', kind: 'graze', label: '溜进菜园偷吃胡萝卜', w: 0.9, season: ['summer', 'autumn'] }, { scene: 'farm', spot: 'hay', kind: 'graze', label: '啃农场的干草', w: 1, season: ['winter'] }],
+      water: [{ scene: 'meadow', spot: 'puddle' }],
+      fun: [{ scene: 'meadow', spot: 'clover', kind: 'binky', label: '开心得原地起跳', w: 1 }, { scene: 'meadow', spot: 'rabbit_home', kind: 'dig', label: '在洞口挖土', w: 0.6 }, { scene: 'meadow', spot: 'flowers', kind: 'groom', label: '在花丛边洗脸', w: 0.7 }],
+    },
+    hamster: {
+      home: 'meadow', about: '住在向日葵地底下的地洞里，洞里有它的秘密粮仓。白天几乎都在睡，太阳落山才出门：钻进向日葵地里捡瓜子，腮帮子塞满了就跑回洞里囤起来。冬天外面没吃的，就靠存粮过日子。怕冷怕风，天气不好绝不出门。',
+      likes: '瓜子 · 囤粮 · 夜里跑来跑去', hates: '白天 · 刮风 · 冷', diet: '向日葵瓜子（会囤在洞里）',
+      avoid: { drizzle: 0.8, rain: 1, heavyrain: 1, storm: 1, sleet: 1, snow: 1, heavysnow: 1, windy: 1, fog: 0.4 }, cold: 5, heat: 31,
+      foods: [{ scene: 'meadow', spot: 'sunflowers', kind: 'seeds', label: '在向日葵地里捡瓜子', w: 1.6, season: ['summer', 'autumn'] }, { scene: 'meadow', spot: 'clover', kind: 'graze', label: '在草地上找草籽', w: 0.6, season: ['spring'] }],
+      water: [{ scene: 'meadow', spot: 'puddle' }],
+      fun: [{ scene: 'meadow', spot: 'sunflowers', kind: 'zoom', label: '在向日葵地里跑酷', w: 1 }, { scene: 'meadow', spot: 'hamster_home', kind: 'groom', label: '蹲在洞口洗脸', w: 0.8 }],
+      stash: true,
+    },
+    penguin: {
+      home: 'snow', about: '住在雪原上的冰屋里——这里是整个世界唯一常年有雪的地方。每天去冰窟窿钓鱼，吃饱了就从雪坡上肚皮滑下来，一遍又一遍。越冷越开心，下雪天最兴奋；只有打雷会让它回冰屋。很少离开雪原。',
+      likes: '下雪 · 肚皮滑行 · 钓鱼 · 一群人一起走', hates: '热 · 打雷', diet: '冰窟窿里的鱼',
+      avoid: { storm: 1 }, cold: -60, heat: 99, snowLover: 1,
+      foods: [{ scene: 'snow', spot: 'icehole', kind: 'dive', label: '在冰窟窿里抓鱼', w: 1.5 }],
+      water: [{ scene: 'snow', spot: 'icehole' }],
+      fun: [{ scene: 'snow', spot: 'slidetop', kind: 'slide', label: '从雪坡上肚皮滑下来', w: 1.6 }, { scene: 'snow', spot: 'pond', kind: 'waddle', label: '在冰面上摇摇摆摆地散步', w: 0.8 }, { scene: 'snow', spot: 'snowfield', kind: 'groom', label: '站在雪地里理羽毛', w: 0.6 }],
+    },
+    fox: {
+      home: 'forest', about: '住在森林大橡树根下的狐狸洞。清晨和黄昏出来觅食：摘浆果、到草地上听地下的田鼠，一跃扎进去。下雪天会专门去雪地里“扎雪堆”捕猎。白天中午在洞里打盹，或者趴在大石头上晒太阳。下大雨、打雷时不出门。',
+      likes: '浆果 · 捕猎 · 晒太阳 · 扎雪堆', hates: '大雨 · 打雷 · 狗太吵', diet: '浆果、田鼠、虫子',
+      avoid: { rain: 0.7, heavyrain: 1, storm: 1, sleet: 0.8, heavysnow: 0.8, windy: 0.4 }, cold: -25, heat: 31,
+      foods: [{ scene: 'forest', spot: 'berries', kind: 'berries', label: '在摘浆果吃', w: 1.3, season: ['summer', 'autumn'] }, { scene: 'meadow', spot: 'grass', kind: 'hunt', label: '在草地上听田鼠，准备扑', w: 1 }, { scene: 'snow', spot: 'snowfield', kind: 'hunt', label: '一头扎进雪堆里抓老鼠', w: 1.2, when: 'snowy' }, { scene: 'forest', spot: 'leaves', kind: 'sniff', label: '在落叶里找虫子', w: 0.6 }],
+      water: [{ scene: 'forest', spot: 'brook' }],
+      fun: [{ scene: 'forest', spot: 'sunrock', kind: 'perch', label: '趴在大石头上晒太阳', w: 1.1, when: 'sunny' }, { scene: 'forest', spot: 'leaves', kind: 'patrol', label: '在林子里巡视领地', w: 0.9 }, { scene: 'meadow', spot: 'flowers', kind: 'pounce', label: '在花丛里扑蝴蝶', w: 0.6, season: ['spring', 'summer'] }],
+    },
+    frog: {
+      home: 'lake', about: '住在湖里那片最大的荷叶上。傍晚和夜里最精神：蹲在荷叶上呱呱叫，舌头一伸抓飞虫，或者在水里游一圈。最爱下雨天，一下雨就全员出动。冬天湖面结冰，它会钻进湖底的泥里冬眠，一直睡到春天。',
+      likes: '下雨 · 飞虫 · 荷叶 · 呱呱叫', hates: '干燥的大晴天中午 · 冷', diet: '飞虫',
+      avoid: { storm: 0.8, windy: 0.5 }, cold: 6, heat: 34, hibernate: 1, rainLover: 1,
+      foods: [{ scene: 'lake', spot: 'frog_home', kind: 'tongue', label: '蹲在荷叶上用舌头抓飞虫', w: 1.4, season: WARM }, { scene: 'meadow', spot: 'puddle', kind: 'tongue', label: '在水洼边抓虫子', w: 0.7, season: WARM, when: 'wet' }],
+      water: [{ scene: 'lake', spot: 'swim' }],
+      fun: [{ scene: 'lake', spot: 'frog_home', kind: 'croak', label: '坐在荷叶上呱呱叫', w: 1.3 }, { scene: 'lake', spot: 'swim', kind: 'swim', label: '在湖里游泳', w: 1, noIce: 1 }, { scene: 'lake', spot: 'lily', kind: 'perch', label: '跳到另一片荷叶上发呆', w: 0.7, noIce: 1 }],
+    },
+    chick: {
+      home: 'farm', about: '住在农场的鸡舍。天一亮就醒，天一黑就回窝，比谁都准时。一整天都在院子里低头啄玉米粒、刨土洗沙浴，喜欢跟在别的动物屁股后面走。下雨刮风都躲进鸡舍；看到狐狸会吓得扑腾回窝。',
+      likes: '玉米粒 · 沙浴 · 跟着大家走', hates: '下雨 · 大风 · 狐狸 · 天黑', diet: '玉米粒、草籽、小虫',
+      avoid: { drizzle: 0.7, rain: 1, heavyrain: 1, storm: 1, sleet: 1, snow: 0.9, heavysnow: 1, windy: 0.9 }, cold: 0, heat: 32,
+      foods: [{ scene: 'farm', spot: 'feed', kind: 'peck', label: '在院子里啄玉米粒', w: 1.6 }, { scene: 'meadow', spot: 'grass', kind: 'peck', label: '在草地上找草籽', w: 0.4, season: WARM }],
+      water: [{ scene: 'farm', spot: 'trough' }],
+      fun: [{ scene: 'farm', spot: 'yard', kind: 'dust', label: '在院子里洗沙浴', w: 1 }, { scene: 'farm', spot: 'feed', kind: 'follow', label: '跟在大家后面走', w: 1.1 }, { scene: 'farm', spot: 'apple', kind: 'peck', label: '在苹果树下刨土找虫', w: 0.7 }],
+    },
+    duck: {
+      home: 'lake', about: '住在湖边芦苇丛里的鸭窝。白天大部分时间漂在湖上：一头扎进水里找水草（屁股朝天），游累了上岸理羽毛。下雨天最开心，反而要出来扑腾。冬天湖面结冰就待在窝里，偶尔去农场水槽边转转。',
+      likes: '游泳 · 下雨 · 理羽毛 · 扑腾', hates: '打雷 · 结冰', diet: '水草、小虫、面包屑',
+      avoid: { storm: 1, heavysnow: 0.8, windy: 0.4 }, cold: -8, heat: 35, rainLover: 1,
+      foods: [{ scene: 'lake', spot: 'swim', kind: 'dabble', label: '在湖里扎猛子找水草', w: 1.5, noIce: 1 }, { scene: 'farm', spot: 'feed', kind: 'peck', label: '去农场蹭点玉米粒', w: 0.5 }, { scene: 'lake', spot: 'reeds', kind: 'peck', label: '在芦苇边啄小虫', w: 0.6 }],
+      water: [{ scene: 'lake', spot: 'swim', noIce: 1 }, { scene: 'farm', spot: 'trough' }],
+      fun: [{ scene: 'lake', spot: 'swim', kind: 'swim', label: '在湖面上漂来漂去', w: 1.6, noIce: 1 }, { scene: 'lake', spot: 'reeds', kind: 'groom', label: '在岸边理羽毛', w: 0.8 }, { scene: 'meadow', spot: 'puddle', kind: 'splash', label: '在水洼里扑腾', w: 0.7, when: 'wet' }],
+    },
+    pig: {
+      home: 'farm', about: '住在农场的猪圈。吃饭最积极：先去水槽边，再到苹果树下拱掉下来的苹果，秋天还会一路拱到森林里找蘑菇松露。天热了就在泥坑里打滚降温（泥巴就是它的防晒霜）。下着小雨也照样出门玩泥巴，只有暴雨打雷才回圈里。',
+      likes: '吃 · 泥坑 · 拱土 · 晒太阳', hates: '暴雨 · 饿肚子', diet: '饲料、苹果、蘑菇、什么都吃',
+      avoid: { heavyrain: 1, storm: 1, sleet: 0.8, heavysnow: 1, snow: 0.6 }, cold: -3, heat: 99, mudLover: 1,
+      foods: [{ scene: 'farm', spot: 'trough', kind: 'eat', label: '在水槽边吃饲料', w: 1.2 }, { scene: 'farm', spot: 'apple', kind: 'root', label: '在苹果树下拱苹果吃', w: 1.3, season: ['summer', 'autumn'] }, { scene: 'forest', spot: 'mushrooms', kind: 'root', label: '在森林里拱松露', w: 1, season: ['autumn'] }, { scene: 'farm', spot: 'veg', kind: 'root', label: '在菜园边拱菜叶', w: 0.5, season: ['summer', 'autumn'] }],
+      water: [{ scene: 'farm', spot: 'trough' }],
+      fun: [{ scene: 'farm', spot: 'mud', kind: 'wallow', label: '在泥坑里打滚', w: 1.4 }, { scene: 'farm', spot: 'yard', kind: 'nap', label: '躺在院子里晒太阳', w: 0.8, when: 'sunny' }, { scene: 'forest', spot: 'leaves', kind: 'root', label: '在落叶里拱来拱去', w: 0.6 }],
+    },
+    capybara: {
+      home: 'lake', about: '住在湖边的温泉里——对，它就住在温泉里。每天的日程：泡温泉、到岸边吃草、再泡温泉。冬天泡得更久，头上还会顶个柚子。情绪极其稳定，什么天气都无所谓（打雷也只是泡得更深一点）；所有动物都喜欢来靠着它。',
+      likes: '泡温泉 · 柚子 · 吃草 · 发呆 · 被大家靠着', hates: '（好像没有）', diet: '岸边的嫩草、水草、西瓜',
+      avoid: {}, cold: -30, heat: 99,
+      foods: [{ scene: 'lake', spot: 'shore', kind: 'graze', label: '在岸边慢慢吃草', w: 1.4 }, { scene: 'meadow', spot: 'clover', kind: 'graze', label: '去草地上吃草', w: 0.4, season: WARM }],
+      water: [{ scene: 'lake', spot: 'shore' }],
+      fun: [{ scene: 'lake', spot: 'capybara_home', kind: 'soak', label: '泡在温泉里发呆', w: 2 }, { scene: 'lake', spot: 'swim', kind: 'swim', label: '在湖里慢悠悠地游', w: 0.6, noIce: 1, season: ['summer'] }, { scene: 'lake', spot: 'shore', kind: 'nap', label: '在岸边打盹', w: 0.6 }],
+    },
+    hedgehog: {
+      home: 'forest', about: '住在森林倒木下的落叶窝。昼伏夜出：天黑以后慢慢出门，用鼻子在落叶堆里拱虫子吃，有时候走到草地上找甲虫。被吓到就缩成一个刺球。天冷以后会在落叶窝里冬眠，一觉睡到开春。',
+      likes: '夜里散步 · 虫子 · 落叶堆', hates: '白天 · 吵闹 · 冷', diet: '虫子、蚯蚓、甲虫',
+      avoid: { rain: 0.6, heavyrain: 1, storm: 1, sleet: 1, snow: 1, heavysnow: 1, windy: 0.8 }, cold: 5, heat: 32, hibernate: 1,
+      foods: [{ scene: 'forest', spot: 'leaves', kind: 'forage', label: '在落叶堆里拱虫子', w: 1.5 }, { scene: 'meadow', spot: 'grass', kind: 'forage', label: '在草地上找甲虫', w: 0.6, season: WARM }, { scene: 'forest', spot: 'mushrooms', kind: 'forage', label: '在蘑菇边找蜗牛', w: 0.6, when: 'wet' }],
+      water: [{ scene: 'forest', spot: 'brook' }],
+      fun: [{ scene: 'forest', spot: 'leaves', kind: 'sniff', label: '慢慢地夜游', w: 1 }, { scene: 'forest', spot: 'log', kind: 'groom', label: '蹲在倒木边发呆', w: 0.7 }],
+    },
+    dragon: {
+      home: 'forest', about: '从神秘的蛋里孵出来，住在森林深处的石头山洞。白天到处探险，最爱吃辣辣的东西和红浆果；会在大石头上晒太阳（毕竟是冷血的？没人知道）。不怕冷也不怕热。',
+      likes: '探险 · 红浆果 · 晒太阳 · 发光的东西', hates: '无聊', diet: '浆果、辣椒、蘑菇',
+      avoid: { storm: 0.6 }, cold: -40, heat: 99,
+      foods: [{ scene: 'forest', spot: 'berries', kind: 'berries', label: '在偷吃红浆果', w: 1.2 }, { scene: 'forest', spot: 'mushrooms', kind: 'berries', label: '在啃蘑菇', w: 0.7 }],
+      water: [{ scene: 'forest', spot: 'brook' }],
+      fun: [{ scene: 'forest', spot: 'sunrock', kind: 'perch', label: '在大石头上晒太阳', w: 1 }, { scene: 'meadow', spot: 'hill', kind: 'zoom', label: '在草地上练习飞', w: 0.8 }, { scene: 'lake', spot: 'dock', kind: 'watch', label: '在码头看自己的倒影', w: 0.5 }],
+    },
+  };
+  PP.HAB = HAB;
+
+  // 不同动作的时长（秒，游戏时间）和效果
+  const KIND = {
+    eat: { d: [8, 14], hunger: 50 }, graze: { d: [14, 30], hunger: 45 }, fish: { d: [14, 26], hunger: 50 }, hunt: { d: [8, 16], hunger: 30, fun: 10 },
+    peck: { d: [10, 20], hunger: 30 }, root: { d: [10, 18], hunger: 40, fun: 8 }, forage: { d: [14, 26], hunger: 40 }, berries: { d: [10, 18], hunger: 40 },
+    seeds: { d: [12, 20], hunger: 35 }, tongue: { d: [12, 22], hunger: 40 }, dive: { d: [12, 20], hunger: 55, fun: 6 }, dabble: { d: [14, 26], hunger: 45, fun: 8 },
+    drink: { d: [4, 7], thirst: 100 }, swim: { d: [20, 40], fun: 22 }, soak: { d: [40, 90], fun: 30, battery: 30 }, wallow: { d: [20, 40], fun: 30 },
+    perch: { d: [25, 60], fun: 18, energy: 6 }, watch: { d: [20, 40], fun: 18 }, knead: { d: [8, 14], fun: 15 }, pounce: { d: [10, 18], fun: 22 },
+    slide: { d: [12, 20], fun: 30 }, dig: { d: [8, 14], fun: 16 }, croak: { d: [12, 24], fun: 18 }, patrol: { d: [14, 26], fun: 15 },
+    binky: { d: [6, 10], fun: 25 }, dust: { d: [8, 14], fun: 15 }, zoom: { d: [6, 12], fun: 26 }, sniff: { d: [12, 22], fun: 12 },
+    roll: { d: [8, 14], fun: 25 }, nap: { d: [30, 70], energy: 25 }, groom: { d: [6, 12], fun: 6 }, waddle: { d: [12, 20], fun: 12 },
+    follow: { d: [12, 20], social: 15 }, splash: { d: [8, 14], fun: 20 }, visit: { d: [20, 40], social: 30, fun: 10 },
+  };
+
+  // ---------- 小工具 ----------
+  const S = () => G.save.settings;
+  const on = () => !!(G.save && S().mode !== 'mini');
+  const view = () => (PP.scene && PP.scene.view()) || 'forest';
+  const ROUTE = () => PP.ROUTE;
+  const hops = (a, b) => Math.abs(ROUTE().indexOf(a) - ROUTE().indexOf(b));
+  const nextHop = (a, b) => { const r = ROUTE(), i = r.indexOf(a), j = r.indexOf(b); return r[i + Math.sign(j - i)] || b; };
+  const homeScene = (p) => (HAB[p.d.species] || HAB.cat).home;
+  const env = () => PP.env.get();
+  const lay = () => (PP.scene && PP.scene.layout()) || null;
+  const iceNow = (e) => (e || env()).season === 'winter';
+  const sunny = (e) => ['clear', 'partly'].includes(e.weather.kind) && e.time.phase === 'day';
+  const wet = (e) => ['drizzle', 'rain', 'heavyrain', 'storm'].includes(e.weather.kind) || e.fx.rain > 0;
+  const snowy = (e) => ['snow', 'heavysnow'].includes(e.weather.kind) || e.season === 'winter';
+  const COND = { sunny, wet, snowy };
+  PP.eco = {};
+
+  // ---------- 天气、冬眠 ----------
+  function hibernating(p, e) {
+    const h = HAB[p.d.species];
+    return !!(h.hibernate && e.season === 'winter' && (e.weather.temp == null || e.weather.temp < 10));
+  }
+  // 返回“为什么不想出门”，没有就是 null
+  function weatherBad(p, e) {
+    const h = HAB[p.d.species], k = e.weather.kind, t = e.weather.temp;
+    const v = (h.avoid || {})[k] || 0;
+    // 胆子大的偶尔也会冒雨出门；胆小的更容易躲着
+    const brave = (1 - p.tr.timid) * 0.25;
+    if (v - brave >= 0.5) return PP.env.weatherName(k);
+    if (e.fx.wind >= 3 && (h.avoid || {}).windy) return '风太大了';
+    if (t != null && t < (h.cold != null ? h.cold : 0) && !h.snowLover) return '太冷了';
+    if (t != null && t > (h.heat || 99) && e.time.phase === 'day') return '太热了';
+    return null;
+  }
+
+  // ---------- 计划：现在该干嘛 ----------
+  function plan(p) {
+    const sp = p.d.species, h = HAB[sp] || HAB.cat, e = env(), n = p.n;
+    const home = (why, label, dur) => ({ home: true, scene: h.home, spot: sp + '_home', why, label, dur });
+    if (hibernating(p, e)) return home('hibernate', '在冬眠，要睡到春天', 300);
+    const sleepy = p.sleepiness();
+    if (sleepy > 0.62 || n.energy < 18) return home('sleep', e.time.phase === 'night' ? '在家里睡觉' : '回家睡个午觉', U.rand(90, 200));
+    const bad = weatherBad(p, e);
+    if (bad && !(h.rainLover && wet(e) && bad !== '太冷了' && e.weather.kind !== 'storm')) return home('shelter', `${bad}，躲在家里`, U.rand(60, 120));
+    const here = p.d.scene || h.home;
+    const cands = [];
+    const ok = (o) => (!o.season || o.season.includes(e.season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e)) && (o.scene === 'snow' ? h.home === 'snow' || snowy(e) || sp === 'dog' || sp === 'fox' : true);
+    const far = (o) => 1 / (1 + hops(here, o.scene) * 0.8 + (o.scene !== h.home ? 0.3 : 0));
+    const push = (o, kind, wgt, label) => cands.push([{ scene: o.scene, spot: o.spot, kind, label, dur: U.rand(...(KIND[kind] || KIND.groom).d) }, wgt]);
+    // 饿了：去觅食（越饿越想去远一点的好地方）
+    if (n.hunger < 62) for (const f of h.foods) if (ok(f)) push(f, f.kind, Math.pow((62 - n.hunger) / 62, 0.7) * 2.6 * (f.w || 1) * Math.sqrt(far(f)), f.label);
+    if (h.stash && n.hunger < 40 && p.d.stash > 0 && !cands.length) return home('eatStash', '回洞里吃存粮', 30);
+    if (n.thirst < 58) for (const f of h.water) if (ok(f)) push(f, 'drink', ((58 - n.thirst) / 58) * 2.4 * far(f), '去喝水');
+    // 玩
+    const funNeed = 0.45 + (100 - n.fun) / 100;
+    for (const f of h.fun) if (ok(f)) push(f, f.kind, funNeed * (f.w || 1) * far(f) * (0.6 + p.tr.playful * 0.6), f.label);
+    // 串门：去找好朋友
+    const livable = (sc) => sc !== 'snow' || h.home === 'snow' || ((sp === 'dog' || sp === 'fox') && snowy(e));
+    const friend = G.all.filter((o) => o !== p && !o.d.hidden && !o.d.inHome && o.d.scene && livable(o.d.scene) && p.relWith(o) > 58 && hops(here, o.d.scene) <= 1).sort((a, b) => p.relWith(b) - p.relWith(a))[0];
+    if (friend && n.social < 80) cands.push([{ scene: friend.d.scene, kind: 'visit', friend: friend.d.id, label: `去找${friend.name}玩`, dur: U.rand(20, 40) }, (0.3 + p.tr.extro * 0.6) * ((100 - n.social) / 100) * 1.4]);
+    // 回家歇会儿
+    cands.push([home('rest', '在家里歇着', U.rand(25, 60)), 0.05 + p.tr.lazy * 0.15 + (n.battery < 35 ? 0.5 : 0) + Math.max(0, sleepy - 0.35) * 0.9]);
+    if (!cands.length) return home('rest', '在家里歇着', 60);
+    return U.weighted(cands.map(([t, w]) => [t, w * w + 0.01]));
+  }
+
+  // ---------- 位置 ----------
+  // 设施在屏幕上的位置（只对当前看着的场景有效）
+  function spotPos(id) {
+    const l = lay(); if (!l) return null;
+    const s = l.L.spots[id]; if (!s) return null;
+    return { x: s.c * l.g.u, r: s.r, water: !!s.water, perch: !!s.perch, c: s.c };
+  }
+  function rowY(r) { const l = lay(); return l ? l.g.y0 + r * l.g.u : G.ground; }
+  // 宠物脚下的“地面”：陆地分前后好几排（lane），水里、高处另算
+  function floorY(p) {
+    if (!on() || !G.pets.includes(p)) return G.ground;
+    if (p.surf && p.surf.r != null) return rowY(p.surf.r) + (p.surf.dy || 0);
+    const l = lay(); if (!l) return G.ground;
+    const back = l.g.y0 + (l.L.base + 1) * l.g.u, front = G.ground;
+    return Math.round(back + (front - back) * (p.lane != null ? p.lane : 0.75));
+  }
+  PP.eco.floorY = floorY;
+
+  // ---------- 可见 / 不可见 ----------
+  function visibleIn(p) { return on() && !p.d.hidden && !p.d.inHome && p.d.scene === view() && !(p.eco && p.eco.state === 'travel'); }
+  PP.eco.visible = visibleIn;
+  function countAt(scene) { return G.all.filter((p) => !p.d.hidden && p.d.scene === scene && !(p.eco && p.eco.state === 'travel') && !(S().mode === 'mini' && PP.F && PP.F.main() === p)).length; }
+  PP.eco.countAt = countAt;
+
+  // 切换到某个场景：这里的动物现身，别处的退场
+  function onView(to) {
+    for (const p of G.all) {
+      if (p.d.hidden) continue;
+      const was = G.pets.includes(p);
+      if (was && p.d.scene !== to) { toOffscreen(p); }
+    }
+    PP.syncPets();
+    for (const p of G.pets) if (!p._shown) appear(p);
+    G.all.forEach((p) => (p._shown = G.pets.includes(p)));
+  }
+  PP.eco.onView = onView;
+  PP.eco.toOffscreen = (p) => { toOffscreen(p); };
+  // 刚出现在画面里：放到它正在干的事情的地方
+  function appear(p) {
+    p._shown = true;
+    p.surf = null; p.wade = 0; p.lane = p.lane != null ? p.lane : U.rand(0.35, 0.95);
+    const t = p.eco && p.eco.task;
+    if (t && !t.home && t.scene === p.d.scene) {
+      const pos = t.spot ? spotPos(t.spot) : null;
+      p.x = pos ? U.clamp(pos.x + U.rand(-30, 30), 20, G.W - 20) : U.rand(G.W * 0.15, G.W * 0.85);
+      p.y = floorY(p);
+      const left = p.eco.until ? Math.max(4, p.eco.until - G.t) : t.dur;
+      p.eco = null;
+      p.run('eco', A.eco, Object.assign({}, t, { dur: left }));
+    } else {
+      if (p.x == null || p.x < 0 || p.x > G.W) p.x = U.rand(G.W * 0.15, G.W * 0.85);
+      p.eco = null; p.y = floorY(p);
+    }
+  }
+  // 画面外：把正在做的事换成“后台进行”
+  function toOffscreen(p) {
+    const t = p.ecoTask;
+    p.interrupt(true);
+    p.surf = null; p.wade = 0; p.held = false; p.airborne = false;
+    if (t && !t.home) p.eco = { state: 'do', task: t, until: G.t + Math.max(5, (t.dur || 20) - (G.t - (p.taskStart || G.t))) };
+    else p.eco = null;
+    p._shown = false;
+  }
+
+  // ---------- 后台生活（看不见的动物也在过日子） ----------
+  let simAcc = 0;
+  function tick(dt) {
+    if (!G.save || !G.all.length) return;
+    simAcc += dt; if (simAcc < 1) return;
+    const step = simAcc; simAcc = 0;
+    const main = PP.F && PP.F.main();
+    let changed = false;
+    for (const p of G.all) {
+      if (p.d.hidden) continue;
+      if (!p.d.scene) p.d.scene = homeScene(p);
+      if (G.pets.includes(p)) {
+        if (on()) watchWeather(p);
+        continue;
+      }
+      if (S().mode === 'mini' && p === main) continue;
+      p.decay(step);
+      if (p.bubble) p.bubble = null;
+      changed = simOne(p) || changed;
+    }
+    if (changed) { PP.syncPets(); for (const p of G.pets) if (!p._shown) appear(p); G.all.forEach((p) => (p._shown = G.pets.includes(p))); }
+  }
+  PP.eco.tick = tick;
+
+  // 返回 true 表示可见性可能变了
+  function simOne(p) {
+    const a = p.eco;
+    if (!a) { startOff(p, plan(p)); return false; }
+    if (a.state === 'travel') {
+      if (G.t < a.arrive) return false;
+      p.d.scene = a.to;
+      const t = a.task;
+      if (p.d.scene === view() && on()) { p.eco = { state: 'arrive', task: t }; enterFromEdge(p, a.from); return true; }
+      if (p.d.scene !== t.scene) { p.eco = { state: 'travel', from: p.d.scene, to: nextHop(p.d.scene, t.scene), arrive: G.t + U.rand(18, 30), task: t }; return false; }
+      startOff(p, t); return false;
+    }
+    if (a.state === 'do') {
+      if (G.t < a.until) return false;
+      effects(p, a.task); p.eco = null; p.sleeping = false;
+      startOff(p, plan(p)); return p.d.scene === view();
+    }
+    if (a.state === 'home') {
+      p.sleeping = ['sleep', 'hibernate'].includes(a.task.why);
+      if (a.task.why === 'eatStash' && p.d.stash > 0 && p.n.hunger < 70) { p.d.stash--; p.n.hunger = Math.min(100, p.n.hunger + 35); }
+      if (G.t < a.until) return false;
+      const nx = plan(p);
+      if (nx.home) { p.eco = { state: 'home', task: nx, until: G.t + nx.dur }; return false; }
+      // 出门
+      p.d.inHome = false; p.sleeping = false;
+      if (p.d.scene === view() && on()) { p.eco = { state: 'emerge', task: nx }; return true; }
+      startOff(p, nx); return false;
+    }
+    if (a.state === 'emerge' || a.state === 'arrive') { // 等待显示
+      if (!(p.d.scene === view() && on())) startOff(p, a.task);
+      return true;
+    }
+    return false;
+  }
+  function startOff(p, t) {
+    p.d.scene = p.d.scene || homeScene(p);
+    if (t.friend) { const f = G.all.find((o) => o.d.id === t.friend); if (f && f.d.scene) t.scene = f.d.scene; }
+    if (t.scene !== p.d.scene) { p.eco = { state: 'travel', from: p.d.scene, to: nextHop(p.d.scene, t.scene), arrive: G.t + U.rand(18, 30), task: t }; return; }
+    if (t.home) { p.d.inHome = true; p.eco = { state: 'home', task: t, until: G.t + (t.dur || 60) }; p.sleeping = ['sleep', 'hibernate'].includes(t.why); return; }
+    p.d.inHome = false;
+    p.eco = { state: 'do', task: t, until: G.t + (t.dur || 30) };
+  }
+  function effects(p, t) {
+    const k = KIND[t.kind] || {}, n = p.n;
+    if (k.hunger) n.hunger = Math.min(100, n.hunger + k.hunger);
+    if (k.thirst) n.thirst = Math.min(100, n.thirst + k.thirst);
+    if (k.fun) n.fun = Math.min(100, n.fun + k.fun);
+    if (k.social) n.social = Math.min(100, n.social + k.social);
+    if (k.energy) n.energy = Math.min(100, n.energy + k.energy);
+    if (k.battery) n.battery = Math.min(100, n.battery + k.battery);
+    n.bladder = Math.min(100, n.bladder + 30);
+    if (t.kind === 'seeds' && p.d.stash < 12) p.d.stash += 2;
+    if (Math.random() < 0.12) PP.diary && PP.diary.add(p, (t.label || '') + '。', 'note');
+  }
+  // 从路牌那边走进来
+  function enterFromEdge(p, from) {
+    const side = PP.ROUTE.indexOf(from) < PP.ROUTE.indexOf(p.d.scene) ? -1 : 1;
+    p.x = side < 0 ? 18 : G.W - 18; p.lane = U.rand(0.4, 0.95); p.surf = null; p.wade = 0;
+  }
+
+  // 显示出来以后的第一件事：从家里出来 / 从路边走进来，然后继续干活
+  PP.eco.afterSync = function () {
+    for (const p of G.pets) {
+      const a = p.eco; if (!a) continue;
+      if (a.state === 'emerge') { p.eco = null; p._shown = true; const pos = spotPos(p.d.species + '_home'); p.x = pos ? pos.x : p.x; p.lane = 0.55; p.surf = null; p.y = floorY(p); p.run('eco', A.ecoOut, a.task); }
+      else if (a.state === 'arrive') { p.eco = null; p._shown = true; p.y = floorY(p); p.run('eco', A.eco, a.task); }
+    }
+  };
+
+  // ---------- 可见动物的决策：在 pet.decide() 里调用 ----------
+  // 返回 true 表示已经安排了事情
+  PP.eco.decide = function (p, add) {
+    if (!on() || !G.pets.includes(p)) return false;
+    if (p.calm) return false;
+    const t = plan(p);
+    const urgent = t.home || t.scene !== p.d.scene || p.n.hunger < 45 || p.n.thirst < 40;
+    if (urgent) { p.run('eco', A.eco, t); return true; }
+    // 不着急的时候：和“摸摸你、找朋友玩、发呆”这些放在一起随机
+    add('eco', 1.1);
+    p._ecoNext = t;
+    return false;
+  };
+  // 极简模式：主角走到右下角待着
+  A.cornerWalk = function* () {
+    const p = this, [a, b] = PP.miniZone ? PP.miniZone() : [G.W - 260, G.W - 70];
+    yield p.goto(U.rand(a, b));
+    p.anim = 'idle'; yield 1;
+  };
+
+  // 天气突变：正在外面的动物看情况跑回家
+  function watchWeather(p) {
+    if (p.held || p.airborne || p.doorBusy() || p.calm) return;
+    if ((p.cooldown.wx || 0) > 0) return;
+    p.cooldown.wx = 6;
+    if (p.ecoTask && p.ecoTask.home) return;
+    const e = env(), h = HAB[p.d.species];
+    const bad = weatherBad(p, e);
+    const hib = hibernating(p, e);
+    if ((bad && !(h.rainLover && wet(e) && e.weather.kind !== 'storm')) || hib) {
+      p.say(U.pick(hib ? ['好冷…要去冬眠了', '困…（打哈欠）'] : bad === '太热了' ? ['好热…回家凉快凉快', '受不了了'] : ['下雨啦，回家！', '要淋湿了！', '快跑快跑']), 2);
+      p.run('eco', A.eco, { home: true, scene: h.home, spot: p.d.species + '_home', why: hib ? 'hibernate' : 'shelter', label: hib ? '在冬眠' : `${bad}，躲在家里`, dur: U.rand(60, 120), run: true });
+    }
+  }
+
+  // ---------- 行为脚本 ----------
+  const SZ = () => G.S;
+  function* hopTo(p, surf, lane) {
+    // 跳到新的“地面”（上岸 / 下水 / 跳上高处）
+    const y0 = p.y;
+    p.surf = surf; if (lane != null) p.lane = lane;
+    const y1 = floorY(p);
+    p.transit = true;
+    const n = 8, h = Math.max(10, Math.abs(y1 - y0) * 0.4 + 10);
+    for (let k = 1; k <= n; k++) { const a = k / n; p.y = y0 + (y1 - y0) * a - Math.sin(a * Math.PI) * h; p.anim = a < 0.5 ? 'jump' : 'fall'; yield 0.04; }
+    p.transit = false; p.y = y1; p.anim = 'land'; p.jolt(-2, 0); yield 0.15; p.anim = 'idle';
+  }
+  function* walkTo(p, pos, task, run) {
+    if (!pos) { yield p.goto(p.x + U.rand(-120, 120), run); return; }
+    const tx = U.clamp(pos.x + (task && task.jit != null ? task.jit : U.rand(-14, 14) * SZ()), 20, G.W - 20);
+    // 先从水里 / 高处下来
+    if (p.surf && !(pos.water && p.surf.water) && !(pos.perch && p.surf.perch && Math.abs(p.surf.c - pos.c) < 3)) {
+      if (p.surf.water) { PP.scene.splash(p.x / lay().g.u, p.surf.r); }
+      p.wade = 0; yield* hopTo(p, null, 0.3);
+    }
+    if (pos.water) {
+      if (!p.surf) { // 走到岸边，跳下水
+        yield p.goto(tx, run);
+        const l = lay(); PP.scene.splash(tx / l.g.u, pos.r);
+        yield* hopTo(p, { r: pos.r, water: true, c: pos.c }, null);
+        p.wade = wadeOf(p, task); PP.scene.splash(tx / l.g.u, pos.r);
+      } else yield p.goto(tx, run);
+      return;
+    }
+    yield p.goto(tx, run);
+    if (pos.perch) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, c: pos.c }, null); }
+  }
+  function wadeOf(p, task) {
+    const sp = p.d.species, S = SZ();
+    if (task && task.spot === 'frog_home') return 0;
+    if (task && task.kind === 'soak') return (sp === 'capybara' ? 13 : 8) * S;
+    return { duck: 6, frog: 9, penguin: 11, capybara: 13 }[sp] * S || 8 * S;
+  }
+  function done(p, t) { effects(p, t); p.ecoTask = null; }
+
+  // 主脚本：去目标场景 → 去目标地点 → 干活
+  A.eco = function* (task) {
+    const p = this;
+    p.ecoTask = task; p.taskStart = G.t;
+    if (task.friend) { const f = G.all.find((o) => o.d.id === task.friend); if (f && f.d.scene) task.scene = f.d.scene; }
+    // 1. 不在这个场景：走到路牌那边离开
+    if (task.scene !== p.d.scene) {
+      const to = nextHop(p.d.scene, task.scene);
+      if (Math.random() < 0.35) p.say(U.pick([`去${PP.SCENES[task.scene].name}～`, task.label ? task.label.replace(/^在/, '去') : '出发！', '走啦']), 2);
+      if (p.surf) { p.wade = 0; yield* hopTo(p, null, 0.6); }
+      yield p.goto(PP.scene.exitX(to), !!task.run);
+      p.eco = { state: 'travel', from: p.d.scene, to, arrive: G.t + U.rand(18, 30), task };
+      p.ecoTask = null; p._shown = false;
+      PP.syncPets();
+      return;
+    }
+    // 2. 回家
+    if (task.home) {
+      const pos = spotPos(task.spot);
+      if (p.surf && !(pos && pos.water)) { p.wade = 0; yield* hopTo(p, null, 0.5); }
+      if (pos && pos.water && !p.surf) yield* walkTo(p, pos, Object.assign({ jit: 0 }, task), task.run);
+      else yield p.goto(pos ? pos.x : p.x, !!task.run);
+      p.facing = U.chance(0.5) ? 1 : -1;
+      yield* goIn(p, task);
+      return;
+    }
+    // 3. 去干活的地方
+    const pos = spotPos(task.spot);
+    if (task.kind === 'visit') { yield* visit(p, task); done(p, task); return; }
+    yield* walkTo(p, pos, task, task.run);
+    const body = DO[task.kind] || DO.groom;
+    yield* body(p, task, pos);
+    done(p, task);
+  };
+  // 从家里出来
+  A.ecoOut = function* (task) {
+    const p = this;
+    const pos = spotPos(p.d.species + '_home');
+    if (pos && pos.water) { p.surf = { r: pos.r, water: true, c: pos.c }; }
+    p.y = floorY(p);
+    p.sinkOut = 1; p.anim = 'idle';
+    for (let k = 0; k < 10; k++) { p.sinkOut = 1 - (k + 1) / 10; yield 0.05; }
+    p.sinkOut = 0; p.jolt(-2, 0);
+    if (Math.random() < 0.6) p.anim = 'stretch', yield 1.1;
+    p.anim = 'idle';
+    yield* A.eco.call(p, task);
+  };
+  // 钻进家里
+  function* goIn(p, task) {
+    p.anim = 'idle'; yield 0.3;
+    for (let k = 0; k < 10; k++) { p.sinkOut = (k + 1) / 10; yield 0.05; }
+    p.sinkOut = 0; p.d.inHome = true; p.surf = null; p.wade = 0;
+    p.eco = { state: 'home', task, until: G.t + (task.dur || 60) };
+    p.ecoTask = null; p._shown = false; p.sleeping = ['sleep', 'hibernate'].includes(task.why);
+    PP.syncPets();
+  }
+  function* visit(p, task) {
+    const f = G.pets.find((o) => o.d.id === task.friend);
+    if (!f) { yield* DO.groom(p, task); return; }
+    yield p.goto(f.x + (p.x < f.x ? -1 : 1) * 16 * SZ());
+    p.facing = Math.sign(f.x - p.x) || 1;
+    if (A.social) { yield* A.social.call(p); return; }
+    p.say(U.pick(PP.LINES.friend), 2); yield 3;
+  }
+
+  // 每种活动具体怎么做（可见的时候）
+  const r = (a, b) => U.rand(a, b);
+  const DO = {
+    *eat(p, t) { p.anim = 'eat'; p.mouth = 'chew'; p.eyes = 'closed'; yield t.dur; p.anim = 'idle'; p.mouth = 'tongue'; p.eyes = 'happy'; yield 0.8; p.mouth = 'w'; p.eyes = 'open'; },
+    *graze(p, t) {
+      let left = t.dur;
+      while (left > 0) { p.anim = 'eat'; p.mouth = 'chew'; const d = r(2, 4); yield d; left -= d; p.anim = 'idle'; yield 0.6; left -= 0.6; if (Math.random() < 0.4) { yield p.goto(p.x + r(-25, 25)); } if (p.d.species === 'rabbit' && Math.random() < 0.25) { p.ears = 'perk'; p.anim = 'look_up'; yield 0.8; p.ears = 'up'; } }
+      p.anim = 'idle'; p.mouth = 'w';
+    },
+    *drink(p, t) { p.anim = 'drink'; p.eyes = 'closed'; for (let k = 0; k < 6; k++) { yield 0.45; PP.fx({ kind: 'dot', x: p.x + r(-6, 6), y: p.y - 6 * SZ(), vx: r(-30, 30), vy: r(-90, -50), grav: 400, life: 0.5, col: '#8fd0ff', size: Math.max(1, SZ() - 1) }); } p.anim = 'idle'; p.eyes = 'open'; },
+    *fish(p, t) {
+      // 猫：蹲在码头边，盯着水面，伸爪子一捞
+      p.facing = U.chance(0.5) ? 1 : -1; let left = t.dur, got = false;
+      while (left > 0) {
+        p.anim = 'crouch'; p.eyes = 'wide'; const d = r(2.5, 5); yield d; left -= d;
+        if (Math.random() < 0.45) {
+          p.jolt(-3, 0); p.anim = 'jump'; yield 0.25; p.anim = 'land';
+          const l = lay(); if (l && l.L.water) PP.scene.splash(p.x / l.g.u + p.facing * 4, l.L.water.y1 - 2);
+          if (Math.random() < 0.5) { got = true; p.emote('heart'); PP.scene.fishAt(p.x / lay().g.u + p.facing * 6); p.say(U.pick(['抓到了！', '鱼！', '（叼着鱼）']), 1.6); break; }
+          p.setExpr('sad', 'frown', 1); yield 0.6;
+        }
+      }
+      if (got) { p.anim = 'eat'; p.mouth = 'chew'; p.eyes = 'closed'; yield 4; }
+      p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w';
+      if (!got) t.kind = 'watch'; // 没抓到就当看了会儿鱼
+    },
+    *watch(p, t) { p.anim = 'sit'; p.eyes = 'open'; let left = t.dur; while (left > 0) { yield 3; left -= 3; if (Math.random() < 0.25 && lay().L.water) PP.scene.fishAt(p.x / lay().g.u + r(-10, 10)); if (Math.random() < 0.2) p.facing = -p.facing; } },
+    *hunt(p, t) {
+      let left = t.dur;
+      while (left > 0) {
+        p.anim = 'crouch'; p.ears = 'perk'; p.eyes = 'wide'; yield r(1.5, 3); left -= 2.5;
+        // 一跃扎下去
+        const x0 = p.x, x1 = U.clamp(p.x + p.facing * r(30, 60) * SZ() / 2, 20, G.W - 20), y0 = p.y;
+        p.transit = true;
+        for (let k = 1; k <= 10; k++) { const a = k / 10; p.x = x0 + (x1 - x0) * a; p.y = y0 - Math.sin(a * Math.PI) * 26 * SZ() / 2; p.anim = a < 0.5 ? 'jump' : 'fall'; yield 0.04; }
+        p.transit = false; p.y = floorY(p); p.anim = 'eat'; p.jolt(-4, 0);
+        PP.puff && PP.puff(p.x, p.y, 4);
+        yield 0.8;
+        if (Math.random() < 0.4) { p.emote('heart'); p.anim = 'eat'; p.mouth = 'chew'; yield 2.5; break; }
+        p.anim = 'idle'; p.think('dots', 1); yield 1; left -= 2;
+      }
+      p.anim = 'idle'; p.ears = 'up'; p.eyes = 'open'; p.mouth = 'w';
+    },
+    *peck(p, t) { let left = t.dur; while (left > 0) { p.anim = 'eat'; yield 0.25; p.anim = 'idle'; const d = r(0.3, 0.9); yield d; left -= d + 0.25; if (Math.random() < 0.3) { yield p.goto(p.x + r(-30, 30)); left -= 1; } } },
+    *root(p, t) {
+      for (let i = 0; i < 5; i++) { p.anim = 'eat'; p.mouth = 'chew'; yield 0.6; PP.fx({ kind: 'dot', x: p.x + p.facing * 8 * SZ(), y: p.y - 2, vx: r(-50, 50), vy: r(-90, -40), grav: 400, life: 0.5, col: '#9a6a46', size: SZ() }); if (i === 2) yield p.goto(p.x + r(-30, 30)); }
+      if (t.spot === 'mushrooms' && Math.random() < 0.5) { p.say(U.pick(['哼！松露！', '找到好东西了']), 2); p.emote('heart'); }
+      if (Math.random() < 0.15 && G.items.filter((i) => i.type === 'gift').length < 3) { const g = PP.events.rollGift(p); PP.addItem({ type: 'gift', x: p.x + p.facing * 10 * SZ(), data: { gift: g, from: p.d.id } }); p.say('哼哼～送你', 1.6); }
+      p.anim = 'eat'; yield Math.max(2, t.dur - 5); p.anim = 'idle'; p.mouth = 'w';
+    },
+    *forage(p, t) {
+      let left = t.dur;
+      while (left > 0) { yield p.goto(p.x + r(-60, 60)); p.anim = 'eat'; const d = r(1.2, 2.4); yield d; left -= d + 1.5; p.anim = 'idle'; if (Math.random() < 0.2) p.emote('heart'); }
+      if (p.d.species === 'hedgehog' && Math.random() < 0.3 && !p.hat) { p.hat = 'leaf'; }
+    },
+    *berries(p, t) { p.anim = 'look_up'; yield 1; let left = t.dur; while (left > 0) { p.anim = 'eat'; p.mouth = 'chew'; yield 2; p.anim = 'look_up'; yield 0.8; left -= 2.8; } p.anim = 'idle'; p.mouth = 'w'; if (Math.random() < 0.4) p.emote('heart'); },
+    *seeds(p, t) { let left = t.dur; while (left > 0) { yield p.goto(p.x + r(-30, 30)); p.anim = 'eat'; yield 1.2; p.cheeks = true; left -= 2.5; } p.anim = 'idle'; p.say(U.pick(['（腮帮子鼓鼓的）', '囤起来囤起来', '吱！']), 1.6); },
+    *tongue(p, t) {
+      let left = t.dur;
+      while (left > 0) {
+        p.anim = 'idle'; p.eyes = 'open'; const d = r(2, 4); yield d; left -= d;
+        const tx = p.x + p.facing * r(20, 50), ty = p.y - r(20, 50) * SZ() / 2;
+        p.tongue = { x: tx, y: ty, t: 0.3, max: 0.3 }; p.mouth = 'open'; yield 0.3; p.mouth = 'w';
+        if (Math.random() < 0.6) { p.mouth = 'chew'; yield 0.8; p.mouth = 'w'; }
+      }
+    },
+    *dive(p, t) {
+      // 企鹅：跳进冰窟窿，过一会儿叼着鱼冒出来
+      const l = lay(); p.facing = U.chance(0.5) ? 1 : -1;
+      p.anim = 'jump'; p.jolt(-3, 0); yield 0.3;
+      for (let k = 0; k < 8; k++) { p.sinkOut = (k + 1) / 8; yield 0.04; }
+      if (l && l.L.icehole) PP.scene.splash(l.L.icehole.c, l.L.icehole.r);
+      yield r(3, 6);
+      if (l && l.L.icehole) PP.scene.splash(l.L.icehole.c, l.L.icehole.r);
+      for (let k = 0; k < 8; k++) { p.sinkOut = 1 - (k + 1) / 8; yield 0.04; }
+      p.sinkOut = 0; p.jolt(-3, 0);
+      if (Math.random() < 0.7) { p.say(U.pick(['嘎！抓到了', '（叼着鱼）', '今天的鱼好大']), 1.6); p.anim = 'eat'; p.mouth = 'chew'; yield 3; }
+      p.anim = 'idle'; p.mouth = 'w'; yield Math.max(1, t.dur - 10);
+    },
+    *dabble(p, t) {
+      // 鸭子：一头扎进水里，屁股朝天
+      let left = t.dur;
+      while (left > 0) {
+        yield p.goto(p.x + r(-60, 60)); left -= 2;
+        const w0 = p.wade; p.anim = 'eat'; p.wade = w0 + 8 * SZ(); p.jolt(2, 0); yield r(1.2, 2.2); p.wade = w0; p.anim = 'idle'; p.jolt(-2, 0);
+        PP.scene.splash(p.x / lay().g.u, p.surf ? p.surf.r : 0); left -= 2;
+      }
+    },
+    *swim(p, t) {
+      let left = t.dur;
+      while (left > 0) { yield p.goto(U.clamp(p.x + r(-160, 160), G.W * 0.08, G.W * 0.64)); if (Math.random() < 0.5) PP.scene.splash(p.x / lay().g.u, p.surf ? p.surf.r : 0); p.anim = 'idle'; const d = r(1.5, 4); yield d; left -= d + 3; }
+    },
+    *soak(p, t) {
+      if (p.d.species === 'capybara' && !p.hat && (env().season === 'winter' || Math.random() < 0.5)) p.hat = 'yuzu';
+      p.surf = p.surf || { r: lay().L.spring ? lay().L.spring.r + 2 : null, c: 0 }; p.wade = 12 * SZ();
+      p.anim = 'lie'; p.eyes = 'closed'; p.mouth = 'smile';
+      let left = t.dur; while (left > 0) { yield 2; left -= 2; if (Math.random() < 0.08) p.setExpr('happy', 'smile', 1); }
+      p.wade = 0; p.surf = null; yield* hopTo(p, null, 0.5);
+      p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w';
+    },
+    *wallow(p, t) {
+      p.anim = 'lie'; p.eyes = 'happy'; p.mouth = 'smile'; p.wade = 4 * SZ();
+      let left = t.dur; while (left > 0) { yield 1.2; left -= 1.2; if (Math.random() < 0.3) { p.facing = -p.facing; p.jolt(2, r(-3, 3)); PP.fx({ kind: 'dot', x: p.x + r(-10, 10), y: p.y - 4, vx: r(-60, 60), vy: r(-100, -50), grav: 500, life: 0.6, col: '#7a4a2a', size: SZ() }); } }
+      p.wade = 0; p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w'; p.say(U.pick(['哼哼～舒服', '（满身泥巴）']), 1.6);
+    },
+    *perch(p, t) {
+      p.anim = 'lie'; p.eyes = 'sleepy';
+      let left = t.dur; while (left > 0) { yield 3; left -= 3; p.eyes = Math.random() < 0.6 ? 'happy' : 'sleepy'; if (Math.random() < 0.15) p.facing = -p.facing; if (Math.random() < 0.06) { p.anim = 'sleep'; p.eyes = 'closed'; yield 6; left -= 6; p.anim = 'lie'; } }
+      p.anim = 'stretch'; yield 1; p.anim = 'idle'; p.eyes = 'open';
+    },
+    *knead(p, t) { p.anim = 'knead'; p.eyes = 'happy'; p.purr = 2; yield t.dur; p.anim = 'idle'; p.eyes = 'open'; },
+    *pounce(p, t) {
+      if (!G.ambient.bug && env().season !== 'winter') G.ambient.bug = { x: p.x + p.facing * 60, y: p.y - 50, vx: U.pick([-30, 30]), t: 0, life: r(14, 24), caught: false };
+      if (A.bug) { yield* A.bug.call(p); return; }
+      yield* DO.zoom(p, t);
+    },
+    *slide(p, t) {
+      // 企鹅：在坡顶趴下，肚皮滑下去
+      for (let round = 0; round < 2; round++) {
+        const end = spotPos('slideend'); if (!end) break;
+        p.anim = 'lie'; p.facing = end.x > p.x ? 1 : -1; p.say(round ? '' : U.pick(['嘎——！', '冲呀！', '']), 1);
+        yield 0.5;
+        p.wade = 0; p.surf = null; p.transit = true;
+        const x0 = p.x, y0 = p.y, y1 = floorY(p);
+        for (let k = 1; k <= 24; k++) { const a = k / 24; p.x = x0 + (end.x - x0) * a; p.y = y0 + (y1 - y0) * Math.min(1, a * 1.4); p.anim = 'lie'; if (k % 4 === 0) PP.fx({ kind: 'dot', x: p.x - p.facing * 10, y: p.y - 2, vx: -p.facing * r(20, 60), vy: r(-40, -10), grav: 200, life: 0.5, col: '#ffffff', size: SZ() }); yield 0.05; }
+        p.transit = false; p.y = floorY(p); p.jolt(-2, 2); p.anim = 'idle'; p.eyes = 'happy'; yield 1.2; p.eyes = 'open';
+        if (round === 0 && Math.random() < 0.6) { const top = spotPos('slidetop'); yield p.goto(top.x); yield* hopTo(p, { r: top.r, perch: true, c: top.c }, null); } else break;
+      }
+    },
+    *dig(p, t) { for (let i = 0; i < 8; i++) { p.anim = 'eat'; yield 0.35; PP.fx({ kind: 'dot', x: p.x - p.facing * 8 * SZ(), y: p.y - 2, vx: -p.facing * r(40, 90), vy: r(-120, -60), grav: 500, life: 0.6, col: env().season === 'winter' ? '#ffffff' : '#8a5a3a', size: SZ() }); p.anim = 'idle'; yield 0.2; } if (p.d.species === 'dog' && Math.random() < 0.3) { p.say(U.pick(['汪！骨头！', '挖到了！']), 1.6); p.emote('heart'); } yield Math.max(1, t.dur - 5); },
+    *croak(p, t) { let left = t.dur; while (left > 0) { p.anim = 'idle'; p.cheeks = true; p.mouth = 'o'; p.emote('music'); PP.audio && PP.audio.chirp(p); yield 0.6; p.cheeks = false; p.mouth = 'w'; const d = r(2, 4); yield d; left -= d + 0.6; } },
+    *patrol(p, t) { let left = t.dur; while (left > 0) { yield p.goto(U.rand(G.W * 0.1, G.W * 0.9)); p.anim = 'eat'; yield 0.8; p.anim = 'idle'; p.anim = 'look_up'; yield 0.8; p.anim = 'idle'; left -= 6; } },
+    *binky(p, t) { for (let i = 0; i < 3; i++) { p.transit = true; const y0 = p.y; for (let k = 1; k <= 8; k++) { const a = k / 8; p.y = y0 - Math.sin(a * Math.PI) * 22 * SZ() / 2; p.facing = k === 4 ? -p.facing : p.facing; p.anim = 'jump'; yield 0.04; } p.transit = false; p.y = floorY(p); p.anim = 'land'; p.jolt(-2, 3); yield r(0.6, 1.4); } p.anim = 'idle'; p.eyes = 'happy'; yield 1; p.eyes = 'open'; },
+    *dust(p, t) { p.anim = 'lie'; p.eyes = 'closed'; for (let i = 0; i < 6; i++) { p.jolt(1.5, r(-3, 3)); PP.puff && PP.puff(p.x, p.y, 2); yield 1; } p.anim = 'idle'; p.eyes = 'open'; yield 0.6; },
+    *zoom(p, t) { for (let i = 0; i < 4; i++) yield p.goto(U.rand(G.W * 0.08, G.W * 0.92), true); p.anim = 'idle'; p.mouth = 'tongue'; yield 1; p.mouth = 'w'; },
+    *sniff(p, t) { let left = t.dur; while (left > 0) { yield p.goto(p.x + r(-90, 90)); p.anim = 'eat'; yield r(0.8, 1.6); p.anim = 'idle'; left -= 3; if (Math.random() < 0.15) p.think(U.pick(['q', 'excl']), 1.2); } },
+    *roll(p, t) { for (let i = 0; i < 5; i++) { p.anim = 'lie'; p.facing = -p.facing; p.jolt(2, 4); PP.puff && PP.puff(p.x, p.y, 3); yield 0.7; } p.anim = 'idle'; p.mouth = 'tongue'; p.eyes = 'happy'; yield 1.2; p.mouth = 'w'; p.eyes = 'open'; },
+    *nap(p, t) { p.anim = 'lie'; p.eyes = 'sleepy'; yield 1.5; p.anim = 'sleep'; p.eyes = 'closed'; p.sleeping = true; let left = t.dur; while (left > 0) { yield 2.4; left -= 2.4; PP.fx({ x: p.x + p.facing * 6 * SZ(), y: p.y - 18 * SZ(), vx: 10, vy: -16, icon: 'zzz', life: 2.2, s: Math.max(1, SZ() - 1) }); } p.sleeping = false; p.anim = 'stretch'; yield 1; p.anim = 'idle'; p.eyes = 'open'; },
+    *groom(p, t) { p.anim = 'groom'; p.eyes = 'closed'; yield Math.min(t.dur, 6); p.anim = 'idle'; p.eyes = 'open'; yield 1; },
+    *waddle(p, t) { let left = t.dur; while (left > 0) { yield p.goto(p.x + r(-100, 100)); p.anim = 'idle'; yield r(1, 2); left -= 4; } },
+    *follow(p, t) { if (A.follow) yield* A.follow.call(p); else yield* DO.peck(p, t); },
+    *splash(p, t) { for (let i = 0; i < 8; i++) { p.jolt(-1, r(-2, 2)); PP.fx({ kind: 'dot', x: p.x + r(-10, 10), y: p.y - 4 * SZ(), vx: r(-60, 60), vy: r(-140, -60), grav: 500, life: 0.6, col: '#8fd0ff', size: Math.max(1, SZ() - 1) }); yield 0.5; } p.say(U.pick(['嘎嘎！', '好玩！']), 1.4); },
+  };
+  PP.eco.DO = DO;
+
+  // ---------- 家：门口状态、悬停说明、叫出来 ----------
+  function residents(species) { return G.all.filter((p) => p.d.species === species && !p.d.hidden && p.d.inHome && !(S().mode === 'mini' && PP.F && PP.F.main() === p)); }
+  PP.eco.homeKnown = () => true;
+  PP.eco.homeTip = function (species) {
+    const name = PP.HOME_NAME[species] || '小窝';
+    const owners = G.all.filter((p) => p.d.species === species && !p.d.hidden);
+    if (!owners.length) return `${name}（空着，还没有${PP.SPECIES[species] ? PP.SPECIES[species].name : ''}住这儿）`;
+    const inside = residents(species);
+    if (!inside.length) return `${owners.map((p) => p.name).join('、')}的${name} · 没人在家`;
+    const why = (p) => (p.eco && p.eco.task && p.eco.task.label) || '在家';
+    return `${name}：${inside.map((p) => `${p.name}${why(p)}`).join('；')} · 点一下叫出来`;
+  };
+  PP.eco.callOut = function (species) {
+    const inside = residents(species);
+    if (!inside.length) { PP.ui.toast(PP.eco.homeTip(species)); return; }
+    const p = inside[0], e = env();
+    const hib = hibernating(p, e), why = p.eco && p.eco.task && p.eco.task.why;
+    p.d.inHome = false; p.sleeping = false;
+    const t = { scene: p.d.scene, spot: species + '_home', kind: 'groom', label: '被你叫出来了', dur: hib ? 20 : 30 };
+    p.eco = { state: 'emerge', task: t };
+    PP.syncPets(); PP.eco.afterSync();
+    setTimeout(() => {
+      if (hib) p.say(U.pick(['……冬眠呢……（又闭上眼）', '好冷……让我再睡会儿', '春天到了吗？……没有啊']), 3);
+      else if (why === 'sleep') p.line('wakeGrumpy');
+      else if (why === 'shelter') p.say(U.pick(['外面在下雨诶…', '就出来一下下哦', '你叫我？']), 2.4);
+      else p.say(U.pick(['你叫我？', '来啦～', '（探出头）']), 2);
+      p.addAff(0.3);
+    }, 700);
+  };
+  // 家门口的动静：睡觉冒 zZ，冬眠冒雪花，夜里醒着能看到一对亮眼睛
+  PP.eco.renderHomes = function (ctx, R, L, e, t) {
+    for (const h of L.homes) {
+      const inside = residents(h.species); if (!inside.length) continue;
+      const sleeping = inside.some((p) => p.sleeping);
+      if (sleeping) {
+        const a = (t * 0.4 + h.c * 0.13) % 1;
+        ctx.globalAlpha = 1 - a;
+        const hib = inside.some((p) => p.eco && p.eco.task && p.eco.task.why === 'hibernate');
+        const zx = h.c + 2 + Math.round(a * 4), zy = h.y0 - 1 - Math.round(a * 6);
+        if (hib) { R(zx, zy, '#ffffff'); R(zx - 1, zy, '#cfe6f5'); R(zx + 1, zy, '#cfe6f5'); R(zx, zy - 1, '#cfe6f5'); R(zx, zy + 1, '#cfe6f5'); }
+        else { R(zx, zy, '#ffffff', 3, 1); R(zx + 1, zy + 1, '#ffffff'); R(zx, zy + 2, '#ffffff', 3, 1); }
+        ctx.globalAlpha = 1;
+      } else if (e.time.phase !== 'day' || e.fx.dark > 0.3) {
+        if (Math.floor(t * 0.7 + h.c) % 5 !== 0) { R(h.c - 1, h.r - 2, '#fff6a0'); R(h.c + 1, h.r - 2, '#fff6a0'); }
+      } else if (Math.floor(t * 0.5 + h.c) % 7 === 0) { R(h.c, h.y0 - 2, '#ffffff', 1, 1); }
+    }
+  };
+
+  // ---------- 档案里用的描述 ----------
+  PP.eco.describe = function (p) {
+    const h = HAB[p.d.species] || HAB.cat;
+    const where = PP.SCENES[p.d.scene || h.home] ? PP.SCENES[p.d.scene || h.home].name : '';
+    let now = '';
+    if (p.d.hidden) now = '回电脑里休息了';
+    else if (S().mode === 'mini' && PP.F && PP.F.main() === p) now = '陪在你身边';
+    else if (p.d.inHome) now = `在${PP.HOME_NAME[p.d.species]}里 · ${(p.eco && p.eco.task && p.eco.task.label) || '休息'}`;
+    else if (p.eco && p.eco.state === 'travel') now = `正在去${PP.SCENES[p.eco.task.scene] ? PP.SCENES[p.eco.task.scene].name : ''}的路上`;
+    else if (p.ecoTask) now = `在${where} · ${p.ecoTask.label || ''}`;
+    else if (p.eco && p.eco.task) now = `在${where} · ${p.eco.task.label || ''}`;
+    else now = `在${where}`;
+    const chrono = p.sp.chrono, awake = [];
+    for (let i = 0; i < 24; i++) if (chrono[i] < 0.5) awake.push(i);
+    const ranges = []; let st = null;
+    for (let i = 0; i <= 24; i++) { const a = awake.includes(i % 24) && i < 24; if (a && st == null) st = i; if (!a && st != null) { ranges.push(`${st}点–${i}点`); st = null; } }
+    return { home: `${PP.SCENES[h.home].name}的${PP.HOME_NAME[p.d.species]}`, about: h.about, likes: h.likes, hates: h.hates, diet: h.diet, now, active: ranges.join('、') || '随时', hibernate: !!h.hibernate };
+  };
+
+  // ---------- 开机：大家各就各位 ----------
+  PP.eco.init = function () {
+    for (const p of G.all) {
+      if (!p.d.scene || !PP.SCENES[p.d.scene]) p.d.scene = homeScene(p);
+      if (!HAB[p.d.species]) continue;
+      const t = plan(p);
+      // 直接到位（不用走过去）
+      p.d.scene = t.scene && !t.friend ? t.scene : p.d.scene;
+      if (t.home) { p.d.inHome = true; p.eco = { state: 'home', task: t, until: G.t + U.rand(10, t.dur || 60) }; p.sleeping = ['sleep', 'hibernate'].includes(t.why); }
+      else { p.d.inHome = false; p.eco = { state: 'do', task: t, until: G.t + t.dur }; }
+    }
+  };
+  // 新来的（领养）：先回家看看
+  PP.eco.adopted = function (p) { p.d.scene = homeScene(p); p.d.inHome = false; p.eco = null; };
+  PP.eco.nextHop = nextHop;
+  PP.eco.plan = plan;
+})();
