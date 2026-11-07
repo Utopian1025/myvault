@@ -14,4 +14,10 @@ contextBridge.exposeInMainWorld('petAPI', {
   onWheel: (fn) => ipcRenderer.on('wheel', (_e, d) => fn(d)),
   onAgent: (fn) => ipcRenderer.on('agent', (_e, m) => fn(m)),
   hookConfig: () => ipcRenderer.invoke('hook-config'),
+  hookStatus: () => ipcRenderer.invoke('hook-status'),
+  hookInstall: () => ipcRenderer.invoke('hook-install'),
+  hookUninstall: () => ipcRenderer.invoke('hook-uninstall'),
+  setTrayMenu: (json) => ipcRenderer.send('tray-menu', json),
+  hideWindow: () => ipcRenderer.send('hide-window'),
+  onHotkey: (fn) => ipcRenderer.on('hotkey', (_e, k) => fn(k)),
 });

@@ -1,5 +1,6 @@
 // Electron 主进程：一个覆盖整个工作区的透明、置顶、可点击穿透的窗口
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, powerMonitor } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, powerMonitor, globalShortcut } = require('electron');
+const os = require('os');
 const path = require('path');
 const http = require('http');
 // 全局键盘/滚轮监听（可选的原生模块；装不上也不影响其他功能）。只知道“按了键”，不记录按的是什么。
@@ -48,28 +49,37 @@ function fitToWorkArea() {
 
 function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch, data); }
 
+// 托盘菜单：和宠物右键菜单是同一棵树（由页面那边生成，发过来）
+let trayModel = null;
+function setHidden(v) { hidden = v; if (!win) return; hidden ? win.hide() : win.showInactive(); rebuildTray(); }
+function toTemplate(items) {
+  return items.map((it) => {
+    if (it === '-') return { type: 'separator' };
+    const o = { label: it.label, enabled: it.enabled !== false };
+    if (it.sub) o.submenu = toTemplate(it.sub);
+    else {
+      if (it.type) { o.type = 'checkbox'; o.checked = !!it.checked; }
+      o.click = () => {
+        if (it.id === 'hideWin') { setHidden(true); return; }
+        if (it.id === 'quit') { send('tray', 'quit'); setTimeout(() => app.quit(), 600); return; }
+        send('tray', it.id);
+      };
+    }
+    return o;
+  });
+}
+function rebuildTray() {
+  if (!tray) return;
+  const head = hidden ? [{ label: '显示宠物', click: () => setHidden(false) }, { type: 'separator' }] : [];
+  const body = trayModel ? toTemplate(trayModel) : [{ label: '退出', click: () => app.quit() }];
+  tray.setContextMenu(Menu.buildFromTemplate(head.concat(body)));
+}
 function buildTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png'));
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('像素小窝');
-  const menu = Menu.buildFromTemplate([
-    { label: '领养新宠物', click: () => send('tray', 'adopt') },
-    { label: '大家的状态', click: () => send('tray', 'overview') },
-    { label: '日记', click: () => send('tray', 'diary') },
-    { label: '收藏柜', click: () => send('tray', 'collection') },
-    { label: '彩蛋图鉴', click: () => send('tray', 'eggs') },
-    { type: 'separator' },
-    { label: '开始/停止番茄钟', click: () => send('tray', 'pomo') },
-    { label: '看视频模式（躲到角落）', type: 'checkbox', click: () => send('tray', 'peek') },
-    { label: '提醒设置', click: () => send('tray', 'reminders') },
-    { label: '添满饭和水', click: () => send('tray', 'feed') },
-    { label: '勿扰模式', type: 'checkbox', click: () => send('tray', 'quiet') },
-    { label: '暂时隐藏', type: 'checkbox', click: (mi) => { hidden = mi.checked; hidden ? win.hide() : win.showInactive(); } },
-    { label: '设置', click: () => send('tray', 'settings') },
-    { type: 'separator' },
-    { label: '退出', click: () => app.quit() },
-  ]);
-  tray.setContextMenu(menu);
+  tray.setToolTip('像素小窝（Ctrl+Alt+Shift+P 召唤/送回宠物）');
+  if (process.platform === 'win32') tray.on('click', () => tray.popUpContextMenu());
+  rebuildTray();
 }
 
 app.whenReady().then(() => {
@@ -102,11 +112,17 @@ app.whenReady().then(() => {
   http.createServer((req, res) => {
     try {
       const u = new URL(req.url, 'http://127.0.0.1');
-      const m2 = u.pathname.match(/^\/agent\/(thinking|done|error|idle)$/);
+      const m2 = u.pathname.match(/^\/agent\/(thinking|done|error|idle|waiting)$/);
       if (m2) { send('agent', { state: m2[1], text: u.searchParams.get('text') || '' }); res.writeHead(200); res.end('ok'); return; }
       res.writeHead(404); res.end();
     } catch { res.writeHead(400); res.end(); }
   }).on('error', (e) => console.warn('agent server', e.message)).listen(AGENT_PORT, '127.0.0.1');
+
+  // 全局快捷键：召唤 / 送回所有宠物（故意选了一个平时不会按到的组合）
+  try {
+    globalShortcut.register('CommandOrControl+Alt+Shift+P', () => { if (hidden) { setHidden(false); send('hotkey', 'summon'); } else send('hotkey', 'toggle'); });
+    globalShortcut.register('CommandOrControl+Alt+Shift+W', () => send('hotkey', 'work'));
+  } catch (e) { console.warn('shortcut', e); }
 
   screen.on('display-metrics-changed', fitToWorkArea);
   screen.on('display-added', fitToWorkArea);
@@ -116,7 +132,7 @@ app.whenReady().then(() => {
 
 app.on('second-instance', () => { if (win) { hidden = false; win.showInactive(); } });
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => { try { uIOhook && uIOhook.stop(); } catch {} });
+app.on('will-quit', () => { try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
 
 // ---------- IPC ----------
 ipcMain.on('set-interactive', (_e, v) => {
@@ -136,15 +152,53 @@ ipcMain.handle('load', () => {
   try { return fs.existsSync(savePath()) ? fs.readFileSync(savePath(), 'utf8') : null; } catch { return null; }
 });
 ipcMain.on('quit', () => app.quit());
+ipcMain.on('tray-menu', (_e, json) => { try { trayModel = JSON.parse(json); rebuildTray(); } catch {} });
+ipcMain.on('hide-window', () => setHidden(true));
 ipcMain.handle('get-autostart', () => app.getLoginItemSettings({ name: 'PixelNest' }).openAtLogin);
 ipcMain.on('set-autostart', (_e, v) => app.setLoginItemSettings({ openAtLogin: !!v, name: 'PixelNest' }));
 
-ipcMain.handle('hook-config', () => {
-  const cmd = (s) => process.platform === 'win32'
-    ? `curl -s -m 1 http://127.0.0.1:${AGENT_PORT}/agent/${s} > NUL 2>&1 || exit 0`
-    : `curl -s -m 1 http://127.0.0.1:${AGENT_PORT}/agent/${s} >/dev/null 2>&1 || true`;
-  return JSON.stringify({ hooks: {
-    UserPromptSubmit: [{ hooks: [{ type: 'command', command: cmd('thinking') }] }],
-    Stop: [{ hooks: [{ type: 'command', command: cmd('done') }] }],
-  } }, null, 2);
+// ---------- AI 联动：给 Claude Code 装 / 卸 hooks ----------
+// Claude Code 在你提问、它干完活、它需要你确认时，会执行这些命令；命令只是戳一下本机的小接口
+const HOOK_MARK = '127.0.0.1:' + AGENT_PORT + '/agent/';
+const hookCmd = (s) => process.platform === 'win32'
+  ? `curl -s -m 1 http://${HOOK_MARK}${s} > NUL 2>&1 || exit 0`
+  : `curl -s -m 1 http://${HOOK_MARK}${s} >/dev/null 2>&1 || true`;
+const HOOKS = { UserPromptSubmit: 'thinking', Stop: 'done', Notification: 'waiting' };
+const claudeSettings = () => path.join(os.homedir(), '.claude', 'settings.json');
+function readClaude() { try { return JSON.parse(fs.readFileSync(claudeSettings(), 'utf8')); } catch { return null; } }
+function ours(entry) { return JSON.stringify(entry || {}).includes(HOOK_MARK); }
+ipcMain.handle('hook-config', () => JSON.stringify({ hooks: Object.fromEntries(Object.entries(HOOKS).map(([k, s]) => [k, [{ hooks: [{ type: 'command', command: hookCmd(s) }] }]])) }, null, 2));
+ipcMain.handle('hook-status', () => {
+  const j = readClaude();
+  const installed = !!(j && j.hooks && Object.keys(HOOKS).every((k) => (j.hooks[k] || []).some(ours)));
+  return { installed, hasClaudeDir: fs.existsSync(path.dirname(claudeSettings())), file: claudeSettings() };
+});
+ipcMain.handle('hook-install', () => {
+  try {
+    const file = claudeSettings();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    let j = {};
+    if (fs.existsSync(file)) {
+      const raw = fs.readFileSync(file, 'utf8');
+      try { j = JSON.parse(raw); } catch { return { ok: false, msg: 'settings.json 格式有问题，没有改动它' }; }
+      fs.writeFileSync(file + '.bak-pixelnest', raw); // 先备份
+    }
+    j.hooks = j.hooks || {};
+    for (const [k, s] of Object.entries(HOOKS)) {
+      j.hooks[k] = (j.hooks[k] || []).filter((e) => !ours(e));
+      j.hooks[k].push({ hooks: [{ type: 'command', command: hookCmd(s) }] });
+    }
+    fs.writeFileSync(file, JSON.stringify(j, null, 2));
+    return { ok: true, msg: '已接入：' + file };
+  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
+});
+ipcMain.handle('hook-uninstall', () => {
+  try {
+    const file = claudeSettings(); const j = readClaude();
+    if (!j || !j.hooks) return { ok: true, msg: '本来就没有接入' };
+    for (const k of Object.keys(HOOKS)) { if (j.hooks[k]) { j.hooks[k] = j.hooks[k].filter((e) => !ours(e)); if (!j.hooks[k].length) delete j.hooks[k]; } }
+    if (!Object.keys(j.hooks).length) delete j.hooks;
+    fs.writeFileSync(file, JSON.stringify(j, null, 2));
+    return { ok: true, msg: '已断开' };
+  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
 });
