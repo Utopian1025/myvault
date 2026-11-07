@@ -10,3 +10,9 @@
 !macro customInit
   nsExec::Exec 'taskkill /F /IM "PixelNest.exe"'
 !macroend
+
+; 改名后：删掉旧名字“像素小窝”留下的快捷方式
+!macro customInstall
+  Delete "$DESKTOP\像素小窝.lnk"
+  Delete "$SMPROGRAMS\像素小窝.lnk"
+!macroend
