@@ -71,8 +71,9 @@
       bar.onmousedown = (e) => {
         if (e.target.classList.contains('x')) return;
         const r = el.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+        G.uiDrag = true;
         const mv = (ev) => { el.style.left = ev.clientX - ox + 'px'; el.style.top = ev.clientY - oy + 'px'; el.style.transform = 'none'; };
-        const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
+        const up = () => { G.uiDrag = false; window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); PP.refreshInteractive(); };
         window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
       };
       return el;

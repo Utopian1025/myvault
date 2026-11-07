@@ -4,9 +4,6 @@
   const U = PP.U, G = PP.G;
   const api = window.petAPI;
 
-  PP.BACKGROUNDS = [
-    ['none', '不要背景'], ['grass', '草地'], ['forest', '森林'], ['beach', '海边'], ['snow', '雪地'], ['night', '星空'], ['room', '木地板'],
-  ];
   const PRESETS = [0, 20, 30, 45, 60, 90, 120];
   PP.SIZES = [[1, '迷你', '32 像素'], [2, '小', '64 像素'], [3, '中', '96 像素'], [4, '大', '128 像素'], [5, '特大', '160 像素'], [6, '巨大', '192 像素']];
 
@@ -48,6 +45,7 @@
     const pets = G.all.map((p) => ({ label: p.name + (p.d.hidden ? '（放假中）' : '') + (PP.F && PP.F.main() === p ? ' ★' : ''), sub: petSub(p) }));
     items.push({ label: '宠物们', hint: forTray ? null : `${G.pets.length}/${G.all.length} 只在桌面`, sub: [
       ...pets, ...(pets.length ? ['-'] : []),
+      { id: 'pickPets', label: '选择谁在桌面上（多选）…', enabled: G.all.length > 0 },
       { id: 'showAll', label: '全部显示', enabled: G.all.some((p) => p.d.hidden) },
       { id: 'calmAll:0', label: '全部取消“乖乖待着”', enabled: G.all.some((p) => p.d.calm) },
       { id: 'adopt', label: '领养新伙伴', hint: forTray ? null : `${G.all.length}/12`, enabled: G.all.length < 12 },
@@ -67,11 +65,24 @@
         PP.F && PP.F.pomo.phase !== 'off' ? { id: 'pomo', label: '停止番茄钟' } : { id: 'pomo', label: `开始番茄钟（${s.pomo.focus} 分钟）` },
         { id: 'reminders', label: '每天定时提醒 & 番茄钟设置…' },
       ] },
-      { label: '大小', hint: forTray ? null : (PP.SIZES.find((z) => z[0] === s.size) || ['', ''])[1], sub: PP.SIZES.map(([v, n, d]) => ({ id: `size:${v}`, label: `${n}（${d}）`, type: 'radio', checked: (s.size || 2) === v })) },
-      { label: '背景', hint: forTray ? null : (PP.BACKGROUNDS.find((b) => b[0] === s.bg) || ['', '无'])[1], sub: [
-        ...PP.BACKGROUNDS.map(([k, n]) => ({ id: `bg:${k}`, label: n, type: 'radio', checked: (s.bg || 'none') === k })),
+      { label: '大小', hint: forTray ? null : (PP.SIZES.find((z) => z[0] === s.size) || ['', ''])[1], sub: [
+        ...PP.SIZES.map(([v, n, d]) => ({ id: `size:${v}`, label: `宠物：${n}（${d}）`, type: 'radio', checked: (s.size || 2) === v })),
+        '-', ...PP.MENU_SCALES.map(([v, n]) => ({ id: `ms:${v}`, label: `菜单：${n}`, type: 'radio', checked: (s.menuScale || 0.85) === v })),
+      ] },
+      { label: '场景', hint: forTray ? null : (PP.scene.active() ? PP.SCENES[s.scene || 'forest'].name : (PP.MODES.find((m) => m[0] === s.mode) || ['', ''])[1]), sub: [
+        { label: '显示模式', hint: forTray ? null : (PP.MODES.find((m) => m[0] === s.mode) || ['', ''])[1], sub: PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: `${n}（${d}）`, type: 'radio', checked: s.mode === k })) },
+        { label: '去哪儿', sub: Object.entries(PP.SCENES).map(([k, v]) => ({ id: `scene:${k}`, label: v.name + (G.all.some((p) => PP.SCENE_FAV[p.d.species] === k) ? `（${G.all.filter((p) => PP.SCENE_FAV[p.d.species] === k).map((p) => p.name).slice(0, 3).join('、')}爱来）` : ''), type: 'radio', checked: PP.scene.active() && (s.scene || 'forest') === k })) },
+        { label: '天气', hint: forTray ? null : PP.env.weatherName(PP.env.get().weather.kind), sub: [
+          { id: 'weather:auto', label: s.city ? `跟随实时天气（${s.city.name}）` : '按季节模拟（还没设城市）', type: 'radio', checked: (s.weather || 'auto') === 'auto' },
+          ...PP.WEATHER.map(([k, n]) => ({ id: `weather:${k}`, label: `一直${n}`, type: 'radio', checked: s.weather === k })),
+          '-', { id: 'city', label: s.city ? `换城市…（现在：${s.city.name}）` : '设置所在城市（实时天气）…' },
+        ] },
+        { label: '场景高度', sub: [[1, '矮一点'], [2, '适中'], [3, '高一点']].map(([h, n]) => ({ id: `bgh:${h}`, label: n, type: 'radio', checked: (s.bgH || 2) === h, enabled: s.mode === 'band' })) },
+        { id: 'ambient', label: '环境声音（雨声、鸟叫、炉火…）', type: 'checkbox', checked: !!s.ambient },
+        { label: '环境音量', enabled: !!s.ambient, sub: [[0.25, '很轻'], [0.5, '适中'], [0.8, '大一点']].map(([v, n]) => ({ id: `avol:${v}`, label: n, type: 'radio', checked: (s.ambientVol != null ? s.ambientVol : 0.5) === v })) },
         '-',
-        ...[[1, '矮一点'], [2, '适中'], [3, '高一点']].map(([h, n]) => ({ id: `bgh:${h}`, label: `背景高度：${n}`, type: 'radio', checked: (s.bgH || 2) === h, enabled: s.bg && s.bg !== 'none' })),
+        { id: 'decorate', label: '布置这个场景…', enabled: PP.scene.active() },
+        { label: PP.env.label(), enabled: false },
       ] },
       { label: '照顾', sub: [
         { id: 'feed', label: '添满饭和水' },
@@ -96,11 +107,19 @@
     if (a === 'pet') { petCmd(G.all.find((p) => p.d.id === b), c); PP.save.soon(); syncTray(true); return; }
     if (a === 'rem') { s.rem[b] = +c; if (b === 'water') PP.F.lastWater = Date.now(); else PP.F.lastStretch = Date.now(); ui.toast(+c ? `${b === 'water' ? '喝水' : '站立'}提醒：每 ${c} 分钟` : `${b === 'water' ? '喝水' : '站立'}提醒已关闭`); PP.save.soon(); syncTray(true); return; }
     if (a === 'size') { s.size = +b; G.pets.forEach((p) => { p.y = G.ground; }); PP.save.soon(); syncTray(true); return; }
-    if (a === 'bg') { s.bg = b; PP.save.soon(); syncTray(true); return; }
+    if (a === 'mode') { PP.setMode(b); return; }
+    if (a === 'scene') { PP.scene.go(b); return; }
+    if (a === 'weather') { s.weather = b; if (b === 'auto' && !s.city) PP.ui.toast('还没设城市：天气会按季节模拟'); PP.save.soon(); syncTray(true); return; }
+    if (a === 'avol') { s.ambientVol = +b; PP.save.soon(); syncTray(true); return; }
+    if (a === 'ms') { s.menuScale = +b; PP.applyMenuScale(); PP.save.soon(); syncTray(true); return; }
     if (a === 'bgh') { s.bgH = +b; PP.save.soon(); syncTray(true); return; }
     if (a === 'calmAll') { G.all.forEach((p) => (p.d.calm = false)); PP.save.soon(); syncTray(true); return; }
     switch (id) {
       case 'adopt': ui.adopt(); break;
+      case 'pickPets': PP.pickPets(); break;
+      case 'city': PP.cityPanel(); break;
+      case 'decorate': PP.scene.edit(true); break;
+      case 'ambient': s.ambient = !s.ambient; if (!s.ambient) PP.ambient.stop(); ui.toast(s.ambient ? '环境声音开了（音量在“场景”菜单里调）' : '环境声音关了'); break;
       case 'toggleAll': PP.toggleAll(); break;
       case 'overview': ui.overview(); break;
       case 'showAll': { const back = G.all.filter((p) => p.d.hidden); back.forEach((p) => (p.d.hidden = false)); PP.syncPets(); back.forEach((p, i) => PP.petEmerge(p, U.rand(G.W * 0.2, G.W * 0.8), i * 600)); break; }

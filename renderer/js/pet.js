@@ -108,7 +108,7 @@
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
     hit(mx, my) {
-      if (this.inDoor) return false;
+      if (this.inDoor || this.outing) return false;
       const S = G.S * (this.scaleMul || 1);
       const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
       return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top && my < Math.min(this.y + G.S, G.ground + 2);
@@ -143,13 +143,17 @@
 
     // ---------- 行为调度 ----------
     run(name, genFn, ...args) {
+      // 正在进出小门时不许被别的事打断（不然会卡在“电脑里”看不见）
+      if (this.doorBusy() && name !== 'emerge' && name !== 'enterDoor') return;
       if (this.gen) { try { this.gen.return(); } catch (e) { } }
       this.cleanupAction();
       this.action = name; this.gen = genFn.call(this, ...args);
       this.waitT = 0; this.waitFn = null;
       this.step();
     }
-    interrupt() {
+    doorBusy() { return (this.action === 'emerge' || this.action === 'enterDoor') && !!this.gen; }
+    interrupt(force) {
+      if (!force && this.doorBusy()) return;
       if (this.gen) { try { this.gen.return(); } catch (e) { } }
       this.cleanupAction();
       this.gen = null; this.action = null; this.waitT = 0; this.waitFn = null; this.target = null;
@@ -181,8 +185,10 @@
     // ---------- 每帧 ----------
     update(dt) {
       this.t += dt;
-      if (this.inDoor && !this.gen) { this.inDoorT = (this.inDoorT || 0) + dt; if (this.inDoorT > 15) { this.inDoorT = 0; PP.petEmerge(this, this.x); } return; } // 还在电脑里，等门开
+      if (this.inDoor && !this.gen) { this.inDoorT = (this.inDoorT || 0) + dt; if (this.inDoorT > 3) { this.inDoorT = 0; PP.petEmerge(this, this.x); } return; } // 还在电脑里，等门开
       this.inDoorT = 0;
+      // 跑去别的场景玩了：时间到了再回来
+      if (this.outing) { if (G.t > this.outing.until) this.outing = null; else { this.decay(dt * 0.5); return; } }
       this.decay(dt);
       if (this.bubble) { this.bubble.t += dt; if (this.bubble.t > this.bubble.dur) this.bubble = null; }
       if (this.sulk > 0) this.sulk -= dt;
@@ -319,6 +325,8 @@
       if (spc === 'pig') add('root', !(this.cooldown.root > 0) && n.energy > 25 ? 0.4 : 0);
       if (spc === 'hedgehog') add('forage', !(this.cooldown.forage > 0) && n.energy > 25 ? 0.25 : 0);
       if (spc === 'chick' || spc === 'duck') add('peck', 0.3);
+      // 场景：想去自己喜欢的地方；极简模式下主角跟着你
+      if (PP.scene) { PP.scene.decideHook(this, add); PP.scene.miniHook(this, add); }
       const roam = this.sp.roam != null ? this.sp.roam : 1;
       for (const it of sc) if (['wander', 'explore', 'play', 'special'].includes(it[0])) it[1] *= roam;
       if (this.sulk > 0) { sc.length = 0; add('alone', 1); add('idle', 0.5); }
@@ -367,7 +375,8 @@
 
     // ---------- 被拎起来 ----------
     pickUp() {
-      this.interrupt();
+      if (this.doorBusy()) { this.inDoor = false; this.doorClip = null; this.y = G.ground; }
+      this.interrupt(true);
       this.held = true; this.airborne = false; this.anim = 'held';
       this.heldT = 0; this.shake = 0; this.lastVx = 0;
       this.struggle = this.d.trust < 30 || (this.tr.timid > 0.7 && this.affLevel < 2);
@@ -433,7 +442,7 @@
 
     // ---------- 渲染 ----------
     render(ctx) {
-      if (this.inDoor) return;
+      if (this.inDoor || this.outing) return;
       const S = G.S;
       let eyes = this.eyes, mouth = this.mouth;
       if (this.expr) { eyes = this.expr.eyes || eyes; mouth = this.expr.mouth || mouth; }
@@ -458,7 +467,7 @@
       if (this.d.shiny && Math.random() < 0.03) PP.fx({ x: this.x + U.rand(-12, 12) * S, y: this.y - U.rand(4, 26) * S, vy: -10, icon: 'sparkle', life: 0.8, s: 1 });
     }
     renderOverlay(ctx) {
-      if (this.inDoor) return;
+      if (this.inDoor || this.outing) return;
       // 气泡 & 名字牌
       const S = G.S;
       const [hx, hy] = this.headPos;

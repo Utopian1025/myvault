@@ -122,7 +122,14 @@
 
   PP.syncPets = () => {
     for (const p of G.all) if (p.d.hidden && G.pets.includes(p)) { p.interrupt(); p.held = false; p.airborne = false; p.y = G.ground; }
-    G.pets = G.save && G.save.settings.allAway ? [] : G.all.filter((p) => !p.d.hidden);
+    const s = G.save && G.save.settings;
+    if (s && s.allAway) { G.pets = []; return; }
+    const vis = G.all.filter((p) => !p.d.hidden);
+    if (s && s.mode === 'mini') {
+      // 极简：只留主角（正在走回门里的也先留着，等它进去）
+      const main = vis.find((p) => p.d.id === s.mainId) || vis.find((p) => p.d.id === s.miniMain) || vis[0];
+      G.pets = vis.filter((p) => p === main || (p.action === 'enterDoor' && G.pets.includes(p)));
+    } else G.pets = vis;
   };
   PP.addPet = (p) => { G.all.push(p); PP.syncPets(); };
   PP.removePet = (p) => { G.all = G.all.filter((q) => q !== p); PP.syncPets(); };

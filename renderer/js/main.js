@@ -38,6 +38,7 @@
     for (const p of G.all) p.y = G.ground;
     PP.syncPets();
     PP.ui.init();
+    PP.modes.init();
     PP.bindInput();
     const away = PP.save.catchUp();
     PP.started = true;
@@ -80,6 +81,7 @@
     G.items = G.items.filter((i) => !i.dead);
     PP.world.updateParticles(dt);
     PP.doorsUpdate(dt);
+    PP.scene.update(dt);
     PP.world.updateAmbient(dt);
     PP.interactTick(dt);
     PP.F.tick(dt);
@@ -92,7 +94,7 @@
     const S = G.S;
     for (let i = 0; i < G.pets.length; i++) for (let j = i + 1; j < G.pets.length; j++) {
       const a = G.pets[i], b = G.pets[j];
-      if (a.held || b.held || a.airborne || b.airborne || a.partner === b || a.sleeping || b.sleeping) continue;
+      if (a.outing || b.outing || a.held || b.held || a.airborne || b.airborne || a.partner === b || a.sleeping || b.sleeping) continue;
       if (a.target != null || b.target != null) continue;
       const dx = b.x - a.x;
       if (Math.abs(dx) < 12 * S) { const push = (12 * S - Math.abs(dx)) * 0.05 * (dx >= 0 ? 1 : -1); a.x -= push; b.x += push; }
@@ -101,9 +103,9 @@
 
   function render() {
     ctx.clearRect(0, 0, G.W, G.H);
-    PP.bg && PP.bg.render(ctx);
+    PP.scene.render(ctx);
     const order = { bed: 0, litter: 1, food: 2, water: 2 };
-    const items = G.items.slice().sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5));
+    const items = (PP.showItems() ? G.items : []).slice().sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5));
     for (const it of items) if ((order[it.type] ?? 5) < 5) it.render(ctx);
     for (const it of items) if ((order[it.type] ?? 5) >= 5 && !it.held) it.render(ctx);
     const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.sleeping ? -1 : 0) - (b.sleeping ? -1 : 0));
@@ -114,6 +116,7 @@
     for (const it of items) if (it.held) it.render(ctx);
     PP.world.renderAmbient(ctx);
     PP.world.renderParticles(ctx);
+    PP.scene.renderFront(ctx);
     for (const p of pets) p.renderOverlay(ctx);
     PP.ui.tick();
   }

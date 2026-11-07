@@ -17,11 +17,12 @@
     if (v === interactive) return;
     interactive = v;
     if (api) api.setInteractive(v);
-    document.body.style.cursor = v && (G.hoverPet || G.hoverItem) ? 'pointer' : 'default';
+    document.body.style.cursor = v && (G.hoverPet || G.hoverItem || G.hoverHot) ? 'pointer' : 'default';
   }
   PP.refreshInteractive = () => {
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .toast:hover');
-    setInteractive(!!(G.hoverPet || G.hoverItem || dragPet || dragItem || overUI || PP.ui.modalOpen()));
+    // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .toast:hover, .orb:hover, .orb-pop:hover, .hoverbar:hover, .editbar:hover');
+    setInteractive(!!(G.hoverPet || G.hoverItem || G.hoverHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
   };
 
   function markActive() {
@@ -41,6 +42,7 @@
     return null;
   }
   function topItem(x, y) {
+    if (!PP.showItems()) return null;
     for (let i = G.items.length - 1; i >= 0; i--) { const it = G.items[i]; if (!it.dead && !it.carriedBy && it.hit(x, y)) return it; }
     return null;
   }
@@ -66,7 +68,10 @@
 
     G.hoverPet = dragPet ? null : topPet(x, y);
     G.hoverItem = G.hoverPet ? null : topItem(x, y);
+    G.hoverHot = G.hoverPet || G.hoverItem || dragPet || dragItem ? (PP.scene.hot(-9, -9), null) : PP.scene.hot(x, y);
+    if (G.editing) PP.scene.editMove(x, y);
     PP.refreshInteractive();
+    if (interactive) document.body.style.cursor = G.hoverPet || G.hoverItem || G.hoverHot ? 'pointer' : 'default';
 
     detectEdgeWiggle(x, y);
     if (!press) {
@@ -182,9 +187,11 @@
   function onDown(e) {
     markActive();
     const x = e.clientX, y = e.clientY;
-    if (e.target.closest && e.target.closest('.panel,.menu,.dock')) return;
+    if (e.target.closest && e.target.closest('.panel,.menu,.dock,.orb,.orb-pop,.hoverbar,.editbar')) return;
     PP.ui.closeMenu();
+    if (G.editing) { PP.scene.editDown(x, y, e.button); return; }
     const pet = topPet(x, y), item = pet ? null : topItem(x, y);
+    if (e.button === 0 && G.hoverHot && !pet && !item) { PP.scene.click(G.hoverHot); return; }
     if (e.button === 2) {
       if (pet) PP.ui.petMenu(pet, x, y);
       else if (item) PP.ui.itemMenu(item, x, y);
@@ -196,6 +203,7 @@
 
   function onUp(e) {
     const x = e.clientX, y = e.clientY;
+    if (G.editing) PP.scene.editUp();
     if (dragPet) {
       const p = dragPet; dragPet = null;
       p.drop(G.mouse.vx, G.mouse.vy);

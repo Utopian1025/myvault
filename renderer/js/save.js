@@ -8,7 +8,7 @@
   function fresh() {
     return {
       v: 1, savedAt: Date.now(),
-      settings: { size: 2, pace: 1, sound: true, quiet: false, care: false, breakMin: 90, names: 'hover', ownerName: '', peek: false, headOnly: false, work: false, mainId: null, bg: 'none', bgH: 2, rem: { water: 60, stretch: 50, list: [] }, pomo: { focus: 25, brk: 5 } },
+      settings: { size: 2, pace: 1, sound: true, quiet: false, care: false, breakMin: 90, names: 'hover', ownerName: '', peek: false, headOnly: false, work: false, mainId: null, bgH: 2, mode: 'band', lastMode: 'band', scene: 'forest', weather: 'auto', city: null, decor: {}, menuScale: 0.85, orb: null, ambient: true, ambientVol: 0.5, rem: { water: 60, stretch: 50, list: [] }, pomo: { focus: 25, brk: 5 } },
       pets: [], items: null, diary: {}, collection: {}, eggs: {}, flags: {}, cds: {},
     };
   }

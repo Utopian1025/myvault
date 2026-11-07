@@ -16,30 +16,81 @@
 
   // 宠物从门里出来
   PP.petEmerge = function (p, x, delay = 0) {
-    p.interrupt(); p.held = false; p.airborne = false;
+    p.interrupt(true); p.held = false; p.airborne = false;
     p.x = U.clamp(x != null ? x : U.rand(G.W * 0.25, G.W * 0.75), 40, G.W - 40); p.y = G.ground;
     p.inDoor = true;
     const go = () => p.run('emerge', PP.ACTIONS.emerge);
     if (delay) setTimeout(go, delay); else go();
   };
   // 宠物走回门里
-  PP.petEnter = function (p, done) { p.interrupt(); p.held = false; p.airborne = false; p.y = G.ground; p.run('enterDoor', PP.ACTIONS.enterDoor, done); };
+  PP.petEnter = function (p, done) { if (p.outing) { p.outing = null; p.interrupt(true); p.inDoor = true; done && done(); return; } p.interrupt(true); p.held = false; p.airborne = false; p.y = G.ground; p.run('enterDoor', PP.ACTIONS.enterDoor, done); };
+
+  // 每种动物出门的样子都不一样
+  const STYLE = { cat: 'peek', dog: 'burst', rabbit: 'binky', frog: 'leap', hamster: 'scurry', penguin: 'slide', fox: 'pounce', dragon: 'fly', chick: 'tumble', duck: 'waddle', pig: 'sniff', capybara: 'chill', hedgehog: 'roll' };
+  const LINES = {
+    peek: ['（左看看右看看）', '喵～', '（伸了个懒腰）'], burst: ['汪！我来啦！', '汪汪！！'], binky: ['（开心地蹦了一下）'], leap: ['呱！'], scurry: ['吱！'],
+    slide: ['（滑——）', '嘎～'], pounce: ['嘿！', '（猛地一扑）'], fly: ['呼——'], tumble: ['叽叽！', '（摔了个跟头）'], waddle: ['嘎嘎！'], sniff: ['哼哼～', '（闻到了好吃的？）'],
+    chill: ['……', '（慢悠悠）'], roll: ['（骨碌碌）', '（探出小脑袋）'],
+  };
+  // 原地跳一下（用 hopY 抬高身体）
+  function* bounce(p, h, dur, anim = 'jump') {
+    const n = Math.max(4, Math.round(dur / 0.033));
+    for (let k = 1; k <= n; k++) { p.y = G.ground - Math.sin((k / n) * Math.PI) * h * G.S / 2; p.anim = anim; yield dur / n; }
+    p.y = G.ground; p.anim = 'idle'; p.jolt(-3, 0);
+  }
+  // 沿弧线跳/滑到 tx
+  function* arc(p, tx, h, dur, anim = 'jump') {
+    const sx = p.x, n = Math.max(4, Math.round(dur / 0.033));
+    p.facing = Math.sign(tx - sx) || p.facing;
+    for (let k = 1; k <= n; k++) { const a = k / n; p.x = sx + (tx - sx) * a; p.y = G.ground - Math.sin(a * Math.PI) * h * G.S / 2; p.anim = anim; yield dur / n; }
+    p.y = G.ground; p.anim = 'idle'; p.squash = Math.max(p.squash || 0, 0.6); p.jolt(-2, 0);
+  }
 
   PP.ACTIONS.emerge = function* () {
     const p = this, S = G.S;
-    const door = PP.openDoor(p.x);
+    const style = STYLE[p.d.species] || 'walk';
+    const door = PP.openDoor(p.x, { slow: style === 'chill' });
     p.facing = U.chance(0.5) ? 1 : -1; p.anim = 'idle'; p.eyes = 'open';
     yield () => door.phase === 'open';
     p.inDoor = false; p.doorClip = door;
-    p.eyes = 'wide'; p.look = [p.facing, 0]; yield 0.35;
-    p.eyes = 'open';
-    yield p.goto(door.x + p.facing * 26 * S / 2 * 2);
+    const out = door.x + p.facing * 26 * S;
+    const far = door.x + p.facing * 44 * S;
+    switch (style) {
+      case 'peek': // 猫：先探头左右看，确认安全才出来，坐下伸个懒腰
+        p.anim = 'crouch'; p.look = [-p.facing, 0]; yield 0.45; p.look = [p.facing, 0]; yield 0.45; p.eyes = 'wide'; yield 0.25; p.eyes = 'open';
+        yield p.goto(out); p.anim = 'sit'; yield 0.4; p.eyes = 'happy'; yield 0.5; p.eyes = 'open'; break;
+      case 'burst': // 狗：冲出来，跑一段，跳一下
+        yield p.goto(far, true); yield* bounce(p, 10, 0.32); yield* bounce(p, 7, 0.26); break;
+      case 'binky': // 兔子：蹦出来，空中一扭
+        yield p.goto(out); yield* bounce(p, 14, 0.42); p.jolt(-2, 4); break;
+      case 'leap': // 青蛙：蹲下蓄力，一大跳跳出来
+        p.anim = 'crouch'; yield 0.45; yield* arc(p, far, 20, 0.55); break;
+      case 'scurry': // 仓鼠：飞快探头闻闻，然后一溜烟跑出来
+        for (let i = 0; i < 3; i++) { p.look = [i % 2 ? p.facing : -p.facing, 0]; p.anim = 'eat'; yield 0.18; p.anim = 'idle'; yield 0.12; }
+        yield p.goto(out, true); break;
+      case 'slide': // 企鹅：肚皮着地滑出来
+        p.anim = 'crouch'; yield 0.25; yield* arc(p, far, 0, 0.6, 'lie'); p.anim = 'idle'; yield 0.2; break;
+      case 'pounce': // 狐狸：压低身子扭扭屁股，扑出来
+        p.anim = 'crouch'; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? 2 : -2); yield 0.12; } yield* arc(p, far, 16, 0.42); break;
+      case 'fly': // 小龙：飞出来，绕一下落地
+        yield* arc(p, far, 34, 0.9); for (let i = 0; i < 4; i++) PP.fx({ kind: 'icon', icon: 'sparkle', x: p.x + U.rand(-14, 14) * S, y: p.y - U.rand(6, 26) * S, vy: -12, life: 0.9, s: 1 }); break;
+      case 'tumble': // 小鸡：连滚带爬地跌出来
+        yield* arc(p, door.x + p.facing * 12 * S, 5, 0.22, 'roll'); yield* arc(p, out, 4, 0.22, 'roll'); p.anim = 'sit'; yield 0.3; p.eyes = 'dizzy'; yield 0.4; p.eyes = 'open'; yield* bounce(p, 5, 0.2); break;
+      case 'waddle': // 鸭子：一摇一摆走出来
+        yield p.goto(out); for (let i = 0; i < 3; i++) { p.jolt(0, i % 2 ? 3 : -3); yield 0.15; } break;
+      case 'sniff': // 小猪：先用鼻子拱拱门口，再出来
+        for (let i = 0; i < 3; i++) { p.anim = 'eat'; yield 0.25; p.anim = 'idle'; yield 0.15; } yield p.goto(out); break;
+      case 'chill': // 卡皮巴拉：慢——慢——地走出来，直接坐下
+        yield 0.6; yield p.goto(door.x + p.facing * 22 * S); p.anim = 'sit'; p.eyes = 'happy'; yield 1.0; p.eyes = 'open'; break;
+      case 'roll': // 刺猬：缩成球滚出来，再慢慢打开
+        yield* arc(p, far, 3, 0.75, 'curl'); p.anim = 'curl'; yield 0.5; p.anim = 'idle'; p.jolt(-4, 0); break;
+      default: yield p.goto(out);
+    }
     p.doorClip = null;
     door.phase = 'close';
-    p.facing = -p.facing; yield 0.25; p.facing = -p.facing; // 回头看一眼门
-    p.jolt(-2, 0);
-    if (Math.random() < 0.5) { p._forceSay = true; p.say(U.pick(['出来啦！', '外面好亮', '（伸懒腰）', '今天也来陪你']), 2); p._forceSay = false; }
-    p.anim = 'idle'; yield 0.6;
+    if (style !== 'chill') { p.facing = -p.facing; yield 0.25; p.facing = -p.facing; } // 回头看一眼门
+    if (Math.random() < 0.6) { p._forceSay = true; p.say(U.pick(Math.random() < 0.5 ? LINES[style] || ['出来啦！'] : ['出来啦！', '外面好亮', '今天也来陪你']), 2); p._forceSay = false; }
+    p.anim = p.anim === 'sit' ? 'sit' : 'idle'; yield 0.6;
   };
   PP.ACTIONS.enterDoor = function* (done) {
     const p = this, S = G.S;
@@ -61,7 +112,7 @@
     for (const d of doors) {
       d.t += dt;
       if (d.phase === 'rise' && d.t > RISE) { d.phase = 'opening'; d.t = 0; }
-      else if (d.phase === 'opening' && d.t > OPEN) { d.phase = 'open'; d.t = 0; }
+      else if (d.phase === 'opening' && d.t > OPEN * (d.slow ? 3 : 1)) { d.phase = 'open'; d.t = 0; }
       else if (d.phase === 'open' && d.t > 6) { d.phase = 'close'; d.t = 0; } // 保险：别一直开着
       else if (d.phase === 'close') { if (d._c == null) { d._c = 0; } d._c += dt; if (d._c > OPEN) { d.phase = 'sink'; d.t = 0; } }
       else if (d.phase === 'sink' && d.t > RISE) d.dead = true;
@@ -71,7 +122,7 @@
 
   // 0..1：门板打开的程度
   function openness(d) {
-    if (d.phase === 'opening') return U.clamp(d.t / OPEN, 0, 1);
+    if (d.phase === 'opening') return U.clamp(d.t / (OPEN * (d.slow ? 3 : 1)), 0, 1);
     if (d.phase === 'open') return 1;
     if (d.phase === 'close') return 1 - U.clamp((d._c || 0) / OPEN, 0, 1);
     return 0;
