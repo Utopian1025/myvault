@@ -165,14 +165,14 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 
 /* 环绕宠物的一圈图标 */
 .petring { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 14; }
-.petring button { position: fixed; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; box-shadow: 2px 2px 0 var(--ink); transform: scale(.2); opacity: 0; transition: transform .16s ease-out, opacity .16s, background .1s; }
+.petring button { position: fixed; width: var(--bs, 30px); height: var(--bs, 30px); padding: 0; display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; box-shadow: 2px 2px 0 var(--ink); transform: scale(.2); opacity: 0; transition: transform .16s ease-out, opacity .16s, background .1s; }
 .petring.in button { transform: scale(1); opacity: 1; }
 .petring button:nth-child(2) { transition-delay: .02s; } .petring button:nth-child(3) { transition-delay: .04s; } .petring button:nth-child(4) { transition-delay: .06s; }
-.petring button:nth-child(5) { transition-delay: .08s; } .petring button:nth-child(6) { transition-delay: .1s; } .petring button:nth-child(7) { transition-delay: .12s; }
+.petring button:nth-child(5) { transition-delay: .08s; } .petring button:nth-child(6) { transition-delay: .1s; } .petring button:nth-child(7) { transition-delay: .12s; } .petring button:nth-child(8) { transition-delay: .14s; }
 .petring button:hover { background: var(--accent); transform: scale(1.18); }
 .petring button.on { background: var(--accent); }
 .petring button.pop { transform: scale(.85); }
-.petring canvas { width: 20px; height: 20px; image-rendering: pixelated; pointer-events: none; }
+.petring canvas { width: calc(var(--bs, 30px) * .66); height: calc(var(--bs, 30px) * .66); image-rendering: pixelated; pointer-events: none; }
 .orb-pop .seasons, .orb-pop .sound { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .orb-pop .seasons span { font-size: 11px; color: var(--muted); margin-right: 2px; }
 
@@ -185,3 +185,12 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .about .upd-notes li { margin: 2px 0; }
 .about details { margin-top: 10px; }
 .about label.row { align-items: center; font-size: 12px; }
+
+.weekdays { flex-wrap: wrap; gap: 4px 8px; }
+.weekdays .wd { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; }
+.profile .eco { background: #fff8e6; border: 2px solid var(--ink); padding: 6px 8px; margin: 6px 0; line-height: 1.55; }
+.profile .eco summary { cursor: pointer; margin-top: 2px; }
+.appicon .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; max-height: 330px; overflow-y: auto; margin: 6px 0; }
+.appicon .ic { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; box-shadow: none; font-size: 11px; }
+.appicon .ic canvas { width: 56px; height: 56px; image-rendering: pixelated; }
+.appicon .ic.on { background: var(--accent); }
