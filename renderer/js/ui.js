@@ -458,7 +458,7 @@
       // 合成一声“喵”：音高先升后降，加一点颤音
       const t0 = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
       const base = sad ? 520 : 640 + Math.random() * 80;
-      o.type = 'sawtooth'; f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 1.4;
+      o.type = 'triangle'; f.type = 'lowpass'; f.frequency.value = 2200; f.Q.value = 0.7; // 不用锯齿波，避免“滋滋”电流感
       o.frequency.setValueAtTime(base * 0.8, t0);
       o.frequency.linearRampToValueAtTime(base * 1.35, t0 + 0.12);
       o.frequency.linearRampToValueAtTime(base * (sad ? 0.7 : 0.95), t0 + 0.45);
