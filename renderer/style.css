@@ -37,10 +37,16 @@ body.web .dock { bottom: 5px; opacity: .9; }
 
 /* 菜单 */
 .menu { position: fixed; min-width: 160px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); padding: 4px; display: flex; flex-direction: column; z-index: 20; }
-.menu button { border: 0; box-shadow: none; text-align: left; padding: 6px 10px; display: flex; justify-content: space-between; gap: 16px; }
+.menu button { border: 0; box-shadow: none; text-align: left; padding: 6px 10px; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.menu button span { margin-left: auto; }
+.menu button .ck { font-style: normal; width: 12px; display: inline-block; margin-right: -4px; }
+.menu button em { font-style: normal; margin-left: auto; padding-left: 8px; }
+.menu button span + em { margin-left: 0; }
+.menu button.has-sub:hover { background: var(--ink); color: var(--paper); }
+.menu.sub { z-index: 21; }
 .menu button span { color: var(--muted); font-size: 12px; }
 .menu button:hover:not(:disabled) span { color: var(--ink); }
-.menu button:disabled { color: var(--ink); font-weight: bold; }
+.menu button:disabled { color: var(--muted); opacity: .6; }
 .menu .sep { height: 2px; background: var(--ink); margin: 4px 2px; opacity: .15; }
 
 /* 面板 */
