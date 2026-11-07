@@ -1,17 +1,36 @@
-# 像素小窝 · Pixel Nest
+# 摸鱼动物园
+
+> 一群住在你电脑里的小动物，平时各过各的小日子，顺便陪你一起摸鱼。
 
 住在你桌面底部的像素小伙伴：猫咪、柴犬、兔兔、仓鼠、企鹅、狐狸（还有一只要靠神秘的蛋才能孵出来）。
 它们会跟着你的鼠标转眼珠、陪你打字、提醒你喝水伸懒腰，也有自己的小日子：吃饭、喝水、上厕所、睡觉、发呆、一起玩、想你、想一个人待着。
 
-## 安装（给朋友用）
+## 下载
 
-Windows：双击 `像素小窝-安装包-x.x.x.exe` → 选择安装位置 → 完成。桌面和开始菜单会有图标。
+| | Windows | macOS |
+|---|---|---|
+| GitHub | [MoyuZoo-Setup.exe](https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
+| 国内加速 1 | [MoyuZoo-Setup.exe](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
+| 国内加速 2 | [MoyuZoo-Setup.exe](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
+
+所有版本和更新内容：[Releases](https://github.com/Utopian1025/myvault/releases)。
+**装过一次以后就不用再手动下载了**：程序会自动检查新版（国内走 jsDelivr 线路），下载好会告诉你更新了什么，点一下就换成新版，宠物和存档都保留。也可以在菜单 →「关于 & 检查更新」里手动检查。
+
+## 安装
+
+Windows：双击安装包 → 选择安装位置 → 完成。桌面和开始菜单会有图标。
 第一次运行如果 Windows 弹出“已保护你的电脑”，点「更多信息 → 仍要运行」（程序没有付费签名）。
 
-卸载：「设置 → 应用 → 像素小窝 → 卸载」。会一并删除存档、缓存和开机自启项，不留残留。
+卸载：「设置 → 应用 → 摸鱼动物园 → 卸载」。会一并删除存档、缓存和开机自启项，不留残留。
 
-macOS：打开 `像素小窝-x.x.x.dmg`，把图标拖进「应用程序」。第一次打开请右键 →「打开」。
+macOS：打开 dmg，把图标拖进「应用程序」。第一次打开请右键 →「打开」。
 想让猫陪你打字、扒卷纸，需要在「系统设置 → 隐私与安全性 → 辅助功能」里允许它（只知道“按了键”，不会记录按了什么）。
+
+## 发布新版本（维护者）
+
+1. 改 `package.json` 里的 `version`，在 `changelog.json` 最上面写这一版的更新内容
+2. 到 Actions →「打包安装包」→ Run workflow（勾着“发布”）
+3. 自动完成：打包 → GitHub Releases → 国内线路（jsDelivr 分块）→ 更新 `version.json`；用户那边会自动收到更新
 
 ## 它会做什么
 

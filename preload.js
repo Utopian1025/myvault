@@ -21,4 +21,12 @@ contextBridge.exposeInMainWorld('petAPI', {
   hideWindow: () => ipcRenderer.send('hide-window'),
   onHotkey: (fn) => ipcRenderer.on('hotkey', (_e, k) => fn(k)),
   onGlobalDown: (fn) => ipcRenderer.on('gdown', () => fn()),
+  setFullMode: (v) => ipcRenderer.send('full-mode', !!v),
+  appVersion: () => ipcRenderer.invoke('app-version'),
+  changelog: () => ipcRenderer.invoke('changelog'),
+  updateCheck: () => ipcRenderer.invoke('update-check'),
+  updateDownload: () => ipcRenderer.invoke('update-download'),
+  updateInstall: (later) => ipcRenderer.invoke('update-install', !!later),
+  onUpdate: (fn) => ipcRenderer.on('update', (_e, s) => fn(s)),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
 });

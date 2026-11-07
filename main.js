@@ -7,6 +7,7 @@ const http = require('http');
 let uIOhook = null;
 try { ({ uIOhook } = require('uiohook-napi')); } catch (e) { console.warn('uiohook-napi 不可用，打字检测改用系统空闲时间推测'); }
 const AGENT_PORT = 47231;
+const updater = require('./updater');
 const fs = require('fs');
 
 if (process.platform === 'linux') {
@@ -78,7 +79,7 @@ function rebuildTray() {
 function buildTray() {
   const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png'));
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('像素小窝（Ctrl+Alt+Shift+P 召唤/送回宠物）');
+  tray.setToolTip('摸鱼动物园（Ctrl+Alt+Shift+P 召唤/送回）');
   if (process.platform === 'win32') tray.on('click', () => tray.popUpContextMenu());
   rebuildTray();
 }
@@ -137,7 +138,26 @@ app.on('second-instance', () => { if (win) { hidden = false; win.showInactive();
 app.on('window-all-closed', () => app.quit());
 app.on('will-quit', () => { try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
 
+// ---------- 检查更新 ----------
+updater.init((st) => send('update', JSON.parse(JSON.stringify(st))));
+let installOnQuit = false;
+ipcMain.handle('app-version', () => app.getVersion());
+ipcMain.handle('changelog', () => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'changelog.json'), 'utf8')); } catch (e) { return []; } });
+ipcMain.handle('update-check', () => updater.check().then((s) => JSON.parse(JSON.stringify(s))));
+ipcMain.handle('update-download', () => updater.download().then((s) => JSON.parse(JSON.stringify(s))));
+ipcMain.handle('update-install', (_e, later) => { if (later) { installOnQuit = true; return true; } return updater.install(true); });
+ipcMain.on('open-external', (_e, url) => { if (/^https:\/\//.test(url)) require('electron').shell.openExternal(url); });
+app.on('will-quit', () => { if (installOnQuit && updater.state.status === 'ready') { installOnQuit = false; updater.install(false); } });
+
 // ---------- IPC ----------
+// 全屏场景时临时接管 Esc（退出全屏）；离开全屏马上还给其他程序
+let escOn = false;
+ipcMain.on('full-mode', (_e, v) => {
+  try {
+    if (v && !escOn) { escOn = globalShortcut.register('Escape', () => send('hotkey', 'exitFull')); }
+    else if (!v && escOn) { globalShortcut.unregister('Escape'); escOn = false; }
+  } catch (e) { console.warn('esc', e); }
+});
 ipcMain.on('set-interactive', (_e, v) => {
   if (!win) return;
   win.setIgnoreMouseEvents(!v, { forward: true });

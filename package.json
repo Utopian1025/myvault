@@ -1,8 +1,8 @@
 {
   "name": "pixel-nest",
-  "productName": "像素小窝",
-  "version": "0.1.0",
-  "description": "住在桌面上的像素宠物：有自己的生活、性格、日记和秘密。",
+  "productName": "摸鱼动物园",
+  "version": "0.2.0",
+  "description": "住在你电脑里的一群小动物，陪你一起摸鱼。",
   "author": "Pixel Nest",
   "main": "main.js",
   "scripts": {
@@ -23,6 +23,8 @@
     "files": [
       "main.js",
       "preload.js",
+      "updater.js",
+      "changelog.json",
       "renderer/**",
       "assets/**"
     ],
@@ -48,11 +50,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "像素小窝",
-      "uninstallDisplayName": "像素小窝",
+      "shortcutName": "摸鱼动物园",
+      "uninstallDisplayName": "摸鱼动物园",
       "deleteAppDataOnUninstall": true,
       "include": "build/installer.nsh",
-      "artifactName": "像素小窝-安装包-${version}.exe",
+      "artifactName": "摸鱼动物园-安装包-${version}.exe",
       "installerLanguages": [
         "zh_CN"
       ],
@@ -69,8 +71,8 @@
       "identity": null
     },
     "dmg": {
-      "artifactName": "像素小窝-${version}.dmg",
-      "title": "像素小窝"
+      "artifactName": "摸鱼动物园-${version}.dmg",
+      "title": "摸鱼动物园"
     }
   },
   "dependencies": {
