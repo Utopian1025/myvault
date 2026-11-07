@@ -21,7 +21,7 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .toast:hover, .orb:hover, .orb-pop:hover, .hoverbar:hover, .editbar:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .hoverbar:hover, .editbar:hover');
     setInteractive(!!(G.hoverPet || G.hoverItem || G.hoverHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
   };
 
@@ -308,7 +308,7 @@
       konami.push(e.key.length === 1 ? e.key.toLowerCase() : e.key);
       konami = konami.slice(-10);
       if (konami.join(',') === KONAMI.join(',')) { konami = []; PP.events.konami(); }
-      if (e.key === 'Escape') { PP.ui.closeAll(); }
+      if (e.key === 'Escape') { PP.ui.closeAll(); PP.exitFull && PP.exitFull(); if (G.editing) PP.scene.edit(false); }
     });
     // 桌面版：主进程转发全局鼠标位置、系统空闲时间（推测是否在打字）
     if (api) {

@@ -29,9 +29,11 @@
         G.pets.filter((p) => !before.has(p)).forEach((p, i) => PP.petEmerge(p, U.rand(G.W * 0.15, G.W * 0.85), 200 + i * 380));
       }
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景：整块屏幕都是森林（随时点小按钮收起）', band: '小场景：只在任务栏上方一条', clear: '透明：只有宠物，没有场景', mini: '极简：只留主角陪着你，再点一下小按钮恢复' }[m]);
-    drawOrb(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出）', band: '小场景', clear: '透明', mini: '极简：只留主角' }[m]);
+    drawOrb(); placeOrb(); setFullFlag(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
   };
+  function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); }
+  PP.exitFull = () => { if (S().mode === 'full') PP.setMode('band'); };
   PP.toggleMini = () => PP.setMode(S().mode === 'mini' ? (S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band') : 'mini');
   PP.showItems = () => S().mode !== 'mini';
 
@@ -50,7 +52,7 @@
       const mv = (ev) => {
         if (!down) return;
         if (Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4) { down.moved = true; hidePop(); }
-        if (down.moved) { orb.style.left = U.clamp(down.ox + ev.clientX - down.x, 2, G.W - 34) + 'px'; orb.style.top = U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) + 'px'; }
+        if (down.moved) { S().orb = { x: U.clamp(down.ox + ev.clientX - down.x, 40, G.W - 34) / G.W, y: U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) / G.H }; placeOrb(); }
       };
       const up = () => {
         window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
@@ -67,11 +69,15 @@
     window.addEventListener('resize', placeOrb);
     drawOrb();
   }
+  // 小门按钮 + 爪子菜单 放在一起：默认在场景右上角（场景里），没有场景时在右下角
   function placeOrb() {
     if (!orb) return;
-    const o = S().orb;
-    orb.style.left = (o ? U.clamp(o.x * G.W, 2, G.W - 34) : G.W - 46) + 'px';
-    orb.style.top = (o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - 46 - Math.max(120, PP.scene.height())) + 'px';
+    const o = S().orb, sh = PP.scene.bandHeight();
+    const x = o ? U.clamp(o.x * G.W, 40, G.W - 34) : G.W - 42;
+    const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
+    orb.style.left = x + 'px'; orb.style.top = y + 'px';
+    const dock = document.querySelector('.dock');
+    if (dock) { dock.style.left = x - 36 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; }
   }
   // 小图标：一扇小门（极简模式下门是关着的）
   function drawOrb() {
@@ -90,6 +96,8 @@
     const s = S();
     pop = $(`<div class="orb-pop"><div class="modes">${PP.MODES.map(([k, n, d]) => `<button class="small ${s.mode === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div>
       <div class="scenes">${Object.entries(PP.SCENES).map(([k, v]) => `<button class="small ${s.scene === k && PP.scene.active() ? 'on' : ''}" data-s="${k}">${v.name}</button>`).join('')}</div>
+      <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
+      <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
       <div class="env">${esc(PP.env.label())}</div></div>`);
     document.getElementById('ui').appendChild(pop);
     const r = orb.getBoundingClientRect(), pr = pop.getBoundingClientRect();
@@ -99,6 +107,9 @@
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.m) PP.setMode(b.dataset.m);
       if (b.dataset.s) PP.scene.go(b.dataset.s);
+      if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showPop(); return; }
+      if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showPop(); return; }
+      if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showPop(); return; }
       hidePop();
     });
     pop.addEventListener('mouseleave', () => setTimeout(() => { if (pop && !pop.matches(':hover') && !orb.matches(':hover')) hidePop(); }, 300));
@@ -106,49 +117,75 @@
   }
   function hidePop() { if (pop) { pop.remove(); pop = null; PP.refreshInteractive(); } }
 
-  // ---------- 指着宠物时，头顶冒出一排小按钮 ----------
-  let bar = null, barPet = null, hoverSince = 0, lastHover = null, hideT = 0;
-  const BTN = [
-    ['hide', '回', '回电脑里（隐藏它）'], ['calm', '乖', '乖乖待着（不乱跑不乱跳）'], ['head', '头', '只露个头'], ['main', '★', '设为主角'],
-    ['fav', '喂', '喂它最爱吃的'], ['menu', '☰', '更多…'], ['pick', '选', '选择谁在桌面上（多选）'],
-  ];
+  // ---------- 指着宠物时：一圈像素小图标环绕着它（不用文字，一眼就懂） ----------
+  // 图标：10x10 像素图，k=黑 w=白 y=黄 r=红 g=绿 b=蓝 o=橙 p=粉
+  const ICON = {
+    hide: ['....kk....', '...kyyk...', '..kyyyyk..', '.kyyyyyyk.', 'kkkkkkkkkk', '.kwwwwwwk.', '.kwkkwwwk.', '.kwkkwkwk.', '.kwkkwwwk.', '.kkkkkkkk.'],
+    calm: ['....kk....', '...k..k...', '...k..k...', '....kk....', '.kkkkkkkk.', '....kk....', 'k...kk...k', 'kk..kk..kk', '.kk.kk.kk.', '..kkkkkk..'],
+    head: ['..........', '..........', '...kkkk...', '..kwwwwk..', '.kwkwwkwk.', '.kwkwwkwk.', 'bbbbbbbbbb', 'bbbbbbbbbb', '.b.b.b.b.b', '..........'],
+    main: ['..........', 'k...kk...k', 'kk.kyyk.kk', 'kykyyyykyk', 'kyyyyyyyyk', 'kyyryyryyk', 'kyyyyyyyyk', 'kkkkkkkkkk', '..........', '..........'],
+    menu: ['..........', '..........', '..........', '..........', 'kk..kk..kk', 'kk..kk..kk', '..........', '..........', '..........', '..........'],
+    pick: ['kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........', 'kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........'],
+    pet: ['..........', '.kk....kk.', 'kppk..kppk', 'kpppkkpppk', 'kppppppppk', '.kppppppk.', '..kppppk..', '...kppk...', '....kk....', '..........'],
+  };
+  const ICOL = { k: '#231c20', w: '#ffffff', y: '#ffcf33', r: '#e33b3b', g: '#3fa34d', b: '#4b9bcc', o: '#ff8a2a', p: '#ff7aa0' };
+  function drawIconTo(cv, name, p) {
+    const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); c.imageSmoothingEnabled = false;
+    if (name === 'fav' && p) {
+      // 喂：画它最爱吃的东西
+      try { const [w, h] = PP.SPR.iconSize(p.sp.favIcon); const s = Math.max(1, Math.floor(18 / Math.max(w, h))); PP.SPR.drawIcon(c, p.sp.favIcon, Math.round((20 - w * s) / 2), Math.round((20 - h * s) / 2), s); return; } catch (e) { name = 'pet'; }
+    }
+    const m = ICON[name] || ICON.menu;
+    m.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { c.fillStyle = ICOL[ch]; c.fillRect(x * 2, y * 2, 2, 2); } }));
+  }
+  let ring = null, ringPet = null, hoverSince = 0, lastHover = null, hideT = 0;
+  const BTN = [['hide', '回电脑里'], ['calm', '乖乖待着'], ['head', '只露个头'], ['main', '设为主角'], ['fav', '喂它'], ['pick', '选择谁在桌面上'], ['menu', '更多']];
   function barTick() {
     if (!G.save) return;
     const hp = G.hoverPet;
-    const over = bar && bar.matches(':hover');
+    const over = ring && ring.matches(':hover');
     if (hp !== lastHover) { lastHover = hp; hoverSince = performance.now(); }
     const menuOpen = !!document.querySelector('.menu');
-    if (hp && !G.editing && !menuOpen && performance.now() - hoverSince > 280 && hp !== barPet) showBar(hp);
-    if (bar && !hp && !over) { if (!hideT) hideT = performance.now(); if (performance.now() - hideT > 650) hideBar(); } else hideT = 0;
-    if (bar && barPet) {
-      if (!G.pets.includes(barPet) || barPet.inDoor || barPet.outing || barPet.held) { hideBar(); return; }
-      const [hx, hy] = barPet.headPos, r = bar.getBoundingClientRect();
-      bar.style.left = U.clamp(hx - r.width / 2, 4, G.W - r.width - 4) + 'px';
-      bar.style.top = U.clamp(hy - 22 * G.S - r.height, 4, G.H - r.height - 4) + 'px';
-      const d = barPet.d;
-      bar.querySelector('[data-c=calm]').classList.toggle('on', !!d.calm);
-      bar.querySelector('[data-c=head]').classList.toggle('on', !!d.headOnly);
-      bar.querySelector('[data-c=main]').classList.toggle('on', PP.F.main() === barPet);
+    if (hp && !G.editing && !menuOpen && performance.now() - hoverSince > 250 && hp !== ringPet) showBar(hp);
+    if (ring && !hp && !over) { if (!hideT) hideT = performance.now(); if (performance.now() - hideT > 800) hideBar(); } else hideT = 0;
+    if (ring && ringPet) {
+      if (!G.pets.includes(ringPet) || ringPet.inDoor || ringPet.outing || ringPet.held) { hideBar(); return; }
+      const S = G.S * (ringPet.scaleMul || 1);
+      const cx = ringPet.x, cy = ringPet.y - 13 * S + ringPet.sinkPx();
+      const R = 15 * S + 26;
+      const btns = ring.querySelectorAll('button'), n = btns.length;
+      btns.forEach((b, i) => {
+        // 在宠物上方排成一道弧（从左下绕到右下），不会钻到屏幕底下
+        const a = Math.PI * (1.08 + (0.84 * i) / (n - 1));
+        const x = U.clamp(cx + Math.cos(a) * R, 16, G.W - 16), y = U.clamp(cy + Math.sin(a) * R, 16, G.H - 16);
+        b.style.left = x - 15 + 'px'; b.style.top = y - 15 + 'px';
+      });
+      const d = ringPet.d;
+      ring.querySelector('[data-c=calm]').classList.toggle('on', !!d.calm);
+      ring.querySelector('[data-c=head]').classList.toggle('on', !!d.headOnly);
+      ring.querySelector('[data-c=main]').classList.toggle('on', PP.F.main() === ringPet);
     }
   }
   function showBar(p) {
     hideBar();
-    barPet = p;
-    const favScene = PP.SCENES[PP.scene.fav(p)].name;
-    bar = $(`<div class="hoverbar"><i>${esc(p.name)} · 爱去${favScene}</i>${BTN.map(([c, t, tip]) => `<button data-c="${c}" title="${tip}">${t}</button>`).join('')}</div>`);
-    document.getElementById('ui').appendChild(bar);
-    bar.addEventListener('mousedown', (e) => e.stopPropagation());
-    bar.addEventListener('click', (e) => {
-      const b = e.target.closest('button'); if (!b || !barPet) return;
-      const id = barPet.d.id, c = b.dataset.c;
+    ringPet = p;
+    ring = $(`<div class="hoverbar petring">${BTN.map(([c, tip]) => `<button data-c="${c}" title="${tip}"><canvas width="20" height="20"></canvas></button>`).join('')}</div>`);
+    ring.querySelectorAll('button').forEach((b) => drawIconTo(b.querySelector('canvas'), b.dataset.c, p));
+    document.getElementById('ui').appendChild(ring);
+    barTick();
+    requestAnimationFrame(() => ring && ring.classList.add('in'));
+    ring.addEventListener('mousedown', (e) => e.stopPropagation());
+    ring.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || !ringPet) return;
+      const id = ringPet.d.id, c = b.dataset.c;
       if (c === 'hide') { PP.menuRun(`pet:${id}:show`); hideBar(); }
-      else if (c === 'menu') { const r = b.getBoundingClientRect(); const p = barPet; hideBar(); PP.ui.petMenu(p, r.left, r.top); }
+      else if (c === 'menu') { const r = b.getBoundingClientRect(); const p = ringPet; hideBar(); PP.ui.petMenu(p, r.left, r.top); }
       else if (c === 'pick') { hideBar(); pickPets(); }
-      else PP.menuRun(`pet:${id}:${c}`);
+      else { PP.menuRun(`pet:${id}:${c}`); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 250); }
     });
     PP.refreshInteractive();
   }
-  function hideBar() { if (bar) { bar.remove(); bar = null; barPet = null; PP.refreshInteractive(); } }
+  function hideBar() { if (ring) { ring.remove(); ring = null; ringPet = null; PP.refreshInteractive(); } }
 
   // ---------- 一次选好谁在桌面上 ----------
   function pickPets() {
@@ -239,7 +276,7 @@
   });
 
   PP.modes = {
-    init() { applyMenuScale(); initOrb(); setInterval(barTick, 60); setInterval(menuWatch, 300); },
+    init() { applyMenuScale(); initOrb(); setInterval(barTick, 50); setInterval(menuWatch, 300); setInterval(placeOrb, 1000); setFullFlag(); },
     drawOrb, hideBar, placeOrb,
   };
 })();

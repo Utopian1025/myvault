@@ -27,9 +27,11 @@
       root.appendChild(el);
       const olds = root.querySelectorAll('.toast'); if (olds.length > 4) olds[0].remove();
       const all = root.querySelectorAll('.toast');
-      all.forEach((t, i) => (t.style.transform = `translateY(${-(all.length - 1 - i) * 44}px)`));
-      setTimeout(() => el.classList.add('out'), 3600);
-      setTimeout(() => el.remove(), 4100);
+      all.forEach((t, i) => (t.style.transform = `translate(-50%, ${(all.length - 1 - i) * 34}px)`));
+      // 短一点：一般 2 秒，彩蛋 / 礼物 3.5 秒；不接鼠标，不会挡操作
+      const dur = kind === 'egg' || kind === 'gift' ? 3500 : 2000;
+      setTimeout(() => el.classList.add('out'), dur);
+      setTimeout(() => el.remove(), dur + 400);
     },
 
     // ---------- 菜单（托盘图标 / 左下角爪子 / 宠物右键 共用同一份菜单，可多级） ----------

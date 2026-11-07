@@ -77,6 +77,7 @@
           ...PP.WEATHER.map(([k, n]) => ({ id: `weather:${k}`, label: `一直${n}`, type: 'radio', checked: s.weather === k })),
           '-', { id: 'city', label: s.city ? `换城市…（现在：${s.city.name}）` : '设置所在城市（实时天气）…' },
         ] },
+        { label: '季节', hint: forTray ? null : (s.seasonFix ? PP.env.seasonName(s.seasonFix) + '（固定）' : '跟随日历'), sub: [['auto', '跟随日历和节气'], ['spring', '一直是春天'], ['summer', '一直是夏天'], ['autumn', '一直是秋天'], ['winter', '一直是冬天']].map(([k, n]) => ({ id: `season:${k}`, label: n, type: 'radio', checked: (s.seasonFix || 'auto') === k })) },
         { label: '场景高度', sub: [[1, '矮一点'], [2, '适中'], [3, '高一点']].map(([h, n]) => ({ id: `bgh:${h}`, label: n, type: 'radio', checked: (s.bgH || 2) === h, enabled: s.mode === 'band' })) },
         { id: 'ambient', label: '环境声音（雨声、鸟叫、炉火…）', type: 'checkbox', checked: !!s.ambient },
         { label: '环境音量', enabled: !!s.ambient, sub: [[0.25, '很轻'], [0.5, '适中'], [0.8, '大一点']].map(([v, n]) => ({ id: `avol:${v}`, label: n, type: 'radio', checked: (s.ambientVol != null ? s.ambientVol : 0.5) === v })) },
@@ -96,6 +97,7 @@
       ] },
       { id: 'ai', label: 'AI 联动（Claude Code）…' },
       { id: 'settings', label: '设置…' },
+      { id: 'about', label: `关于 & 检查更新${PP.APP_VERSION ? '（v' + PP.APP_VERSION + '）' : ''}` },
     );
     if (api) items.push('-', { id: 'hideWin', label: '暂时隐藏全部' }, { id: 'quit', label: '退出' });
     return items;
@@ -110,6 +112,7 @@
     if (a === 'mode') { PP.setMode(b); return; }
     if (a === 'scene') { PP.scene.go(b); return; }
     if (a === 'weather') { s.weather = b; if (b === 'auto' && !s.city) PP.ui.toast('还没设城市：天气会按季节模拟'); PP.save.soon(); syncTray(true); return; }
+    if (a === 'season') { s.seasonFix = b === 'auto' ? null : b; PP.save.soon(); syncTray(true); return; }
     if (a === 'avol') { s.ambientVol = +b; PP.save.soon(); syncTray(true); return; }
     if (a === 'ms') { s.menuScale = +b; PP.applyMenuScale(); PP.save.soon(); syncTray(true); return; }
     if (a === 'bgh') { s.bgH = +b; PP.save.soon(); syncTray(true); return; }
@@ -137,6 +140,7 @@
       case 'eggs': ui.eggPanel(); break;
       case 'ai': ui.aiPanel(); break;
       case 'settings': ui.settings(); break;
+      case 'about': PP.update.about(); break;
       case 'hideWin': api && api.hideWindow(); break;
       case 'quit': PP.save.write(); api && api.quit(); break;
     }
@@ -185,6 +189,7 @@
     }
   };
   if (api && api.onHotkey) api.onHotkey((k) => {
+    if (k === 'exitFull') { PP.exitFull && PP.exitFull(); return; }
     if (k === 'work') PP.menuRun('work');
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });

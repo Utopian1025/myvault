@@ -1,87 +1,93 @@
-// 场景白噪音：雨声、风声、林间鸟叫、夜里虫鸣、湖水、壁炉噼啪……
-// 全部用滤波后的噪声合成（不用低频振荡器，避免“滋滋”的电流感），音量很小，可以在菜单里关掉
+// 场景白噪音：和画面严格对应（看到下雨才有雨声，看到风才有风声）
+// 声音设计原则：只用柔和的粉噪 / 褐噪 + 平滑的音量变化，不用锯齿波、不出尖锐的咔哒声
+// 进到小屋里：外面的声音整体变闷、变小（像隔着墙和窗户），屋里有轻轻的炉火声
 (function () {
   const PP = (window.PP = window.PP || {});
   const U = PP.U, G = PP.G;
-  let ac = null, master = null, beds = null, noiseBuf = null, brownBuf = null;
+  let ac = null, master = null, outBus = null, outLP = null, inBus = null, beds = null, pinkBuf = null, brownBuf = null;
 
-  function makeNoise(brown) {
-    const len = ac.sampleRate * 4, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
-    let last = 0;
+  // 粉噪（比白噪音柔和很多）/ 褐噪（低沉）
+  function makeNoise(kind) {
+    const len = ac.sampleRate * 6, b = ac.createBuffer(1, len, ac.sampleRate), d = b.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
     for (let i = 0; i < len; i++) {
       const w = Math.random() * 2 - 1;
-      if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; } else d[i] = w * 0.5;
+      if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.2; }
+      else {
+        b0 = 0.99886 * b0 + w * 0.0555179; b1 = 0.99332 * b1 + w * 0.0750759; b2 = 0.969 * b2 + w * 0.153852;
+        b3 = 0.8665 * b3 + w * 0.3104856; b4 = 0.55 * b4 + w * 0.5329522; b5 = -0.7616 * b5 - w * 0.016898;
+        d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11; b6 = w * 0.115926;
+      }
     }
-    // 首尾做交叉淡化，循环时不会“咔”一声
-    const f = Math.floor(ac.sampleRate * 0.05);
+    // 首尾交叉淡化，循环时听不出接缝
+    const f = Math.floor(ac.sampleRate * 0.25);
     for (let i = 0; i < f; i++) { const a = i / f; d[i] = d[i] * a + d[len - f + i] * (1 - a); }
     return b;
   }
-  // 一路持续的噪声床：噪声 → 滤波 → 增益
-  function bed(buf, type, freq, q) {
-    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; src.loopEnd = buf.duration - 0.05;
-    src.playbackRate.value = 0.9 + Math.random() * 0.2;
+  function bed(buf, bus, type, freq, q, type2, freq2) {
+    const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; src.loopStart = 0; src.loopEnd = buf.duration - 0.25;
+    src.playbackRate.value = 0.94 + Math.random() * 0.12;
     const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q;
+    let tail = f;
+    if (type2) { const f2 = ac.createBiquadFilter(); f2.type = type2; f2.frequency.value = freq2; f.connect(f2); tail = f2; }
     const g = ac.createGain(); g.gain.value = 0;
-    src.connect(f).connect(g).connect(master); src.start(0, Math.random() * 3);
+    src.connect(f); tail.connect(g).connect(bus); src.start(0, Math.random() * 4);
     return { src, f, g };
   }
   function init() {
     if (ac) return true;
     try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return false; }
     master = ac.createGain(); master.gain.value = 0;
-    // 柔和一点：整体再过一道低通
-    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 9000;
-    master.connect(lp).connect(ac.destination);
-    noiseBuf = makeNoise(false); brownBuf = makeNoise(true);
+    // 整体：柔和的低通 + 轻压缩，避免任何刺耳的峰值
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6500;
+    const comp = ac.createDynamicsCompressor(); comp.threshold.value = -24; comp.ratio.value = 3; comp.attack.value = 0.05; comp.release.value = 0.4;
+    master.connect(lp).connect(comp).connect(ac.destination);
+    // 户外的声音都走 outBus：在屋里时被低通 + 压小
+    outLP = ac.createBiquadFilter(); outLP.type = 'lowpass'; outLP.frequency.value = 12000;
+    outBus = ac.createGain(); outBus.connect(outLP).connect(master);
+    inBus = ac.createGain(); inBus.connect(master);
+    pinkBuf = makeNoise('pink'); brownBuf = makeNoise('brown');
     beds = {
-      rain: bed(noiseBuf, 'bandpass', 2600, 0.5),      // 雨丝
-      rainLow: bed(brownBuf, 'lowpass', 900),           // 雨打在地上
-      wind: bed(brownBuf, 'bandpass', 500, 0.8),        // 风
-      water: bed(brownBuf, 'lowpass', 420),             // 湖水
-      fire: bed(brownBuf, 'lowpass', 260),              // 炉火低低的呼呼声
-      room: bed(noiseBuf, 'lowpass', 700),              // 屋里听到的闷闷雨声
+      rain: bed(pinkBuf, outBus, 'highpass', 500, 0.5, 'lowpass', 4200),   // 雨丝：沙沙
+      rainBody: bed(brownBuf, outBus, 'lowpass', 700, 0.6),                // 雨落地：厚一点的底
+      wind: bed(brownBuf, outBus, 'bandpass', 420, 0.7),                    // 风：慢慢起伏
+      water: bed(brownBuf, outBus, 'lowpass', 520, 0.5),                   // 湖水
+      snowHush: bed(pinkBuf, outBus, 'lowpass', 900, 0.4),                 // 下雪时很轻的“嘶——”
+      fire: bed(brownBuf, inBus, 'lowpass', 320, 0.6),                     // 炉火低低的呼呼声
     };
     return true;
   }
-  const set = (b, v, tc = 1.2) => b.g.gain.setTargetAtTime(v, ac.currentTime, tc);
+  const set = (b, v, tc = 1.6) => b.g.gain.setTargetAtTime(Math.max(0, v), ac.currentTime, tc);
 
-  // ---------- 点缀音：鸟叫、虫鸣、炉火噼啪、远处的雷 ----------
-  function chirp(base) {
-    const t0 = ac.currentTime, n = U.randi(2, 5), f0 = base * U.rand(0.85, 1.2);
-    for (let i = 0; i < n; i++) {
-      const o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * U.rand(0.09, 0.16);
-      o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * U.rand(1.2, 1.6), t + 0.05); o.frequency.exponentialRampToValueAtTime(f0 * 0.9, t + 0.09);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
-      o.connect(g).connect(master); o.start(t); o.stop(t + 0.12);
-    }
+  // ---------- 点缀音 ----------
+  function tone(bus, f0, f1, dur, vol, type = 'sine', at = 0) {
+    const t = ac.currentTime + at, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * 0.7);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.03, dur * 0.25)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(bus); o.start(t); o.stop(t + dur + 0.02);
   }
-  function cricket() {
-    const t0 = ac.currentTime, f = U.rand(4200, 4800);
-    for (let i = 0; i < 3; i++) {
-      const o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * 0.07;
-      o.type = 'sine'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.012, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
-      o.connect(g).connect(master); o.start(t); o.stop(t + 0.06);
-    }
+  function burst(bus, buf, type, freq, q, vol, dur, at = 0) {
+    const t = ac.currentTime + at, src = ac.createBufferSource(); src.buffer = buf;
+    const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.01, dur * 0.2)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(bus); src.start(t, Math.random() * 4); src.stop(t + dur + 0.05);
   }
-  function crackle() {
-    const t = ac.currentTime, src = ac.createBufferSource(); src.buffer = noiseBuf;
-    const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = U.rand(1500, 3500);
-    const g = ac.createGain(); g.gain.setValueAtTime(U.rand(0.05, 0.12), t); g.gain.exponentialRampToValueAtTime(0.0001, t + U.rand(0.015, 0.04));
-    src.connect(f).connect(g).connect(master); src.start(t, Math.random() * 3); src.stop(t + 0.05);
+  // 几种不同的鸟叫，轻轻的
+  function bird() {
+    const kind = Math.floor(Math.random() * 3), base = U.rand(2400, 3600);
+    if (kind === 0) for (let i = 0; i < U.randi(2, 4); i++) tone(outBus, base, base * 1.3, 0.09, 0.018, 'sine', i * 0.13);
+    else if (kind === 1) { tone(outBus, base * 1.2, base * 0.8, 0.22, 0.016); tone(outBus, base * 0.9, base * 1.1, 0.16, 0.014, 'sine', 0.28); }
+    else for (let i = 0; i < 5; i++) tone(outBus, base * (1 + i * 0.05), base * (1.1 + i * 0.05), 0.05, 0.012, 'sine', i * 0.07);
   }
+  function owl() { tone(outBus, 390, 360, 0.35, 0.02); tone(outBus, 370, 340, 0.5, 0.018, 'sine', 0.55); }
+  function cricket() { const f = U.rand(4300, 4700); for (let i = 0; i < 3; i++) tone(outBus, f, f, 0.04, 0.005, 'sine', i * 0.07); }
+  function frog() { for (let i = 0; i < 2; i++) burst(outBus, brownBuf, 'bandpass', U.rand(380, 520), 6, 0.05, 0.12, i * 0.16); }
+  function drip() { tone(outBus, U.rand(900, 1300), U.rand(1500, 1900), 0.07, 0.012); }
+  function rainTick() { burst(outBus, pinkBuf, 'bandpass', U.rand(1800, 3200), 3, U.rand(0.008, 0.016), 0.04); }
+  function crackle() { burst(inBus, pinkBuf, 'bandpass', U.rand(900, 1700), 1.6, U.rand(0.012, 0.028), U.rand(0.02, 0.05)); }
   function thunder(near) {
-    const t = ac.currentTime + (near ? 0.05 : U.rand(0.3, 1.2)), src = ac.createBufferSource(); src.buffer = brownBuf;
-    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = near ? 380 : 180;
-    const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(near ? 0.5 : 0.3, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + U.rand(2.2, 3.5));
-    src.connect(f).connect(g).connect(master); src.start(t, Math.random()); src.stop(t + 4);
-  }
-  function drip() {
-    const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(), f = U.rand(900, 1500);
-    o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.8, t + 0.06);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.02, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
-    o.connect(g).connect(master); o.start(t); o.stop(t + 0.1);
+    const at = near ? 0.05 : U.rand(0.4, 1.4);
+    burst(outBus, brownBuf, 'lowpass', near ? 260 : 150, 0.7, near ? 0.32 : 0.2, U.rand(2.4, 3.6), at);
   }
   PP.ambientThunder = (near) => { if (ac && on()) thunder(near); };
 
@@ -90,44 +96,48 @@
     return !!(s && s.ambient && PP.scene && PP.scene.active());
   }
 
-  // 每 0.25 秒按场景/天气/时间调一次各路音量
-  let last = 0;
+  let last = 0, wasInside = null;
   function tick() {
     if (!G.save) return;
-    const want = on();
-    if (!want) { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.6); return; }
+    if (!on()) { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.6); return; }
     if (!init()) return;
     if (ac.state === 'suspended') ac.resume().catch(() => {});
-    const s = G.save.settings, e = PP.env.get();
+    const s = G.save.settings, e = PP.env.get(), F = e.fx;
     master.gain.setTargetAtTime(0.9 * (s.ambientVol != null ? s.ambientVol : 0.5), ac.currentTime, 0.8);
-    const scene = s.scene || 'forest', inside = scene === 'cabin', k = e.weather.kind;
-    const rain = k === 'rain' ? 1 : k === 'storm' ? 1.5 : 0;
+    const scene = s.scene || 'forest', inside = scene === 'cabin';
     const night = e.time.phase === 'night', season = e.season;
-    set(beds.rain, inside ? 0 : rain * 0.09);
-    set(beds.rainLow, inside ? 0 : rain * 0.12);
-    set(beds.room, inside ? rain * 0.1 : 0);
-    set(beds.wind, (inside ? 0.25 : 1) * (k === 'snow' ? 0.1 : k === 'storm' ? 0.12 : k === 'fog' ? 0.04 : scene === 'meadow' ? 0.04 : season === 'winter' ? 0.05 : 0.02));
-    // 风声慢慢起伏
-    beds.wind.f.frequency.setTargetAtTime(380 + Math.sin(G.t * 0.13) * 160 + Math.sin(G.t * 0.31) * 60, ac.currentTime, 1.5);
-    set(beds.water, scene === 'lake' && !(season === 'winter') ? 0.11 + Math.sin(G.t * 0.4) * 0.04 : 0, 0.6);
-    const fireOn = inside && (season === 'winter' || (e.weather.temp != null && e.weather.temp < 12) || night);
-    set(beds.fire, fireOn ? 0.1 : 0);
+    // 屋里：外面的声音隔着墙，闷一点、小一点
+    if (inside !== wasInside) {
+      outLP.frequency.setTargetAtTime(inside ? 650 : 12000, ac.currentTime, 0.6);
+      outBus.gain.setTargetAtTime(inside ? 0.35 : 1, ac.currentTime, 0.6);
+      wasInside = inside;
+    }
+    // 雨：雨量决定音量和亮度（毛毛雨是细细的沙沙声，大雨更厚）
+    set(beds.rain, F.rain * 0.075);
+    beds.rain.f.frequency.setTargetAtTime(700 - F.rain * 250, ac.currentTime, 2);
+    set(beds.rainBody, F.rain > 0.5 ? (F.rain - 0.4) * 0.09 : 0);
+    // 风：只有画面上有风（雨斜、叶子飘、风车转）才有风声，风越大越响
+    const wind = F.wind >= 1 ? [0, 0.018, 0.04, 0.065][F.wind] : 0;
+    set(beds.wind, wind * (1 + Math.sin(G.t * 0.21) * 0.35), 1.2);
+    beds.wind.f.frequency.setTargetAtTime(330 + Math.sin(G.t * 0.13) * 120 + F.wind * 40, ac.currentTime, 1.5);
+    // 湖水：结冰就没声音
+    set(beds.water, scene === 'lake' && season !== 'winter' ? 0.05 + Math.sin(G.t * 0.35) * 0.015 : 0, 0.8);
+    set(beds.snowHush, F.snow ? 0.008 + F.snow * 0.01 : 0);
+    const fireOn = inside && (season === 'winter' || (e.weather.temp != null && e.weather.temp < 12) || night || F.rain > 0.6);
+    set(beds.fire, fireOn ? 0.035 : 0);
 
     const now = performance.now(), dt = Math.min(1, (now - (last || now)) / 1000); last = now;
-    const r = Math.random();
-    if (!inside) {
-      const birds = !night && k !== 'rain' && k !== 'storm' && season !== 'winter';
-      if (birds && r < dt * (scene === 'forest' ? 0.22 : 0.12)) chirp(U.pick([2600, 3200, 3800]));
-      const bugs = night && (season === 'summer' || season === 'autumn') && rain === 0;
-      if (bugs && Math.random() < dt * 1.6) cricket();
-      if (scene === 'lake' && season !== 'winter' && Math.random() < dt * 0.25) drip();
-    } else {
-      if (fireOn && Math.random() < dt * 3) crackle();
-      if (!night && season !== 'winter' && rain === 0 && Math.random() < dt * 0.05) chirp(3000); // 窗外的鸟
-    }
-    if (k === 'storm' && Math.random() < dt * 0.06) thunder(Math.random() < 0.4);
+    const quietWx = F.rain || F.snow || F.storm;
+    const dawn = e.time.phase === 'dawn';
+    if (!quietWx && !night && season !== 'winter' && Math.random() < dt * (scene === 'forest' ? 0.18 : 0.1) * (dawn ? 2.5 : 1)) bird();
+    if (night && scene === 'forest' && !quietWx && Math.random() < dt * 0.025) owl();
+    if (night && (season === 'summer' || season === 'autumn') && !F.rain && Math.random() < dt * 1.2) cricket();
+    if (night && season === 'summer' && scene === 'lake' && !F.rain && Math.random() < dt * 0.15) frog();
+    if (scene === 'lake' && season !== 'winter' && Math.random() < dt * 0.2) drip();
+    if (F.rain && F.rain < 0.6 && Math.random() < dt * 6) rainTick();
+    if (fireOn && Math.random() < dt * 2.2) crackle();
+    if (F.storm && Math.random() < dt * 0.03) thunder(false);
   }
   setInterval(tick, 250);
-  // 关了“环境声音”就把声音停掉
   PP.ambient = { tick, stop() { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.2); } };
 })();

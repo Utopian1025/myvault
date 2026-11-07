@@ -502,11 +502,20 @@
           PP.SPR.drawIcon(ctx, b.icon, x + 7, y + 6, s);
         } else if (b.text) {
           ctx.font = PP.FONT(13);
-          const w = Math.min(240, Math.ceil(ctx.measureText(b.text).width) + 18), h = 26;
+          ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+          // 太长就自动换行（不再把字挤扁）
+          if (!b.lines || b.linesFont !== ctx.font) {
+            const lines = []; let cur = '';
+            for (const ch of b.text) { if (cur && ctx.measureText(cur + ch).width > 200) { lines.push(cur); cur = ''; } cur += ch; }
+            if (cur) lines.push(cur);
+            b.lines = lines.slice(0, 3); b.linesFont = ctx.font;
+          }
+          const tw = Math.max(...b.lines.map((l) => ctx.measureText(l).width));
+          const w = Math.ceil(tw) + 18, h = 10 + b.lines.length * 17;
           const x = Math.round(U.clamp(hx - w / 2, 4, G.W - w - 4)), y = Math.round(by - h);
           bubbleBox(ctx, x, y, w, h, false, hx);
-          ctx.fillStyle = '#111'; ctx.textBaseline = 'middle';
-          ctx.fillText(b.text, x + 9, y + h / 2 + 1, w - 18);
+          ctx.fillStyle = '#111';
+          b.lines.forEach((l, i) => ctx.fillText(l, x + 9, y + 5 + 8.5 + i * 17 + 1));
         }
         ctx.globalAlpha = 1;
       }

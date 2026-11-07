@@ -173,7 +173,7 @@
       shiny:  { base: '#8fc0a8', dark: '#3e6a56', light: '#c2e2d0', paw: '#567e6a', inner: '#5e8a74', nose: '#2e4a3c', name: '抹茶卡皮' },
     },
     hedgehog: {
-      brown:  { base: '#f2dcbc', dark: '#3e2c22', light: '#fff4e4', spine: '#7c5a44', tip: '#c9a888', paw: '#d8b898', inner: '#e8a8a8', nose: '#231c20', name: '小刺猬' },
+      brown:  { base: '#f2dcbc', dark: '#4e3628', light: '#fff4e4', spine: '#8a6448', tip: '#d8b894', paw: '#d8b898', inner: '#e8a8a8', nose: '#231c20', name: '小刺猬' },
       white:  { base: '#fbf2e8', dark: '#8a7a70', light: '#ffffff', spine: '#d8cfc6', tip: '#ffffff', paw: '#e8d0c0', inner: '#f0b0b0', nose: '#3a2a2a', name: '雪白刺猬' },
       shiny:  { base: '#fff0c8', dark: '#6a4a8a', light: '#ffffff', spine: '#9a7ad8', tip: '#e2d4ff', paw: '#f0d8b8', inner: '#ffb0c8', nose: '#3a2a4a', name: '星空刺猬' },
     },
@@ -811,20 +811,24 @@
     let hx = 16 + f * 1.4 + (g.jsk || 0) * 0.7, hy = lie ? 21 : g.anim === 'held' ? 12 : 17.4;
     if (anim === 'eat') hy += 2.6;
     if (g.jsy && anim !== 'held') hy = 29.5 - (29.5 - hy) * g.jsy;
-    // 刺：一个大半圆罩在背上
-    const sy = cy - 2.2, srx = rx + 1.6, sry = ry + 3.6;
-    spikes(b, cx, sy, srx + 0.8, sry + 0.4, C.spine, Math.PI * 1.02, Math.PI * 1.98, 9);
+    // 刺：一个圆圆的大“刺帽”罩在背上，边缘一圈尖尖
+    const sy = cy - 1.6, srx = rx + 2.4, sry = ry + 4.4;
+    spikes(b, cx, sy, srx + 0.6, sry + 0.4, C.spine, Math.PI * 0.92, Math.PI * 2.08, 12);
     ell(b, cx, sy, srx, sry, C.spine);
-    ell(b, cx, cy + 1, rx, ry - 0.6, C.base);
-    // 小耳朵 + 脸
-    ell(b, hx - 4.6, hy - 4.6, 1.5, 1.4, C.base); ell(b, hx + 4.6, hy - 4.6, 1.5, 1.4, C.base);
-    ell(b, hx, hy, 6.6, 5.4, C.base);
-    ell(b, hx, hy + 2.6, 3, 2.4, C.base);
+    // 肚皮
+    ell(b, cx + f * 0.6, cy + 2.4, rx - 2.2, ry - 2.6, C.base);
+    // 小圆耳朵
+    ell(b, hx - 5.2, hy - 3.2, 1.5, 1.4, C.base); ell(b, hx + 5.2, hy - 3.2, 1.5, 1.4, C.base);
+    // 脸 + 小尖嘴
+    ell(b, hx, hy + 0.8, 6.4, 4.9, C.base);
+    ell(b, hx + f * 0.4, hy + 3.2, 2.6, 1.8, C.base);
+    // 额头上的刘海（几根短刺垂下来）
+    for (const k of [-1.5, 0, 1.5]) { const x = hx + k * 1.6; poly(b, [[x - 1, hy - 4.4], [x + 1, hy - 4.4], [x, hy - 3.2]], C.spine); }
     if (!lie) {
       const s = anim === 'walk' || anim === 'run' ? Math.floor(t * 8) % 2 : 0;
       rect(b, Math.round(cx - 4), 28 - s, 2, 1, C.paw); rect(b, Math.round(cx + 3), 28 - (1 - s) * (s ? 0 : 0), 2, 1, C.paw);
     }
-    p.__geo = { kind: 'hedgehog', cx, cy, hx, hy, lie, hatX: hx, hatY: sy - sry + 6 };
+    p.__geo = { kind: 'hedgehog', cx, cy, hx, hy, lie, sy, srx, sry, hatX: hx, hatY: sy - sry + 6 };
   }
   function spikes(b, cx, cy, rx, ry, col, a0, a1, n) {
     for (let i = 0; i <= n; i++) {
@@ -1061,15 +1065,19 @@
     hedgehog(b, p, g, q) {
       const C = p.pal;
       // 刺的质感：一点深色、一点浅色尖
+      // 刺的纹理：从刺帽中心放射出去的深色条纹 + 外缘浅色刺尖
+      const ox = q.cx != null ? q.cx : 16, oy = q.sy != null ? q.sy : (q.cy || 20), R = q.srx || 9;
       for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
         if (b.raw(x, y) !== C.spine) continue;
-        if ((x * 7 + y * 3) % 5 === 0) b.d[y * b.w + x] = C.tip;
-        else if ((x * 3 + y * 7) % 6 === 0) b.d[y * b.w + x] = C.dark;
+        const dx = x + 0.5 - ox, dy = y + 0.5 - oy, d = Math.hypot(dx / (R + 1), dy / ((q.sry || R) + 1));
+        const band = Math.floor((Math.atan2(dy, dx) + 4) * 6) % 4;
+        if (d > 0.93) b.d[y * b.w + x] = C.tip;
+        else if (band === 0 && d > 0.5) b.d[y * b.w + x] = C.dark;
       }
       if (q.curl) { const cx = Math.round(q.cx), cy = Math.round(q.cy); b.set(cx - 2, cy + 4, K); b.set(cx + 2, cy + 4, K); b.set(cx, cy + 6, C.nose); return; }
       const lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
       const ey = Math.round(q.hy - 0.8), mx = Math.round(q.hx) + lx;
-      b.setOn(Math.round(q.hx - 4.6), Math.round(q.hy - 4.6), C.inner); b.setOn(Math.round(q.hx + 4.6), Math.round(q.hy - 4.6), C.inner);
+      b.setOn(Math.round(q.hx - 5.2), Math.round(q.hy - 3.2), C.inner); b.setOn(Math.round(q.hx + 5.2), Math.round(q.hy - 3.2), C.inner);
       drawEye(b, mx - 3, ey, eyes, look, true, C, C.base);
       drawEye(b, mx + 3, ey, eyes, look, false, C, C.base);
       const my = ey + 4;

@@ -39,6 +39,7 @@
     PP.syncPets();
     PP.ui.init();
     PP.modes.init();
+    PP.update && PP.update.init();
     PP.bindInput();
     const away = PP.save.catchUp();
     PP.started = true;

@@ -28,6 +28,8 @@
   }
   // 按节气分四季：立春 / 立夏 / 立秋 / 立冬
   PP.season = function (d = new Date()) {
+    const fix = G.save && G.save.settings.seasonFix;
+    if (fix) return fix; // 固定季节
     const k = md(d);
     if (k >= 204 && k < 505) return 'spring';
     if (k >= 505 && k < 807) return 'summer';
@@ -57,19 +59,26 @@
   }
 
   // ---------- 天气 ----------
-  // kind: clear 晴 / cloudy 多云 / rain 雨 / snow 雪 / fog 雾 / storm 雷雨
-  PP.WEATHER = [['clear', '晴'], ['cloudy', '多云'], ['rain', '下雨'], ['snow', '下雪'], ['fog', '起雾'], ['storm', '雷雨']];
+  PP.WEATHER = [['clear', '晴'], ['partly', '少云'], ['cloudy', '阴天'], ['drizzle', '小雨'], ['rain', '下雨'], ['heavyrain', '大雨'], ['sleet', '雨夹雪'], ['snow', '下雪'], ['heavysnow', '大雪'], ['fog', '起雾'], ['storm', '雷雨'], ['windy', '大风']];
   const WNAME = Object.fromEntries(PP.WEATHER);
+  // WMO 天气代码 → 我们的天气（尽量细：毛毛雨、大雨、雨夹雪、大雪……）
   function fromWMO(c) {
     if (c == null) return null;
-    if (c === 0 || c === 1) return 'clear';
-    if (c === 2 || c === 3) return 'cloudy';
+    if (c === 0) return 'clear';
+    if (c === 1 || c === 2) return 'partly';
+    if (c === 3) return 'cloudy';
     if (c === 45 || c === 48) return 'fog';
-    if ((c >= 71 && c <= 77) || c === 85 || c === 86) return 'snow';
+    if (c === 51 || c === 53 || c === 55 || c === 61) return 'drizzle';
+    if (c === 63 || c === 80 || c === 81) return 'rain';
+    if (c === 65 || c === 82) return 'heavyrain';
+    if (c === 56 || c === 57 || c === 66 || c === 67) return 'sleet';
+    if (c === 71 || c === 73 || c === 77 || c === 85) return 'snow';
+    if (c === 75 || c === 86) return 'heavysnow';
     if (c >= 95) return 'storm';
-    if (c >= 51 && c <= 82) return 'rain';
     return 'cloudy';
   }
+  // 风力：0 无风 / 1 微风 / 2 有风 / 3 大风（km/h）
+  const windLevel = (v) => (v == null ? null : v < 12 ? 0 : v < 24 ? 1 : v < 38 ? 2 : 3);
   let live = null, liveAt = 0, liveErr = '';
   async function fetchLive(force) {
     const c = G.save && G.save.settings.city;
@@ -77,10 +86,10 @@
     if (!force && Date.now() - liveAt < 25 * 60000) return;
     liveAt = Date.now();
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,weather_code,is_day&daily=sunrise,sunset&forecast_days=1&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=sunrise,sunset&forecast_days=1&timezone=auto`;
       const j = await fetch(url).then((r) => r.json());
       const hr = (s) => { const m = /T(\d+):(\d+)/.exec(s || ''); return m ? +m[1] + m[2] / 60 : null; };
-      live = { kind: fromWMO(j.current && j.current.weather_code), temp: j.current && Math.round(j.current.temperature_2m), rise: hr(j.daily && j.daily.sunrise && j.daily.sunrise[0]), set: hr(j.daily && j.daily.sunset && j.daily.sunset[0]), at: Date.now() };
+      live = { kind: fromWMO(j.current && j.current.weather_code), temp: j.current && Math.round(j.current.temperature_2m), wind: windLevel(j.current && j.current.wind_speed_10m), rise: hr(j.daily && j.daily.sunrise && j.daily.sunrise[0]), set: hr(j.daily && j.daily.sunset && j.daily.sunset[0]), at: Date.now() };
       liveErr = '';
     } catch (e) { liveErr = '天气获取失败（网络不通？）'; console.warn('weather', e); }
   }
@@ -96,23 +105,48 @@
     let s = seed >>> 0; const r = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
     r(); r();
     const table = {
-      spring: [['clear', 45], ['cloudy', 30], ['rain', 25]],
-      summer: [['clear', 50], ['cloudy', 20], ['rain', 20], ['storm', 10]],
-      autumn: [['clear', 52], ['cloudy', 30], ['rain', 10], ['fog', 8]],
-      winter: [['clear', 45], ['cloudy', 28], ['snow', 18], ['fog', 9]],
+      spring: [['clear', 26], ['partly', 22], ['cloudy', 18], ['drizzle', 18], ['rain', 10], ['windy', 6]],
+      summer: [['clear', 34], ['partly', 20], ['cloudy', 10], ['rain', 14], ['heavyrain', 8], ['storm', 10], ['drizzle', 4]],
+      autumn: [['clear', 34], ['partly', 22], ['cloudy', 18], ['drizzle', 8], ['rain', 6], ['fog', 6], ['windy', 6]],
+      winter: [['clear', 30], ['partly', 18], ['cloudy', 20], ['snow', 12], ['heavysnow', 4], ['sleet', 6], ['fog', 6], ['windy', 4]],
     }[season];
     let x = r() * 100, kind = 'clear';
     for (const [k, w] of table) { if ((x -= w) <= 0) { kind = k; break; } }
     const base = [3, 6, 11, 17, 22, 26, 29, 28, 24, 18, 12, 6][d.getMonth()]; // 按月份的大致气温
-    return { kind, temp: Math.round(base + (r() - 0.5) * 8 - (kind === 'rain' || kind === 'snow' ? 3 : 0)) };
+    const wet = /rain|snow|sleet|drizzle|storm/.test(kind);
+    let temp = Math.round(base + (r() - 0.5) * 8 - (wet ? 3 : 0));
+    if (/snow|sleet/.test(kind)) temp = Math.min(temp, 1);
+    const wind = kind === 'windy' || kind === 'storm' ? 2 + Math.round(r()) : kind === 'heavyrain' || kind === 'heavysnow' ? 2 : r() < 0.3 ? 1 : 0;
+    return { kind, temp, wind };
   }
   function weather(d = new Date()) {
     const s = G.save ? G.save.settings : {};
     const mode = s.weather || 'auto';
-    if (mode !== 'auto' && WNAME[mode]) { const sim = simWeather(d); return { kind: mode, temp: sim.temp, source: 'manual' }; }
-    if (s.city && live && live.kind && Date.now() - live.at < 3 * 3600000) return { kind: live.kind, temp: live.temp, source: 'live', city: s.city.name };
+    if (mode !== 'auto' && WNAME[mode]) {
+      const sim = simWeather(d);
+      const wind = mode === 'windy' || mode === 'storm' ? 3 : mode === 'heavyrain' || mode === 'heavysnow' ? 2 : 0;
+      return { kind: mode, temp: /snow|sleet/.test(mode) ? Math.min(sim.temp, 0) : sim.temp, wind, source: 'manual' };
+    }
+    if (s.city && live && live.kind && Date.now() - live.at < 3 * 3600000) {
+      let kind = live.kind;
+      if ((kind === 'clear' || kind === 'partly' || kind === 'cloudy') && live.wind >= 3) kind = 'windy';
+      return { kind, temp: live.temp, wind: live.wind || 0, source: 'live', city: s.city.name };
+    }
     const sim = simWeather(d);
-    return { kind: sim.kind, temp: sim.temp, source: 'sim' };
+    return { kind: sim.kind, temp: sim.temp, wind: sim.wind, source: 'sim' };
+  }
+  // 画面和声音共用的一组数值：雨量、雪量、云量、雾、雷、风（保证看到的和听到的一致）
+  function fx(w) {
+    const k = w.kind;
+    return {
+      rain: { drizzle: 0.3, rain: 0.65, heavyrain: 1, storm: 1, sleet: 0.45 }[k] || 0,
+      snow: { snow: 0.6, heavysnow: 1, sleet: 0.4 }[k] || 0,
+      cloud: { clear: 0, partly: 0.35, windy: 0.4, cloudy: 0.85, fog: 0.6 }[k] != null ? { clear: 0, partly: 0.35, windy: 0.4, cloudy: 0.85, fog: 0.6 }[k] : 0.95,
+      fog: k === 'fog' ? 1 : 0,
+      storm: k === 'storm',
+      wind: w.wind || 0,
+      dark: { cloudy: 0.12, drizzle: 0.14, rain: 0.2, heavyrain: 0.28, storm: 0.32, sleet: 0.2, snow: 0.1, heavysnow: 0.16, fog: 0.08 }[k] || 0,
+    };
   }
 
   // ---------- 汇总（每秒算一次） ----------
@@ -121,13 +155,15 @@
     if (cur && performance.now() - curAt < 1000) return cur;
     const d = new Date();
     const hol = PP.holiday(d);
-    cur = { season: PP.season(d), term: termOf(d), holiday: hol, time: phaseOf(d), weather: weather(d), date: d };
+    const w = weather(d);
+    cur = { season: PP.season(d), term: termOf(d), holiday: hol, time: phaseOf(d), weather: w, fx: fx(w), date: d };
     curAt = performance.now();
     return cur;
   }
   function label() {
     const e = get(), w = e.weather;
-    return `${e.term.name}·${SEASON_NAME[e.season]} · ${e.time.name} · ${WNAME[w.kind]}${w.temp != null ? ' ' + w.temp + '°' : ''}${w.source === 'live' ? `（${w.city}）` : w.source === 'sim' ? '（模拟）' : ''}${e.holiday ? ' · ' + e.holiday.name : ''}`;
+ const sf = G.save && G.save.settings.seasonFix;
+    return `${sf ? SEASON_NAME[e.season] + '（固定）' : e.term.name + '·' + SEASON_NAME[e.season]} · ${e.time.name} · ${WNAME[w.kind]}${w.temp != null ? ' ' + w.temp + '°' : ''}${w.source === 'live' ? `（${w.city}）` : w.source === 'sim' ? '（模拟）' : ''}${e.holiday ? ' · ' + e.holiday.name : ''}`;
   }
 
   // ---------- 变化时让主角说一声 ----------
@@ -152,12 +188,13 @@
     const k = e.weather.kind;
     if (lastKind && k !== lastKind) {
       const lines = {
-        rain: ['下雨了…', '雨声好好听', '要不要进屋躲躲雨？'], snow: ['下雪了！！', '雪！是雪！'], storm: ['打雷了…有点怕', '轰隆隆——'],
-        fog: ['起雾了，看不清远处', '雾蒙蒙的'], cloudy: ['云好厚', '天阴下来了'], clear: [lastKind === 'rain' || lastKind === 'storm' ? '雨停了！' : '出太阳了～'],
+        drizzle: ['飘小雨了', '毛毛雨～'], rain: ['下雨了…', '雨声好好听', '要不要进屋躲躲雨？'], heavyrain: ['好大的雨！', '快进屋！'], sleet: ['雨里夹着雪粒子'],
+        snow: ['下雪了！！', '雪！是雪！'], heavysnow: ['好大的雪，可以堆雪人了'], storm: ['打雷了…有点怕', '轰隆隆——'], windy: ['风好大，毛都吹乱了'],
+        fog: ['起雾了，看不清远处', '雾蒙蒙的'], cloudy: ['天阴下来了'], partly: ['云飘过来了'], clear: [/rain|storm|drizzle/.test(lastKind) ? '雨停了！' : '出太阳了～'],
       }[k];
-      if (lines) say(U.pick(lines), k === 'snow' || k === 'clear' ? 'happy' : null);
+      if (lines) say(U.pick(lines), /snow|clear/.test(k) ? 'happy' : null);
       // 鸭子最喜欢下雨
-      if (k === 'rain') for (const p of G.pets) if (p.d.species === 'duck' && !p.sleeping) { PP.hearts && PP.hearts(p.x, p.y - 30 * G.S, 2); }
+      if (/rain|drizzle/.test(k)) for (const p of G.pets) if (p.d.species === 'duck' && !p.sleeping) { PP.hearts && PP.hearts(p.x, p.y - 30 * G.S, 2); }
     }
     lastKind = k;
     const ph = e.time.phase;

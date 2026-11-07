@@ -218,9 +218,12 @@
     const lowFx = G.save && G.save.settings.quiet;
     if (!lowFx) {
       // 季节粒子（很稀疏，不打扰工作）
-      const rate = dt * (hol && hol.deco === 'snow' ? 1.6 : 0.25);
+      // 有场景时，天气粒子（雨雪落叶）全部交给场景来画，这里不再重复
+      const sceneOn = PP.scene && PP.scene.active();
+      const efx = PP.env && PP.env.get().fx;
+      const rate = sceneOn ? 0 : dt * (efx && efx.snow ? 1.2 : 0.25);
       if (Math.random() < rate) {
-        if ((season === 'winter' && Math.random() < 0.6) || (hol && hol.deco === 'snow'))
+        if (efx && efx.snow)
           PP.fx({ kind: 'snow', x: U.rand(0, G.W), y: G.H - U.rand(260, 420), vy: U.rand(18, 30), life: 14, seed: Math.random() * 9 });
         else if (season === 'autumn')
           PP.fx({ kind: 'leaf', x: U.rand(0, G.W), y: G.H - U.rand(280, 420), vy: U.rand(20, 34), life: 16, seed: Math.random() * 9, col: U.pick(['#e8913a', '#d9662a', '#c9a23a', '#b8552a']) });
