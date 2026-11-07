@@ -152,7 +152,8 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .pick-row canvas { flex: none; width: 44px; height: 44px; image-rendering: pixelated; }
 .pick-row small { font-size: 11px; }
 .pick .tools button { padding: 2px 7px; }
-.city .res { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.city .res { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; max-height: 330px; overflow-y: auto; padding-right: 2px; }
+.city .city-pick { flex: none; }
 .city .city-pick { text-align: left; box-shadow: none; }
 
 /* 布置场景 */
