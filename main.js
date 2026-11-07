@@ -2,11 +2,9 @@
 const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, powerMonitor, globalShortcut } = require('electron');
 const os = require('os');
 const path = require('path');
-const http = require('http');
 // 全局键盘/滚轮监听（可选的原生模块；装不上也不影响其他功能）。只知道“按了键”，不记录按的是什么。
 let uIOhook = null;
 try { ({ uIOhook } = require('uiohook-napi')); } catch (e) { console.warn('uiohook-napi 不可用，打字检测改用系统空闲时间推测'); }
-const AGENT_PORT = 47231;
 const updater = require('./updater');
 const fs = require('fs');
 
@@ -15,7 +13,11 @@ if (process.platform === 'linux') {
   app.disableHardwareAcceleration();
 }
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // 环境声音不用先点一下才响
-app.setName('PixelNest'); // 存档目录：%APPDATA%\PixelNest（卸载时一并删除）
+app.setName('PixelNest');
+// 存档目录固定为 %APPDATA%\PixelNest，不跟着软件显示名变（改名不会丢存档）
+app.setPath('userData', path.join(app.getPath('appData'), 'PixelNest'));
+// 备份目录：每隔一段时间、以及每次更新前，都把存档复制一份到这里
+const keepDir = () => path.join(app.getPath('appData'), 'PixelNest-keep');
 if (process.platform === 'win32') app.setAppUserModelId('com.pixelnest.desktop');
 if (!app.requestSingleInstanceLock()) { app.quit(); }
 
@@ -76,8 +78,50 @@ function rebuildTray() {
   const body = trayModel ? toTemplate(trayModel) : [{ label: '退出', click: () => app.quit() }];
   tray.setContextMenu(Menu.buildFromTemplate(head.concat(body)));
 }
+// ---------- 自定义软件图标（换成喜欢的动物） ----------
+const iconPng = () => path.join(app.getPath('userData'), 'appicon.png');
+const iconIco = () => path.join(app.getPath('userData'), 'appicon.ico');
+function trayImage() {
+  if (fs.existsSync(iconPng())) { const im = nativeImage.createFromPath(iconPng()); if (!im.isEmpty()) return im.resize({ width: process.platform === 'darwin' ? 18 : 16, height: process.platform === 'darwin' ? 18 : 16, quality: 'best' }); }
+  return nativeImage.createFromPath(path.join(__dirname, 'assets', process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png'));
+}
+// 把几张 PNG 打包成 .ico（ICO 可以直接装 PNG 数据）
+function makeIco(img) {
+  const sizes = [256, 48, 32, 16].map((n) => img.resize({ width: n, height: n, quality: 'best' }).toPNG());
+  const head = Buffer.alloc(6 + 16 * sizes.length); head.writeUInt16LE(0, 0); head.writeUInt16LE(1, 2); head.writeUInt16LE(sizes.length, 4);
+  let off = head.length;
+  [256, 48, 32, 16].forEach((n, i) => { const e = 6 + i * 16; head.writeUInt8(n === 256 ? 0 : n, e); head.writeUInt8(n === 256 ? 0 : n, e + 1); head.writeUInt8(0, e + 2); head.writeUInt8(0, e + 3); head.writeUInt16LE(1, e + 4); head.writeUInt16LE(32, e + 6); head.writeUInt32LE(sizes[i].length, e + 8); head.writeUInt32LE(off, e + 12); off += sizes[i].length; });
+  return Buffer.concat([head, ...sizes]);
+}
+function shortcutPaths() {
+  return [path.join(app.getPath('desktop'), '摸鱼动物园.lnk'), path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', '摸鱼动物园.lnk')].filter((f) => fs.existsSync(f));
+}
+function applyIcon() {
+  try {
+    if (tray) tray.setImage(trayImage());
+    const custom = fs.existsSync(iconPng());
+    if (process.platform === 'darwin' && app.dock) { if (custom) app.dock.setIcon(nativeImage.createFromPath(iconPng())); }
+    if (process.platform === 'win32') {
+      const { shell } = require('electron');
+      for (const f of shortcutPaths()) { try { shell.writeShortcutLink(f, 'update', custom ? { icon: iconIco(), iconIndex: 0 } : { icon: process.execPath, iconIndex: 0 }); } catch (e) { console.warn('shortcut icon', e); } }
+    }
+  } catch (e) { console.warn('apply icon', e); }
+}
+ipcMain.handle('set-app-icon', (_e, o) => {
+  try {
+    if (!o || !o.png) { fs.rmSync(iconPng(), { force: true }); fs.rmSync(iconIco(), { force: true }); applyIcon(); return { ok: true }; }
+    const img = nativeImage.createFromDataURL(o.png);
+    if (img.isEmpty()) return { ok: false, msg: '图片是空的' };
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(iconPng(), img.toPNG());
+    fs.writeFileSync(iconIco(), makeIco(img));
+    applyIcon();
+    return { ok: true, shortcuts: shortcutPaths().length };
+  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
+});
+
 function buildTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png'));
+  const icon = trayImage();
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
   tray.setToolTip('摸鱼动物园（Ctrl+Alt+Shift+P 召唤/送回）');
   if (process.platform === 'win32') tray.on('click', () => tray.popUpContextMenu());
@@ -111,17 +155,6 @@ app.whenReady().then(() => {
     } catch (e) { console.warn('uIOhook start failed', e); uIOhook = null; }
   }
 
-  // 本地接口：给 Claude Code 等 AI 工具的 hooks 用（只监听本机）
-  // GET /agent/thinking | /agent/done | /agent/error | /agent/idle   可选 ?text=要说的话
-  http.createServer((req, res) => {
-    try {
-      const u = new URL(req.url, 'http://127.0.0.1');
-      const m2 = u.pathname.match(/^\/agent\/(thinking|done|error|idle|waiting)$/);
-      if (m2) { send('agent', { state: m2[1], text: u.searchParams.get('text') || '' }); res.writeHead(200); res.end('ok'); return; }
-      res.writeHead(404); res.end();
-    } catch { res.writeHead(400); res.end(); }
-  }).on('error', (e) => console.warn('agent server', e.message)).listen(AGENT_PORT, '127.0.0.1');
-
   // 全局快捷键：召唤 / 送回所有宠物（故意选了一个平时不会按到的组合）
   try {
     globalShortcut.register('CommandOrControl+Alt+Shift+P', () => { if (hidden) { setHidden(false); send('hotkey', 'summon'); } else send('hotkey', 'toggle'); });
@@ -136,7 +169,7 @@ app.whenReady().then(() => {
 
 app.on('second-instance', () => { if (win) { hidden = false; win.showInactive(); } });
 app.on('window-all-closed', () => app.quit());
-app.on('will-quit', () => { try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
+app.on('will-quit', () => { keepCopy('quit'); try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
 
 // ---------- 检查更新 ----------
 updater.init((st) => send('update', JSON.parse(JSON.stringify(st))));
@@ -162,66 +195,67 @@ ipcMain.on('set-interactive', (_e, v) => {
   if (!win) return;
   win.setIgnoreMouseEvents(!v, { forward: true });
 });
+let lastKeep = 0;
+function keepCopy(tag = 'auto') {
+  try {
+    if (!fs.existsSync(savePath())) return;
+    fs.mkdirSync(keepDir(), { recursive: true });
+    fs.copyFileSync(savePath(), path.join(keepDir(), `save-${tag}.json`));
+  } catch (err) { console.warn('keep failed', err); }
+}
 ipcMain.on('save-sync', (e, json) => {
   try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
     const tmp = savePath() + '.tmp';
-    if (!json) { fs.rmSync(savePath(), { force: true }); e.returnValue = true; return; }
+    if (!json) { // 用户主动“重新开始”：连备份一起清掉
+      fs.rmSync(savePath(), { force: true }); fs.rmSync(keepDir(), { recursive: true, force: true });
+      e.returnValue = true; return;
+    }
     fs.writeFileSync(tmp, json);
     fs.renameSync(tmp, savePath());
+    if (Date.now() - lastKeep > 10 * 60000) { lastKeep = Date.now(); keepCopy('auto'); }
     e.returnValue = true;
   } catch (err) { console.error(err); e.returnValue = false; }
 });
-ipcMain.handle('load', () => {
-  try { return fs.existsSync(savePath()) ? fs.readFileSync(savePath(), 'utf8') : null; } catch { return null; }
-});
+// 读存档：正常存档坏了 / 没了，就从备份和旧目录里找最新的一份
+function readSave() {
+  const valid = (f) => { try { const t = fs.readFileSync(f, 'utf8'); const j = JSON.parse(t); return j && Array.isArray(j.pets) ? t : null; } catch { return null; } };
+  const main = valid(savePath());
+  if (main) return main;
+  const ad = app.getPath('appData');
+  const cands = [];
+  try { for (const n of fs.readdirSync(keepDir())) if (n.endsWith('.json')) cands.push(path.join(keepDir(), n)); } catch {}
+  for (const d of ['摸鱼动物园', '像素小窝', 'pixel-nest', 'PixelNest']) cands.push(path.join(ad, d, 'save.json'), path.join(ad, d, 'save.json.tmp'));
+  const found = cands.filter((f) => fs.existsSync(f)).map((f) => ({ f, t: fs.statSync(f).mtimeMs, txt: valid(f) })).filter((x) => x.txt).sort((a, b) => b.t - a.t)[0];
+  if (!found) return null;
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(savePath(), found.txt); } catch {}
+  console.log('存档已从备份恢复：', found.f);
+  return found.txt;
+}
+ipcMain.handle('load', () => readSave());
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('tray-menu', (_e, json) => { try { trayModel = JSON.parse(json); rebuildTray(); } catch {} });
 ipcMain.on('hide-window', () => setHidden(true));
 ipcMain.handle('get-autostart', () => app.getLoginItemSettings({ name: 'PixelNest' }).openAtLogin);
 ipcMain.on('set-autostart', (_e, v) => app.setLoginItemSettings({ openAtLogin: !!v, name: 'PixelNest' }));
 
-// ---------- AI 联动：给 Claude Code 装 / 卸 hooks ----------
-// Claude Code 在你提问、它干完活、它需要你确认时，会执行这些命令；命令只是戳一下本机的小接口
-const HOOK_MARK = '127.0.0.1:' + AGENT_PORT + '/agent/';
-const hookCmd = (s) => process.platform === 'win32'
-  ? `curl -s -m 1 http://${HOOK_MARK}${s} > NUL 2>&1 || exit 0`
-  : `curl -s -m 1 http://${HOOK_MARK}${s} >/dev/null 2>&1 || true`;
-const HOOKS = { UserPromptSubmit: 'thinking', Stop: 'done', Notification: 'waiting' };
-const claudeSettings = () => path.join(os.homedir(), '.claude', 'settings.json');
-function readClaude() { try { return JSON.parse(fs.readFileSync(claudeSettings(), 'utf8')); } catch { return null; } }
-function ours(entry) { return JSON.stringify(entry || {}).includes(HOOK_MARK); }
-ipcMain.handle('hook-config', () => JSON.stringify({ hooks: Object.fromEntries(Object.entries(HOOKS).map(([k, s]) => [k, [{ hooks: [{ type: 'command', command: hookCmd(s) }] }]])) }, null, 2));
-ipcMain.handle('hook-status', () => {
-  const j = readClaude();
-  const installed = !!(j && j.hooks && Object.keys(HOOKS).every((k) => (j.hooks[k] || []).some(ours)));
-  return { installed, hasClaudeDir: fs.existsSync(path.dirname(claudeSettings())), file: claudeSettings() };
-});
-ipcMain.handle('hook-install', () => {
+// ---------- AI 联动已移除：把以前装进 Claude Code 的钩子悄悄清理掉 ----------
+function cleanupOldHooks() {
   try {
-    const file = claudeSettings();
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    let j = {};
-    if (fs.existsSync(file)) {
-      const raw = fs.readFileSync(file, 'utf8');
-      try { j = JSON.parse(raw); } catch { return { ok: false, msg: 'settings.json 格式有问题，没有改动它' }; }
-      fs.writeFileSync(file + '.bak-pixelnest', raw); // 先备份
+    const file = path.join(os.homedir(), '.claude', 'settings.json');
+    if (!fs.existsSync(file)) return;
+    const j = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (!j || !j.hooks) return;
+    const ours = (e) => JSON.stringify(e || {}).includes('127.0.0.1:47231/agent/');
+    let changed = false;
+    for (const k of Object.keys(j.hooks)) {
+      if (!Array.isArray(j.hooks[k])) continue;
+      const n = j.hooks[k].filter((e) => !ours(e));
+      if (n.length !== j.hooks[k].length) { changed = true; j.hooks[k] = n; if (!n.length) delete j.hooks[k]; }
     }
-    j.hooks = j.hooks || {};
-    for (const [k, s] of Object.entries(HOOKS)) {
-      j.hooks[k] = (j.hooks[k] || []).filter((e) => !ours(e));
-      j.hooks[k].push({ hooks: [{ type: 'command', command: hookCmd(s) }] });
-    }
-    fs.writeFileSync(file, JSON.stringify(j, null, 2));
-    return { ok: true, msg: '已接入：' + file };
-  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
-});
-ipcMain.handle('hook-uninstall', () => {
-  try {
-    const file = claudeSettings(); const j = readClaude();
-    if (!j || !j.hooks) return { ok: true, msg: '本来就没有接入' };
-    for (const k of Object.keys(HOOKS)) { if (j.hooks[k]) { j.hooks[k] = j.hooks[k].filter((e) => !ours(e)); if (!j.hooks[k].length) delete j.hooks[k]; } }
+    if (!changed) return;
     if (!Object.keys(j.hooks).length) delete j.hooks;
     fs.writeFileSync(file, JSON.stringify(j, null, 2));
-    return { ok: true, msg: '已断开' };
-  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
-});
+  } catch (e) { console.warn('cleanup hooks', e); }
+}
+app.whenReady().then(() => setTimeout(cleanupOldHooks, 3000));

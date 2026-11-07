@@ -12,11 +12,6 @@ contextBridge.exposeInMainWorld('petAPI', {
   onTray: (fn) => ipcRenderer.on('tray', (_e, c) => fn(c)),
   onKey: (fn) => ipcRenderer.on('key', () => fn()),
   onWheel: (fn) => ipcRenderer.on('wheel', (_e, d) => fn(d)),
-  onAgent: (fn) => ipcRenderer.on('agent', (_e, m) => fn(m)),
-  hookConfig: () => ipcRenderer.invoke('hook-config'),
-  hookStatus: () => ipcRenderer.invoke('hook-status'),
-  hookInstall: () => ipcRenderer.invoke('hook-install'),
-  hookUninstall: () => ipcRenderer.invoke('hook-uninstall'),
   setTrayMenu: (json) => ipcRenderer.send('tray-menu', json),
   hideWindow: () => ipcRenderer.send('hide-window'),
   onHotkey: (fn) => ipcRenderer.on('hotkey', (_e, k) => fn(k)),
@@ -29,4 +24,5 @@ contextBridge.exposeInMainWorld('petAPI', {
   updateInstall: (later) => ipcRenderer.invoke('update-install', !!later),
   onUpdate: (fn) => ipcRenderer.on('update', (_e, s) => fn(s)),
   openExternal: (url) => ipcRenderer.send('open-external', url),
+  setAppIcon: (o) => ipcRenderer.invoke('set-app-icon', o),
 });

@@ -18,6 +18,10 @@ const MANIFEST = [
   `https://fastly.jsdelivr.net/gh/${REPO}@main/version.json`,
   `https://gcore.jsdelivr.net/gh/${REPO}@main/version.json`,
   `https://raw.githubusercontent.com/${REPO}/main/version.json`,
+  // 国内加速镜像（直接回源 GitHub，没有 CDN 缓存，刚发布的新版本也能马上查到）
+  `https://gh-proxy.com/https://raw.githubusercontent.com/${REPO}/main/version.json`,
+  `https://ghfast.top/https://raw.githubusercontent.com/${REPO}/main/version.json`,
+  `https://ghproxy.net/https://raw.githubusercontent.com/${REPO}/main/version.json`,
 ];
 const JSD = ['cdn.jsdelivr.net', 'fastly.jsdelivr.net', 'gcore.jsdelivr.net', 'testingcf.jsdelivr.net'];
 const PROXIES = ['', 'https://gh-proxy.com/', 'https://ghfast.top/', 'https://ghproxy.net/', 'https://githubproxy.cc/'];
@@ -99,6 +103,12 @@ function sha256File(f) { return crypto.createHash('sha256').update(fs.readFileSy
 // 安装：Windows 静默安装（装到原来的位置，存档不动），装完自动打开新版
 function install(relaunch = true) {
   if (state.status !== 'ready' || !state.file) return false;
+  // 安装前先备份存档（双保险）
+  try {
+    const src = path.join(app.getPath('userData'), 'save.json');
+    const dir = path.join(app.getPath('appData'), 'PixelNest-keep');
+    if (fs.existsSync(src)) { fs.mkdirSync(dir, { recursive: true }); fs.copyFileSync(src, path.join(dir, 'save-before-update.json')); }
+  } catch (e) { console.warn('backup before update failed', e); }
   if (process.platform === 'win32') {
     const args = ['/S']; if (relaunch) args.push('--force-run');
     spawn(state.file, args, { detached: true, stdio: 'ignore' }).unref();
