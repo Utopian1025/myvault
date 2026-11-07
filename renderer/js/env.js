@@ -103,7 +103,7 @@
     }[season];
     let x = r() * 100, kind = 'clear';
     for (const [k, w] of table) { if ((x -= w) <= 0) { kind = k; break; } }
-    const base = { spring: 15, summer: 29, autumn: 17, winter: 2 }[season];
+    const base = [3, 6, 11, 17, 22, 26, 29, 28, 24, 18, 12, 6][d.getMonth()]; // 按月份的大致气温
     return { kind, temp: Math.round(base + (r() - 0.5) * 8 - (kind === 'rain' || kind === 'snow' ? 3 : 0)) };
   }
   function weather(d = new Date()) {

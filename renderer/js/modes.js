@@ -56,7 +56,7 @@
         window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
         G.uiDrag = false;
         if (down && down.moved) { S().orb = { x: orb.offsetLeft / G.W, y: orb.offsetTop / G.H }; PP.save.soon(); }
-        else if (down) PP.toggleMini();
+        else if (down) { hidePop(); PP.toggleMini(); }
         down = null; PP.refreshInteractive();
       };
       window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);

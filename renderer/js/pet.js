@@ -208,6 +208,12 @@
       this.peek = !this.held && !this.airborne && (this.action === 'peekIdle' || (headOnly && !POP.has(this.action)));
 
       if (this.held) { this.hopY = 0; this.updateHeld(dt); return; }
+      // 被鼠标指着：停下来看着你（方便点它、摸它；进出门时除外）
+      if (G.hoverPet === this && !this.airborne && !this.doorBusy() && this.target != null) {
+        this.target = null; this.hopP = 0; this.hopY = 0; this.y = G.ground;
+        if (['walk', 'run', 'jump', 'land'].includes(this.anim)) this.anim = 'idle';
+        this.facing = Math.sign(G.mouse.x - this.x) || this.facing;
+      }
       if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
 
       // 走路
