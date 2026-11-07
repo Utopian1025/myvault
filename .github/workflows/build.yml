@@ -1,0 +1,49 @@
+name: 打包安装包
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      # CI 在海外，不走国内镜像
+      npm_config_registry: https://registry.npmjs.org
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+      CSC_IDENTITY_AUTO_DISCOVERY: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: 打包 Windows
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win --x64 --publish never
+      - name: 打包 macOS
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac --universal --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 像素小窝-${{ runner.os }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: error
+      - name: 发布到 Releases（打 v 开头的标签时）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
