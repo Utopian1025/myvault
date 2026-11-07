@@ -12,10 +12,11 @@
     lastWater: Date.now(), lastStretch: Date.now(), firedToday: {},
 
     main() {
-      // 主角：第一只猫（多只时取离鼠标最近、没在睡觉的）
-      const cats = G.pets.filter((p) => !p.held);
-      if (!cats.length) return null;
-      return cats[0];
+      // 主角：你指定的那只（负责提醒、陪打字、AI 联动）；没指定就是第一只
+      const vis = G.pets.filter((p) => !p.held);
+      if (!vis.length) return null;
+      const id = G.save.settings.mainId;
+      return vis.find((p) => p.d.id === id) || vis[0];
     },
     S() { return G.save.settings; },
     name() { return (G.save.settings.ownerName || '').trim(); },
@@ -47,9 +48,10 @@
       if (state === 'thinking') { if (p.action !== 'agentThink') { p.peekPop = 1; p.run('agentThink', A.agentThink); } }
       else if (state === 'done') { p.peekPop = 1; p.run('agentDone', A.agentDone, text); PP.diary.add(p, 'AI 帮主人做完了一件事，我跳起来告诉主人了。'); }
       else if (state === 'error') { p.peekPop = 1; p.run('agentDone', A.agentDone, text, true); }
+      else if (state === 'waiting') { p.run('agentWait', A.agentWait, text); }
       else if (p.action === 'agentThink') p.interrupt();
     },
-    busy(p) { return ['agentThink', 'agentDone', 'bigStretch', 'remind', 'held', 'landing', 'hunt'].includes(p.action) || p.held || p.airborne; },
+    busy(p) { return ['agentThink', 'agentDone', 'agentWait', 'bigStretch', 'remind', 'remindDrink', 'held', 'landing', 'hunt'].includes(p.action) || p.held || p.airborne; },
 
     // ---------- 每帧 ----------
     tick(dt) {
@@ -84,7 +86,7 @@
       }
       // 伸懒腰（变大）
       if (s.rem.stretch > 0 && userHere && now - F.lastStretch > s.rem.stretch * 60000 && !quietPomo) {
-        F.lastStretch = now; p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call('起来伸个懒腰吧！'));
+        F.lastStretch = now; p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call(U.pick(['坐太久啦，站起来活动一下吧！', '起来站一站，伸个懒腰～', '站起来走两步吧！'])));
       }
       // 自定义提醒（每天 HH:MM）
       const d = new Date(), hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, day = U.dateKey(d);
@@ -153,7 +155,7 @@
       for (const q of G.pets) {
         if (!q.d.note) continue;
         const [hx, hy] = q.headPos;
-        const top = q.y - (q.scaleMul || 1) * 37 * S - (q.bubble ? 34 : 0) + (q.peek ? 15 * S : 0);
+        const top = q.y - (q.scaleMul || 1) * 37 * S - (q.bubble ? 34 : 0) + q.sinkPx();
         PP.drawPixelLabel(ctx, q.d.note, Math.round(q.x), Math.round(top), { size: 12, bg: '#fff3a6' });
         // 小图钉
         ctx.fillStyle = '#ff5a5a'; ctx.fillRect(Math.round(q.x) - 2, Math.round(top) - 3, 4, 4);
@@ -220,6 +222,16 @@
     F.agent.state = 'idle';
   };
 
+  // AI 在等你确认（比如要不要允许它执行命令）：转过来朝你招手
+  A.agentWait = function* (text) {
+    const p = this;
+    p.anim = 'idle'; p.eyes = 'wide'; p.look = [0, -1]; p.jolt(-2.5, 0);
+    PP.audio.meow(p);
+    p._forceSay = true; p.say(text || F.call('AI 在等你确认一下～'), 6); p._forceSay = false;
+    for (let i = 0; i < 6 && F.agent.state === 'waiting'; i++) { p.think('excl', 1.2); p.jolt(-1.5, i % 2 ? 2 : -2); yield 1.5; }
+    p.eyes = 'open';
+  };
+
   // 滚动页面：猫抱着卷纸往下扒
   A.rollPaper = function* () {
     const p = this;
@@ -282,10 +294,8 @@
   A.peekIdle = function* () {
     const p = this;
     yield p.goto(G.W - 26 * G.S / 2);
-    p.facing = -1;
-    p.peek = true; p.anim = 'idle';
+    p.facing = -1; p.anim = 'idle';
     while (G.save.settings.peek) { yield 1; if (Math.random() < 0.05) p.setExpr('closed', 'w', 0.2); }
-    p.peek = false;
   };
 
   // 摸头呼噜（在 interact 里调用）

@@ -4,7 +4,7 @@
   const U = PP.U, G = PP.G;
   const $ = (h) => { const t = document.createElement('template'); t.innerHTML = h.trim(); return t.content.firstChild; };
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  let root, menuEl = null, panelEl = null, anims = [];
+  let root, menuEl = null, panelEl = null, anims = [], menus = [];
 
   const ui = (PP.ui = {
     init() {
@@ -18,7 +18,7 @@
       if (window.petAPI) window.petAPI.onTray((cmd) => ui.command(cmd));
     },
     modalOpen() { return !!panelEl || !!menuEl; },
-    closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; PP.refreshInteractive(); } },
+    closeMenu() { if (menuEl || menus.length) { menus.forEach((m) => m.remove()); menus = []; menuEl = null; PP.refreshInteractive(); } },
     closeAll() { ui.closeMenu(); ui.closePanel(); },
     closePanel() { if (panelEl) { panelEl.remove(); panelEl = null; anims = []; PP.refreshInteractive(); } },
 
@@ -32,74 +32,21 @@
       setTimeout(() => el.remove(), 4100);
     },
 
+    // ---------- 菜单（托盘图标 / 左下角爪子 / 宠物右键 共用同一份菜单，可多级） ----------
     menu(items, x, y) {
       ui.closeMenu();
-      const el = $(`<div class="menu"></div>`);
-      for (const it of items) {
-        if (it === '-') { el.appendChild($('<div class="sep"></div>')); continue; }
-        const b = $(`<button ${it.disabled ? 'disabled' : ''}>${esc(it.label)}${it.hint ? `<span>${esc(it.hint)}</span>` : ''}</button>`);
-        b.addEventListener('click', (e) => { e.stopPropagation(); ui.closeMenu(); it.fn && it.fn(); });
-        el.appendChild(b);
-      }
-      root.appendChild(el);
-      const r = el.getBoundingClientRect();
-      el.style.left = U.clamp(x, 6, G.W - r.width - 6) + 'px';
-      el.style.top = U.clamp(y - r.height, 6, G.H - r.height - 6) + 'px';
-      menuEl = el; PP.refreshInteractive();
+      menus = [];
+      openLevel(items, 0, x, y, 'up');
+      menuEl = menus[0]; PP.refreshInteractive();
     },
 
     dockMenu(anchor) {
       const r = anchor.getBoundingClientRect();
-      const items = [
-        { label: '领养新伙伴', hint: `${G.pets.length}/6`, fn: () => ui.adopt(), disabled: G.pets.length >= 6 },
-        { label: '大家的状态', fn: () => ui.overview() },
-        { label: '日记', fn: () => ui.diaryPanel() },
-        { label: '收藏柜', fn: () => ui.collectionPanel() },
-        { label: '彩蛋图鉴', hint: `${Object.keys(G.save.eggs).length}/${Object.keys(PP.EGGS).length}`, fn: () => ui.eggPanel() },
-        '-',
-        PP.F.pomo.phase === 'off' ? { label: '开始番茄钟', hint: `${G.save.settings.pomo.focus} 分钟`, fn: () => PP.F.pomoStart() } : { label: '停止番茄钟', fn: () => PP.F.pomoStop() },
-        { label: G.save.settings.peek ? '退出看视频模式' : '看视频模式', hint: '躲到角落', fn: () => { G.save.settings.peek = !G.save.settings.peek; if (G.save.settings.peek) { const m = PP.F.main(); m && m.interrupt(); } PP.save.soon(); } },
-        { label: '提醒设置', fn: () => ui.reminders() },
-        ...(window.petAPI ? [] : [{ label: '模拟：AI 在思考', fn: () => PP.F.setAgent('thinking') }, { label: '模拟：AI 完成了', fn: () => PP.F.setAgent('done') }]),
-        { label: '扔个球', fn: () => throwBall(G.W / 2, G.ground - 200) },
-        { label: '添满饭和水', fn: () => { G.items.forEach((i) => { if (i.type === 'food' || i.type === 'water') i.level = 1; }); ui.toast('饭碗和水碗都满了'); } },
-        { label: G.save.settings.quiet ? '退出勿扰模式' : '勿扰模式', fn: () => { G.save.settings.quiet = !G.save.settings.quiet; ui.toast(G.save.settings.quiet ? '它们会安静地自己玩' : '欢迎回来'); PP.save.soon(); } },
-        { label: '设置', fn: () => ui.settings() },
-      ];
-      if (window.petAPI) items.push('-', { label: '退出', fn: () => { PP.save.write(); window.petAPI.quit(); } });
-      ui.menu(items, r.left, r.top - 4);
+      ui.menu(PP.menuModel(null), r.left, r.top - 4);
     },
+    petMenu(p, x, y) { ui.menu(PP.menuModel(p), x, y); },
+    command(cmd) { PP.menuRun(cmd); },
 
-    command(cmd) {
-      if (cmd === 'adopt') ui.adopt();
-      else if (cmd === 'diary') ui.diaryPanel();
-      else if (cmd === 'overview') ui.overview();
-      else if (cmd === 'settings') ui.settings();
-      else if (cmd === 'eggs') ui.eggPanel();
-      else if (cmd === 'collection') ui.collectionPanel();
-      else if (cmd === 'feed') G.items.forEach((i) => { if (i.type === 'food' || i.type === 'water') i.level = 1; });
-      else if (cmd === 'quiet') { G.save.settings.quiet = !G.save.settings.quiet; }
-      else if (cmd === 'pomo') { PP.F.pomo.phase === 'off' ? PP.F.pomoStart() : PP.F.pomoStop(); }
-      else if (cmd === 'peek') { G.save.settings.peek = !G.save.settings.peek; const m = PP.F.main(); m && m.interrupt(); }
-      else if (cmd === 'reminders') ui.reminders();
-    },
-
-    petMenu(p, x, y) {
-      const sp = p.sp;
-      ui.menu([
-        { label: `${p.name}`, hint: p.moodName, fn: () => ui.petPanel(p) },
-        '-',
-        { label: `喂${sp.favName}`, hint: '最爱', fn: () => dropTreat(p.x + p.facing * 40, sp.fav) },
-        { label: '喂零食', fn: () => dropTreat(p.x + p.facing * 40, U.pick(['treat_fish', 'treat_bone', 'treat_carrot', 'treat_seed', 'treat_berry'].filter((t) => t !== sp.fav))) },
-        { label: '扔球给它', fn: () => throwBall(p.x, p.y - 200) },
-        { label: p.sleeping ? '叫醒它' : '哄它睡觉', fn: () => { if (p.sleeping) p.run('poked', PP.ACTIONS.poked); else p.run('sleep', PP.ACTIONS.sleep); } },
-        { label: '看看它在想什么', fn: () => thoughts(p) },
-        { label: p.d.note ? '撕掉便签' : '贴一张便签', fn: () => { if (p.d.note) { p.d.note = ''; PP.save.soon(); } else ui.notePanel(p); } },
-        { label: '换花色', fn: () => ui.coatPanel(p) },
-        '-',
-        { label: '查看档案', fn: () => ui.petPanel(p) },
-      ], x, y);
-    },
     itemMenu(it, x, y) {
       const names = { food: '饭碗', water: '水碗', bed: '小窝', litter: '猫砂盆', ball: '球', poop: '便便', gift: '礼物', egg: '神秘的蛋', cup: '杯子', treat: '零食' };
       const items = [{ label: names[it.type] || '东西', disabled: true }];
@@ -161,16 +108,16 @@
       };
       refresh();
       box.querySelector('.go').onclick = () => {
-        if (G.pets.length >= 6) { ui.toast('最多同时养 6 只'); return; }
+        if (G.all.length >= 12) { ui.toast('最多养 12 只（可以让一些去“放假”，不显示在桌面上）'); return; }
         const name = nameIn.value.trim() || PP.randomName();
         const p = PP.Pet.create(pick, PP.SPECIES[pick].coats[coatIdx], name);
-        p.x = U.rand(G.W * 0.3, G.W * 0.7); p.y = G.ground - 300; p.airborne = true; p.fallFrom = p.y;
-        G.pets.push(p);
+        PP.addPet(p);
+        PP.petEmerge(p, U.rand(G.W * 0.3, G.W * 0.7));
         if (!G.save.flags.firstAdopt) G.save.flags.firstAdopt = Date.now();
         PP.diary.add(p, `来到了新家，名字叫${name}。`, 'love');
         if (p.d.shiny) { PP.events.found('shiny'); ui.toast(`哇！${name}是罕见的闪光个体！`, 'egg'); }
         ui.closePanel();
-        setTimeout(() => { p._forceSay = true; p.say(U.pick(['这里是哪里？', '你好…', '（好奇地看着你）'])); p._forceSay = false; }, 900);
+        setTimeout(() => { p._forceSay = true; p.say(U.pick(['这里是哪里？', '你好…', '（好奇地看着你）'])); p._forceSay = false; }, 2600);
         PP.save.write();
       };
       ui.panel('领养', box, { wide: true });
@@ -208,6 +155,7 @@
         const rels = G.pets.filter((o) => o !== p).map((o) => { const r = p.relWith(o); return `${esc(o.name)} ${r > 70 ? '好朋友' : r > 45 ? '朋友' : r > 25 ? '一般' : '不太合'}`; });
         box.querySelector('.more').innerHTML = `
           <div>最爱吃：${p.sp.favName} · 才艺：${p.sp.trick}（双击）</div>
+          ${p.sp.sig ? `<div>它的习性：${p.sp.sig}</div>` : ''}
           <div>被摸了 ${p.d.stats.pets} 次 · 被戳了 ${p.d.stats.pokes} 次 · 送过你 ${p.d.stats.gifts} 份礼物</div>
           ${rels.length ? `<div>关系：${rels.join('，')}</div>` : ''}
           ${p.d.species === 'hamster' ? `<div>秘密粮仓：${p.d.stash} 颗</div>` : ''}
@@ -215,7 +163,7 @@
         box.querySelector('.diary').onclick = () => ui.diaryPanel(p);
         box.querySelector('.bye').onclick = (e) => {
           if (e.target.dataset.c !== '1') { e.target.dataset.c = '1'; e.target.textContent = '真的要送走它吗？再点一次'; return; }
-          G.pets = G.pets.filter((q) => q !== p);
+          PP.removePet(p);
           PP.diary.add(null, `${p.name}去了新的家。`, 'note');
           ui.closePanel(); PP.save.write();
         };
@@ -226,10 +174,10 @@
     },
 
     overview() {
-      if (!G.pets.length) { ui.adopt(); return; }
+      if (!G.all.length) { ui.adopt(); return; }
       const box = $(`<div class="overview"></div>`);
-      for (const p of G.pets) {
-        const r = $(`<button class="ov"><b>${esc(p.name)}</b><span>${p.moodName}</span><span>${actName(p.action)}</span></button>`);
+      for (const p of G.all) {
+        const r = $(`<button class="ov"><b>${esc(p.name)}</b><span>${p.d.hidden ? '放假中（不显示）' : p.moodName}</span><span>${p.d.hidden ? '' : actName(p.action)}</span></button>`);
         r.onclick = () => ui.petPanel(p);
         box.appendChild(r);
       }
@@ -245,7 +193,7 @@
         box.querySelector('.date').textContent = k ? `${k}${k === U.dateKey() ? '（今天）' : ''}` : '还没有日记';
         const pages = box.querySelector('.pages'); pages.innerHTML = '';
         if (!k) return;
-        const pets = only ? [only] : G.pets;
+        const pets = only ? [only] : G.all;
         let any = false;
         for (const p of pets) {
           const lines = PP.diary.compose(k, p);
@@ -290,7 +238,7 @@
     settings() {
       const s = G.save.settings;
       const box = $(`<div class="settings">
-        <label>大小 <select class="size"><option value="2">小</option><option value="3">中</option><option value="4">大</option></select></label>
+        <label>大小 <select class="size">${PP.SIZES.map(([v, n, d]) => `<option value="${v}">${n}（${d}）</option>`).join('')}</select></label>
         <label>生活节奏 <select class="pace"><option value="0.6">慢（更贴近真实）</option><option value="1">正常</option><option value="1.6">快</option></select></label>
         <label>名字牌 <select class="names"><option value="hover">鼠标经过时</option><option value="always">一直显示</option></select></label>
         <label>它们怎么称呼你 <input class="owner" maxlength="6" placeholder="主人"></label>
@@ -357,12 +305,11 @@
       const box = $(`<div class="settings">
         <label>它怎么叫你 <input class="owner" maxlength="6" placeholder="比如：小王"></label>
         <label>喝水提醒 每 <input type="number" class="water" min="0" max="240" step="5" style="width:64px"> 分钟（0 = 关）</label>
-        <label>伸懒腰提醒 每 <input type="number" class="stretch" min="0" max="240" step="5" style="width:64px"> 分钟（0 = 关）</label>
+        <label>站立提醒 每 <input type="number" class="stretch" min="0" max="240" step="5" style="width:64px"> 分钟（0 = 关）</label>
         <label>番茄钟 专注 <input type="number" class="pf" min="5" max="120" style="width:56px"> 分钟，休息 <input type="number" class="pb" min="1" max="60" style="width:56px"> 分钟</label>
         <div><b>每天定时提醒</b></div><div class="list"></div>
         <div class="row"><input class="nt" type="time" value="15:00"><input class="nx" maxlength="16" placeholder="提醒内容，比如：开会"><button class="small add">添加</button></div>
-        <div class="muted">提醒时猫会跳出来喵一声，并叫你的名字。番茄钟专注期间不会打扰你。</div>
-        ${window.petAPI ? `<div style="margin-top:8px"><b>AI 状态联动（Claude Code）</b></div><div class="muted">把下面这段加到 ~/.claude/settings.json，AI 思考时猫会托腮，做完会跳起来喵一声。</div><textarea class="hook" readonly rows="5" style="width:100%;font-size:11px"></textarea><div class="row"><button class="small copy">复制</button></div>` : ''}
+        <div class="muted">提醒由“主角”宠物来做（右键宠物 → 设为主角）：喝水时它先跑去喝一口再叫你；站立提醒时它会变大、伸个大懒腰。只在你在电脑前时提醒，番茄钟专注期间不打扰。</div>
       </div>`);
       const q = (c) => box.querySelector(c);
       q('.owner').value = s.ownerName || ''; q('.water').value = s.rem.water; q('.stretch').value = s.rem.stretch; q('.pf').value = s.pomo.focus; q('.pb').value = s.pomo.brk;
@@ -379,18 +326,90 @@
       };
       renderList();
       q('.add').onclick = () => { const t = q('.nt').value, x = q('.nx').value.trim(); if (!t || !x) return; s.rem.list.push({ time: t, text: x, on: true }); q('.nx').value = ''; renderList(); PP.save.soon(); };
-      if (window.petAPI) {
-        window.petAPI.hookConfig().then((txt) => (q('.hook').value = txt));
-        q('.copy').onclick = () => { q('.hook').select(); document.execCommand('copy'); ui.toast('已复制'); };
-      }
       ui.panel('提醒 & 番茄钟', box, { wide: true });
     },
+
+    // AI 联动：讲清楚它是什么，一键接入
+    aiPanel() {
+      const box = $(`<div class="settings ai">
+        <p class="lead">如果你用 <b>Claude Code</b>（在终端里写代码的 AI 助手），可以让主角宠物陪着它一起干活：</p>
+        <ul class="muted" style="margin:0 0 8px 16px;padding:0;line-height:1.7">
+          <li>你给 AI 提问后 → 宠物托着腮、头上冒“…”，<b>陪它一起想</b></li>
+          <li>AI 做完了 → 宠物<b>跳起来喵一声</b>告诉你，你可以先去干别的</li>
+          <li>AI 需要你点“允许” → 宠物<b>转过来朝你招手</b></li>
+        </ul>
+        <div class="status muted">检查中…</div>
+        <div class="row"><button class="primary install">一键接入 Claude Code</button><button class="small remove">断开</button></div>
+        <div style="margin-top:10px"><b>试一试效果</b>（不用 AI 也能看）</div>
+        <div class="row"><button class="small t1">AI 开始思考</button><button class="small t2">AI 做完了</button><button class="small t3">AI 需要你确认</button></div>
+        <details style="margin-top:10px"><summary class="muted">手动配置 / 其他 AI 工具</summary>
+          <div class="muted">接入其实就是往 ~/.claude/settings.json 里加几条 hooks。其他工具也可以：在合适的时候访问 http://127.0.0.1:47231/agent/thinking（思考）、/agent/done（完成）、/agent/waiting（等你确认）、/agent/idle（结束）即可，后面可以加 ?text=想让它说的话</div>
+          <textarea class="hook" readonly rows="6" style="width:100%;font-size:11px"></textarea>
+          <div class="row"><button class="small copy">复制</button></div>
+        </details>
+      </div>`);
+      const q = (c) => box.querySelector(c);
+      const api = window.petAPI;
+      const refresh = () => {
+        if (!api || !api.hookStatus) { q('.status').textContent = '网页试玩版不能接入，安装桌面版后可以。下面的按钮可以先看看效果。'; q('.install').disabled = true; q('.remove').disabled = true; return; }
+        api.hookStatus().then((st) => {
+          q('.status').innerHTML = st.installed ? '状态：<b>已接入</b> ✓ 之后在 Claude Code 里提问，主角宠物就会有反应（已经开着的 Claude Code 需要重开一次）' : st.hasClaudeDir ? '状态：还没接入' : '状态：还没接入（没找到 Claude Code 的配置目录，没装也没关系，接入后装上就能用）';
+          q('.install').textContent = st.installed ? '重新接入' : '一键接入 Claude Code';
+        });
+      };
+      refresh();
+      if (api && api.hookInstall) {
+        q('.install').onclick = () => api.hookInstall().then((r) => { ui.toast(r.ok ? '接入好了！原来的设置已备份' : '没成功：' + r.msg, r.ok ? 'info' : 'info'); refresh(); });
+        q('.remove').onclick = () => api.hookUninstall().then((r) => { ui.toast(r.msg); refresh(); });
+        api.hookConfig().then((t) => (q('.hook').value = t));
+      }
+      q('.copy').onclick = () => { q('.hook').select(); document.execCommand('copy'); ui.toast('已复制'); };
+      q('.t1').onclick = () => PP.F.setAgent('thinking');
+      q('.t2').onclick = () => PP.F.setAgent('done');
+      q('.t3').onclick = () => PP.F.setAgent('waiting');
+      ui.panel('AI 联动', box, { wide: true });
+    },
+    dropTreat(x, sprite) { dropTreat(x, sprite); },
+    thoughts(p) { thoughts(p); },
 
     tick() { for (const f of anims) f(); },
   });
 
+  // 画一级菜单；带子菜单的项鼠标移上去就在旁边展开
+  function openLevel(items, level, x, y, mode) {
+    while (menus.length > level) menus.pop().remove();
+    const el = $(`<div class="menu ${level ? 'sub' : ''}"></div>`);
+    for (const it of items) {
+      if (it === '-') { el.appendChild($('<div class="sep"></div>')); continue; }
+      const mark = it.type ? `<i class="ck">${it.checked ? (it.type === 'radio' ? '●' : '✓') : ''}</i>` : '';
+      const b = $(`<button ${it.enabled === false ? 'disabled' : ''} class="${it.sub ? 'has-sub' : ''} ${it.type ? 'tick' : ''}">${mark}${esc(it.label)}${it.hint ? `<span>${esc(it.hint)}</span>` : ''}${it.sub ? '<em>▸</em>' : ''}</button>`);
+      b.addEventListener('mouseenter', () => {
+        if (it.sub && it.enabled !== false) { const r = b.getBoundingClientRect(); openLevel(it.sub, level + 1, r.right - 2, r.top - 4, 'side'); }
+        else while (menus.length > level + 1) menus.pop().remove();
+      });
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (it.sub) { const r = b.getBoundingClientRect(); openLevel(it.sub, level + 1, r.right - 2, r.top - 4, 'side'); return; }
+        ui.closeMenu(); if (it.id) PP.menuRun(it.id);
+      });
+      el.appendChild(b);
+    }
+    root.appendChild(el);
+    menus.push(el);
+    const r = el.getBoundingClientRect();
+    if (mode === 'side') {
+      const left = x + r.width > G.W - 6 ? x - r.width - (menus[level - 1] ? menus[level - 1].getBoundingClientRect().width - 4 : 0) : x;
+      el.style.left = U.clamp(left, 6, G.W - r.width - 6) + 'px';
+      el.style.top = U.clamp(y, 6, G.H - r.height - 6) + 'px';
+    } else {
+      el.style.left = U.clamp(x, 6, G.W - r.width - 6) + 'px';
+      el.style.top = U.clamp(y - r.height, 6, G.H - r.height - 6) + 'px';
+    }
+    PP.refreshInteractive();
+  }
+
   function actName(a) {
-    return ({ idle: '发呆', wander: '闲逛', explore: '到处闻闻', eat: '吃饭', drink: '喝水', toilet: '上厕所', sleep: '睡觉', play: '自己玩', cursor_play: '和你玩', seek_user: '想你了', social: '和朋友玩', with: '和朋友玩', alone: '独处', groom: '理毛', bug: '追蝴蝶', ball: '玩球', treat: '吃零食', gift: '找礼物', special: '玩耍', dirty: '嫌弃便便', stash: '藏粮食', knock: '干坏事', petted: '被摸摸', poked: '被戳了', trick: '表演', greet: '迎接你', knead: '陪你打字', kneadSolo: '踩奶', hunt: '狩猎中', agentThink: '陪 AI 一起想', agentDone: '庆祝', rollPaper: '扒卷纸', bigStretch: '伸大懒腰', remindDrink: '提醒你喝水', remind: '提醒你', peekIdle: '偷看', handNap: '在你手心睡觉', lateNight: '催你睡觉', breakCare: '提醒你休息', dance: '跳舞', howl: '对月亮嚎叫', lookUp: '看天上', zoomies: '跑酷', landing: '落地', holiday_food: '过节' })[a] || (a ? '忙' : '发呆');
+    return ({ idle: '发呆', wander: '闲逛', explore: '到处闻闻', eat: '吃饭', drink: '喝水', toilet: '上厕所', sleep: '睡觉', play: '自己玩', cursor_play: '和你玩', seek_user: '想你了', social: '和朋友玩', with: '和朋友玩', alone: '独处', groom: '理毛', bug: '追蝴蝶', ball: '玩球', treat: '吃零食', gift: '找礼物', special: '玩耍', dirty: '嫌弃便便', stash: '藏粮食', knock: '干坏事', petted: '被摸摸', poked: '被戳了', trick: '表演', greet: '迎接你', knead: '陪你打字', kneadSolo: '踩奶', hunt: '狩猎中', agentThink: '陪 AI 一起想', agentDone: '庆祝', rollPaper: '扒卷纸', bigStretch: '伸大懒腰', remindDrink: '提醒你喝水', remind: '提醒你', peekIdle: '偷看', handNap: '在你手心睡觉', lateNight: '催你睡觉', breakCare: '提醒你休息', dance: '跳舞', howl: '对月亮嚎叫', lookUp: '看天上', zoomies: '跑酷', landing: '落地', holiday_food: '过节', follow: '跟着走', peck: '啄地', soak: '泡水', root: '用鼻子拱地', forage: '到处嗅嗅', curl: '缩成刺球', emerge: '从门里出来', enterDoor: '回家', agentWait: '等你确认' })[a] || (a ? '忙' : '发呆');
   }
 
   function thoughts(p) {
@@ -446,24 +465,16 @@
       g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.06, t0 + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
       o.connect(f).connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + 0.55);
     },
-    purr(p) {
-      if (!G.save.settings.sound || p.d.species !== 'cat') return;
-      PP.audio.unlock(); if (!ac) return;
-      const o = ac.createOscillator(), g = ac.createGain(), lfo = ac.createOscillator(), lg = ac.createGain();
-      o.type = 'sawtooth'; o.frequency.value = 55; lfo.frequency.value = 24; lg.gain.value = 0.02;
-      lfo.connect(lg).connect(g.gain);
-      g.gain.value = 0.015;
-      o.connect(g).connect(ac.destination); o.start(); lfo.start(); o.stop(ac.currentTime + 0.5); lfo.stop(ac.currentTime + 0.5);
-    },
+    purr() { /* 已移除：低频锯齿波听起来像电流声 */ },
     pour() {
       if (!G.save.settings.sound) return;
       PP.audio.unlock(); if (!ac) return;
       for (let i = 0; i < 5; i++) {
         const o = ac.createOscillator(), g = ac.createGain();
-        o.type = 'square'; o.frequency.value = U.rand(900, 1600);
+        o.type = 'sine'; o.frequency.value = U.rand(700, 1100);
         const t = ac.currentTime + i * 0.05;
-        g.gain.setValueAtTime(0.012, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
-        o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.05);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.02, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+        o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.07);
       }
     },
   };

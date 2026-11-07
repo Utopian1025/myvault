@@ -6,7 +6,8 @@
   const G = (PP.G = {
     W: 800, H: 600, ground: 590,
     t: 0,
-    pets: [],
+    pets: [], // 正在显示的
+    all: [],  // 所有宠物（包括“放假中”不显示的）
     items: [],
     particles: [],
     ambient: { bug: null, nextBug: 120, nextStar: 60, nextCup: 900 },
@@ -119,6 +120,12 @@
   }
   PP.drawItemWithRim = drawItemWithRim;
 
+  PP.syncPets = () => {
+    for (const p of G.all) if (p.d.hidden && G.pets.includes(p)) { p.interrupt(); p.held = false; p.airborne = false; p.y = G.ground; }
+    G.pets = G.save && G.save.settings.allAway ? [] : G.all.filter((p) => !p.d.hidden);
+  };
+  PP.addPet = (p) => { G.all.push(p); PP.syncPets(); };
+  PP.removePet = (p) => { G.all = G.all.filter((q) => q !== p); PP.syncPets(); };
   PP.findItem = (type, pred) => G.items.find((i) => i.type === type && !i.dead && (!pred || pred(i)));
   PP.addItem = (o) => { const it = new PP.Item(o); G.items.push(it); return it; };
 

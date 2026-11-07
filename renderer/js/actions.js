@@ -307,6 +307,28 @@
       p.transform = 'buried'; p.anim = 'idle'; p.wag = 10; PP.puff(p.x, p.y, 8);
       yield U.rand(1.5, 2.5);
       p.transform = null; p.wag = null; p.squash = 0.6; p.eyes = 'happy'; yield 1;
+    } else if (sp === 'frog') {
+      // 鼓腮呱呱叫
+      p.eyes = 'closed'; p.mouth = 'o'; yield 0.4;
+      for (let i = 0; i < 3; i++) { p.jolt(1.5, 0); PP.fx({ kind: 'text', text: '呱', x: p.x + p.facing * 12, y: p.y - 22 * S(), vy: -20, life: 0.8, style: { size: 11, shadow: false } }); yield 0.45; }
+      p.mouth = 'w'; p.eyes = 'open';
+    } else if (sp === 'chick') {
+      // 扑腾翅膀小跳
+      p.anim = 'dance'; p.eyes = 'happy'; yield 1.2;
+      p.airborne = true; p.vy = -380; p.vx = 0; p.fallFrom = p.y; yield () => !p.airborne;
+      p.say('叽叽！', 1.2); yield 0.6;
+    } else if (sp === 'duck') {
+      p.mouth = 'open'; p.eyes = 'closed';
+      for (let i = 0; i < 3; i++) { p.jolt(-1.5, 0); PP.fx({ kind: 'text', text: '嘎', x: p.x + p.facing * 12, y: p.y - 26 * S(), vy: -20, life: 0.8, style: { size: 11, shadow: false } }); yield 0.4; }
+      p.mouth = 'w'; p.eyes = 'happy'; yield 0.8;
+    } else if (sp === 'pig') {
+      // 满足地打个滚
+      p.anim = 'lie'; p.eyes = 'happy'; yield 0.6; p.transform = 'flipV'; p.mouth = 'smile'; yield 1.6; p.transform = null; p.anim = 'idle'; yield 0.4;
+    } else if (sp === 'capybara') {
+      p.anim = 'lie'; p.eyes = 'closed'; yield U.rand(3, 6);
+      if (!p.hat && Math.random() < 0.5) { p.hat = 'yuzu'; p.say('…（头上有柚子）', 2); }
+    } else if (sp === 'hedgehog') {
+      p.anim = 'curl'; yield 0.8; p.anim = 'idle'; p.eyes = 'happy'; p.jolt(-3, 0); yield 0.8;
     } else if (sp === 'dragon') {
       p.mouth = 'open'; p.eyes = 'closed'; yield 0.6;
       for (let i = 0; i < 8; i++) PP.fx({ kind: 'dot', x: p.x + p.facing * 10 * S(), y: p.headPos[1] + 6 * S(), vx: p.facing * U.rand(60, 140), vy: U.rand(-30, 10), life: 0.6, col: U.pick(['#ff9a3a', '#ffcf33', '#ff5a3a']), size: S() * 2 });
@@ -459,6 +481,25 @@
   A.bug = function* () {
     const p = this;
     let t = 0;
+    if (p.d.species === 'frog' || p.d.species === 'chick') {
+      // 青蛙：蹲着不动，等蝴蝶飞近了“啪”地伸舌头
+      while (G.ambient.bug && t < 16) {
+        const b = G.ambient.bug;
+        if (Math.abs(b.x - p.x) > 140) { yield p.goto(b.x - Math.sign(b.x - p.x) * 90); t += 0.5; continue; }
+        p.facing = Math.sign(b.x - p.x) || p.facing; p.anim = 'crouch'; p.eyes = 'wide';
+        yield 0.5; t += 0.5;
+        if (G.ambient.bug && Math.hypot(b.x - p.x, b.y - (p.y - 14 * S())) < 170) {
+          if (p.d.species === 'frog') { p.tongue = { x: b.x, y: b.y, t: 0.3, max: 0.3 }; p.mouth = 'open'; }
+          else { p.airborne = true; p.vy = -420; p.vx = (b.x - p.x) * 1.5; p.fallFrom = p.y; }
+          yield 0.3;
+          if (Math.random() < 0.55) { G.ambient.bug = null; p.mouth = 'chew'; p.eyes = 'happy'; p.say(U.pick(['呱！', '抓到了！', '（嚼嚼）']), 1.6); p.n.hunger = Math.min(100, p.n.hunger + 8); yield 1.5; break; }
+          else { b.flee = true; b.leaving = true; p.mouth = 'w'; p.setExpr('sad', 'w', 1); yield 1; break; }
+        }
+      }
+      p.anim = 'idle'; p.mouth = 'w'; p.eyes = 'open'; p.n.fun = Math.min(100, p.n.fun + 18);
+      p.log('盯着一只蝴蝶看了好久。');
+      return;
+    }
     while (G.ambient.bug && t < 14) {
       const b = G.ambient.bug;
       yield p.goto(b.x, Math.abs(b.x - p.x) > 120); t += 0.4;
@@ -694,12 +735,12 @@
     if (p.sleeping && !(long && p.tr.clingy > 0.6)) { p.setExpr('closed', 'smile', 2); return; }
     p.sleeping = false;
     p.anim = 'idle'; p.eyes = 'wide'; p.think('excl', 1); yield 0.6;
-    yield p.goto(G.mouse.x + U.rand(-40, 40), true);
+    if (!p.calm) yield p.goto(G.mouse.x + U.rand(-40, 40), true);
     p.look = [0, -1]; p.eyes = 'happy';
     if (long) p.say(U.pick(p.sp.lines.greet.concat(PP.LINES.backLong)));
     else p.say(U.pick(p.sp.lines.greet));
     PP.hearts(p.x, p.headPos[1] - 20, long ? 3 : 1);
-    if (p.d.species === 'dog' || p.d.species === 'rabbit') { yield 0.6; yield* A.special.call(p); }
+    if (!p.calm && (p.d.species === 'dog' || p.d.species === 'rabbit')) { yield 0.6; yield* A.special.call(p); }
     p.n.social = Math.min(100, p.n.social + 20);
     yield 2; p.eyes = 'open';
   };
@@ -793,6 +834,95 @@
     yield () => Date.now() - G.mouse.lastMove < 200 || !p.hit(G.mouse.x, G.mouse.y);
     p.sleeping = false; p.anim = 'lie'; p.eyes = 'sleepy'; yield 1;
     p.anim = 'idle'; p.eyes = 'open'; p.blush = false;
+  };
+
+  // ---------- 新伙伴的专属行为 ----------
+  // 小鸡/小鸭：跟在主角（或别的小伙伴）屁股后面走
+  A.follow = function* () {
+    const p = this;
+    const others = G.pets.filter((o) => o !== p && !o.held);
+    if (!others.length) return;
+    const lead = others.find((o) => o.d.species === 'duck' && p.d.species === 'chick') || (PP.F && PP.F.main() !== p ? PP.F.main() : null) || U.pick(others);
+    if (!lead) return;
+    let t = 0;
+    const dur = U.rand(15, 35);
+    if (Math.random() < 0.5) p.say(U.pick(['等等我！', '叽叽～', '我跟着你']), 1.6);
+    while (t < dur && G.pets.includes(lead) && !lead.held) {
+      const tx = lead.x - (lead.facing || 1) * 20 * S();
+      if (Math.abs(tx - p.x) > 10) yield p.goto(tx, Math.abs(tx - p.x) > 200);
+      else { p.anim = Math.random() < 0.3 ? 'eat' : 'idle'; p.facing = Math.sign(lead.x - p.x) || p.facing; yield 0.6; }
+      t += 0.6;
+    }
+    p.anim = 'idle'; p.addRel(lead, 1); p.n.social = Math.min(100, p.n.social + 15);
+  };
+  // 啄地 / 低头找吃的
+  A.peck = function* () {
+    const p = this;
+    for (let i = 0; i < U.randi(3, 7); i++) {
+      p.anim = 'eat'; p.eyes = 'open'; yield 0.25; p.anim = 'idle'; yield U.rand(0.3, 0.9);
+      if (!p.calm && Math.random() < 0.3) { p.target = U.clamp(p.x + U.rand(-30, 30), 20, G.W - 20); yield () => p.target == null; }
+    }
+    p.n.fun = Math.min(100, p.n.fun + 4);
+  };
+  // 泡水碗：青蛙蹲进去，鸭子扑腾洗澡，卡皮巴拉顶着柚子泡温泉
+  A.soak = function* () {
+    const p = this, sp = p.d.species;
+    const bowl = PP.findItem('water', (w) => w.level > 0.2);
+    if (!bowl) return;
+    p.cooldown.soak = U.rand(900, 2400);
+    yield p.goto(bowl.x);
+    p.y = G.ground - 3 * S(); p.jolt(-2, 0);
+    if (sp === 'capybara' && !p.hat) p.hat = 'yuzu';
+    p.anim = sp === 'duck' ? 'idle' : 'lie'; p.eyes = sp === 'duck' ? 'happy' : 'closed'; p.mouth = sp === 'capybara' ? 'w' : 'smile';
+    const dur = sp === 'capybara' ? U.rand(20, 50) : U.rand(8, 16);
+    let t = 0;
+    while (t < dur) {
+      yield 0.5; t += 0.5;
+      if (sp === 'duck' && Math.random() < 0.5) { p.jolt(-1, U.rand(-2, 2)); for (let i = 0; i < 2; i++) PP.fx({ kind: 'dot', x: p.x + U.rand(-10, 10), y: p.y - 4 * S(), vx: U.rand(-60, 60), vy: U.rand(-140, -60), grav: 500, life: 0.6, col: '#8fd0ff', size: Math.max(1, S() - 1) }); }
+      if (sp === 'capybara' && Math.random() < 0.15) PP.fx({ kind: 'dot', x: p.x + U.rand(-10, 10), y: p.y - 10 * S(), vy: -14, life: 1.6, col: '#ffffff', size: S() });
+      if (sp === 'frog' && Math.random() < 0.06) p.setExpr('happy', 'smile', 0.6);
+    }
+    p.y = G.ground; bowl.level = Math.max(0, bowl.level - 0.06);
+    p.n.fun = Math.min(100, p.n.fun + 20); p.n.thirst = 100;
+    p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w';
+    if (sp === 'duck') { p.say('洗干净了嘎！', 1.6); PP.puff(p.x, p.y, 4); }
+    p.log(sp === 'capybara' ? '在水碗里泡了个温泉，头上顶着柚子。' : sp === 'duck' ? '在水碗里洗了个澡！' : '在水碗里泡了一会儿，很凉快。');
+  };
+  // 小猪：用鼻子拱地，常常能拱出小东西
+  A.root = function* () {
+    const p = this;
+    p.cooldown.root = U.rand(600, 1500);
+    if (!p.calm) yield p.goto(U.rand(40, G.W - 40));
+    for (let i = 0; i < 4; i++) { p.anim = 'eat'; p.mouth = 'chew'; yield 0.6; PP.fx({ kind: 'dot', x: p.x + p.facing * 8 * S(), y: p.y - 2, vx: U.rand(-50, 50), vy: U.rand(-90, -40), grav: 400, life: 0.5, col: '#9a6a46', size: S() }); }
+    p.anim = 'idle'; p.mouth = 'w';
+    if (Math.random() < 0.35 && G.items.filter((i) => i.type === 'gift').length < 3) {
+      const g = PP.events.rollGift(p);
+      PP.addItem({ type: 'gift', x: p.x + p.facing * 10 * S(), data: { gift: g, from: p.d.id } });
+      p.eyes = 'happy'; p.say(U.pick(['哼！挖到宝了', '你看你看！', '哼哼～送你']), 2); p.think('excl', 1);
+      p.log(`用鼻子拱出了${PP.GIFTS[g].name}。`, 'gift');
+      yield 2;
+    } else { p.think('dots', 1.5); yield 1.2; }
+    p.eyes = 'open'; p.n.fun = Math.min(100, p.n.fun + 12);
+  };
+  // 刺猬：慢慢嗅着走，偶尔背上扎一片叶子回来
+  A.forage = function* () {
+    const p = this;
+    p.cooldown.forage = U.rand(600, 1400);
+    for (let i = 0; i < 3; i++) {
+      if (!p.calm) yield p.goto(p.x + U.rand(-120, 120));
+      p.anim = 'eat'; yield U.rand(0.8, 1.6); p.anim = 'idle';
+    }
+    if (Math.random() < 0.3 && !p.hat) { p.hat = 'leaf'; p.say('（背上扎了片叶子）', 2); }
+    p.n.fun = Math.min(100, p.n.fun + 10);
+  };
+  // 刺猬：缩成刺球
+  A.curl = function* (sec = 3) {
+    const p = this;
+    p.jolt(3, 0); p.anim = 'curl';
+    if (Math.random() < 0.4) p.say(U.pick(['噗！', '（缩起来了）', '吓我一跳']), 1.4);
+    yield sec;
+    p.anim = 'idle'; p.eyes = 'wide'; p.jolt(-3, 0); yield 0.6;
+    p.eyes = 'open';
   };
 
   A.hatch = function* () {

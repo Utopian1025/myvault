@@ -34,17 +34,21 @@
     const had = await PP.save.load();
     const s = G.save;
     if (s.items && s.items.length) s.items.forEach((o) => PP.addItem(o)); else defaultItems();
-    G.pets = (s.pets || []).map((d) => new PP.Pet(d));
-    for (const p of G.pets) p.y = G.ground;
+    G.all = (s.pets || []).filter((d) => PP.SPECIES[d.species]).map((d) => new PP.Pet(d));
+    for (const p of G.all) p.y = G.ground;
+    PP.syncPets();
     PP.ui.init();
     PP.bindInput();
     const away = PP.save.catchUp();
     PP.started = true;
-    if (!G.pets.length) setTimeout(() => PP.ui.adopt(), 400);
+    // 打开时：大家一个个从电脑里的小门走出来
+    G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
+    const emergeT = 300 + G.pets.length * 650 + 2600;
+    if (!G.all.length) setTimeout(() => PP.ui.adopt(), 400);
     else if (away > 5 * 60000) {
-      // 打开时：它们刚刚在干嘛，然后发现你回来了
+      // 然后发现你回来了
       G.user.lastActive = Date.now() - away;
-      setTimeout(() => { G.mouse.onScreen = true; PP.events.onUserReturn(away); G.user.lastActive = Date.now(); }, 1500);
+      setTimeout(() => { G.mouse.onScreen = true; PP.events.onUserReturn(away); G.user.lastActive = Date.now(); }, emergeT);
     }
     G.user.activeSince = Date.now();
     setInterval(() => PP.events.tick(), 5000);
@@ -75,6 +79,7 @@
     for (const it of G.items) it.update(dt);
     G.items = G.items.filter((i) => !i.dead);
     PP.world.updateParticles(dt);
+    PP.doorsUpdate(dt);
     PP.world.updateAmbient(dt);
     PP.interactTick(dt);
     PP.F.tick(dt);
@@ -96,12 +101,15 @@
 
   function render() {
     ctx.clearRect(0, 0, G.W, G.H);
+    PP.bg && PP.bg.render(ctx);
     const order = { bed: 0, litter: 1, food: 2, water: 2 };
     const items = G.items.slice().sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5));
     for (const it of items) if ((order[it.type] ?? 5) < 5) it.render(ctx);
     for (const it of items) if ((order[it.type] ?? 5) >= 5 && !it.held) it.render(ctx);
     const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.sleeping ? -1 : 0) - (b.sleeping ? -1 : 0));
+    PP.doorsRenderBack(ctx);
     for (const p of pets) p.render(ctx);
+    PP.doorsRenderFront(ctx);
     PP.F.render(ctx);
     for (const it of items) if (it.held) it.render(ctx);
     PP.world.renderAmbient(ctx);

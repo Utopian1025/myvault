@@ -4,6 +4,8 @@
   const U = PP.U, G = PP.G;
 
   const NEED_KEYS = ['hunger', 'thirst', 'bladder', 'energy', 'fun', 'social', 'battery'];
+  // 这些动作需要整只露出来（提醒、AI 反应）
+  const POP = new Set(['remind', 'remindDrink', 'bigStretch', 'agentThink', 'agentDone', 'agentWait', 'landing', 'emerge', 'enterDoor']);
   PP.NEED_NAMES = { hunger: '饱腹', thirst: '口渴', bladder: '如厕', energy: '精力', fun: '快乐', social: '陪伴', battery: '独处电量' };
 
   function randomTraits(species) {
@@ -98,13 +100,18 @@
       if (this.sulk > 0) return '在生你的气';
       return m > 80 ? '超开心' : m > 62 ? '心情不错' : m > 45 ? '还行' : m > 28 ? '有点低落' : '很难过';
     }
-    get headPos() { const S = G.S * (this.scaleMul || 1); return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + (this.peek ? 15 * G.S : 0)]; }
+    get headPos() { const S = G.S * (this.scaleMul || 1); return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + this.sinkPx()]; }
     get busy() { return this.held || this.airborne; }
+    // 乖乖待着：这只单独设置的，或者全局“工作模式”
+    get calm() { return !!(this.d.calm || (G.save && G.save.settings.work)); }
+    // 只露个头：沉到屏幕底边以下的像素数
+    sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
     hit(mx, my) {
+      if (this.inDoor) return false;
       const S = G.S * (this.scaleMul || 1);
-      const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - (this.peek ? 15 * G.S : 0);
-      return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top && my < this.y + G.S;
+      const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
+      return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top && my < Math.min(this.y + G.S, G.ground + 2);
     }
     hitHead(mx, my) {
       const S = G.S; const [hx, hy] = this.headPos;
@@ -174,6 +181,8 @@
     // ---------- 每帧 ----------
     update(dt) {
       this.t += dt;
+      if (this.inDoor && !this.gen) { this.inDoorT = (this.inDoorT || 0) + dt; if (this.inDoorT > 15) { this.inDoorT = 0; PP.petEmerge(this, this.x); } return; } // 还在电脑里，等门开
+      this.inDoorT = 0;
       this.decay(dt);
       if (this.bubble) { this.bubble.t += dt; if (this.bubble.t > this.bubble.dur) this.bubble = null; }
       if (this.sulk > 0) this.sulk -= dt;
@@ -188,21 +197,42 @@
       if (this.blinkT <= 0) { this.blinking = 0.12; this.blinkT = U.rand(2.2, 6) * (Math.random() < 0.15 ? 0.15 : 1); }
       if (this.blinking > 0) this.blinking -= dt;
 
-      if (this.held) { this.updateHeld(dt); return; }
-      if (this.airborne) { this.updateAir(dt); return; }
+      // 只露头：看视频模式里的那只，或者开了“只露头”的；提醒/AI 反应时会整只冒出来
+      const headOnly = this.d.headOnly || G.save.settings.headOnly;
+      this.peek = !this.held && !this.airborne && (this.action === 'peekIdle' || (headOnly && !POP.has(this.action)));
+
+      if (this.held) { this.hopY = 0; this.updateHeld(dt); return; }
+      if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
 
       // 走路
       if (this.target != null) {
         const dx = this.target - this.x;
         const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1);
-        if (Math.abs(dx) < 3) { this.target = null; if (this.anim === 'walk' || this.anim === 'run') this.anim = 'idle'; }
-        else {
+        const sp = this.sp;
+        if (Math.abs(dx) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; this.y = G.ground; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
+        else if (sp.gait === 'hop' && !this.peek) {
+          // 一蹦一蹦地走：只有在空中的时候才前进
           this.facing = dx > 0 ? 1 : -1;
-          this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt);
+          const T = sp.hopT * (this.running ? 0.75 : 1) * (this.calm ? 1.4 : 1);
+          this.hopP = (this.hopP || 0) + dt / T;
+          const ph = this.hopP % 1;
+          if (ph < 0.62) {
+            const a = ph / 0.62;
+            this.hopY = -Math.sin(a * Math.PI) * sp.hopH * G.S / 2 * (this.running ? 1.3 : 1);
+            this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt * 1.6);
+            this.anim = a < 0.5 ? 'jump' : 'fall'; this._landed = false;
+          } else {
+            this.hopY = 0; this.anim = 'land';
+            if (!this._landed) { this._landed = true; this.jolt(-1.4, 0); }
+          }
+          this.y = G.ground + this.hopY;
+        } else {
+          this.facing = dx > 0 ? 1 : -1;
+          this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt * (this.calm ? 0.7 : 1));
           this.anim = this.running ? 'run' : 'walk';
           if (this.dizzy > 0) this.x += Math.sin(this.t * 9) * 0.8;
         }
-      }
+      } else if (this.hopY) { this.hopY = 0; this.y = G.ground; }
 
       // 行为生成器
       if (this.gen) {
@@ -248,6 +278,7 @@
     // ---------- 决策：效用 AI + 随机性 ----------
     decide() {
       if (G.save.settings.peek && PP.F && PP.F.main() === this) { this.run('peekIdle', PP.ACTIONS.peekIdle); return; }
+      if (this.d.species === 'hedgehog' && this.curlT > 0) { this.run('curl', PP.ACTIONS.curl, this.curlT); this.curlT = 0; return; }
       const n = this.n, tr = this.tr, now = this.t;
       const userActive = Date.now() - G.user.lastActive < 60000 && G.mouse.onScreen;
       const quiet = G.save.settings.quiet;
@@ -281,7 +312,22 @@
       add('dirty', G.items.filter((i) => i.type === 'poop').length >= 2 && tr.neat > 0.55 && !(this.cooldown.dirty > 0) ? 0.4 : 0);
       if (this.d.species === 'hamster') add('stash', PP.findItem('food', (b) => b.level > 0.4) && n.hunger > 60 && this.d.stash < 6 && !(this.cooldown.stash > 0) ? 0.15 : 0);
       if (this.d.species === 'cat') add('knock', PP.findItem('cup', (c) => !c.data.pushed) ? 0.8 : 0);
+      // 物种专属
+      const spc = this.d.species, near = others.length;
+      if (spc === 'chick' && near) add('follow', 0.35 + tr.clingy * 0.4);
+      if (spc === 'frog' || spc === 'duck' || spc === 'capybara') add('soak', PP.findItem('water', (w) => w.level > 0.2) && !(this.cooldown.soak > 0) ? (spc === 'capybara' ? 0.5 : 0.35) : 0);
+      if (spc === 'pig') add('root', !(this.cooldown.root > 0) && n.energy > 25 ? 0.4 : 0);
+      if (spc === 'hedgehog') add('forage', !(this.cooldown.forage > 0) && n.energy > 25 ? 0.25 : 0);
+      if (spc === 'chick' || spc === 'duck') add('peck', 0.3);
+      const roam = this.sp.roam != null ? this.sp.roam : 1;
+      for (const it of sc) if (['wander', 'explore', 'play', 'special'].includes(it[0])) it[1] *= roam;
       if (this.sulk > 0) { sc.length = 0; add('alone', 1); add('idle', 0.5); }
+      // 乖乖待着 / 工作模式：只做吃喝拉撒睡和原地的小动作，不乱跑不乱跳
+      if (this.calm) {
+        const keep = new Set(['eat', 'drink', 'toilet', 'sleep', 'idle', 'groom', 'treat', 'holiday_food', 'peck']);
+        for (let i = sc.length - 1; i >= 0; i--) if (!keep.has(sc[i][0])) sc.splice(i, 1);
+        add('idle', 0.6);
+      }
 
       // 平方放大紧急需求，同时保留随机性
       const choice = U.weighted(sc.map(([a, s]) => [a, s * s + 0.02]));
@@ -387,6 +433,7 @@
 
     // ---------- 渲染 ----------
     render(ctx) {
+      if (this.inDoor) return;
       const S = G.S;
       let eyes = this.eyes, mouth = this.mouth;
       if (this.expr) { eyes = this.expr.eyes || eyes; mouth = this.expr.mouth || mouth; }
@@ -403,7 +450,7 @@
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
       });
       const SS = S * (this.scaleMul || 1);
-      const sink = this.peek ? 15 * S : 0; // 偷看模式：沉到屏幕底下，只露出半个脑袋
+      const sink = this.sinkPx(); // 只露头：沉到屏幕底下，只露出半个脑袋
       const px = Math.round(this.x - 16 * SS), py = Math.round(this.y - 31 * SS + sink);
       if (sink) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, G.W, G.ground + 1); ctx.clip(); }
       PP.SPR.blit(ctx, buf, px, py, SS);
@@ -411,15 +458,26 @@
       if (this.d.shiny && Math.random() < 0.03) PP.fx({ x: this.x + U.rand(-12, 12) * S, y: this.y - U.rand(4, 26) * S, vy: -10, icon: 'sparkle', life: 0.8, s: 1 });
     }
     renderOverlay(ctx) {
+      if (this.inDoor) return;
       // 气泡 & 名字牌
       const S = G.S;
       const [hx, hy] = this.headPos;
+      if (this.tongue && this.tongue.t > 0) {
+        // 青蛙的舌头：从嘴里“啪”地伸出去
+        const tg = this.tongue, k = Math.sin(Math.min(1, tg.t / tg.max) * Math.PI);
+        const mx = this.x + this.facing * 2 * S, my = this.y - 14 * S;
+        ctx.fillStyle = '#ff6f8a';
+        const steps = 12;
+        for (let i = 0; i <= steps; i++) { const a = (i / steps) * k; ctx.fillRect(Math.round(mx + (tg.x - mx) * a) - S / 2, Math.round(my + (tg.y - my) * a) - S / 2, S, S); }
+        ctx.fillRect(Math.round(mx + (tg.x - mx) * k) - S, Math.round(my + (tg.y - my) * k) - S, S * 2, S * 2);
+        tg.t -= 1 / 30;
+      }
       if (this.bubble) {
         const b = this.bubble;
         const a = U.clamp(Math.min(b.t / 0.12, (b.dur - b.t) / 0.3), 0, 1);
         const pop = b.t < 0.12 ? -4 * (1 - b.t / 0.12) : 0;
         ctx.globalAlpha = a;
-        const by = this.y - 34 * S * (this.scaleMul || 1) + pop + (this.peek ? 15 * S : 0) - (this.d.note ? 30 : 0);
+        const by = this.y - 34 * S * (this.scaleMul || 1) + pop + this.sinkPx() - (this.d.note ? 30 : 0);
         if (b.icon) {
           const [iw, ih] = PP.SPR.iconSize(b.icon);
           const s = Math.max(2, S);
@@ -462,8 +520,9 @@
 
   PP.initialRel = function (a, b) {
     const pair = [a.d.species, b.d.species].sort().join('-');
-    const table = { 'cat-hamster': 30, 'fox-rabbit': 30, 'hamster-penguin': 55, 'dog-penguin': 60, 'cat-dog': 40 };
-    const base = table[pair] != null ? table[pair] : 45;
+    const table = { 'cat-hamster': 30, 'fox-rabbit': 30, 'hamster-penguin': 55, 'dog-penguin': 60, 'cat-dog': 40, 'chick-duck': 70, 'cat-chick': 35, 'fox-chick': 25, 'duck-frog': 55, 'frog-hedgehog': 40 };
+    // 卡皮巴拉和谁都合得来
+    const base = a.d.species === 'capybara' || b.d.species === 'capybara' ? 75 : table[pair] != null ? table[pair] : 45;
     return U.clamp(base + (a.tr.extro + b.tr.extro - 1) * 20 + U.rand(-8, 8), 5, 80);
   };
 

@@ -143,6 +143,40 @@
       silver: { base: '#5e5868', dark: '#403b48', light: '#e6e3eb', paw: '#25212a', inner: '#9a8ca2', nose: '#17141b', socks: '#25212a', name: '银狐' },
       shiny:  { base: '#f7c33e', dark: '#d8941c', light: '#fffae4', paw: '#c4642a', inner: '#ff9acc', nose: '#6a3210', socks: '#c4642a', name: '金狐' },
     },
+    frog: {
+      green:  { base: '#7cc35a', dark: '#4f8f3a', light: '#eaf6c6', paw: '#6fb04f', inner: '#ff9aa8', nose: '#3d6e2c', name: '小青蛙' },
+      tree:   { base: '#9be36a', dark: '#5fae3c', light: '#fbffe4', paw: '#ff9a3c', inner: '#ff9aa8', nose: '#3d6e2c', name: '树蛙' },
+      dart:   { base: '#4f8de8', dark: '#1f2a4a', light: '#bfe0ff', paw: '#2f5fb8', inner: '#ff9aa8', nose: '#1f2a4a', pattern: 'spots', name: '蓝箭毒蛙' },
+      shiny:  { base: '#f5c84a', dark: '#c98a1c', light: '#fff6d0', paw: '#e8a830', inner: '#ff8fb0', nose: '#8a5a10', name: '金蛙' },
+    },
+    chick: {
+      yellow: { base: '#ffd84a', dark: '#e8ae22', light: '#fff4b8', paw: '#f08a2a', inner: '#ff9aa8', nose: '#f08a2a', name: '小黄鸡' },
+      brown:  { base: '#d79a5a', dark: '#a8683a', light: '#f6dcb8', paw: '#e07a2a', inner: '#ff9aa8', nose: '#e07a2a', name: '小麻鸡' },
+      white:  { base: '#fbf8f0', dark: '#dcd6c8', light: '#ffffff', paw: '#f08a2a', inner: '#ff9aa8', nose: '#f08a2a', comb: '#ff4a4a', name: '小白鸡' },
+      shiny:  { base: '#ffc2dc', dark: '#ee8ab6', light: '#fff2f8', paw: '#ff9a4a', inner: '#ff7aa8', nose: '#ff9a4a', name: '樱花鸡' },
+    },
+    duck: {
+      white:   { base: '#f8f6f0', dark: '#d9d2c4', light: '#ffffff', paw: '#f5a03a', inner: '#ff9aa8', nose: '#f5a03a', name: '大白鸭' },
+      mallard: { base: '#b19a80', dark: '#7a6450', light: '#e8dccb', head: '#2f7a4a', ring: '#ffffff', paw: '#f5a03a', inner: '#ff9aa8', nose: '#e8c03a', name: '绿头鸭' },
+      yellow:  { base: '#ffdc4a', dark: '#eab028', light: '#fff4b8', paw: '#f5a03a', inner: '#ff9aa8', nose: '#f58a2a', name: '小黄鸭' },
+      shiny:   { base: '#a8d8ff', dark: '#6aa8e0', light: '#eef8ff', paw: '#ffb04a', inner: '#ff9aa8', nose: '#ffb04a', name: '天空鸭' },
+    },
+    pig: {
+      pink:   { base: '#f7b8bc', dark: '#e2939a', light: '#ffdadc', paw: '#e88f98', inner: '#e8848e', nose: '#f39aa3', name: '小粉猪' },
+      black:  { base: '#4c4450', dark: '#332d36', light: '#6a6070', paw: '#2c262e', inner: '#8a6a78', nose: '#6e5e70', name: '小黑猪' },
+      spotty: { base: '#f8d2c8', dark: '#6a4a40', light: '#fff0ea', paw: '#e8a89c', inner: '#ec9a94', nose: '#f0a8a0', pattern: 'spots', name: '花猪' },
+      shiny:  { base: '#c9b2ff', dark: '#9a7ae8', light: '#efe8ff', paw: '#a88ae8', inner: '#ff9acc', nose: '#e0b2ff', name: '梦幻猪' },
+    },
+    capybara: {
+      brown:  { base: '#a6784c', dark: '#5a3e28', light: '#c49a6c', paw: '#6e4c32', inner: '#7a5434', nose: '#4a3222', name: '卡皮巴拉' },
+      honey:  { base: '#c8945a', dark: '#6e4a2a', light: '#e2b882', paw: '#8a5e36', inner: '#946640', nose: '#56381e', name: '蜂蜜卡皮' },
+      shiny:  { base: '#8fc0a8', dark: '#3e6a56', light: '#c2e2d0', paw: '#567e6a', inner: '#5e8a74', nose: '#2e4a3c', name: '抹茶卡皮' },
+    },
+    hedgehog: {
+      brown:  { base: '#f2dcbc', dark: '#3e2c22', light: '#fff4e4', spine: '#7c5a44', tip: '#c9a888', paw: '#d8b898', inner: '#e8a8a8', nose: '#231c20', name: '小刺猬' },
+      white:  { base: '#fbf2e8', dark: '#8a7a70', light: '#ffffff', spine: '#d8cfc6', tip: '#ffffff', paw: '#e8d0c0', inner: '#f0b0b0', nose: '#3a2a2a', name: '雪白刺猬' },
+      shiny:  { base: '#fff0c8', dark: '#6a4a8a', light: '#ffffff', spine: '#9a7ad8', tip: '#e2d4ff', paw: '#f0d8b8', inner: '#ffb0c8', nose: '#3a2a4a', name: '星空刺猬' },
+    },
     dragon: {
       mint:  { base: '#74cfa0', dark: '#45a476', light: '#fff0b0', paw: '#45a476', inner: '#ffd17a', nose: '#2f6a50', name: '小龙' },
       shiny: { base: '#f58aa4', dark: '#d35676', light: '#fff0b0', paw: '#d35676', inner: '#ffe07a', nose: '#842c46', name: '樱龙' },
@@ -150,6 +184,7 @@
   };
 
   const K = OUT;
+  const CUSTOM = new Set(['penguin', 'hamster', 'frog', 'chick', 'duck', 'hedgehog']);
 
   // ---------- 主绘制 ----------
   // p = {species, pal, facing, anim, t, eyes, look:[x,y], mouth, blush, ears, wag, hat, cheeks, stretch, knead}
@@ -322,13 +357,19 @@
       g.jsy = sy; g.jsx = sx; g.jsk = sk;
     }
     if (J) g.sway = (J.sway || 0) * 0.8;
-    if ((sp === 'hamster' || sp === 'penguin') && anim === 'held') g.extra = Math.ceil((p.stretch || 0.5) * 9);
+    if (CUSTOM.has(sp) && anim === 'held') g.extra = Math.ceil((p.stretch || 0.5) * 9);
     if (g.extra) b = new Buf(W, H + g.extra, PAD);
-    if (sp === 'rabbit') { g.hy += anim === 'held' ? 3.5 : 2; } // 兔子耳朵长，头放低一点免得被裁掉
+    if (sp === 'rabbit') { g.hy += anim === 'held' ? 3.5 : 2; }
+    if (sp === 'capybara') { g.hrx += 0.2; g.hry += 1.6; g.hy += 1.6; g.brx += 1.4; g.bry += 0.4; }
+    if (sp === 'pig') { g.hrx += 0.4; g.hy += 0.6; g.brx += 0.8; } // 兔子耳朵长，头放低一点免得被裁掉
     g.f = f; g.t = t; g.anim = anim;
 
     if (sp === 'penguin') drawPenguin(b, p, g);
     else if (sp === 'hamster') drawHamster(b, p, g);
+    else if (sp === 'frog') drawFrog(b, p, g);
+    else if (sp === 'chick') drawChick(b, p, g);
+    else if (sp === 'duck') drawDuck(b, p, g);
+    else if (sp === 'hedgehog') drawHedgehog(b, p, g);
     else {
       drawTail(b, sp, C, g);
       if (sp === 'dragon') {
@@ -357,7 +398,7 @@
     outline(b, OUT);
 
     // ===== 轮廓内的细节 =====
-    if (sp !== 'penguin' && sp !== 'hamster') {
+    if (!CUSTOM.has(sp)) {
       drawCoat(b, sp, C, g);
       // 前爪
       if (g.paws && !g.hind) {
@@ -375,7 +416,8 @@
     }
 
     drawFace(b, p, g);
-    if (p.hat) drawHat(b, p.hat, g.hx, g.hy - g.hry + 6.5, f);
+    const q = p.__geo;
+    if (p.hat && !(q && q.curl)) { if (q && q.hatX != null) drawHat(b, p.hat, q.hatX, q.hatY, f); else drawHat(b, p.hat, g.hx, g.hy - g.hry + 6.5, f); }
 
     // 陪你打字：身前放一个小键盘，按下去的键亮一下
     if (keyboard) {
@@ -487,6 +529,11 @@
       } else {
         ell(b, bx + f * 0.4, by + 1.4, brx - 3.4, bry - 2.6, C.light, true);
       }
+    } else if (sp === 'pig') {
+      ell(b, bx + f * 0.4, by + 1.2, brx - 3, bry - 2.2, C.light, true);
+      if (pat === 'spots') { ell(b, hx - 4.5, hy - 3, 2.4, 2, C.dark, true); ell(b, bx + 3, by - 1.5, 2.4, 1.8, C.dark, true); ell(b, bx - 4, by + 1, 1.6, 1.4, C.dark, true); }
+    } else if (sp === 'capybara') {
+      ell(b, bx + f * 0.4, by + 2, brx - 3, bry - 3, C.light, true);
     } else if (sp === 'dragon') {
       ell(b, bx + f * 0.4, by + 0.8, brx - 2.6, bry - 1.4, C.light, true);
       for (let i = -1; i <= 2; i++) b.setOn(bx + f * 0.4 - 2, by - 1 + i * 1.6, C.dark), b.setOn(bx + f * 0.4 + 2, by - 1 + i * 1.6, C.dark);
@@ -529,6 +576,9 @@
       b.set(tx + w * 0.4, by - 4.5, C.light); b.set(tx + w * 0.4 + side, by - 4.5, C.light);
     } else if (sp === 'rabbit') {
       ell(b, bx + side * (brx - 0.2), by + bry - 2.4, 2.3, 2.1, C.light);
+    } else if (sp === 'pig') {
+      const tx = Math.round(bx + side * (brx + 0.4)), ty = Math.round(by - 1 + (w > 0.3 ? -1 : 0));
+      b.set(tx, ty, C.base); b.set(tx + side, ty, C.base); b.set(tx + side, ty - 1, C.base); b.set(tx, ty - 2, C.base); b.set(tx + side * 2, ty - 1, C.base);
     } else if (sp === 'fox') {
       if (tailMode === 'lie') { ell(b, bx + side * 3, by + 2.6, 8.5, 2.4, C.base); ell(b, bx - side * 5.5, by + 2.6, 2, 1.8, C.light); return; }
       if (tailMode === 'hang') { ell(b, bx + side * 2 + w, by + bry + 1, 2.6, 4, C.base); ell(b, bx + side * 2 + w, by + bry + 4, 1.6, 1.4, C.light); return; }
@@ -579,11 +629,23 @@
       ell(b, hx - 3.4, hy - 8.6 + twitch, 2.1, 4.9, C.base);
       ell(b, hx - 3.4, hy - 8.2 + twitch, 0.8, 3.5, ic);
       if (p.lop) {
-        ell(b, hx + hrx - 0.8, hy - 2.5, 2.1, 5, C.base);
+        // 垂耳：挂在脑袋外侧（以前画在头后面被挡住了，看起来像只有一只耳朵）
+        const side = f >= 0 ? 1 : -1;
+        ell(b, hx + side * (hrx + 0.6), hy - 0.6, 2.1, 5.2, C.base);
+        ell(b, hx + side * (hrx + 0.6), hy - 0.2, 0.8, 3.6, ic);
       } else {
         ell(b, hx + 3.4 + sway * (back ? 1 : 0.5), hy - 8.6 + (back ? 1 : 0), 2.1, 4.9, C.base);
         ell(b, hx + 3.4 + sway * 0.5, hy - 8.2, 0.8, 3.5, ic);
       }
+    } else if (sp === 'pig') {
+      const dn = down || relax ? 2 : 0;
+      poly(b, [[hx - hrx + 1, hy - 3.6], [hx - hrx - 1.6, hy - 9.6 + dn + twitch], [hx - 2.6, hy - 6.2]], C.base);
+      poly(b, [[hx + hrx - 1, hy - 3.6], [hx + hrx + 1.6, hy - 9.6 + dn], [hx + 2.6, hy - 6.2]], C.base);
+      poly(b, [[hx - hrx + 2.2, hy - 4.6], [hx - hrx - 0.4, hy - 8 + dn + twitch], [hx - 3.6, hy - 5.8]], C.inner);
+      poly(b, [[hx + hrx - 2.2, hy - 4.6], [hx + hrx + 0.4, hy - 8 + dn], [hx + 3.6, hy - 5.8]], C.inner);
+    } else if (sp === 'capybara') {
+      const ey0 = hy - g.hry + 1.2;
+      ell(b, hx - hrx + 1.8, ey0 + twitch * 0.5, 1.6, 1.4, C.dark); ell(b, hx + hrx - 1.8, ey0, 1.6, 1.4, C.dark);
     } else if (sp === 'dragon') {
       poly(b, [[hx - 4.5, hy - 4.8], [hx - 6.2, hy - 10.2], [hx - 2.4, hy - 5.8]], C.light);
       poly(b, [[hx + 4.5, hy - 4.8], [hx + 6.2, hy - 10.2], [hx + 2.4, hy - 5.8]], C.light);
@@ -641,6 +703,137 @@
       rect(b, cx + 1, fy - (bob < 0 ? 1 : 0), 4, 2, C.paw);
     }
     p.__geo = { kind: 'penguin', cx, cy, ry, rx, lie, f };
+  }
+
+  // 通用：按果冻弹簧/被拎起来调整一个“圆团子”身体
+  function blobFit(g, p, cy, ry, rx) {
+    if (g.anim === 'held') { const st = p.stretch || 0.5; ry += st * 4.5; cy = 13 + ry; }
+    if (g.jsy) { const G0 = 29.5; cy = G0 - (G0 - cy) * g.jsy; ry *= g.jsy; rx *= g.jsx; }
+    return [cy, ry, rx];
+  }
+
+  // 青蛙：扁扁的一团，眼睛长在头顶的两个小包上，后腿折在身体两边
+  function drawFrog(b, p, g) {
+    const C = p.pal, f = g.f, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const air = anim === 'jump' || anim === 'fall';
+    const held = anim === 'held';
+    let [cy, ry, rx] = blobFit(g, p, lie ? 23.6 : air ? 20.5 : 22.2, lie ? 5.6 : 6.6, lie ? 11 : 10.4);
+    if (anim === 'land' || anim === 'crouch') { cy += 1.2; ry -= 1; rx += 1; }
+    const cx = 16 + (g.jsk || 0) * 0.5;
+    const hx = cx + f * 0.6;
+    // 后腿
+    if (air || held) {
+      rect(b, Math.round(cx - 7), Math.round(cy + ry - 3), 3, 7, C.base); rect(b, Math.round(cx + 4), Math.round(cy + ry - 3), 3, 7, C.base);
+      rect(b, Math.round(cx - 8), Math.round(cy + ry + 3), 4, 2, C.paw); rect(b, Math.round(cx + 4), Math.round(cy + ry + 3), 4, 2, C.paw);
+    } else {
+      ell(b, cx - rx + 1.2, cy + ry - 2.6, 3.8, 2.8, C.base);
+      ell(b, cx + rx - 1.2, cy + ry - 2.6, 3.8, 2.8, C.base);
+    }
+    // 眼睛包
+    const eyY = cy - ry + (lie ? 1.6 : 0.8);
+    ell(b, hx - 5, eyY, 3.4, 3.2, C.base); ell(b, hx + 5, eyY, 3.4, 3.2, C.base);
+    ell(b, cx, cy, rx, ry, C.base);
+    if (!lie && !air && !held) {
+      rect(b, Math.round(cx - 6), 27 - g.pawL, 3, 2, C.paw); rect(b, Math.round(cx + 3), 27 - g.pawR, 3, 2, C.paw);
+    }
+    p.__geo = { kind: 'frog', cx, cy, rx, ry, hx, eyY, lie, hatX: hx, hatY: eyY + 2 };
+  }
+
+  // 小鸡：一个圆滚滚的毛球，头顶一撮呆毛
+  function drawChick(b, p, g) {
+    const C = p.pal, f = g.f, t = g.t, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const peck = anim === 'eat';
+    let [cy, ry, rx] = blobFit(g, p, lie ? 23 : 20.8, lie ? 6.6 : 7.8, lie ? 9.4 : 8.4);
+    const bob = anim === 'walk' || anim === 'run' ? (Math.floor(t * 9) % 2) * 0.6 : 0;
+    let cx = 16 + (g.jsk || 0) * 0.5 + (peck ? f * 1.2 : 0);
+    if (peck) cy += 1.4;
+    cy -= bob;
+    const top = cy - ry;
+    // 呆毛
+    const tx = Math.round(cx + f * 0.5);
+    b.set(tx, Math.round(top) - 1, C.base); b.set(tx + 1, Math.round(top) - 2, C.base); b.set(tx - 1, Math.round(top) - 2, C.base); b.set(tx, Math.round(top) - 2, C.base);
+    if (C.comb) { rect(b, tx - 1, Math.round(top) - 2, 3, 2, C.comb); }
+    // 小翅膀
+    const flap = ['walk', 'run', 'jump', 'fall', 'dance'].includes(anim) || p.struggle ? Math.floor(t * 10) % 2 : 0;
+    ell(b, cx - rx + 0.6, cy + 1.2 - flap * 2, 2.6, 3.4, C.base);
+    ell(b, cx + rx - 0.6, cy + 1.2 - flap * 2, 2.6, 3.4, C.base);
+    ell(b, cx, cy, rx, ry, C.base);
+    if (!lie) {
+      const fy = Math.round(Math.min(cy + ry + 1, 28 + (g.extra || 0)));
+      const s1 = anim === 'walk' || anim === 'run' ? Math.floor(t * 9) % 2 : 0;
+      rect(b, Math.round(cx - 3), fy - 1 - s1, 1, 2 + s1, C.paw); rect(b, Math.round(cx - 4), fy + 1, 3, 1, C.paw);
+      rect(b, Math.round(cx + 2), fy - 1 - (1 - s1) * (s1 || anim === 'walk' || anim === 'run' ? 1 : 0), 1, 2, C.paw); rect(b, Math.round(cx + 1), fy + 1, 3, 1, C.paw);
+    }
+    p.__geo = { kind: 'chick', cx, cy, rx, ry, hx: cx + f * 0.6, hy: cy - 1.6, lie, peck, hatX: cx, hatY: top + 5.5 };
+  }
+
+  // 鸭子：横着的身体 + 坐在前面的圆脑袋 + 扁扁的大嘴
+  function drawDuck(b, p, g) {
+    const C = p.pal, f = g.f, t = g.t, anim = g.anim;
+    const lie = anim === 'sleep' || anim === 'lie';
+    const held = anim === 'held';
+    const wob = anim === 'walk' || anim === 'run' ? Math.round(Math.sin(t * 8)) : 0; // 鸭子走路一摇一摆
+    let [by, bry, brx] = blobFit(g, p, lie ? 24.4 : 23.2, lie ? 4.8 : 5.6, lie ? 10.6 : 9.6);
+    const cx = 16 + wob * 0.7 + (g.jsk || 0) * 0.3;
+    let hx = cx + f * 1.6 + (g.jsk || 0) * 0.6, hy = lie ? 19.5 : held ? 9.5 : 13.6;
+    if (anim === 'eat') { hx += f * 2.5; hy += 5; }
+    if (g.jsy && !held) hy = 29.5 - (29.5 - hy) * g.jsy;
+    const head = C.head || C.base;
+    // 尾巴尖
+    poly(b, [[cx - f * 7, by - 2], [cx - f * 11.5, by - 5.2 - (wob ? 0.6 : 0)], [cx - f * 8.5, by + 1.5]], C.base);
+    ell(b, cx, by, brx, bry, C.base);
+    ell(b, hx - f * 0.6, hy + 4.6, 3.8, 3.6, head); // 脖子
+    ell(b, hx, hy, 6.4, 6, head);
+    if (!lie) {
+      const fy = 28 + (held ? (g.extra || 0) : 0);
+      rect(b, Math.round(cx - 5), fy - (wob > 0 ? 1 : 0), 4, 2, C.paw);
+      rect(b, Math.round(cx + 1), fy - (wob < 0 ? 1 : 0), 4, 2, C.paw);
+    }
+    p.__geo = { kind: 'duck', cx, by, brx, bry, hx, hy, lie, hatX: hx, hatY: hy - 6 + 6.5 };
+  }
+
+  // 刺猬：背上一整片刺，前面露出奶油色的小尖脸；受惊会缩成刺球
+  function drawHedgehog(b, p, g) {
+    const C = p.pal, f = g.f, anim = g.anim, t = g.t;
+    const curl = anim === 'curl';
+    const lie = anim === 'sleep' || anim === 'lie';
+    if (curl) {
+      const cx = 16 + (g.jsk || 0) * 0.5, cy = 21.5, r = 8.4;
+      spikes(b, cx, cy, r + 0.6, r - 0.2, C.spine, 0, Math.PI * 2, 18);
+      ell(b, cx, cy, r, r - 0.6, C.spine);
+      p.__geo = { kind: 'hedgehog', curl: true, cx, cy };
+      return;
+    }
+    let [cy, ry, rx] = blobFit(g, p, lie ? 23.6 : 22.4, lie ? 5.6 : 6.4, lie ? 10.4 : 9.4);
+    const cx = 16 - f * 0.8 + (g.jsk || 0) * 0.4;
+    let hx = 16 + f * 1.4 + (g.jsk || 0) * 0.7, hy = lie ? 21 : g.anim === 'held' ? 12 : 17.4;
+    if (anim === 'eat') hy += 2.6;
+    if (g.jsy && anim !== 'held') hy = 29.5 - (29.5 - hy) * g.jsy;
+    // 刺：一个大半圆罩在背上
+    const sy = cy - 2.2, srx = rx + 1.6, sry = ry + 3.6;
+    spikes(b, cx, sy, srx + 0.8, sry + 0.4, C.spine, Math.PI * 1.02, Math.PI * 1.98, 9);
+    ell(b, cx, sy, srx, sry, C.spine);
+    ell(b, cx, cy + 1, rx, ry - 0.6, C.base);
+    // 小耳朵 + 脸
+    ell(b, hx - 4.6, hy - 4.6, 1.5, 1.4, C.base); ell(b, hx + 4.6, hy - 4.6, 1.5, 1.4, C.base);
+    ell(b, hx, hy, 6.6, 5.4, C.base);
+    ell(b, hx, hy + 2.6, 3, 2.4, C.base);
+    if (!lie) {
+      const s = anim === 'walk' || anim === 'run' ? Math.floor(t * 8) % 2 : 0;
+      rect(b, Math.round(cx - 4), 28 - s, 2, 1, C.paw); rect(b, Math.round(cx + 3), 28 - (1 - s) * (s ? 0 : 0), 2, 1, C.paw);
+    }
+    p.__geo = { kind: 'hedgehog', cx, cy, hx, hy, lie, hatX: hx, hatY: sy - sry + 6 };
+  }
+  function spikes(b, cx, cy, rx, ry, col, a0, a1, n) {
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      const x = cx + Math.cos(a) * rx, y = cy + Math.sin(a) * ry;
+      const ox = Math.cos(a) * 2.2, oy = Math.sin(a) * 2.2;
+      const nx = -Math.sin(a) * 1.3, ny = Math.cos(a) * 1.3;
+      poly(b, [[x - nx - ox, y - ny - oy], [x + ox, y + oy], [x + nx - ox, y + ny - oy]], col);
+    }
   }
 
   // 眼睛：白眼白 + 深色眼圈 + 会动的瞳孔（Comnyang 的灵魂）
@@ -726,13 +919,23 @@
       if (C.neck) { for (const dx of [-7, 6]) { b.setOn(q.cx + dx, fy + 3, C.neck); b.setOn(q.cx + dx, fy + 4, C.neck); b.setOn(q.cx + dx + (dx < 0 ? 1 : -1), fy + 4, C.neck); } }
       hx = q.cx; hy = fy; gap = 3.6; fur = C.light;
     }
+    if (p.__geo && FACES[p.__geo.kind]) { FACES[p.__geo.kind](b, p, g, p.__geo); return; }
     const cx0 = Math.round(hx + f * 0.8);
     const ey = Math.round(hy - 0.2);
     const look = p.look || [0, 0];
     const lx = Math.round(look[0] * 0.6);
     if (sp === 'cat' && C.pattern === 'point') fur = C.dark;
     if (sp === 'rabbit' && C.pattern === 'dutch') fur = C.base;
-    const eyes = p.eyes || 'open';
+    let eyes = p.eyes || 'open';
+    if (sp === 'capybara' && ['open', 'sleepy', 'wide'].includes(eyes)) {
+      // 卡皮巴拉：小小的眼睛 + 半耷拉的眼皮，永远一副“都行”的表情
+      const lx2 = Math.round(look[0] * 0.6), ly2 = (look[1] || 0) > 0.4 ? 1 : 0;
+      for (const ex of [cx0 - 4, cx0 + 4]) {
+        rect(b, ex - 1 + lx2, ey - 1, 3, 1, C.dark);
+        rect(b, ex - 1 + lx2 + (look[0] > 0.3 ? 1 : 0), ey + ly2, 2, eyes === 'wide' ? 2 : 1, K);
+      }
+      eyes = 'none';
+    }
     const e1 = cx0 - Math.round(gap) + (f < 0 ? 0 : 0), e2 = cx0 + Math.round(gap);
     drawEye(b, e1 + lx, ey, eyes, look, true, C, fur);
     drawEye(b, e2 + lx, ey, eyes, look, false, C, fur);
@@ -751,6 +954,23 @@
       return;
     }
     const nose = C.nose;
+    if (sp === 'pig') {
+      ell(b, mx + 0.5, my + 0.2, 3.3, 2.2, nose);
+      b.set(mx - 1, my, C.inner); b.set(mx + 1, my, C.inner); b.set(mx - 1, my + 1, C.inner); b.set(mx + 1, my + 1, C.inner);
+      if (p.mouth === 'open' || p.mouth === 'yawn') rect(b, mx - 1, my + 3, 3, 2, '#6e2434');
+      else if (p.mouth === 'chew') { if (Math.floor((p.t || 0) * 10) % 2) rect(b, mx - 1, my + 3, 3, 1, K); else { b.set(mx - 1, my + 3, K); b.set(mx + 1, my + 3, K); } }
+      else if (p.mouth === 'tongue') { b.set(mx, my + 3, '#ff6f8a'); b.set(mx + 1, my + 3, '#ff8fa0'); }
+      else if (p.mouth !== 'none') { b.set(mx - 1, my + 3, K); b.set(mx, my + 3, K); b.set(mx + 1, my + 3, K); }
+      return;
+    }
+    if (sp === 'capybara') {
+      ell(b, mx + 0.5, my + 0.6, 5.2, 3.2, C.light, true);
+      rect(b, mx - 2, my - 1, 2, 1, nose); rect(b, mx + 2, my - 1, 2, 1, nose); rect(b, mx - 2, my - 2, 6, 1, C.dark, true);
+      if (p.mouth === 'open' || p.mouth === 'yawn') rect(b, mx, my + 1, 2, 2, '#6e2434');
+      else if (p.mouth === 'chew') { const c = Math.floor((p.t || 0) * 8) % 2; b.set(mx, my + 1 + c, K); b.set(mx + 1, my + 1 + c, K); }
+      else if (p.mouth !== 'none') { b.set(mx, my + 1, K); b.set(mx + 1, my + 1, K); }
+      return;
+    }
     if (sp === 'dog' || sp === 'fox') { b.set(mx - 1, my - 1, nose); b.set(mx, my - 1, nose); b.set(mx + 1, my - 1, nose); b.set(mx, my, nose); }
     else if (sp === 'dragon') { b.set(mx - 1, my - 1, C.nose); b.set(mx + 1, my - 1, C.nose); }
     else b.set(mx, my - 1, nose);
@@ -790,6 +1010,77 @@
     }
   }
 
+  // ---------- 新伙伴们的脸 ----------
+  function lookX(p) { return Math.round((p.look || [0, 0])[0] * 0.6); }
+  function blushAt(b, x1, x2, y) { const BL = '#ff8fa8'; b.setOn(x1 - 1, y, BL); b.setOn(x1, y, BL); b.setOn(x2, y, BL); b.setOn(x2 + 1, y, BL); }
+  const FACES = {
+    frog(b, p, g, q) {
+      const C = p.pal, lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
+      ell(b, q.cx, q.cy + 2.8, q.rx - 3.2, q.ry - 2.6, C.light, true);
+      if (C.pattern === 'spots') for (const [dx, dy] of [[-6, -1], [5, 0], [-2, 3], [7, 3], [-7, 3], [1, -2]]) { b.setOn(q.cx + dx, q.cy + dy, C.dark); b.setOn(q.cx + dx + 1, q.cy + dy, C.dark); }
+      const ey = Math.round(q.eyY);
+      drawEye(b, Math.round(q.hx - 5) + lx, ey, eyes, look, true, C, C.base);
+      drawEye(b, Math.round(q.hx + 5) + lx, ey, eyes, look, false, C, C.base);
+      const mx = Math.round(q.hx) + lx, my = ey + 5;
+      const m = p.mouth || 'w';
+      if (m === 'open' || m === 'yawn') { rect(b, mx - 3, my, 7, m === 'yawn' ? 3 : 2, '#6e2434'); b.set(mx, my + 1, '#ff8fa0'); }
+      else if (m === 'tongue') { for (let i = -3; i <= 3; i++) b.set(mx + i, my, K); rect(b, mx, my + 1, 2, 2, '#ff6f8a'); }
+      else if (m === 'chew') { const c = Math.floor((p.t || 0) * 10) % 2; for (let i = -3; i <= 3; i++) b.set(mx + i, my + (c && Math.abs(i) < 2 ? 1 : 0), K); }
+      else if (m === 'frown') { for (let i = -3; i <= 3; i++) b.set(mx + i, my + (Math.abs(i) >= 3 ? 1 : 0), K); }
+      else if (m !== 'none') { for (let i = -4; i <= 4; i++) b.set(mx + i, my - (Math.abs(i) >= 4 ? 1 : 0), K); }
+      if (p.blush) blushAt(b, mx - 6, mx + 6, my - 1);
+    },
+    chick(b, p, g, q) {
+      const C = p.pal, lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
+      ell(b, q.cx, q.cy + 3, q.rx - 2.8, q.ry - 3.4, C.light, true);
+      ell(b, q.cx - q.rx + 0.6, q.cy + 1.4, 1.6, 2.4, C.dark, true); ell(b, q.cx + q.rx - 0.6, q.cy + 1.4, 1.6, 2.4, C.dark, true);
+      const ey = Math.round(q.hy), mx = Math.round(q.hx) + lx;
+      drawEye(b, mx - 3, ey, eyes, look, true, C, C.base);
+      drawEye(b, mx + 3, ey, eyes, look, false, C, C.base);
+      const my = ey + 3, beak = C.nose, dk = tone(beak, -0.25);
+      if (p.mouth === 'open' || p.mouth === 'yawn' || (p.mouth === 'chew' && Math.floor((p.t || 0) * 10) % 2)) { rect(b, mx - 1, my, 3, 1, beak); rect(b, mx - 1, my + 1, 3, 1, '#6e2434'); rect(b, mx - 1, my + 2, 3, 1, dk); }
+      else { rect(b, mx - 1, my, 3, 1, beak); b.set(mx, my + 1, dk); }
+      if (p.blush) blushAt(b, mx - 5, mx + 5, my);
+    },
+    duck(b, p, g, q) {
+      const C = p.pal, lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
+      const f = g.f;
+      ell(b, q.cx - f * 1.4, q.by - 0.6, q.brx - 3.8, q.bry - 2.2, C.dark, true);
+      if (C.ring) for (let i = -3; i <= 3; i++) b.setOn(Math.round(q.hx) + i, Math.round(q.hy) + 6, C.ring);
+      const ey = Math.round(q.hy - 0.8), mx = Math.round(q.hx) + lx;
+      const fur = C.head || C.base;
+      drawEye(b, mx - 3, ey, eyes, look, true, C, fur);
+      drawEye(b, mx + 3, ey, eyes, look, false, C, fur);
+      const my = ey + 4, beak = C.nose;
+      const open = p.mouth === 'open' || p.mouth === 'yawn' || (p.mouth === 'chew' && Math.floor((p.t || 0) * 8) % 2);
+      ell(b, mx + 0.5, my + 0.4, 3.8, open ? 2.2 : 1.7, beak);
+      b.set(mx - 1, my - 1, tone(beak, -0.3)); b.set(mx + 2, my - 1, tone(beak, -0.3));
+      if (open) rect(b, mx - 2, my + 1, 6, 1, '#6e2434');
+      if (p.blush) blushAt(b, mx - 5, mx + 6, my - 1);
+    },
+    hedgehog(b, p, g, q) {
+      const C = p.pal;
+      // 刺的质感：一点深色、一点浅色尖
+      for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+        if (b.raw(x, y) !== C.spine) continue;
+        if ((x * 7 + y * 3) % 5 === 0) b.d[y * b.w + x] = C.tip;
+        else if ((x * 3 + y * 7) % 6 === 0) b.d[y * b.w + x] = C.dark;
+      }
+      if (q.curl) { const cx = Math.round(q.cx), cy = Math.round(q.cy); b.set(cx - 2, cy + 4, K); b.set(cx + 2, cy + 4, K); b.set(cx, cy + 6, C.nose); return; }
+      const lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
+      const ey = Math.round(q.hy - 0.8), mx = Math.round(q.hx) + lx;
+      b.setOn(Math.round(q.hx - 4.6), Math.round(q.hy - 4.6), C.inner); b.setOn(Math.round(q.hx + 4.6), Math.round(q.hy - 4.6), C.inner);
+      drawEye(b, mx - 3, ey, eyes, look, true, C, C.base);
+      drawEye(b, mx + 3, ey, eyes, look, false, C, C.base);
+      const my = ey + 4;
+      rect(b, mx, my, 2, 1, C.nose); b.set(mx, my - 1, C.nose); b.set(mx + 1, my - 1, '#5a4a50');
+      if (p.mouth === 'open' || p.mouth === 'yawn') rect(b, mx, my + 1, 2, 2, '#6e2434');
+      else if (p.mouth === 'tongue') { b.set(mx, my + 1, '#ff6f8a'); }
+      else if (p.mouth !== 'none') { b.set(mx - 1, my + 1, K); b.set(mx + 2, my + 1, K); }
+      if (p.blush) blushAt(b, mx - 5, mx + 6, my);
+    },
+  };
+
   function drawHat(b, hat, hx, hy, f) {
     const top = Math.round(hy - 7);
     const x = Math.round(hx);
@@ -819,6 +1110,9 @@
     } else if (hat === 'flower') {
       const fx = x + 5;
       b.set(fx, top + 1, '#ff8fb8'); b.set(fx - 1, top + 2, '#ff8fb8'); b.set(fx + 1, top + 2, '#ff8fb8'); b.set(fx, top + 3, '#ff8fb8'); b.set(fx, top + 2, '#ffcf33');
+    } else if (hat === 'yuzu') {
+      ell(b, x + 0.5, top + 1.5, 3, 2.6, '#ffb52e'); b.set(x - 1, top, '#ffe08a'); b.set(x, top, '#ffe08a');
+      b.set(x + 1, top - 1, '#4f8a3a'); b.set(x + 2, top - 2, '#5fae3c'); b.set(x + 3, top - 2, '#5fae3c');
     } else if (hat === 'leaf') {
       b.set(x + 4, top + 1, '#e8913a'); b.set(x + 5, top + 1, '#d9662a'); b.set(x + 4, top + 2, '#d9662a'); b.set(x + 6, top, '#8a4a2a');
     }
@@ -859,6 +1153,14 @@
     friend: ['.k.k.', 'kkkkk', 'kwkwk', 'kkkkk', '.kkk.'],
     egg: ['..ww..', '.wwww.', 'wwwwbw', 'wwbwww', 'wwwwww', '.wwww.'],
     cake: ['..r..', '.www.', 'ppppp', 'wwwww', 'ppppp'],
+    fly: ['w...w', 'ww.ww', '.kkk.', '.kkk.'],
+    worm: ['..rr..', '.r..r.', 'r....r'],
+    corn: ['.g..', 'yyyg', 'yyyy', 'yyyy', '.yy.'],
+    bread: ['.oooo.', 'oyyyyo', 'oyyyyo', 'oooooo'],
+    apple: ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
+    melon: ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
+    yuzu: ['..g.', '.yy.', 'yyyy', 'yyyy', '.yy.'],
+    mud: ['.ooo.', 'ooOoo', '.ooo.'],
   };
   const ICOL = { r: '#ff4f7a', R: '#ffb3c6', k: '#3b2a2e', b: '#57b4ff', B: '#d2ecff', o: '#9a6a46', y: '#ffc93c', w: '#ffffff', W: '#ffffff', p: '#b98cff', g: '#5fbf5a' };
 
@@ -904,6 +1206,12 @@
     treat_seed: () => ['.kk.', 'kwwk', 'kwwk', '.kk.'],
     treat_berry: () => ['..g..', '.rrr.', 'rrWrr', '.rrr.'],
     treat_chili: () => ['...g', '..rg', '.rr.', 'rr..'],
+    treat_fly: () => ['w...w', 'ww.ww', '.kkk.', '.kkk.'],
+    treat_worm: () => ['..pp..', '.p..p.', 'p....p'],
+    treat_corn: () => ['.g..', 'yyyg', 'yYyy', 'yyyy', '.yy.'],
+    treat_bread: () => ['.oooo.', 'oOOOOo', 'oOOOOo', 'oooooo'],
+    treat_apple: () => ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
+    treat_melon: () => ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
     treat_cake: () => ['..y..', '..r..', '.www.', 'ppppp', 'wwwww', 'ppppp'],
     cake: () => ['..y..y..', '..r..r..', '.wwwwww.', 'pppppppp', 'wwwwwwww', 'pppppppp'],
     cup: () => ['kkkkkk.', 'kwwwwkk', 'kwoowk.k', 'kwwwwkk', '.kkkk..'],
@@ -924,7 +1232,7 @@
     acorn: () => ['.oo.', 'oooo', 'yyyy', 'yyyy', '.yy.'],
     button: () => ['.rrr.', 'rkrkr', 'rrrrr', 'rkrkr', '.rrr.'],
   };
-  const ITEMCOL = Object.assign({}, ICOL, { t: '#7aa7c7', T: '#c7e3f5', P: '#ffd0e4', O: '#c08a5e', s: '#9a9aa6', S: '#d0d0da' });
+  const ITEMCOL = Object.assign({}, ICOL, { Y: '#fff0a0', t: '#7aa7c7', T: '#c7e3f5', P: '#ffd0e4', O: '#c08a5e', s: '#9a9aa6', S: '#d0d0da' });
   ITEMCOL.p = '#e88db4';
 
   function drawItem(ctx, name, x, y, s, arg) {

@@ -145,8 +145,18 @@
       // 午夜跑酷
       if (h >= 2 && h < 4 && E.cd('zoom') <= 0 && Math.random() < 0.01) {
         E.setCd('zoom', 20 * 3600);
-        const z = awake.find((p) => ['cat', 'dog', 'hamster'].includes(p.d.species) && p.n.energy > 50);
+        const z = awake.find((p) => ['cat', 'dog', 'hamster', 'hedgehog'].includes(p.d.species) && p.n.energy > 50 && !p.calm);
         if (z) z.run('zoomies', PP.ACTIONS.zoomies);
+      }
+      // 小鸡：天亮了打鸣
+      if (h >= 6 && h < 8 && userActive && E.cd('chickDawn') <= 0) {
+        const c = awake.find((p) => p.d.species === 'chick');
+        if (c) { E.setCd('chickDawn', 20 * 3600); c._forceSay = true; c.say('叽叽叽——天亮啦！', 4); c._forceSay = false; c.jolt(-3, 0); }
+      }
+      // 青蛙：夜里呱呱
+      if ((h >= 20 || h < 1) && E.cd('frogNight') <= 0 && Math.random() < 0.02) {
+        const f = awake.find((p) => p.d.species === 'frog' && ['idle', 'wander', 'groom'].includes(p.action));
+        if (f) { E.setCd('frogNight', 3600); f.run('special', PP.ACTIONS.special); }
       }
       // 连续工作太久 → 关心一下
       const activeFor = (Date.now() - G.user.activeSince) / 60000;
@@ -219,7 +229,7 @@
     mysteryEgg() {
       const F = G.save.flags;
       if (F.eggHatched || PP.findItem('egg')) return;
-      if (!G.pets.length || G.pets.length >= 7) return; // 小龙可以是第 7 只
+      if (!G.pets.length || G.all.length >= 13) return;
       const first = F.firstAdopt || Date.now();
       const days = (Date.now() - first) / 86400000;
       const totalAff = G.pets.reduce((s, p) => s + p.d.affection, 0);
@@ -246,7 +256,7 @@
         it.dead = true; F.eggHatched = true;
         for (let i = 0; i < 12; i++) PP.fx({ kind: 'dot', x: it.x, y: it.y - 12, vx: U.rand(-120, 120), vy: U.rand(-260, -80), grav: 600, life: 1, col: '#ffffff', size: G.S * 2 });
         const pet = PP.Pet.create('dragon', 'mint', '小龙');
-        pet.x = it.x; G.pets.push(pet);
+        pet.x = it.x; PP.addPet(pet);
         pet.d.affection = 40;
         pet.run('hatch', PP.ACTIONS.hatch);
         E.found('mystery_egg');

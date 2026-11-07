@@ -68,11 +68,25 @@
     G.hoverItem = G.hoverPet ? null : topItem(x, y);
     PP.refreshInteractive();
 
+    detectEdgeWiggle(x, y);
     if (!press) {
       detectRub(x, y);
       detectCircle(x, y);
       detectStartle(x, y);
     }
+  }
+
+  // 召唤手势：在屏幕最底边快速左右来回晃鼠标（≥5 次折返 / 1.2 秒）。平时几乎不可能误触
+  const wig = { dir: 0, last: 0, flips: [] };
+  function detectEdgeWiggle(x, y) {
+    if (y < G.H - 6) { wig.flips = []; wig.dir = 0; return; }
+    const dx = x - wig.last; wig.last = x;
+    if (Math.abs(dx) < 6) return;
+    const d = Math.sign(dx), now = performance.now();
+    if (wig.dir && d !== wig.dir) wig.flips.push(now);
+    wig.dir = d;
+    wig.flips = wig.flips.filter((t) => now - t < 1200);
+    if (wig.flips.length >= 5) { wig.flips = []; PP.toggleAll(); PP.events.found('summon'); }
   }
 
   // 来回蹭 = 摸摸
@@ -157,6 +171,8 @@
       const [hx, hy] = p.headPos;
       if (Math.hypot(x - hx, y - hy) < 320) {
         p.cooldown.hunt = 12;
+        if (p.d.species === 'hedgehog') { p.curlT = 3; p.interrupt(); continue; } // 刺猬：被吓到缩成球
+        if (p.calm || ['capybara', 'frog', 'pig'].includes(p.d.species)) continue;
         p.run('hunt', PP.ACTIONS.hunt);
         return;
       }
@@ -211,6 +227,7 @@
     p.pokeTimes.push(now);
     p.d.stats.pokes++; p.count('pokes');
     if (p.action === 'handNap') return;
+    if (p.d.species === 'hedgehog' && !p.sleeping && (p.affLevel < 3 || Math.random() < 0.5)) { p.run('curl', PP.ACTIONS.curl, U.rand(2, 4)); return; }
     p.run('poked', PP.ACTIONS.poked);
   }
 

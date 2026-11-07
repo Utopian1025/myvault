@@ -8,7 +8,7 @@
   function fresh() {
     return {
       v: 1, savedAt: Date.now(),
-      settings: { size: 2, pace: 1, sound: true, quiet: false, care: false, breakMin: 90, names: 'hover', ownerName: '', peek: false, rem: { water: 60, stretch: 50, list: [] }, pomo: { focus: 25, brk: 5 } },
+      settings: { size: 2, pace: 1, sound: true, quiet: false, care: false, breakMin: 90, names: 'hover', ownerName: '', peek: false, headOnly: false, work: false, mainId: null, bg: 'none', bgH: 2, rem: { water: 60, stretch: 50, list: [] }, pomo: { focus: 25, brk: 5 } },
       pets: [], items: null, diary: {}, collection: {}, eggs: {}, flags: {}, cds: {},
     };
   }
@@ -31,7 +31,7 @@
     write() {
       const s = G.save;
       s.savedAt = Date.now();
-      s.pets = G.pets.map((p) => { p.d.x = Math.round(p.x); return p.d; });
+      s.pets = G.all.map((p) => { p.d.x = Math.round(p.x); return p.d; });
       s.items = G.items.filter((i) => !i.dead && ['food', 'water', 'bed', 'litter', 'poop', 'ball', 'gift', 'cup', 'egg'].includes(i.type))
         .map((i) => ({ type: i.type, x: Math.round(i.x), level: i.level, data: i.data }));
       // 只保留最近 90 天日记

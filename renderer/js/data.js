@@ -12,13 +12,16 @@
   const crepus = curve((h) => (h >= 0 && h < 5 ? 0.85 : h >= 5 && h < 8 ? 0.15 : h >= 11 && h < 16 ? 0.6 : h >= 17 && h < 21 ? 0.1 : 0.4));
   const noctur = curve((h) => (h >= 8 && h < 18 ? 0.85 : h >= 18 && h < 20 ? 0.35 : h >= 20 || h < 5 ? 0.06 : 0.4));
   const foxy = curve((h) => (h >= 9 && h < 16 ? 0.6 : h >= 2 && h < 6 ? 0.55 : 0.15));
+  const earlyBird = curve((h) => (h >= 20 || h < 5 ? 0.95 : h >= 12 && h < 14 ? 0.4 : h >= 18 ? 0.55 : 0.08)); // 天一黑就困，天一亮就醒
+  const froggy = curve((h) => (h >= 10 && h < 17 ? 0.7 : h >= 2 && h < 6 ? 0.5 : 0.12)); // 傍晚和夜里最精神
+  const chill = curve((h) => (h >= 23 || h < 6 ? 0.85 : h >= 12 && h < 16 ? 0.6 : 0.3)); // 卡皮巴拉：随时可以睡
 
   PP.SPECIES = {
     cat: {
       name: '猫咪', coats: ['orange', 'mackerel', 'siamese', 'black', 'tux'], fav: 'treat_fish', favName: '小鱼干', favIcon: 'fish',
       chrono: crepus, speed: 38, run: 120, pitch: 880,
       bias: { extro: -0.1, playful: 0.1, lazy: 0.3, timid: 0, curious: 0.25, clingy: -0.15, greedy: 0.05, neat: 0.3 },
-      trick: '翻肚皮', desc: '高冷又黏人，一天要睡十几个小时',
+      trick: '翻肚皮', desc: '高冷又黏人，一天要睡十几个小时', sig: '踩奶 · 推杯子 · 追鼠标 · 摸头会呼噜',
       lines: {
         greet: ['喵～你回来啦', '（蹭蹭）', '哼，才想起我啊'],
         hungry: ['喵！碗空了！', '饭呢饭呢', '我要饿扁了喵'],
@@ -31,7 +34,7 @@
       name: '柴犬', coats: ['red', 'black', 'white'], fav: 'treat_bone', favName: '小骨头', favIcon: 'bone',
       chrono: diurnal, speed: 46, run: 150, pitch: 520,
       bias: { extro: 0.35, playful: 0.3, lazy: -0.1, timid: -0.1, curious: 0.1, clingy: 0.35, greedy: 0.25, neat: -0.2 },
-      trick: '转圈圈', desc: '最喜欢你，情绪全写在尾巴上',
+      trick: '转圈圈', desc: '最喜欢你，情绪全写在尾巴上', sig: '捡球 · 你回来时冲过来 · 满月会嚎叫',
       lines: {
         greet: ['汪！！你回来了！！', '我等你好久了！', '主人主人主人！'],
         hungry: ['汪…饭饭…', '（盯着碗）', '可以吃饭了吗？'],
@@ -44,7 +47,7 @@
       name: '兔兔', coats: ['white', 'gray', 'dutch'], fav: 'treat_carrot', favName: '胡萝卜', favIcon: 'carrot',
       chrono: crepus, speed: 34, run: 140, pitch: 1200,
       bias: { extro: -0.15, playful: 0.15, lazy: 0.05, timid: 0.35, curious: 0.15, clingy: 0.05, greedy: 0.2, neat: 0.35 },
-      trick: '空中转体', desc: '胆小敏感，开心时会原地起跳',
+      trick: '空中转体', desc: '胆小敏感，走路是一蹦一蹦的，开心时会原地起跳', gait: 'hop', hopH: 9, hopT: 0.34, sig: '蹦着走 · 开心会原地起跳（binky）',
       lines: {
         greet: ['（耳朵竖起来）', '你回来啦…', '（蹦蹦）'],
         hungry: ['想吃草…', '肚子咕咕叫', '（扒拉碗）'],
@@ -57,7 +60,7 @@
       name: '仓鼠', coats: ['gold', 'silver', 'pudding'], fav: 'treat_seed', favName: '瓜子', favIcon: 'seed',
       chrono: noctur, speed: 30, run: 130, pitch: 1500,
       bias: { extro: 0, playful: 0.2, lazy: 0, timid: 0.25, curious: 0.3, clingy: 0, greedy: 0.45, neat: 0.2 },
-      trick: '装死', desc: '夜猫子，白天睡觉晚上跑酷，爱囤粮',
+      trick: '装死', desc: '夜猫子，白天睡觉晚上跑酷，爱囤粮', sig: '白天睡、晚上活跃 · 用腮帮子囤粮',
       lines: {
         greet: ['吱！', '你带吃的了吗', '（腮帮子鼓鼓）'],
         hungry: ['我的存粮呢！', '吱吱吱！饿！', '再囤一点…'],
@@ -70,7 +73,7 @@
       name: '企鹅', coats: ['classic', 'emperor', 'fluffy'], fav: 'treat_fish', favName: '小鱼', favIcon: 'fish',
       chrono: diurnal, speed: 26, run: 90, pitch: 640,
       bias: { extro: 0.3, playful: 0.2, lazy: 0.05, timid: 0.05, curious: 0.2, clingy: 0.15, greedy: 0.15, neat: 0.25 },
-      trick: '肚皮滑行', desc: '走路摇摇晃晃，社交达鹅',
+      trick: '肚皮滑行', desc: '走路摇摇晃晃，社交达鹅', sig: '摇摆走路 · 肚皮滑行',
       lines: {
         greet: ['嘎！', '（拍拍翅膀）', '你回来啦嘎'],
         hungry: ['想吃鱼', '嘎…饿了', '（摇摆着找吃的）'],
@@ -83,7 +86,7 @@
       name: '狐狸', coats: ['red', 'arctic', 'silver'], fav: 'treat_berry', favName: '野莓', favIcon: 'berry',
       chrono: foxy, speed: 42, run: 160, pitch: 760,
       bias: { extro: -0.05, playful: 0.3, lazy: -0.05, timid: 0.1, curious: 0.35, clingy: -0.05, greedy: 0.1, neat: 0.15 },
-      trick: '扎雪堆', desc: '聪明又傲娇，听到动静会一头扎下去',
+      trick: '扎雪堆', desc: '聪明又傲娇，听到动静会一头扎下去', sig: '听到动静一头扎下去 · 满月会嚎叫',
       lines: {
         greet: ['哼哼，你来了', '（尾巴摇了一下）', '我才没有等你'],
         hungry: ['猎物都跑哪去了', '饿…', '你有吃的吗'],
@@ -106,7 +109,87 @@
       },
     },
   };
-  PP.SPECIES_LIST = ['cat', 'dog', 'rabbit', 'hamster', 'penguin', 'fox'];
+  Object.assign(PP.SPECIES, {
+    frog: {
+      name: '青蛙', coats: ['green', 'tree', 'dart'], fav: 'treat_fly', favName: '小飞虫', favIcon: 'fly',
+      chrono: froggy, roam: 0.45, speed: 30, run: 110, pitch: 300, gait: 'hop', hopH: 14, hopT: 0.5,
+      bias: { extro: -0.1, playful: 0.05, lazy: 0.35, timid: 0.15, curious: 0.1, clingy: -0.1, greedy: 0.3, neat: 0.1 },
+      trick: '大跳', desc: '只会跳着走，能坐着一动不动半天，舌头一伸就能抓虫', sig: '跳着走 · 用舌头抓蝴蝶 · 夜里呱呱叫 · 爱泡在水碗里',
+      lines: {
+        greet: ['呱！', '（眨眨眼）', '呱呱～你回来了'],
+        hungry: ['有虫子吗', '呱…饿', '（盯着空中）'],
+        happy: ['呱呱！', '（鼓起下巴）', '舒服～'],
+        idle: ['…（一动不动）', '想下雨了', '水碗是我的泳池', '今天的空气湿湿的', '呱。'],
+        alone: ['我在冥想', '呱…'],
+      },
+    },
+    chick: {
+      name: '小鸡', coats: ['yellow', 'brown', 'white'], fav: 'treat_corn', favName: '玉米粒', favIcon: 'corn',
+      chrono: earlyBird, speed: 40, run: 120, pitch: 1700,
+      bias: { extro: 0.25, playful: 0.2, lazy: -0.1, timid: 0.2, curious: 0.3, clingy: 0.35, greedy: 0.3, neat: 0 },
+      trick: '扑腾', desc: '天亮就醒、天黑就困，喜欢跟在别人屁股后面走', sig: '早起早睡 · 低头啄地 · 会跟在主角后面走',
+      lines: {
+        greet: ['叽叽！', '叽！你回来啦', '（扑腾小翅膀）'],
+        hungry: ['叽叽叽！饿！', '想吃米', '（啄空碗）'],
+        happy: ['叽～', '（蹭蹭）', '嘿嘿叽'],
+        idle: ['地上有什么', '叽？', '我会长大吗', '跟着你走', '太阳出来了吗'],
+        alone: ['叽…（缩成一团）', '我休息一下'],
+      },
+    },
+    duck: {
+      name: '鸭鸭', coats: ['white', 'mallard', 'yellow'], fav: 'treat_bread', favName: '面包屑', favIcon: 'bread',
+      chrono: diurnal, speed: 30, run: 100, pitch: 420,
+      bias: { extro: 0.3, playful: 0.25, lazy: 0, timid: 0, curious: 0.2, clingy: 0.1, greedy: 0.35, neat: 0.2 },
+      trick: '嘎嘎合唱', desc: '一摇一摆，看见水就要扑腾两下', sig: '摇摆走路 · 在水碗里洗澡 · 嘎嘎叫',
+      lines: {
+        greet: ['嘎！', '嘎嘎！回来啦', '（摇摇摆摆跑过来）'],
+        hungry: ['嘎…面包呢', '饿嘎', '（盯着你）'],
+        happy: ['嘎嘎嘎！', '（甩甩尾巴）', '开心嘎'],
+        idle: ['想游泳', '嘎？', '池塘在哪里', '羽毛要理一理', '今天也很鸭'],
+        alone: ['嘎…', '我理理毛'],
+      },
+    },
+    pig: {
+      name: '小猪', coats: ['pink', 'black', 'spotty'], fav: 'treat_apple', favName: '苹果', favIcon: 'apple',
+      chrono: diurnal, speed: 28, run: 100, pitch: 330,
+      bias: { extro: 0.2, playful: 0.15, lazy: 0.3, timid: -0.05, curious: 0.25, clingy: 0.2, greedy: 0.45, neat: -0.3 },
+      trick: '打滚', desc: '鼻子特别灵，到处拱一拱就能翻出好东西', sig: '用鼻子拱地 · 经常拱出小礼物 · 吃得特别香',
+      lines: {
+        greet: ['哼哼！', '（拱拱你）', '哼哼～你来啦'],
+        hungry: ['哼！饭！', '我闻到吃的了', '能再吃一点吗'],
+        happy: ['哼哼哼～', '（满足地打滚）', '幸福'],
+        idle: ['这下面有东西', '哼？', '好想睡午觉', '闻闻闻', '今天吃什么'],
+        alone: ['哼…', '我躺一会儿'],
+      },
+    },
+    capybara: {
+      name: '卡皮巴拉', coats: ['brown', 'honey'], fav: 'treat_melon', favName: '西瓜', favIcon: 'melon',
+      chrono: chill, roam: 0.2, speed: 22, run: 70, pitch: 260,
+      bias: { extro: 0.15, playful: -0.3, lazy: 0.45, timid: -0.35, curious: -0.2, clingy: 0.05, greedy: 0.2, neat: 0.2 },
+      trick: '顶柚子', desc: '情绪稳定，几乎不动，所有动物都喜欢靠着它', sig: '几乎不乱跑 · 大家都爱靠着它 · 会顶着柚子泡在水碗里',
+      lines: {
+        greet: ['…嗯，你来了', '（慢慢转过头）', '…'],
+        hungry: ['有点饿…不急', '…吃的', '嗯…'],
+        happy: ['…舒服', '（眯眼）', '嗯。'],
+        idle: ['都行', '…', '没关系的', '慢慢来', '今天也很平静'],
+        alone: ['…', '嗯。'],
+      },
+    },
+    hedgehog: {
+      name: '刺猬', coats: ['brown', 'white'], fav: 'treat_worm', favName: '小虫子', favIcon: 'worm',
+      chrono: noctur, roam: 0.8, speed: 30, run: 110, pitch: 1100,
+      bias: { extro: -0.3, playful: 0.05, lazy: 0.1, timid: 0.4, curious: 0.25, clingy: -0.05, greedy: 0.2, neat: 0.1 },
+      trick: '刺球', desc: '夜里出来散步，被吓到会缩成一个刺球', sig: '昼伏夜出 · 被戳或被吓会缩成刺球 · 背上会扎着落叶',
+      lines: {
+        greet: ['（从刺里探出头）', '嗯…你好', '噗噗'],
+        hungry: ['想吃虫子', '噗…饿', '（嗅嗅）'],
+        happy: ['噗噗～', '（刺软下来了）', '嘿'],
+        idle: ['夜里才是我的时间', '噗？', '那边有声音', '我的刺很软的', '嗅嗅'],
+        alone: ['（缩起来）', '别碰我…一会儿就好'],
+      },
+    },
+  });
+  PP.SPECIES_LIST = ['cat', 'dog', 'rabbit', 'hamster', 'penguin', 'fox', 'frog', 'chick', 'duck', 'pig', 'capybara', 'hedgehog'];
 
   PP.TRAITS = [
     ['extro', '社牛', '社恐'],
@@ -203,5 +286,6 @@
     overheat: { name: '键盘冒烟', hint: '打字打得飞快' },
     roll: { name: '卷纸大师', hint: '滚一滚页面' },
     konami: { name: '↑↑↓↓←→←→BA', hint: '古老的咒语' },
+    summon: { name: '敲敲门', hint: '在屏幕最底边快速地来回晃鼠标' },
   };
 })();
