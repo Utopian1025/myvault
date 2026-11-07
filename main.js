@@ -13,6 +13,7 @@ if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals');
   app.disableHardwareAcceleration();
 }
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required'); // 环境声音不用先点一下才响
 app.setName('PixelNest'); // 存档目录：%APPDATA%\PixelNest（卸载时一并删除）
 if (process.platform === 'win32') app.setAppUserModelId('com.pixelnest.desktop');
 if (!app.requestSingleInstanceLock()) { app.quit(); }
@@ -103,6 +104,8 @@ app.whenReady().then(() => {
       let lastKey = 0;
       uIOhook.on('keydown', () => { const t = Date.now(); if (t - lastKey > 30) { lastKey = t; send('key', 1); } });
       uIOhook.on('wheel', (e) => send('wheel', (e.rotation || 1) * 40));
+      // 全局鼠标按下：只用来“点别处时收起菜单”，不记录位置
+      uIOhook.on('mousedown', () => send('gdown', 1));
       uIOhook.start();
     } catch (e) { console.warn('uIOhook start failed', e); uIOhook = null; }
   }

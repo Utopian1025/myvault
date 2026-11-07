@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('petAPI', {
   setTrayMenu: (json) => ipcRenderer.send('tray-menu', json),
   hideWindow: () => ipcRenderer.send('hide-window'),
   onHotkey: (fn) => ipcRenderer.on('hotkey', (_e, k) => fn(k)),
+  onGlobalDown: (fn) => ipcRenderer.on('gdown', () => fn()),
 });
