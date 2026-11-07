@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com">
   <title>像素小窝</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -18,12 +18,15 @@
   <script src="js/actions.js"></script>
   <script src="js/features.js"></script>
   <script src="js/door.js"></script>
-  <script src="js/bg.js"></script>
+  <script src="js/env.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/ambient.js"></script>
   <script src="js/events.js"></script>
   <script src="js/save.js"></script>
   <script src="js/interact.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/menu.js"></script>
+  <script src="js/modes.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
