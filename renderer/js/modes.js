@@ -233,7 +233,7 @@
   function cityPanel() {
     const s = S();
     const body = $(`<div class="city"><p class="lead">场景里的天气、日出日落会跟着这个城市实时变化（数据来自 Open-Meteo，免费、不需要账号，只发送城市坐标）。</p>
-      <div class="row"><input class="q" placeholder="城市名，比如：杭州" value="${esc(s.city ? s.city.name : '')}" style="flex:1"><button class="small" data-a="s">搜索</button></div>
+      <div class="row"><input class="q" placeholder="城市名，比如：泰安、山东泰安、杭州西湖区" value="${esc(s.city ? s.city.name : '')}" style="flex:1"><button class="small" data-a="s">搜索</button></div>
       <div class="res"></div>
       <p class="now muted">现在：${esc(PP.env.label())}</p>
       <div class="row"><button class="small" data-a="clear" ${s.city ? '' : 'disabled'}>不用实时天气（按季节模拟）</button></div></div>`);
@@ -242,7 +242,7 @@
       res.innerHTML = '<p class="muted">搜索中…</p>';
       try {
         const list = await PP.env.searchCity(q.value.trim());
-        res.innerHTML = list.length ? '' : '<p class="muted">没找到，换个写法试试（中文或拼音都行）</p>';
+        res.innerHTML = list.length ? '' : '<p class="muted">没找到，试试只写城市名，比如「泰安」</p>';
         list.forEach((c) => { const b = $(`<button class="small city-pick">${esc(c.name)} <span class="muted">${esc(c.area)}</span></button>`); b.onclick = async () => { s.city = c; s.weather = 'auto'; PP.save.soon(); res.innerHTML = '<p class="muted">获取天气…</p>'; await PP.env.refresh(); body.querySelector('.now').textContent = '现在：' + PP.env.label(); res.innerHTML = `<p>已设为 <b>${esc(c.name)}</b>${PP.env.liveError ? '（' + esc(PP.env.liveError) + '）' : ''}</p>`; PP.syncTray && PP.syncTray(true); }; res.appendChild(b); });
       } catch (e) { res.innerHTML = '<p class="muted">网络不通，稍后再试</p>'; }
     };

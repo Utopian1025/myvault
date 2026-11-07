@@ -93,10 +93,41 @@
       liveErr = '';
     } catch (e) { liveErr = '天气获取失败（网络不通？）'; console.warn('weather', e); }
   }
+  // 先查内置城市表（中文地名准、离线也能用），再用 Open-Meteo 补充县 / 区 / 国外城市
+  const RANK = { PPLC: 0, PPLA: 1, PPLA2: 2, PPLA3: 3, PPLA4: 4 };
   async function searchCity(q) {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=zh&format=json`;
-    const j = await fetch(url).then((r) => r.json());
-    return (j.results || []).map((r) => ({ name: r.name, area: [r.admin1, r.country].filter(Boolean).join(' · '), lat: +r.latitude.toFixed(3), lon: +r.longitude.toFixed(3) }));
+    q = (q || '').trim();
+    const loc = PP.cities ? PP.cities.local(q) : { list: [], rest: q, prov: null };
+    let out = loc.list.slice(0, 24);
+    const base = loc.sub || loc.rest || '';
+    const name = base.replace(/(市|县|区|镇|乡)$/, '');
+    const needOnline = name && (out.length < 3 || !loc.exact || !!loc.sub || /[县区镇乡]$/.test(loc.rest));
+    if (needOnline) {
+      const tries = [...new Set([base, name, loc.sub ? '' : q].filter(Boolean))];
+      let online = [];
+      for (const t of tries) {
+        try {
+          const j = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(t)}&count=20&language=zh&format=json`).then((r) => r.json());
+          online = online.concat(j.results || []);
+        } catch (e) { if (!out.length) throw e; }
+        if (online.length >= 5) break;
+      }
+      const provKey = loc.prov && loc.prov.slice(0, 2);
+      online = online
+        .filter((r) => !provKey || (r.admin1 || '').includes(provKey))
+        .filter((r) => !out.some((c) => Math.abs(c.lat - r.latitude) < 0.15 && Math.abs(c.lon - r.longitude) < 0.15))
+        .sort((a, b) => (RANK[a.feature_code] ?? 9) - (RANK[b.feature_code] ?? 9) || (b.population || 0) - (a.population || 0));
+      const seen = new Set();
+      for (const r of online) {
+        const k = r.name + '|' + (r.admin1 || '') + '|' + (r.admin2 || '');
+        if (seen.has(k)) continue; seen.add(k);
+        out.push({ name: r.name, area: [r.admin2 !== r.name ? r.admin2 : '', r.admin1, r.country].filter(Boolean).join(' · '), lat: +r.latitude.toFixed(3), lon: +r.longitude.toFixed(3) });
+        if (out.length >= 16) break;
+      }
+    }
+    // 写了省但具体地方没找到：把这个省的城市列出来，选最近的就行
+    if (!out.length && loc.all && loc.all.length) out = loc.all.map((c) => ({ ...c, area: c.area + ' · 选个离你近的' }));
+    return out;
   }
   // 没设城市：按季节“模拟”天气，每半天换一次，同一时段每次打开都一样
   function simWeather(d) {
