@@ -98,7 +98,7 @@ jobs:
           git commit -m "发布 v$V" || echo "没有变化"
           git push origin HEAD:main
           # 让 jsDelivr 马上拿到新的版本信息
-          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/version.json" || true
-          sleep 5
+          # jsDelivr 有时要过一会儿才发现新提交，多刷几次
+          for i in 1 2 3 4; do sleep 20; curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/version.json" || true; done
           for p in release/parts/*; do n=$(basename "$p"); done
           echo "完成：v$V"
