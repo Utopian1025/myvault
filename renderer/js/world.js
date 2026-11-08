@@ -14,7 +14,8 @@
     mouse: { x: -999, y: -999, vx: 0, vy: 0, down: false, moved: 0, lastMove: 0, still: 0, onScreen: false },
     user: { lastActive: Date.now(), activeSince: Date.now(), typing: false, typingSince: 0, lastKey: 0, away: false, awayFrom: 0 },
     save: null, // 持久化数据（见 save.js）
-    get S() { return (G.save && G.save.settings.size) || 2; },
+    get S() { const z = (G.save && G.save.settings.size) || 2; return G.bar ? Math.max(1, Math.min(z, Math.round(((G.bar.h - 4) / 24) * 2) / 2)) : z; },
+    bar: null, // 任务栏视图时：{ h: 任务栏高度 }
   });
 
   // ---------- 物品 ----------

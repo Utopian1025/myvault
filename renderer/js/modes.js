@@ -11,6 +11,7 @@
   // ---------- 显示模式 ----------
   PP.setMode = function (m, quiet) {
     const s = S(), old = s.mode;
+    if (m === 'bar') { s.taskbar = true; if (old === 'mini') { applyBar(); drawOrb(); placeOrb(); PP.save.soon(); return; } m = 'mini'; }
     if (!MODE_NAME[m] || old === m) return;
     if (m === 'mini') {
       // 主角：你指定的那只；没指定就挑一只醒着、在外面的
@@ -36,13 +37,46 @@
       }
       PP.eco.onView(PP.scene.view());
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '小场景', mini: '极简：只留主角在右下角' }[m]);
-    drawOrb(); placeOrb(); setFullFlag(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '小场景', mini: s.taskbar ? '任务栏：主角住进任务栏里（停在它身上一会儿才能点它，其他时候点击都给任务栏）' : '极简：只留主角在右下角' }[m]);
+    drawOrb(); placeOrb(); setFullFlag(); applyBar(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
   };
-  function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); }
+  function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); applyOnTop(); }
+  // 置顶：极简 / 全屏时在最前面；小场景默认不置顶（你点别的窗口，那个窗口就会盖到场景上面），可以在地图的“设置”里改
+  let onTopNow = null;
+  function applyOnTop() { if (!G.save || !api || !api.setOnTop) return; const s = S(), v = s.mode !== 'band' || !!s.bandOnTop; if (v !== onTopNow) { onTopNow = v; api.setOnTop(v); } }
+  PP.applyOnTop = applyOnTop;
+  setInterval(applyOnTop, 1500);
   PP.exitFull = () => { if (S().mode === 'full') PP.setMode('band'); };
   // 极简模式里，主角只在右下角这一小块活动（不跑到你干活的地方去）
-  PP.miniZone = () => [Math.max(20, G.W - 300 * Math.max(1, G.S) / 2), G.W - 70];
+  PP.miniZone = () => G.bar ? barZone() : [Math.max(20, G.W - 300 * Math.max(1, G.S) / 2), G.W - 70];
+  // 任务栏视图：动物只在任务栏一侧的空白处活动（默认左边，Win11 图标在中间、托盘在右边）
+  function barZone() { return S().barSide === 'right' ? [G.W * 0.6, G.W * 0.8] : [G.W * 0.012 + 20, G.W * 0.3]; }
+  PP.barZone = barZone;
+  // 进 / 出任务栏视图：窗口要盖住任务栏那一条
+  let barBusy = false;
+  async function applyBar() {
+    const want = S().mode === 'mini' && !!S().taskbar;
+    if (want === !!G.bar || barBusy || !api || !api.setBarMode) { if (want && !api) PP.ui.toast('任务栏视图只在桌面版里有'); return; }
+    barBusy = true;
+    const info = await api.setBarMode(want);
+    barBusy = false;
+    if (want && !info) { S().taskbar = false; PP.ui.toast('你的任务栏不在屏幕底部（或者设成了自动隐藏），任务栏视图用不了'); }
+    G.bar = want && info ? { h: info.h } : null;
+    setTimeout(() => { window.dispatchEvent(new Event('resize')); for (const p of G.pets) { p.y = G.ground; const [a, b] = PP.miniZone(); p.x = U.clamp(p.x, a, b); } placeOrb(); }, 120);
+  }
+  PP.applyBar = applyBar;
+  setInterval(applyBar, 2000);
+  // 任务栏里的小花园：一溜草叶和小花，只在动物活动的那一段
+  PP.barDecor = (ctx) => {
+    const [a, b] = barZone(), u = Math.max(1, Math.round(G.S)), y = G.H;
+    for (let x = Math.round(a - 14); x < b + 14; x += u * 2) {
+      const n = Math.sin(x * 12.9898) * 43758.5453, r = n - Math.floor(n);
+      const edge = Math.min(1, Math.min(x - (a - 14), b + 14 - x) / 30);
+      const h = Math.round((1 + r * 3) * edge) * u; if (h <= 0) continue;
+      ctx.fillStyle = r < 0.5 ? 'rgba(106,170,88,.85)' : 'rgba(140,198,104,.85)'; ctx.fillRect(x, y - h, u, h);
+      if (r > 0.93) { ctx.fillStyle = ['#f2a6c2', '#ffd36a', '#a8c8ff'][Math.floor(r * 1000) % 3]; ctx.fillRect(x - u, y - h - u * 2, u * 3, u * 2); ctx.fillStyle = '#fff6d8'; ctx.fillRect(x, y - h - u, u, u); }
+    }
+  };
   PP.toggleMini = () => PP.setMode(S().mode === 'mini' ? (S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band') : 'mini');
   PP.showItems = () => true;
 
@@ -86,6 +120,7 @@
     // 爪子菜单按钮固定在切换按钮的右边，所以切换按钮最多放到离右边 70 像素
     const x = o ? U.clamp(o.x * G.W, 4, G.W - 106) : G.W - 114;
     const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
+    if (G.bar) { const [, zb] = barZone(); const bx = Math.round(zb + 16), by = Math.round(G.H - G.bar.h / 2 - 15); orb.style.left = bx + 'px'; orb.style.top = by + 'px'; if (scBtn) { scBtn.style.left = bx + 36 + 'px'; scBtn.style.top = by + 'px'; scBtn.classList.add('mini'); drawSceneBtn(); } const dk = document.querySelector('.dock'); if (dk) { dk.style.left = bx + 72 + 'px'; dk.style.top = by + 'px'; dk.style.bottom = 'auto'; dk.style.right = 'auto'; } return; }
     orb.style.left = x + 'px'; orb.style.top = y + 'px';
     if (scBtn) { scBtn.style.left = x + 36 + 'px'; scBtn.style.top = y + 'px'; scBtn.classList.toggle('mini', S().mode === 'mini'); drawSceneBtn(); }
     const dock = document.querySelector('.dock');
@@ -114,10 +149,15 @@
   function showPop() {
     hidePop();
     const s = S(), big = s.mode === 'mini' ? (s.lastMode && s.lastMode !== 'mini' ? s.lastMode : 'band') : s.mode;
-    pop = $(`<div class="orb-pop view-pop"><span class="muted">点按钮：极简 ↔ ${MODE_NAME[big]}</span><div class="modes">${PP.MODES.filter(([k]) => k !== 'mini').map(([k, n, d]) => `<button class="small ${big === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div></div>`);
+    const small = s.taskbar ? '任务栏' : '极简';
+    pop = $(`<div class="orb-pop view-pop"><span class="muted">点按钮：${small} ↔ ${MODE_NAME[big]}</span><div class="modes">${PP.MODES.filter(([k]) => k !== 'mini' && k !== 'bar').map(([k, n, d]) => `<button class="small ${big === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div>
+      <span class="muted">收起时</span><div class="modes"><button class="small ${!s.taskbar ? 'on' : ''}" data-small="0" title="主角待在屏幕右下角、任务栏上方">极简</button><button class="small ${s.taskbar ? 'on' : ''}" data-small="1" title="主角住进任务栏里：不挡图标，点击都穿透给任务栏">任务栏</button></div>
+      ${s.taskbar ? `<span class="muted">住在任务栏的</span><div class="modes"><button class="small ${s.barSide !== 'right' ? 'on' : ''}" data-side="left">左边</button><button class="small ${s.barSide === 'right' ? 'on' : ''}" data-side="right">右边</button></div>` : ''}</div>`);
     openPop(orb);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.small != null) { S().taskbar = b.dataset.small === '1'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else { applyBar(); drawOrb(); placeOrb(); } hidePop(); showPop(); return; }
+      if (b.dataset.side) { S().barSide = b.dataset.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } placeOrb(); hidePop(); showPop(); return; }
       if (S().mode === 'mini') { S().lastMode = b.dataset.m; PP.save.soon(); }
       PP.setMode(b.dataset.m); hidePop();
     });
@@ -181,26 +221,116 @@
     const c = scBtn.querySelector('canvas').getContext('2d'); c.clearRect(0, 0, 10, 10);
     c.drawImage(icon((PP.SCENE_ICON || {})[k]), 0, 0);
   }
+  // ---------- 地图：一张手绘感的像素世界地图，每个地方插一面小旗，点一下就过去 ----------
+  // 位置（地图上的比例坐标）：北边冰原、南边南极，中间一块大陆，东边海岸和珊瑚礁，右上角云上是「我的」
+  // 位置按真实的地理来排：最北是北极冰原；大陆北半部是温带（高山 + 山里的洞穴、湖泊、森林、草原、农场）；
+  // 往南是副热带的沙漠（东边，靠近回归线）、赤道一带的热带雨林（西边，多雨）和稀树草原（中间）；东岸是海岸，外海是热带的珊瑚礁；最南边隔着大海是南极
+  const MAP_POS = { snow: [0.5, 0.07], mountain: [0.26, 0.24], cave: [0.33, 0.32], lake: [0.5, 0.27], forest: [0.15, 0.4], meadow: [0.36, 0.43], farm: [0.52, 0.41],
+    desert: [0.64, 0.5], jungle: [0.22, 0.63], savanna: [0.44, 0.62], beach: [0.77, 0.6], sea: [0.88, 0.72], antarctic: [0.5, 0.93],
+    skyisle: [0.79, 0.11], academy: [0.92, 0.2], undergrove: [0.78, 0.27] };
+  const MAP_W = 300, MAP_H = 190;
+  let mapCache = null;
+  function drawWorldMap() {
+    if (mapCache) return mapCache;
+    const A = PP.ART, cv = document.createElement('canvas'); cv.width = MAP_W; cv.height = MAP_H;
+    const c = cv.getContext('2d'), img = c.createImageData(MAP_W, MAP_H), d = new Uint32Array(img.data.buffer);
+    const hex = (h) => { const n = parseInt(h.slice(1), 16); return (255 << 24 | (n & 255) << 16 | ((n >> 8) & 255) << 8 | (n >> 16)) >>> 0; };
+    const LAND = ['forest', 'jungle', 'meadow', 'farm', 'savanna', 'desert', 'mountain', 'cave', 'lake'];
+    const COL = { forest: ['#5e9a5a', '#3f7a48', '#7cbc6a'], jungle: ['#3f8a52', '#2c6a40', '#5aa868'], meadow: ['#9ad07a', '#82bc66', '#f0b0c8'], farm: ['#c8d87a', '#e0c878', '#a8c86a'], savanna: ['#d8cc7a', '#b8a85a', '#e8dc98'], desert: ['#ecd49a', '#d8b878', '#f6e4b8'], mountain: ['#b4a8c4', '#a89cb8', '#c4b8d2'], cave: ['#b4a8c4', '#a89cb8', '#c4b8d2'], lake: ['#9ad07a', '#82bc66', '#f0b0c8'] };
+    const land = (x, y) => { const nx = (x / MAP_W - 0.46) / 0.37, ny = (y / MAP_H - 0.47) / 0.33, n = A.noise(x / 18, y / 18, 41) * 0.5 + A.noise(x / 7, y / 7, 42) * 0.18; return nx * nx + ny * ny < 0.78 + n; };
+    const ice = (x, y) => y < MAP_H * (0.1 + A.noise(x / 14, 1, 43) * 0.06) || y > MAP_H * (0.885 - A.noise(x / 14, 2, 44) * 0.04);
+    const sky = (x, y) => { const dx = (x / MAP_W - 0.85) / 0.16, dy = (y / MAP_H - 0.19) / 0.17; return dx * dx + dy * dy < 1 + A.noise(x / 6, y / 6, 45) * 0.35; };
+    const near = (x, y) => { let best = null, bd = 1e9; for (const k of LAND) { const [px, py] = MAP_POS[k]; const dd = (x - px * MAP_W) ** 2 + (y - py * MAP_H) ** 2 + A.noise(x / 9, y / 9, 46) * 900; if (dd < bd) { bd = dd; best = k; } } return best; };
+    const T = new Array(MAP_W * MAP_H);
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) T[y * MAP_W + x] = sky(x, y) ? 'sky' : ice(x, y) ? 'ice' : land(x, y) ? near(x, y) : 'sea';
+    // 湖：大陆北边一块水
+    const [lx, ly] = MAP_POS.lake;
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) { const dx = (x - lx * MAP_W) / 13, dy = (y - ly * MAP_H) / 7; if (dx * dx + dy * dy < 1 + A.noise(x / 5, y / 5, 47) * 0.4 && T[y * MAP_W + x] !== 'sky') T[y * MAP_W + x] = 'lakew'; }
+    // 一条河：从高山流下来，经过湖，弯弯曲曲往东流进海
+    { const pts = [MAP_POS.mountain, [0.4, 0.3], MAP_POS.lake, [0.6, 0.33], [0.7, 0.42], [0.84, 0.45]];
+      for (let i = 0; i < pts.length - 1; i++) { const [ax, ay] = pts[i], [bx, by] = pts[i + 1]; for (let t = 0; t <= 1; t += 0.004) { const x = Math.round((ax + (bx - ax) * t) * MAP_W + Math.sin(t * 9 + i) * 2), y = Math.round((ay + (by - ay) * t) * MAP_H + Math.cos(t * 7 + i) * 1.5); for (const [dx, dy] of [[0, 0], [1, 0]]) { const k = (y + dy) * MAP_W + x + dx; if (T[k] && T[k] !== 'sky' && T[k] !== 'ice') T[k] = 'lakew'; } } } }
+    const at = (x, y) => (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H ? 'sea' : T[y * MAP_W + x]);
+    for (let y = 0; y < MAP_H; y++) for (let x = 0; x < MAP_W; x++) {
+      const t = T[y * MAP_W + x], h = A.hash(x, y, 48);
+      let col;
+      if (t === 'sea' || t === 'lakew') {
+        const coast = [at(x - 2, y), at(x + 2, y), at(x, y - 2), at(x, y + 2)].some((v) => v !== 'sea' && v !== 'lakew' && v !== 'sky');
+        col = coast ? '#b8e2ea' : t === 'lakew' ? '#7cc0e0' : A.noise(x / 12, y / 12, 49) > 0.6 ? '#7ab8d4' : '#8cc6dc';
+        if (!coast && (x + y * 3) % 23 === 0 && h < 0.5) col = '#d8f0f6';
+      } else if (t === 'ice') col = h < 0.06 ? '#c8dcec' : A.noise(x / 6, y / 6, 50) > 0.65 ? '#e2eef8' : '#f4f9fd';
+      else if (t === 'sky') { const e = !sky(x - 1, y) || !sky(x + 1, y) || !sky(x, y - 1) || !sky(x, y + 1); col = e ? '#c8b8e4' : A.noise(x / 8, y / 8, 51) > 0.6 ? '#f6f0fc' : '#ebe2f6'; }
+      else {
+        const P = COL[t]; col = P[0];
+        if (t === 'farm') col = P[(Math.floor(x / 7) + Math.floor(y / 5)) % 3]; else if (h < 0.12) col = P[1]; else if (h > 0.96) col = P[2];
+        if (t === 'desert' && Math.sin(x / 4 + y / 2.5) > 0.86) col = P[1];
+        const shore = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)].some((v) => v === 'sea' || v === 'lakew');
+        if (shore) col = '#f0dca8';
+      }
+      d[y * MAP_W + x] = hex(col);
+    }
+    c.putImageData(img, 0, 0);
+    // 地形的小符号：山（雪顶）、树、仙人掌、合欢树、田埂
+    const px = (x, y, col) => { c.fillStyle = col; c.fillRect(Math.round(x), Math.round(y), 1, 1); };
+    for (let i = 0; i < 400; i++) {
+      const x = Math.floor(A.hash(i, 1, 52) * MAP_W), y = Math.floor(A.hash(i, 2, 52) * MAP_H), t = T[y * MAP_W + x];
+      if ((t === 'mountain' || t === 'cave') && i % 3 === 0) { for (let k = 0; k < 4; k++) for (let j = -k; j <= k; j++) px(x + j, y + k, k < 2 ? '#f6f4fb' : j < 0 ? '#b8acc8' : '#8a7ea0'); }
+      else if (t === 'forest') { px(x, y, '#2e6a3c'); px(x - 1, y + 1, '#3f7a48'); px(x, y + 1, '#3f7a48'); px(x + 1, y + 1, '#2e6a3c'); px(x, y - 1, '#5e9a5a'); px(x, y + 2, '#6a4a32'); }
+      else if (t === 'jungle') { px(x, y, '#2c6a40'); px(x + 1, y, '#5aa868'); px(x - 1, y, '#2c6a40'); px(x, y + 1, '#6a4a32'); }
+      else if (t === 'savanna' && i % 3 === 0) { px(x - 1, y, '#6a9a4a'); px(x, y, '#6a9a4a'); px(x + 1, y, '#6a9a4a'); px(x, y + 1, '#7a5a3a'); }
+      else if (t === 'desert' && i % 4 === 0) { px(x, y, '#5aa04e'); px(x, y + 1, '#5aa04e'); px(x - 1, y, '#5aa04e'); }
+      else if (t === 'meadow' && i % 2 === 0) px(x, y, ['#f0b0c8', '#fff4b0', '#ffffff'][i % 3]);
+      else if (t === 'ice' && i % 5 === 0) { px(x, y, '#c8dcec'); px(x + 1, y, '#c8dcec'); }
+    }
+    // 罗盘和图框
+    c.fillStyle = '#6a5a78'; c.fillRect(10, MAP_H - 22, 1, 13); c.fillRect(4, MAP_H - 16, 13, 1); c.fillStyle = '#d86a6a'; c.fillRect(10, MAP_H - 22, 1, 5);
+    mapCache = cv; return cv;
+  }
+  let popTab = 'map';
+  const SRC_NAME = { scene: '场景本身', weather: '天气', creature: '小动物', indoor: '屋里' };
   function showScenePop() {
     hidePop();
     const s = S(), cur = PP.scene.active() ? PP.scene.view() : null, c = PP.wild ? PP.wild.census() : {};
-    // 地图：每个地方一张小全景，直接看到那边的样子，点一下就过去
-    const groups = (PP.REGIONS || []).map((r) => `<div class="rg"><div class="rn"><i data-ico="${r.subs[0][0]}"></i>${esc(r.name)}</div><div class="tiles">${r.subs.map(([k, n]) => { const t = PP.wild ? PP.wild.censusText(k, c[k]) : ''; return `<button class="tile ${cur === k ? 'on' : ''}" data-s="${k}" title="${esc(n + '：' + (t || '现在没人'))}"><i data-th="${k}"></i><span class="tn"><i data-ico="${k}"></i>${esc(n)}</span>${PP.NEST && PP.NEST[k] ? '<span class="tnest">在' + esc(PP.SCENES[PP.NEST[k]].name) + '里</span>' : ''}</button>`; }).join('')}</div></div>`).join('');
-    pop = $(`<div class="orb-pop scene-pop"><div class="maphead"><b>地图</b><span class="muted">点一下就过去 · 点场景按钮本身：${s.sceneHidden ? '显示场景' : '藏起场景'}</span></div><div class="regions">${groups}</div>
-      <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
-      <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
-      <div class="env amb-now"></div>
-      <div class="sound"><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
-      <div class="env">${esc(PP.env.label())}</div></div>`);
+    const regionOf = {}; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k]) => (regionOf[k] = r)));
+    const all = []; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k, n]) => all.push([k, n, r])));
+    const pins = all.map(([k, n]) => { const p = MAP_POS[k] || [0.5, 0.5], cnt = c[k] ? Object.values(c[k]).reduce((a, b) => a + (b.n || 0), 0) : 0; return `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="${k}"></i><span>${esc(n)}</span>${cnt ? `<em>${cnt}</em>` : ''}</button>`; }).join('');
+    const tabs = [['map', '地图'], ['sound', '声音'], ['set', '设置']].map(([k, n]) => `<button class="tab ${popTab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('');
+    let body = '';
+    if (popTab === 'map') body = `<div class="mapwrap"><canvas class="worldmap" width="${MAP_W}" height="${MAP_H}"></canvas><div class="mine-tag">我的</div>${pins}<div class="pv"></div></div><div class="hint">点旗子就过去 · 鼠标停在旗子上先看一眼 · 点场景按钮本身：${s.sceneHidden ? '显示场景' : '藏起场景'}</div>`;
+    else if (popTab === 'sound') {
+      const off = s.ambOff || {};
+      body = `<div class="sndtop"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
+        <div class="srcs">${(PP.ambient && PP.ambient.SOURCES || []).map(([k, n, tip]) => `<div class="src" data-src="${k}"><button class="small ${off[k] ? '' : 'on'}" data-off="${k}">${off[k] ? '关' : '开'}</button><div><b>${n}</b><span class="now"></span><small>${esc(tip)}</small></div></div>`).join('')}</div>`;
+    } else {
+      body = `<div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
+        <div class="sound"><button class="small ${s.bandOnTop ? 'on' : ''}" data-a="top">${s.bandOnTop ? '小场景：总在最前面' : '小场景：不挡其他窗口'}</button><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
+        <div class="env">${esc(PP.env.label())}</div>`;
+    }
+    pop = $(`<div class="orb-pop scene-pop map2"><div class="maphead"><b>${cur && PP.SCENES[cur] ? esc(PP.SCENES[cur].name) : '地图'}</b><div class="tabs">${tabs}</div></div>${body}</div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
-    pop.querySelectorAll('i[data-th]').forEach((el) => { try { const cv = PP.scene.thumb(el.dataset.th, 156, 46); const im = document.createElement('canvas'); im.width = 156; im.height = 46; im.className = 'thumb'; im.getContext('2d').drawImage(cv, 0, 0); el.replaceWith(im); } catch (err) { console.warn('thumb', err); el.remove(); } });
-    { const el = pop.querySelector('.amb-now'), upd = () => { const L = PP.ambient && PP.ambient.layers ? PP.ambient.layers() : []; el.textContent = !s.ambient ? '' : '正在听：' + (L.length ? L.join(' + ') : '很安静'); }; upd(); const iv = setInterval(() => { if (!el.isConnected) return clearInterval(iv); upd(); }, 1000); }
+    const cvs = pop.querySelector('canvas.worldmap'); if (cvs) cvs.getContext('2d').drawImage(drawWorldMap(), 0, 0);
+    // 鼠标停在旗子上：小预览（那边现在的样子 + 谁在那儿）
+    const pv = pop.querySelector('.pv');
+    if (pv) pop.querySelectorAll('.pin').forEach((b) => {
+      b.addEventListener('mouseenter', () => {
+        const k = b.dataset.s; pv.innerHTML = '';
+        try { const t = PP.scene.thumb(k, 156, 46), im = document.createElement('canvas'); im.width = 156; im.height = 46; im.getContext('2d').drawImage(t, 0, 0); pv.appendChild(im); } catch (err) {}
+        const r = regionOf[k], nm = PP.SCENES[k] ? PP.SCENES[k].name : k, who = PP.wild ? PP.wild.censusText(k, c[k]) : '';
+        pv.insertAdjacentHTML('beforeend', `<div><b>${esc((r && r.subs.length > 1 ? r.name + ' · ' : '') + nm)}</b>${PP.NEST && PP.NEST[k] ? '<small>（在' + esc(PP.SCENES[PP.NEST[k]].name) + '里）</small>' : ''}<br><span>${esc(who || '现在没人')}</span></div>`);
+        pv.style.left = b.style.left; pv.style.top = b.style.top; pv.classList.add('show'); pv.classList.toggle('up', parseFloat(b.style.top) > 55); pv.classList.toggle('left', parseFloat(b.style.left) > 60);
+      });
+      b.addEventListener('mouseleave', () => pv.classList.remove('show'));
+    });
+    // 声音：每个来源现在在响什么
+    if (popTab === 'sound') { const upd = () => { const L = PP.ambient && PP.ambient.layers ? PP.ambient.layers() : []; pop && pop.querySelectorAll('.src').forEach((el) => { const k = el.dataset.src, list = L.filter((x) => x.src === k).map((x) => x.name); el.querySelector('.now').textContent = !s.ambient ? '' : (s.ambOff || {})[k] ? '：已关掉' : list.length ? '：' + list.join('、') : '：现在没有'; }); }; upd(); const iv = setInterval(() => { if (!pop || !pop.isConnected || popTab !== 'sound') return clearInterval(iv); upd(); }, 1000); }
     openPop(scBtn);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.tab) { popTab = b.dataset.tab; showScenePop(); return; }
       if (b.dataset.s) { S().sceneHidden = false; if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }
+      if (b.dataset.off) { const o = S().ambOff = S().ambOff || {}; o[b.dataset.off] = !o[b.dataset.off]; PP.save.soon(); showScenePop(); return; }
       if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showScenePop(); return; }
+      if (b.dataset.a === 'top') { S().bandOnTop = !S().bandOnTop; PP.save.soon(); applyOnTop(); showScenePop(); return; }
       if (b.dataset.a === 'info') { S().sceneInfo = !S().sceneInfo; PP.save.soon(); showScenePop(); return; }
       if (b.dataset.a === 'decor') { hidePop(); if (S().mode === 'mini') PP.setMode('band'); PP.scene.edit(true); return; }
       if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showScenePop(); return; }

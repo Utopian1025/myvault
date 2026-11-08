@@ -78,6 +78,7 @@
       surf: bed(B(), outBus, 'lowpass', 520, 0.6),                           // 海浪（音量由下面的浪头一波一波推）
       surfHiss: bed(P(), outBus, 'highpass', 1800, 0.5, 'lowpass', 6000),    // 浪退时的沙沙
     };
+    for (const k in beds) beds[k].src = SRC_OF[k] || 'scene';
     // 虫鸣：给音量加一个很快的颤动（像一大片知了 / 纺织娘）
     { const b = beds.insects, tg = ac.createGain(); tg.gain.value = 0.75; b.g.disconnect(); b.g.connect(tg).connect(outBus); const o = ac.createOscillator(); o.frequency.value = 23; const a = ac.createGain(); a.gain.value = 0.25; o.connect(a).connect(tg.gain); o.start(); b.trem = o; }
     // 洞穴回声：一段自己生成的衰减混响
@@ -86,7 +87,12 @@
       echo = ac.createConvolver(); echo.buffer = ir; echoBus = ac.createGain(); echoBus.gain.value = 0; echoBus.connect(echo).connect(outBus); }
     return true;
   }
-  const set = (b, v, tc = 1.6) => { b.lv = Math.max(0, v); b.g.gain.setTargetAtTime(b.lv, ac.currentTime, tc); };
+  // 每个声音属于哪个来源：天气 / 场景本身 / 小动物 / 室内（可以分别开关）
+  const SRC_OF = { rain: 'weather', rainBody: 'weather', wind: 'weather', snowHush: 'weather', fire: 'indoor', water: 'scene', leaves: 'scene', grass: 'scene', stream: 'scene', streamLow: 'scene', under: 'scene', roomTone: 'scene', sand: 'scene', whistle: 'scene', insects: 'creature', surf: 'scene', surfHiss: 'scene' };
+  const off = (src) => { const o = G.save && G.save.settings.ambOff; return !!(o && o[src]); };
+  const heard = {}; // 最近响过的点缀音：名字 → [来源, 时间]
+  const hear = (name, src) => { heard[name] = [src, performance.now()]; };
+  const set = (b, v, tc = 1.6) => { b.lv = Math.max(0, v); b.g.gain.setTargetAtTime(off(b.src) ? 0 : b.lv, ac.currentTime, tc); };
 
   // ---------- 点缀音 ----------
   function tone(bus, f0, f1, dur, vol, type = 'sine', at = 0) {
@@ -102,25 +108,25 @@
     src.connect(f).connect(g).connect(bus); src.start(t, Math.random() * 4); src.stop(t + dur + 0.05);
   }
   // 几种不同的鸟叫，轻轻的
-  function bird() {
+  function bird() { if (off('creature')) return; hear('鸟叫', 'creature');
     const kind = Math.floor(Math.random() * 3), base = U.rand(2400, 3600);
     if (kind === 0) for (let i = 0; i < U.randi(2, 4); i++) tone(outBus, base, base * 1.3, 0.09, 0.018, 'sine', i * 0.13);
     else if (kind === 1) { tone(outBus, base * 1.2, base * 0.8, 0.22, 0.016); tone(outBus, base * 0.9, base * 1.1, 0.16, 0.014, 'sine', 0.28); }
     else for (let i = 0; i < 5; i++) tone(outBus, base * (1 + i * 0.05), base * (1.1 + i * 0.05), 0.05, 0.012, 'sine', i * 0.07);
   }
-  function owl() { tone(outBus, 390, 360, 0.35, 0.02); tone(outBus, 370, 340, 0.5, 0.018, 'sine', 0.55); }
-  function cricket() { const f = U.rand(4300, 4700); for (let i = 0; i < 3; i++) tone(outBus, f, f, 0.04, 0.005, 'sine', i * 0.07); }
-  function frog() { for (let i = 0; i < 2; i++) burst(outBus, brownBuf, 'bandpass', U.rand(380, 520), 6, 0.05, 0.12, i * 0.16); }
-  function drip() { tone(outBus, U.rand(900, 1300), U.rand(1500, 1900), 0.07, 0.012); }
-  function rainTick() { burst(outBus, pinkBuf, 'bandpass', U.rand(1800, 3200), 3, U.rand(0.008, 0.016), 0.04); }
-  function crackle() { burst(inBus, pinkBuf, 'bandpass', U.rand(900, 1700), 1.6, U.rand(0.012, 0.028), U.rand(0.02, 0.05)); }
-  function thunder(near) {
+  function owl() { if (off('creature')) return; hear('猫头鹰', 'creature'); tone(outBus, 390, 360, 0.35, 0.02); tone(outBus, 370, 340, 0.5, 0.018, 'sine', 0.55); }
+  function cricket() { if (off('creature')) return; hear('蟋蟀', 'creature'); const f = U.rand(4300, 4700); for (let i = 0; i < 3; i++) tone(outBus, f, f, 0.04, 0.005, 'sine', i * 0.07); }
+  function frog() { if (off('creature')) return; hear('蛙鸣', 'creature'); for (let i = 0; i < 2; i++) burst(outBus, brownBuf, 'bandpass', U.rand(380, 520), 6, 0.05, 0.12, i * 0.16); }
+  function drip() { if (off('scene')) return; hear('水滴', 'scene'); tone(outBus, U.rand(900, 1300), U.rand(1500, 1900), 0.07, 0.012); }
+  function rainTick() { if (off('weather')) return; hear('雨点', 'weather'); burst(outBus, pinkBuf, 'bandpass', U.rand(1800, 3200), 3, U.rand(0.008, 0.016), 0.04); }
+  function crackle() { if (off('indoor')) return; hear('柴火噼啪', 'indoor'); burst(inBus, pinkBuf, 'bandpass', U.rand(900, 1700), 1.6, U.rand(0.012, 0.028), U.rand(0.02, 0.05)); }
+  function thunder(near) { if (off('weather')) return; hear('雷声', 'weather');
     const at = near ? 0.05 : U.rand(0.4, 1.4);
     burst(outBus, brownBuf, 'lowpass', near ? 260 : 150, 0.7, near ? 0.32 : 0.2, U.rand(2.4, 3.6), at);
   }
   // 洞里的水滴：清脆一声 + 长长的回声
-  function caveDrip() { const f = U.rand(1100, 1900), t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.6, t + 0.05); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(g); g.connect(outBus); g.connect(echoBus); o.start(t); o.stop(t + 0.15); }
-  function batSqueak() { const f = U.rand(5200, 6800); for (let i = 0; i < U.randi(2, 4); i++) tone(echoBus, f, f * 0.8, 0.03, 0.006, 'sine', i * 0.05); }
+  function caveDrip() { if (off('scene')) return; hear('洞里滴水', 'scene'); const f = U.rand(1100, 1900), t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.6, t + 0.05); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.03, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12); o.connect(g); g.connect(outBus); g.connect(echoBus); o.start(t); o.stop(t + 0.15); }
+  function batSqueak() { if (off('creature')) return; hear('蝙蝠', 'creature'); const f = U.rand(5200, 6800); for (let i = 0; i < U.randi(2, 4); i++) tone(echoBus, f, f * 0.8, 0.03, 0.006, 'sine', i * 0.05); }
   // 一个浪头：慢慢涌上来、拍一下、再沙沙地退回去（每个浪的大小和间隔都不一样）
   function wave(big) {
     const t = ac.currentTime, up = U.rand(2.5, 4.5), hold = U.rand(0.3, 0.8), down = U.rand(3.5, 6.5), pk = (big ? 0.12 : 0.08) * U.rand(0.7, 1.15);
@@ -129,15 +135,15 @@
     return up + hold + down * U.rand(0.55, 0.95);
   }
   // 湖边：小小的水波拍岸
-  function lap() { burst(outBus, brownBuf, 'lowpass', U.rand(380, 600), 0.8, U.rand(0.02, 0.04), U.rand(0.5, 1.1)); }
-  function gullCall() { const f = U.rand(1500, 1900); tone(outBus, f, f * 0.7, 0.28, 0.012); tone(outBus, f * 0.95, f * 0.65, 0.22, 0.01, 'sine', 0.32); }
-  function cowbell() { const f = U.rand(560, 640); for (const [m, v] of [[1, 0.012], [2.7, 0.006], [5.4, 0.003]]) tone(outBus, f * m, f * m, 1.4, v, 'sine', 0); }
-  function hen() { for (let i = 0; i < U.randi(2, 4); i++) burst(outBus, pinkBuf, 'bandpass', U.rand(700, 900), 5, 0.02, 0.08, i * 0.14); }
-  function bubbles() { for (let i = 0; i < U.randi(2, 5); i++) { const f = U.rand(300, 700); tone(outBus, f, f * 2.2, 0.08, 0.01, 'sine', i * U.rand(0.08, 0.2)); } }
-  function woodpecker() { for (let i = 0; i < U.randi(6, 12); i++) burst(outBus, pinkBuf, 'bandpass', 1400, 4, 0.03, 0.025, i * 0.06); }
-  function parrotCall() { const f = U.rand(1800, 2600); tone(outBus, f, f * 1.4, 0.12, 0.012, 'triangle'); tone(outBus, f * 1.3, f * 0.9, 0.16, 0.01, 'triangle', 0.16); }
-  function iceCreak() { burst(outBus, brownBuf, 'bandpass', U.rand(160, 260), 8, 0.04, U.rand(0.6, 1.2)); }
-  function penguinCall() { const f = U.rand(500, 700); for (let i = 0; i < 3; i++) tone(outBus, f, f * 1.15, 0.14, 0.012, 'sawtooth', i * 0.18); }
+  function lap() { if (off('scene')) return; hear('水拍岸', 'scene'); burst(outBus, brownBuf, 'lowpass', U.rand(380, 600), 0.8, U.rand(0.02, 0.04), U.rand(0.5, 1.1)); }
+  function gullCall() { if (off('creature')) return; hear('海鸥', 'creature'); const f = U.rand(1500, 1900); tone(outBus, f, f * 0.7, 0.28, 0.012); tone(outBus, f * 0.95, f * 0.65, 0.22, 0.01, 'sine', 0.32); }
+  function cowbell() { if (off('creature')) return; hear('牛铃', 'creature'); const f = U.rand(560, 640); for (const [m, v] of [[1, 0.012], [2.7, 0.006], [5.4, 0.003]]) tone(outBus, f * m, f * m, 1.4, v, 'sine', 0); }
+  function hen() { if (off('creature')) return; hear('母鸡', 'creature'); for (let i = 0; i < U.randi(2, 4); i++) burst(outBus, pinkBuf, 'bandpass', U.rand(700, 900), 5, 0.02, 0.08, i * 0.14); }
+  function bubbles() { if (off('scene')) return; hear('水泡', 'scene'); for (let i = 0; i < U.randi(2, 5); i++) { const f = U.rand(300, 700); tone(outBus, f, f * 2.2, 0.08, 0.01, 'sine', i * U.rand(0.08, 0.2)); } }
+  function woodpecker() { if (off('creature')) return; hear('啄木鸟', 'creature'); for (let i = 0; i < U.randi(6, 12); i++) burst(outBus, pinkBuf, 'bandpass', 1400, 4, 0.03, 0.025, i * 0.06); }
+  function parrotCall() { if (off('creature')) return; hear('鹦鹉', 'creature'); const f = U.rand(1800, 2600); tone(outBus, f, f * 1.4, 0.12, 0.012, 'triangle'); tone(outBus, f * 1.3, f * 0.9, 0.16, 0.01, 'triangle', 0.16); }
+  function iceCreak() { if (off('scene')) return; hear('冰裂声', 'scene'); burst(outBus, brownBuf, 'bandpass', U.rand(160, 260), 8, 0.04, U.rand(0.6, 1.2)); }
+  function penguinCall() { if (off('creature')) return; hear('企鹅', 'creature'); const f = U.rand(500, 700); for (let i = 0; i < 3; i++) tone(outBus, f, f * 1.15, 0.14, 0.012, 'sawtooth', i * 0.18); }
   PP.ambientThunder = (near) => { if (ac && on()) thunder(near); };
 
   function on() {
@@ -145,7 +151,7 @@
     return !!(s && s.ambient && PP.scene && PP.scene.active() && !(PP.sleepTime && PP.sleepTime()));
   }
 
-  let last = 0, wasInside = null;
+  let last = 0, wasInside = null, echoOn = false, wavesOn = false;
   function tick() {
     if (!G.save) return;
     if (!on()) { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.6); return; }
@@ -203,10 +209,11 @@
     for (const k of ['leaves', 'grass', 'stream', 'streamLow', 'under', 'roomTone', 'sand', 'whistle', 'insects']) set(beds[k], (SC[k] || 0) * (k === 'leaves' || k === 'grass' || k === 'sand' || k === 'whistle' ? windK : 1) * (k === 'stream' || k === 'streamLow' ? (season === 'winter' && scene !== 'jungle' ? 0.3 : 1) : 1), 2.5);
     if (night && summerish && !cave && !sea && calm) set(beds.insects, Math.max(SC.insects || 0, 0.006), 3);
     beds.whistle.f.frequency.setTargetAtTime(600 + Math.sin(G.t * 0.07) * 260 + Math.sin(G.t * 0.19) * 90, ac.currentTime, 2);
-    if (echoBus) echoBus.gain.setTargetAtTime(cave ? 0.9 : 0, ac.currentTime, 0.8);
+    echoOn = cave && !off('scene'); if (echoBus) echoBus.gain.setTargetAtTime(echoOn ? 0.9 : 0, ac.currentTime, 0.8);
     // 海浪：海岸和南极冰架边一波一波地来
-    const waves = scene === 'beach' || scene === 'antarctic';
-    if (waves) { if (ac.currentTime > nextWave) nextWave = ac.currentTime + wave(F.wind >= 2 || F.storm); }
+    const waves = scene === 'beach' || scene === 'antarctic'; wavesOn = waves && !off('scene');
+    if (waves && !off('scene')) { if (ac.currentTime > nextWave) nextWave = ac.currentTime + wave(F.wind >= 2 || F.storm); }
+    else if (waves) { set(beds.surf, 0, 1.5); set(beds.surfHiss, 0, 1.5); nextWave = 0; }
     else { set(beds.surf, 0, 1.5); set(beds.surfHiss, 0, 1.5); nextWave = 0; }
     const now = performance.now(), dt = Math.min(1, (now - (last || now)) / 1000); last = now;
     const quietWx = F.rain || F.snow || F.storm;
@@ -222,7 +229,7 @@
     if (scene === 'lake' && season !== 'winter' && ac.currentTime > nextLap) { lap(); nextLap = ac.currentTime + U.rand(1.2, 3.5); }
     if ((scene === 'beach') && !night && calm && Math.random() < dt * 0.03) gullCall();
     if (scene === 'farm' && !night && calm && Math.random() < dt * 0.02) (Math.random() < 0.5 ? cowbell : hen)();
-    if (scene === 'academy' && Math.random() < dt * 0.006) { const f = 330; for (const [m, v] of [[1, 0.014], [2.4, 0.006], [3.9, 0.003]]) tone(outBus, f * m, f * m, 3, v, 'sine', 0); }
+    if (scene === 'academy' && !off('scene') && Math.random() < dt * 0.006) { hear('学院钟声', 'scene'); const f = 330; for (const [m, v] of [[1, 0.014], [2.4, 0.006], [3.9, 0.003]]) tone(outBus, f * m, f * m, 3, v, 'sine', 0); }
     if (sea && Math.random() < dt * 0.25) bubbles();
     if (scene === 'forest' && !night && green && calm && Math.random() < dt * 0.012) woodpecker();
     if (scene === 'jungle' && !night && calm && Math.random() < dt * 0.05) parrotCall();
@@ -232,13 +239,16 @@
   }
   setInterval(tick, 250);
   const BED_NAME = { rain: '雨声', rainBody: '雨落地', wind: '风', water: '湖水', snowHush: '落雪', fire: '炉火', leaves: '树叶沙沙', grass: '风吹草', stream: '溪水', streamLow: '溪水低音', under: '水下闷声', roomTone: '洞穴空气', sand: '风卷沙', whistle: '风哨', insects: '虫鸣', surf: '海浪', surfHiss: '浪退沙沙' };
-  // 现在正在响的底噪（给场景面板显示用）
+  // 现在正在响的声音（给面板显示用）：[{ name, src }]，src = weather / scene / creature / indoor
   function layers() {
-    if (!ac || !beds || !master || master.gain.value < 0.001) return [];
+    if (!ac || !beds || !on()) return [];
     const out = [];
-    for (const k in beds) { const b = beds[k]; const sc = PP.scene && PP.scene.view ? PP.scene.view() : '', v = k === 'surf' || k === 'surfHiss' ? (sc === 'beach' || sc === 'antarctic' ? b.g.gain.value : 0) : b.lv || 0; if (v > 0.0015) out.push(BED_NAME[k] || k); }
-    if (echoBus && echoBus.gain.value > 0.1) out.push('洞穴回声');
+    for (const k in beds) { const b = beds[k]; const v = k === 'surf' || k === 'surfHiss' ? (wavesOn ? 1 : 0) : b.lv || 0; if (v > 0.0015 && !off(b.src)) out.push({ name: BED_NAME[k] || k, src: b.src }); }
+    if (echoOn) out.push({ name: '洞穴回声', src: 'scene' });
+    const now = performance.now();
+    for (const n in heard) if (now - heard[n][1] < 25000 && !off(heard[n][0])) out.push({ name: n + '（偶尔）', src: heard[n][0] });
     return out;
   }
-  PP.ambient = { tick, layers, stop() { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.2); } };
+  const SOURCES = [['scene', '场景本身', '这个地方自己的声音：树叶、溪水、海浪、洞里的回声……'], ['weather', '天气', '雨、雪、风、打雷（跟着画面上的天气）'], ['creature', '小动物', '鸟叫、虫鸣、蛙鸣、海鸥、牛铃……'], ['indoor', '屋里', '进到动物家里时的炉火声']];
+  PP.ambient = { tick, layers, SOURCES, stop() { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.2); } };
 })();

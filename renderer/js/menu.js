@@ -43,7 +43,7 @@
     const T = (v) => (forTray ? null : v); // 托盘菜单不显示右侧小字
     const items = [];
     if (focus) items.push({ label: `${focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
-    const modeName = (PP.MODES.find((m) => m[0] === s.mode) || ['', ''])[1];
+    const curMode = s.mode === 'mini' && s.taskbar ? 'bar' : s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
     const mineList = G.all.filter((p) => !p.d.wild);
     const pets = mineList.map((p) => ({ label: p.name + `（${p.sp.name}）` + (G.save.settings.mainId === p.d.id ? ' ★' : ''), sub: petSub(p) }));
     const petsMenu = { label: '我认养的', hint: T(`${mineList.length} 只`), sub: [
@@ -52,7 +52,7 @@
       { id: 'feedAll', label: '给认养的都喂点吃的喝的', enabled: mineList.length > 0 },
       { id: 'overview', label: '每个地方都有谁' },
     ] };
-    const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: s.mode === k }));
+    const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: (s.mode === 'mini' && s.taskbar ? 'bar' : s.mode) === k }));
     const quiet = { label: '勿扰', hint: T(s.quiet ? '开' : s.autoQuiet !== false ? '自动' : ''), sub: [
       { id: 'autoQuiet', label: '工作时自动安静（打字时不说话、不来找你、声音调小）', type: 'checkbox', checked: s.autoQuiet !== false },
       { id: 'quiet', label: '一直安静（不说话、不来找你）', type: 'checkbox', checked: !!s.quiet },
@@ -127,7 +127,7 @@
     if (a === 'pet') { petCmd(G.all.find((p) => p.d.id === b), c); PP.save.soon(); syncTray(true); return; }
     if (a === 'rem') { s.rem[b] = +c; if (b === 'water') PP.F.lastWater = Date.now(); else PP.F.lastStretch = Date.now(); ui.toast(+c ? `${b === 'water' ? '喝水' : '站立'}提醒：每 ${c} 分钟` : `${b === 'water' ? '喝水' : '站立'}提醒已关闭`); PP.save.soon(); syncTray(true); return; }
     if (a === 'size') { s.size = +b; G.pets.forEach((p) => { p.y = G.ground; }); PP.save.soon(); syncTray(true); return; }
-    if (a === 'mode') { PP.setMode(b); return; }
+    if (a === 'mode') { if (b === 'mini') { s.taskbar = false; if (s.mode === 'mini') { PP.applyBar(); return; } } PP.setMode(b); return; }
     if (a === 'scene') { PP.scene.go(b); return; }
     if (a === 'weather') { s.weather = b; if (b === 'auto' && !s.city) PP.ui.toast('还没设城市：天气会按季节模拟'); PP.save.soon(); syncTray(true); return; }
     if (a === 'season') { s.seasonFix = b === 'auto' ? null : b; PP.save.soon(); syncTray(true); return; }

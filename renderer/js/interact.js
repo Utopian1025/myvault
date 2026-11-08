@@ -13,6 +13,7 @@
   let konami = [];
   const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
+  let barK = null, barSince = 0;
   function setInteractive(v) {
     if (v === interactive) return;
     interactive = v;
@@ -22,7 +23,10 @@
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
     const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover');
-    setInteractive(!!(G.hoverPet || G.hoverItem || G.hoverHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
+    // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
+    let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
+    if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
+    setInteractive(!!(petHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
   };
 
   function markActive() {
@@ -280,6 +284,7 @@
 
   // ---------- 每帧：摸摸衰减、停在身上不动 ----------
   PP.interactTick = function (dt) {
+    if (G.bar) PP.refreshInteractive();
     for (const p of G.pets) {
       if (p.petting > 0) p.petting -= dt;
       if (p.purr > 0) { p.purr -= dt; if (G.save.settings.sound && Math.random() < dt * 2) PP.audio.purr(p); }

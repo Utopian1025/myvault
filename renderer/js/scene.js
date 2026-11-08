@@ -33,7 +33,7 @@
   PP.SCENES = SCENES; PP.EXITS = EXITS;
   // 每种动物的家在哪个场景
   PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
-  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
+  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
 
   // 装饰：k → [名字, 室内?]
   const DECOR = {
@@ -112,15 +112,19 @@
     // 从后往前贴
     lay.items.sort((a, b) => a.r - b.r);
     for (const it of lay.items) {
-      const bx = it.s.stamp(P, it.c, it.r + 1, 0.5, 1);
+      // 显示不全的检查：东西顶上不能超出画面（小场景顶上还有一段渐隐，再多留几格），放不下就整体按比例缩小
+      const room = it.r + 1 - (full ? 1 : 4);
+      if (it.s.h > room && room >= 6) it.s = it.s.scaled(room / it.s.h);
+      const bx = it.s.stamp(P, it.c, it.r + 1, 0.5, 1, !!it.flip);
       if (it.decor) lay.boxes.push({ i: it.di, x0: bx.x0, y0: bx.y0, x1: bx.x1, y1: bx.y1 });
       if (it.light) lay.lights.push({ x: bx.x0 + it.light[0], y: bx.y0 + it.light[1], w: it.light[2], h: it.light[3], r: 7 });
       if (it.top) lay.treeTop = [it.c, bx.y0];
       if (it.lantern) lay.lanterns.push([it.c + 3, bx.y0 + Math.round(it.s.h * 0.45)]);
     }
     // 小场景：顶上用抖动渐隐，和桌面自然衔接
-    if (!full) for (let y = 0; y < 6; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 7)) P.d[y * cols + x] = 0;
-    lightPass(P.d, P.w, P.h, lay.gy); PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
+    lightPass(P.d, P.w, P.h, lay.gy);
+    if (!full && !lay.cave && !lay.under) for (let y = 0; y < 6; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 7)) P.d[y * cols + x] = 0;
+    PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 地面上的零碎：前后错落，越靠前越大一点，避开小路、水和房子门口
   function scatter(lay, R) {
@@ -159,7 +163,7 @@
     const Q = new A.Pix(rw, rh);
     PP.INTERIOR[sp](Q, lay, rng(cols * 7 + sp.length), env);
     lay.items.sort((a, b) => a.r - b.r);
-    for (const it of lay.items) { const bx = it.s.stamp(Q, it.c, it.r + 1, 0.5, 1); if (it.light) lay.lights.push({ x: bx.x0 + it.light[0], y: bx.y0 + it.light[1], w: it.light[2], h: it.light[3], r: 7, col: it.col }); }
+    for (const it of lay.items) { if (it.s.h > it.r && it.r >= 6) it.s = it.s.scaled(it.r / it.s.h); const bx = it.s.stamp(Q, it.c, it.r + 1, 0.5, 1); if (it.light) lay.lights.push({ x: bx.x0 + it.light[0], y: bx.y0 + it.light[1], w: it.light[2], h: it.light[3], r: 7, col: it.col }); }
     const P = new A.Pix(cols, rows);
     if (full) P.rect(0, 0, cols, rows, '#1a1418');
     // 外框 + 影子
@@ -224,7 +228,7 @@
     const src = d.slice();
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x, v = src[i]; if (!(v >>> 24)) continue;
-      const up = y > 0 ? src[i - w] >>> 24 : 0, up2 = y > 1 ? src[i - 2 * w] >>> 24 : 0;
+      const up = y > 0 ? src[i - w] >>> 24 : 255, up2 = y > 1 ? src[i - 2 * w] >>> 24 : 255;
       if (!up) d[i] = lit(v, 0.2, 255, 246, 222);
       else if (!up2) d[i] = lit(v, 0.08, 255, 246, 222);
       if (gy && y > gy + 2) { const k = Math.min(1, (y - gy - 2) / Math.max(6, h - gy - 2)) * 0.12; d[i] = lit(d[i], k, 58, 40, 70); }
@@ -286,7 +290,19 @@
       if (e.holiday && e.holiday.id === 'dragon') { const bx = ((t * 6) % (L.cols + 40)) - 20, by = L.water.y0 + 2; R(bx, by + 1, '#c8552a', 16, 2); R(bx + 15, by - 1, '#e8c03a', 2, 2); R(bx + 16, by - 2, '#c8552a', 2, 1); for (let i = 0; i < 4; i++) R(bx + 3 + i * 3, by - 1 + (Math.floor(t * 4 + i) % 2), '#ffd890', 1, 2); }
     }
     // 草地的风车（风大转得快）
-    if (L.windmill) { const [mx, my] = L.windmill, a0 = t * (0.6 + F.wind * 0.9); for (let k = 0; k < 4; k++) { const a = a0 + (k * Math.PI) / 2; for (let j = 1; j < 9; j++) R(mx + Math.round(Math.cos(a) * j), my + Math.round(Math.sin(a) * j), j > 6 ? '#ffffff' : '#c8bca8'); } R(mx, my, '#5a3a24'); }
+    // 风车：四片带格子帆布的叶片（木梁 + 一格一格的帆布，帆布受光面亮、背光面暗），中间是铁轮毂
+    if (L.windmill) {
+      const [mx, my] = L.windmill, a0 = t * (0.6 + F.wind * 0.9), N = 12;
+      for (let k = 0; k < 4; k++) {
+        const a = a0 + (k * Math.PI) / 2, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
+        for (let j = 1; j <= N; j++) {
+          const x = mx + ca * j, y = my + sa * j;
+          R(Math.round(x), Math.round(y), '#5a3a24');
+          if (j > 2) for (let q = 1; q <= 3; q++) { const lat = j % 3 === 0 || q === 3; R(Math.round(x + px * q), Math.round(y + py * q), lat ? '#8a6a4a' : (sa > 0 ? '#e8dcc4' : '#fbf4e2')); }
+        }
+      }
+      R(mx - 1, my - 1, '#3a3440', 3, 3); R(mx, my, '#a8a0b0');
+    }
     // 温泉冒热气
     if (L.spring) for (let k = 0; k < 7; k++) { const a = ((t * 0.35 + k / 7) % 1); ctx.globalAlpha = 0.55 * (1 - a); R(L.spring.c - 6 + k * 2 + Math.round(Math.sin(t * 1.5 + k) * 1.5 - F.wind * a * 4), L.spring.r - Math.round(a * 12), '#ffffff', 2, 2); ctx.globalAlpha = 1; }
     // 冰窟窿：水面一闪一闪

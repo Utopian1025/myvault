@@ -41,19 +41,37 @@
   }
   // 远处一排树林（剪影 + 一点受光）
   function treeLine(P, lay, bottom, height, cols2, kind, seed) {
-    const { hash, cols } = { hash: T().hash, cols: lay.cols };
+    // 远处的树林精修：前后两排（后排更淡），松树是一层层带锯齿的尖塔，阔叶树是几团带亮边的叶团，树之间有深色缝，底部有一道阴影
+    const A = T(), { hash, mix, cols } = { hash: T().hash, mix: T().mix, cols: lay.cols };
     const [dark, mid, light] = cols2;
-    for (let x = -6; x < cols + 6; x += 3 + Math.floor(hash(x, 1, seed) * 4)) {
-      const h = Math.round(height * (0.55 + hash(x, 2, seed) * 0.45));
-      if (kind === 'pine') {
-        for (let k = 0; k < h; k++) { const half = Math.round((k / h) * (h * 0.28)) + (k % 4 === 0 ? 1 : 0); for (let dx = -half; dx <= half; dx++) P.set(x + dx, bottom - h + k, dx < -half / 2 ? light : dx < half / 2 ? mid : dark); }
-      } else {
-        const r = Math.round(h * 0.42);
-        for (let yy = -r; yy <= r; yy++) for (let dx = -r; dx <= r; dx++) if (dx * dx + yy * yy * 1.3 <= r * r) P.set(x + dx, bottom - r - Math.round(h * 0.25) + yy, dx + yy < -r * 0.6 ? light : dx + yy < r * 0.3 ? mid : dark);
-        P.rect(x, bottom - Math.round(h * 0.3), 1, Math.round(h * 0.3), dark);
+    for (const row of [0, 1]) {
+      const haze = (c) => (row === 0 ? mix(c, '#d8dcea', 0.32) : c), hgt = height * (row === 0 ? 1.12 : 1), by = bottom - (row === 0 ? 2 : 0);
+      for (let x = -6 + row * 2; x < cols + 6; x += 3 + Math.floor(hash(x, 1 + row, seed) * 4)) {
+        const h = Math.round(hgt * (0.55 + hash(x, 2 + row, seed) * 0.45)), pine = kind === 'pine' || (kind === 'mix' && hash(x, 9, seed) < 0.4);
+        if (pine) {
+          for (let k = 0; k < h; k++) {
+            const tier = k % 4, half = Math.round((k / h) * (h * 0.28)) + (tier === 3 ? 1 : 0);
+            for (let dx = -half; dx <= half; dx++) { let c = dx < -half / 2 ? light : dx < half / 2 ? mid : dark; if (tier === 0 && Math.abs(dx) > 0) c = dark; P.set(x + dx, by - h + k, haze(c)); }
+          }
+          P.set(x, by - h - 1, haze(light));
+        } else {
+          const r = Math.round(h * 0.4), cyy = by - r - Math.round(h * 0.25);
+          for (const [ox, oy, rr] of [[-0.45, 0.2, 0.7], [0.45, 0.25, 0.7], [0, -0.15, 0.85]]) {
+            const R2 = Math.max(1.5, r * rr), X = x + ox * r, Y = cyy + oy * r;
+            for (let yy = -Math.ceil(R2); yy <= R2; yy++) for (let dx = -Math.ceil(R2); dx <= R2; dx++) {
+              const d = dx * dx + yy * yy * 1.25; if (d > R2 * R2) continue;
+              const l = (-dx - yy * 1.3) / R2; let c = l > 0.7 ? light : l > -0.4 ? mid : dark;
+              if (d > R2 * R2 * 0.75 && yy > 0) c = dark;
+              if (hash(Math.round(X + dx), Math.round(Y + yy), seed + 3) < 0.08) c = dark;
+              P.set(Math.round(X + dx), Math.round(Y + yy), haze(c));
+            }
+          }
+          P.rect(x, by - Math.round(h * 0.3), 1, Math.round(h * 0.3), haze(dark));
+        }
       }
     }
     P.rect(0, bottom - 1, lay.cols, 2, dark);
+    for (let x = 0; x < lay.cols; x++) if (hash(x, 4, seed) < 0.5) P.set(x, bottom - 2, dark);
   }
   // ---------- 通用：地面 ----------
   function ground(P, lay, pal, opt = {}) {
@@ -86,6 +104,10 @@
         const yc = py + Math.round(Math.sin(x / 47) * 2 + Math.sin(x / 13) * 0.7), w = 3 + Math.round(noise(x / 9, 3, 5) * 2);
         for (let k = -w; k <= w; k++) { if (Math.abs(k) === w && hash(x, k, 3) < 0.5) continue; P.set(x, yc + k, Math.abs(k) >= w - 1 ? opt.path[1] : hash(x, yc + k, 9) < 0.06 ? opt.path[2] : k < -w + 3 && dith(x, yc + k, 0.35) ? mix(opt.path[0], '#ffffff', 0.18) : opt.path[0]); }
         if (hash(x, 31, 3) < 0.5) P.set(x, yc + w + 1, mix(opt.path[1], '#2a1e30', 0.3)); // 路边一道浅浅的阴影
+        // 两道浅浅的车辙、路边的草叶伸进路面
+        if (hash(x, 34, 3) < 0.7) { P.set(x, yc - 1, mix(opt.path[0], opt.path[1], 0.6)); P.set(x, yc + 2, mix(opt.path[0], opt.path[1], 0.6)); }
+        if (opt.blades && hash(x, 35, 3) < 0.25) { P.set(x, yc - w, opt.blades[1]); if (hash(x, 36, 3) < 0.5) P.set(x, yc - w + 1, opt.blades[0]); }
+        if (opt.blades && hash(x, 37, 3) < 0.2) P.set(x, yc + w, opt.blades[0]);
         if (hash(x, 32, 3) < 0.035) { const k = Math.round((hash(x, 33, 3) - 0.5) * (w - 1) * 2); P.set(x, yc + k, mix(opt.path[2], '#ffffff', 0.4)); P.set(x, yc + k + 1, mix(opt.path[2], '#2a1e30', 0.3)); }
       }
       lay.path = py;

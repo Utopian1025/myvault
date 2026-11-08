@@ -351,10 +351,12 @@
     appIconPanel() {
       const s = G.save.settings, api = window.petAPI;
       const opts = [];
-      for (const p of G.all) opts.push({ key: 'pet:' + p.d.id, label: p.name, species: p.d.species, pal: p.pal, coat: p.d.shiny ? 'shiny' : p.d.coat, lop: p.d.lop });
-      // 已经领养的用它自己的花色；没领养过的物种再补一个默认花色（同一种不重复出现）
-      const have = new Set(G.all.map((p) => p.d.species));
-      for (const k of PP.SPECIES_LIST) { if (have.has(k)) continue; const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c }); }
+      // 一种动物只出现一次：认养过的用它自己的花色，没认养过的用默认花色
+      for (const k of PP.SPECIES_LIST) {
+        const mine = G.all.find((p) => p.d.species === k && !p.d.wild);
+        if (mine) { opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: mine.pal, coat: mine.d.shiny ? 'shiny' : mine.d.coat, lop: mine.d.lop }); continue; }
+        const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c });
+      }
       const draw = (o, size) => PP.iconCanvas(o, size);
       const box = $(`<div class="appicon"><p class="lead">选一只，托盘图标${navigator.platform.startsWith('Win') ? '、桌面和开始菜单的快捷方式' : ''}就会变成它。</p><div class="grid"></div><div class="row"><button class="small reset">恢复默认图标</button></div><p class="muted tip"></p></div>`);
       const grid = box.querySelector('.grid');

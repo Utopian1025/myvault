@@ -13,7 +13,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
     const bar = document.body.classList.contains('web') ? 44 : 2;
-    G.ground = G.H - bar;
+    G.ground = G.bar ? G.H - Math.max(2, Math.round(G.bar.h * 0.1)) : G.H - bar;
     for (const p of G.pets) { p.x = U.clamp(p.x, 20, G.W - 20); if (!p.airborne && !p.held) p.y = p.floor; }
     for (const it of G.items) { it.x = U.clamp(it.x, 12, G.W - 12); if (!it.held) it.y = Math.min(it.y, G.ground); }
   }
@@ -81,6 +81,7 @@
   function update(dt) {
     G.t += dt;
     for (const p of G.pets) p.update(dt);
+    if (G.bar && PP.barZone) { const [a, b] = PP.barZone(); for (const p of G.pets) if (!p.held && (p.x < a - 6 || p.x > b + 6)) { p.x = U.clamp(p.x, a, b); p.target = U.clamp(p.target != null ? p.target : p.x, a, b); } }
     separate();
     for (const it of G.items) if (PP.itemHere(it)) it.update(dt);
     PP.eco && PP.eco.tick(dt);
@@ -117,7 +118,12 @@
     // 远的先画、近的后画（场景里有前后排）；被拎着的最后画
     const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.airborne ? 0 : a.y) - (b.airborne ? 0 : b.y));
     PP.doorsRenderBack(ctx);
+    if (G.bar && PP.barDecor) PP.barDecor(ctx);
+    // 任务栏视图：鼠标在任务栏上时动物变淡，不挡你看图标（停在某只身上一会儿它才会亮起来接住点击）
+    const fade = G.bar && G.mouse.onScreen && G.mouse.y > G.H - G.bar.h && !G.barDwell;
+    if (fade) ctx.globalAlpha = 0.4;
     for (const p of pets) p.render(ctx);
+    if (fade) ctx.globalAlpha = 1;
     PP.doorsRenderFront(ctx);
     PP.F.render(ctx);
     for (const it of items) if (it.held) it.render(ctx);
