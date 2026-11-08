@@ -213,7 +213,15 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .scenebtn canvas { width: 18px; height: 18px; }
 .orb.scenebtn.mini { opacity: .3; }
 .orb.scenebtn.peekhide { opacity: 0 !important; pointer-events: none !important; }
-.scene-pop { max-width: 440px; }
+.scene-pop { max-width: 600px; }
+.scene-pop .maphead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.scene-pop .tiles { display: flex; gap: 6px; flex-wrap: wrap; }
+.scene-pop .tile { position: relative; padding: 0; width: 160px; height: 50px; border: 2px solid rgba(0,0,0,.18); border-radius: 6px; overflow: hidden; background: #222; cursor: pointer; }
+.scene-pop .tile:hover { border-color: #f2b84b; transform: translateY(-1px); }
+.scene-pop .tile.on { border-color: #f2b84b; box-shadow: 0 0 0 2px rgba(242,184,75,.45); }
+.scene-pop .tile canvas.thumb { display: block; width: 156px; height: 46px; image-rendering: pixelated; }
+.scene-pop .tile .tn { position: absolute; left: 3px; top: 3px; display: inline-flex; align-items: center; gap: 3px; background: rgba(255,255,255,.88); color: #2b2a33; font-size: 11px; font-weight: 700; padding: 1px 5px 1px 3px; border-radius: 4px; }
+.scene-pop .tile .tnest { position: absolute; right: 3px; bottom: 3px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 0 4px; border-radius: 3px; }
 .scene-pop .regions { display: flex; flex-direction: column; gap: 4px; }
 .scene-pop .rg { display: flex; align-items: center; gap: 6px; }
 .scene-pop .rn { width: 52px; flex: none; display: flex; align-items: center; gap: 3px; font-weight: 700; font-size: 12px; }
