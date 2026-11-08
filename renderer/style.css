@@ -254,3 +254,34 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .scene-pop .env { font-size: 11px; color: #6a5a74; padding: 0 4px; }
 .scene-pop .amb-now { color: #8a5a7a; }
 .scene-pop .amb-now:empty { display: none; }
+
+/* ---- 地图 v3：像素世界地图 + 声音 / 设置 分页 ---- */
+.scene-pop.map2 { width: 640px; max-width: 640px; padding: 10px 10px 8px; gap: 8px; background: #fbf4e8; border: 2px solid #3b2a4c; border-radius: 12px; box-shadow: 0 12px 30px rgba(59,42,76,.3), 3px 3px 0 #3b2a4c; color: #3b2a4c; }
+.map2 .maphead { display: flex; align-items: center; justify-content: space-between; margin: 0 2px; }
+.map2 .maphead b { font-size: 15px; letter-spacing: 1px; }
+.map2 .tabs { display: flex; gap: 2px; background: #efe4d6; padding: 2px; border-radius: 8px; }
+.map2 .tabs .tab { border: 0; background: transparent; padding: 3px 12px; border-radius: 6px; font-size: 12px; color: #6a5a74; box-shadow: none; }
+.map2 .tabs .tab.on { background: #3b2a4c; color: #fff; }
+.map2 .mapwrap { position: relative; width: 600px; height: 380px; margin: 0 auto; border: 3px solid #8a6a4a; border-radius: 8px; box-shadow: inset 0 0 0 2px #e8d4b0, 0 2px 0 #5a4030; overflow: visible; background: #8cc6dc; }
+.map2 canvas.worldmap { display: block; width: 100%; height: 100%; image-rendering: pixelated; border-radius: 5px; }
+.map2 .mine-tag { position: absolute; left: 76%; top: 1.5%; font-size: 11px; font-weight: 700; color: #6a4a8a; background: rgba(255,255,255,.75); padding: 0 6px; border-radius: 6px; pointer-events: none; }
+.map2 .pin { position: absolute; transform: translate(-50%, -100%); display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 3px; border: 2px solid #3b2a4c; border-radius: 9px 9px 9px 2px; background: #fffaf0; color: #3b2a4c; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 0 rgba(59,42,76,.35); cursor: pointer; z-index: 1; }
+.map2 .pin:hover { background: #ffe9f2; transform: translate(-50%, -110%); z-index: 3; }
+.map2 .pin.on { background: #3b2a4c; color: #fff; box-shadow: 0 0 0 3px rgba(242,176,200,.8); }
+.map2 .pin em { font-style: normal; font-size: 10px; background: #f07a9a; color: #fff; border-radius: 6px; padding: 0 4px; margin-left: 2px; }
+.map2 .pv { position: absolute; display: none; transform: translate(-50%, 10px); background: #fffaf0; border: 2px solid #3b2a4c; border-radius: 8px; padding: 4px; z-index: 5; pointer-events: none; font-size: 11px; width: 168px; box-shadow: 0 6px 16px rgba(59,42,76,.25); }
+.map2 .pv.show { display: block; }
+.map2 .pv.up { transform: translate(-50%, calc(-100% - 30px)); }
+.map2 .pv.left { transform: translate(-90%, 10px); }
+.map2 .pv.up.left { transform: translate(-90%, calc(-100% - 30px)); }
+.map2 .pv canvas { display: block; width: 156px; height: 46px; image-rendering: pixelated; border-radius: 4px; margin-bottom: 3px; }
+.map2 .pv small { color: #8a7a94; }
+.map2 .pv span { color: #6a5a74; }
+.map2 .hint { font-size: 11px; color: #8a7a94; text-align: center; }
+.map2 .sndtop { display: flex; gap: 4px; align-items: center; }
+.map2 .srcs { display: flex; flex-direction: column; gap: 5px; }
+.map2 .src { display: flex; gap: 8px; align-items: flex-start; background: #fff; border: 1px solid rgba(59,42,76,.14); border-radius: 9px; padding: 6px 8px; }
+.map2 .src button { min-width: 34px; }
+.map2 .src b { font-size: 12px; }
+.map2 .src .now { font-size: 12px; color: #8a4a6a; }
+.map2 .src small { display: block; font-size: 11px; color: #8a7a94; margin-top: 1px; }
