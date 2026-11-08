@@ -318,7 +318,7 @@
     if (p.d.wild || !sc || !(PP.MINE || []).includes(sc) || !canMoveIn(p)) return base;
     const key = sp + '|' + sc; let o = OWN.get(key);
     if (!o) {
-      o = Object.assign({}, base, { home: sc, range: [sc], open: 0, own: true, about: base.about + '（现在住在你的' + (PP.SCENES[sc] ? PP.SCENES[sc].name : '小天地') + '里）',
+      o = Object.assign({}, base, { home: sc, range: [sc], open: 0, own: true, about: base.about + '（现在住在你的' + (PP.SCENES[sc] ? PP.SCENES[sc].name : '「我的」') + '里）',
         foods: [F(sc, 'feeder', 'forage', '在食盆边吃饭', 1.4)], water: [W(sc, 'fountain')],
         fun: [F(sc, 'lawn', 'zoom', '在草地上撒欢', 1), F(sc, 'sunspot', 'nap', '找个舒服的地方打盹', 1), F(sc, 'lookout', 'watch', '看风景', 0.8), F(sc, sp + '_home', 'groom', '在小屋门口理毛', 0.6)] });
       OWN.set(key, o);

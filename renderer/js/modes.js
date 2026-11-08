@@ -189,10 +189,12 @@
     pop = $(`<div class="orb-pop scene-pop"><div class="maphead"><b>地图</b><span class="muted">点一下就过去 · 点场景按钮本身：${s.sceneHidden ? '显示场景' : '藏起场景'}</span></div><div class="regions">${groups}</div>
       <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
       <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
+      <div class="env amb-now"></div>
       <div class="sound"><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
       <div class="env">${esc(PP.env.label())}</div></div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
     pop.querySelectorAll('i[data-th]').forEach((el) => { try { const cv = PP.scene.thumb(el.dataset.th, 156, 46); const im = document.createElement('canvas'); im.width = 156; im.height = 46; im.className = 'thumb'; im.getContext('2d').drawImage(cv, 0, 0); el.replaceWith(im); } catch (err) { console.warn('thumb', err); el.remove(); } });
+    { const el = pop.querySelector('.amb-now'), upd = () => { const L = PP.ambient && PP.ambient.layers ? PP.ambient.layers() : []; el.textContent = !s.ambient ? '' : '正在听：' + (L.length ? L.join(' + ') : '很安静'); }; upd(); const iv = setInterval(() => { if (!el.isConnected) return clearInterval(iv); upd(); }, 1000); }
     openPop(scBtn);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;

@@ -9,7 +9,7 @@
   // 主场景（大的生物群系）→ 次场景（具体的地方）。顺序就是路牌连起来的路；洞穴是高山里套着的次场景（从洞口走进去）
   PP.REGIONS = [
     // 你自己的小天地：认养的动物住在这里（不和野外的路连在一起，从地图直接去）
-    { id: 'mine', name: '我的小天地', icon: 'mine', mine: true, subs: [['skyisle', '浮空岛'], ['academy', '魔法学院'], ['undergrove', '地底森林']] },
+    { id: 'mine', name: '我的', icon: 'mine', mine: true, subs: [['skyisle', '浮空岛'], ['academy', '魔法学院'], ['undergrove', '地底森林']] },
     { id: 'polar', name: '极地', icon: 'polar', subs: [['antarctic', '南极'], ['snow', '北极冰原']] },
     { id: 'mount', name: '山地', icon: 'mount', subs: [['mountain', '高山'], ['cave', '洞穴']] },
     { id: 'woods', name: '森林', icon: 'woods', subs: [['forest', '温带森林'], ['jungle', '热带雨林']] },

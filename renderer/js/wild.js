@@ -35,7 +35,7 @@
   function adoptPanel(p) {
     const ui = PP.ui;
     const box = $(`<div class="adopt-wild"><div class="top"><canvas width="96" height="96"></canvas><div><p><b>${esc(p.sp.name)}</b>${p.d.shiny ? ' ✨罕见花色' : ''}<br><span class="muted">${esc(PP.SPR.PAL[p.d.species][p.d.coat] ? PP.SPR.PAL[p.d.species][p.d.coat].name : '')} · 住在${esc(PP.SCENES[PP.HAB[p.d.species].home].name)}的${esc(PP.HOME_NAME[p.d.species] || '家')}</span></p>
-      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它会搬进你的小天地，住进一间属于它的小屋。选一个地方：' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
+      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它会搬进「我的」，住进一间属于它的小屋。选一个地方：' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
       ${PP.canMoveIn(p) ? `<div class="row homes">${PP.MINE.map((k, i) => `<button class="small ${i === 0 ? 'on' : ''}" data-h="${k}">${esc(PP.SCENES[k].name)}</button>`).join('')}</div>` : ''}</div></div>
       <div class="row"><input class="nm" maxlength="12" placeholder="给它取个名字"><button class="small dice" title="随机一个">🎲</button></div>
       <div class="row"><button class="primary go">认养</button></div></div>`);
@@ -69,7 +69,7 @@
 
   // 搬家：在你的几个小天地之间换地方住
   PP.moveHome = function (p) {
-    if (!PP.canMoveIn(p)) { PP.ui.toast('它离不开水，没法搬进小天地'); return; }
+    if (!PP.canMoveIn(p)) { PP.ui.toast('它离不开水，没法搬进「我的」'); return; }
     const box = $(`<div class="adopt-wild"><p>让${esc(p.name)}搬到哪里住？</p><div class="row homes">${PP.MINE.map((k) => `<button class="small ${p.d.ownHome === k ? 'on' : ''}" data-h="${k}">${esc(PP.SCENES[k].name)}</button>`).join('')}</div></div>`);
     box.querySelectorAll('.homes button').forEach((b) => (b.onclick = () => { p.d.ownHome = b.dataset.h; p.d.scene = b.dataset.h; PP.eco.adopted(p); PP.ui.closePanel(); PP.ui.toast(`${p.name}搬去了${PP.SCENES[b.dataset.h].name}`); PP.save.soon(); }));
     PP.ui.panel('搬家', box);

@@ -24,7 +24,7 @@
       { id: `pet:${id}:goto`, label: `去它在的地方看看（${PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
       '-',
       { id: `pet:${id}:profile`, label: '查看档案' },
-      ...(wild || !PP.canMoveIn(p) ? [] : [{ id: `pet:${id}:move`, label: '搬家（换个小天地住）…' }]),
+      ...(wild || !PP.canMoveIn(p) ? [] : [{ id: `pet:${id}:move`, label: '搬家…' }]),
       ...(wild ? [] : [{ id: `pet:${id}:release`, label: '放回野外…' }]),
     ];
     return items;

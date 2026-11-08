@@ -79,14 +79,14 @@
       surfHiss: bed(P(), outBus, 'highpass', 1800, 0.5, 'lowpass', 6000),    // 浪退时的沙沙
     };
     // 虫鸣：给音量加一个很快的颤动（像一大片知了 / 纺织娘）
-    { const o = ac.createOscillator(); o.frequency.value = 23; const a = ac.createGain(); a.gain.value = 0.5; o.connect(a).connect(beds.insects.g.gain); o.start(); beds.insects.trem = o; }
+    { const b = beds.insects, tg = ac.createGain(); tg.gain.value = 0.75; b.g.disconnect(); b.g.connect(tg).connect(outBus); const o = ac.createOscillator(); o.frequency.value = 23; const a = ac.createGain(); a.gain.value = 0.25; o.connect(a).connect(tg.gain); o.start(); b.trem = o; }
     // 洞穴回声：一段自己生成的衰减混响
     { const len = ac.sampleRate * 2.8, ir = ac.createBuffer(2, len, ac.sampleRate);
       for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
       echo = ac.createConvolver(); echo.buffer = ir; echoBus = ac.createGain(); echoBus.gain.value = 0; echoBus.connect(echo).connect(outBus); }
     return true;
   }
-  const set = (b, v, tc = 1.6) => b.g.gain.setTargetAtTime(Math.max(0, v), ac.currentTime, tc);
+  const set = (b, v, tc = 1.6) => { b.lv = Math.max(0, v); b.g.gain.setTargetAtTime(b.lv, ac.currentTime, tc); };
 
   // ---------- 点缀音 ----------
   function tone(bus, f0, f1, dur, vol, type = 'sine', at = 0) {
@@ -231,5 +231,14 @@
     if (F.storm && Math.random() < dt * 0.03) thunder(false);
   }
   setInterval(tick, 250);
-  PP.ambient = { tick, stop() { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.2); } };
+  const BED_NAME = { rain: '雨声', rainBody: '雨落地', wind: '风', water: '湖水', snowHush: '落雪', fire: '炉火', leaves: '树叶沙沙', grass: '风吹草', stream: '溪水', streamLow: '溪水低音', under: '水下闷声', roomTone: '洞穴空气', sand: '风卷沙', whistle: '风哨', insects: '虫鸣', surf: '海浪', surfHiss: '浪退沙沙' };
+  // 现在正在响的底噪（给场景面板显示用）
+  function layers() {
+    if (!ac || !beds || !master || master.gain.value < 0.001) return [];
+    const out = [];
+    for (const k in beds) { const b = beds[k]; const sc = PP.scene && PP.scene.view ? PP.scene.view() : '', v = k === 'surf' || k === 'surfHiss' ? (sc === 'beach' || sc === 'antarctic' ? b.g.gain.value : 0) : b.lv || 0; if (v > 0.0015) out.push(BED_NAME[k] || k); }
+    if (echoBus && echoBus.gain.value > 0.1) out.push('洞穴回声');
+    return out;
+  }
+  PP.ambient = { tick, layers, stop() { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.2); } };
 })();

@@ -507,11 +507,28 @@
       // 只要头（再带一点肩膀），脸尽量大，透明底、没有框
       // 正脸头像的头大约到第 20 行（再往下是身子和爪子）
       const ch = Math.max(8, Math.min(bh, Math.round(20.5 + (buf.ty || 0) - y0)));
+      // 像素更细：用 Scale2x 放大两次（每个大像素变成 4×4 小像素，斜边和圆角会变圆滑，但仍是像素风）
+      let src = document.createElement('canvas'); src.width = bw; src.height = ch; src.getContext('2d').drawImage(tmp, x0, y0, bw, ch, 0, 0, bw, ch);
+      const s2x = (cnv) => {
+        const w = cnv.width, h = cnv.height, a = cnv.getContext('2d').getImageData(0, 0, w, h).data;
+        const o = document.createElement('canvas'); o.width = w * 2; o.height = h * 2; const oc = o.getContext('2d'), od = oc.createImageData(w * 2, h * 2), D = od.data;
+        const px = (x, y) => { x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)); return (y * w + x) * 4; };
+        const eq = (i, j) => a[i] === a[j] && a[i + 1] === a[j + 1] && a[i + 2] === a[j + 2] && a[i + 3] === a[j + 3];
+        const put = (x, y, i) => { const k = (y * w * 2 + x) * 4; D[k] = a[i]; D[k + 1] = a[i + 1]; D[k + 2] = a[i + 2]; D[k + 3] = a[i + 3]; };
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const P = px(x, y), A = px(x, y - 1), B = px(x + 1, y), C = px(x - 1, y), Dd = px(x, y + 1);
+          let e0 = P, e1 = P, e2 = P, e3 = P;
+          if (!eq(A, Dd) && !eq(C, B)) { if (eq(A, C)) e0 = A; if (eq(A, B)) e1 = B; if (eq(Dd, C)) e2 = C; if (eq(Dd, B)) e3 = B; }
+          put(2 * x, 2 * y, e0); put(2 * x + 1, 2 * y, e1); put(2 * x, 2 * y + 1, e2); put(2 * x + 1, 2 * y + 1, e3);
+        }
+        oc.putImageData(od, 0, 0); return o;
+      };
+      let f = 1; if (size >= 64) { src = s2x(s2x(src)); f = 4; }
       const cv = document.createElement('canvas'); cv.width = cv.height = size;
       const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
-      const sc = size >= 64 ? Math.floor(size / Math.max(bw, ch)) : size / Math.max(bw, ch);
-      const w = bw * sc, h = ch * sc;
-      c.drawImage(tmp, x0, y0, bw, ch, Math.round((size - w) / 2), Math.round((size - h) / 2), Math.round(w), Math.round(h));
+      const sc = size * (size >= 64 ? 0.94 : 1) / Math.max(bw * f, ch * f);
+      const w = bw * f * sc, h = ch * f * sc;
+      c.drawImage(src, 0, 0, bw * f, ch * f, Math.round((size - w) / 2), Math.round((size - h) / 2), Math.round(w), Math.round(h));
       return cv;
     };
   })();

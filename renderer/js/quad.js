@@ -50,7 +50,7 @@
     d.head = d.head.map((v) => v * z); d.snout = d.snout.map((v) => v * z); d.earS = (d.earS || 2) * z; if (d.earW) d.earW *= z; if (d.tailL) d.tailL *= z;
     d.z = z;
   }
-  PP.QUAD = { has: (sp) => !!D[sp], def: D };
+  PP.QUAD = { has: (sp) => !!(PP.QUAD_ON && D[sp]), def: D };
 
   // ---------- 小工具 ----------
   function mk() { const b = new SPR.Buf(56, 34, 10); b.tx = 12; return b; }
