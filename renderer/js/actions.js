@@ -161,7 +161,7 @@
       yield 1; t += 1; zz += 1;
       if (zz > 2.4) { zz = 0; PP.fx({ x: p.x + p.facing * 6 * S(), y: p.y - 18 * S(), vx: 10, vy: -16, icon: 'zzz', life: 2.2, s: Math.max(1, S() - 1) }); }
       // 做梦：梦到今天发生的事
-      if (Math.random() < 0.03 && p.d.memories.length) { p.think(U.pick(p.d.memories), 3); if (G.hoverPet === p) PP.events.found('dream'); }
+      if (Math.random() < 0.03 && p.d.memories.length) { { const m = U.pick(p.d.memories); p.think(m, 3, '做梦中…'); } if (G.hoverPet === p) PP.events.found('dream'); }
       if (Math.random() < 0.01) p.setExpr('closed', 'smile', 2);
       const sleepy = p.sleepiness();
       if (PP.sleepTime && PP.sleepTime()) { p.n.bladder = Math.max(p.n.bladder, 50); p.n.hunger = Math.max(p.n.hunger, 40); continue; } // 睡眠时间：一直睡
@@ -400,7 +400,7 @@
       const topics = ['note', 'q', 'excl', 'heart', 'fish', 'cursor', 'sun', 'moon', 'ball', 'star', 'cloud'];
       for (let i = 0; i < U.randi(2, 4); i++) {
         const s = i % 2 ? o : p;
-        s.think(U.pick(topics), 1.6); s.mouth = 'open'; yield 0.5; s.mouth = 'w'; yield 1.2;
+        s.think(U.pick(topics), 1.6, '聊天'); s.mouth = 'open'; yield 0.5; s.mouth = 'w'; yield 1.2;
       }
       if (Math.random() < 0.5) { p.eyes = 'happy'; o.eyes = 'happy'; yield 1; }
       p.log(`和${o.name}聊了一会儿天。`);
@@ -677,7 +677,7 @@
       p.setExpr('angry', 'frown', 1.5); if (Math.random() < 0.5) p.say(U.pick(PP.LINES.pokeAnnoyed));
       yield 1.2;
     } else {
-      p.anim = 'jump'; p.airborne = true; p.vy = -260; p.vx = 0; p.fallFrom = p.y;
+      if (PP.canJump(p.d.species)) { p.anim = 'jump'; p.airborne = true; p.vy = -260; p.vx = 0; p.fallFrom = p.y; } else p.jolt(-3, 0);
       p.setExpr(p.affLevel >= 2 ? 'happy' : 'wide', 'o', 0.8);
       if (Math.random() < 0.4) p.say(U.pick(PP.LINES.pokeOk), 1.5);
       yield () => !p.airborne;

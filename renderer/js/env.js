@@ -247,6 +247,9 @@
     savanna: { season: (s) => (s === 'winter' || s === 'autumn' ? 'autumn' : 'summer'), allow: ['clear', 'clear', 'partly', 'cloudy', 'drizzle', 'rain', 'storm', 'windy'], temp: (t) => Math.max(t, 22) },
     beach: { season: (s) => (s === 'winter' ? 'autumn' : s), allow: ['clear', 'partly', 'cloudy', 'drizzle', 'rain', 'heavyrain', 'storm', 'windy', 'fog'], temp: (t) => t + 2 },
     sea: { season: () => 'summer', allow: ['clear'], temp: () => 20 },
+    // 你的小天地：浮空岛在云上面，不下大雨；地底森林没有天气
+    skyisle: { season: (s) => s, allow: ['clear', 'clear', 'partly', 'cloudy', 'drizzle', 'snow', 'windy', 'fog'], temp: (t) => t - 3 },
+    undergrove: { season: (s) => s, allow: ['clear'], temp: () => 16 },
   };
   const atCache = {};
   function at(scene) {

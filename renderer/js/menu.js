@@ -24,6 +24,7 @@
       { id: `pet:${id}:goto`, label: `去它在的地方看看（${PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
       '-',
       { id: `pet:${id}:profile`, label: '查看档案' },
+      ...(wild || !PP.canMoveIn(p) ? [] : [{ id: `pet:${id}:move`, label: '搬家（换个小天地住）…' }]),
       ...(wild ? [] : [{ id: `pet:${id}:release`, label: '放回野外…' }]),
     ];
     return items;
@@ -173,6 +174,7 @@
       case 'water': PP.feedPet(p, 'water'); break;
       case 'pat': if (G.pets.includes(p)) p.run('petted', PP.ACTIONS.petted); break;
       case 'adopt': PP.wild.adoptPanel(p); break;
+      case 'move': PP.moveHome(p); break;
       case 'release': if (confirm(`让${p.name}回到野外吗？它还会在${PP.SCENES[PP.HAB[d.species].home].name}生活，只是不再是你认养的了。`)) PP.wild.release(p); break;
       case 'rename': PP.renamePanel(p); break;
       case 'goto': if (PP.scene.inside()) PP.scene.leave(); if (G.save.settings.mode === 'mini') PP.setMode(G.save.settings.lastMode && G.save.settings.lastMode !== 'mini' ? G.save.settings.lastMode : 'band'); PP.scene.go(d.inHome ? d.scene : d.scene); break;

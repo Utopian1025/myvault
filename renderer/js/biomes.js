@@ -462,4 +462,5 @@
     const pc2 = PP.HOMES.burrow(SZ(lay, 20), SZ(lay, 7), ['#4a4252', '#5a5262', '#3a3242', '#1a1620'], [0.5]); home(lay, 'porcupine', pc2.s, C(lay, 0.4), lay.base + 2, pc2.door);
   };
   PP.BIOMES = B;
+  PP.BIOME_H = { put, spot, home, C, SZ, mountains, ground, GROUND, PATH, BLADES, T };
 })();

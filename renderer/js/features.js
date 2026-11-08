@@ -244,8 +244,7 @@
     const p = this;
     p.peek = false;
     p.eyes = 'wide'; p.jolt(-3, 0); yield 0.15;
-    p.airborne = true; p.thrown = false; p.vy = -420; p.fallFrom = p.y;
-    yield () => !p.airborne;
+    if (!PP.canJump || PP.canJump(p.d.species)) { p.airborne = true; p.thrown = false; p.vy = -420; p.fallFrom = p.y; yield () => !p.airborne; } else { p.jolt(-4, 0); yield 0.4; }
     p.eyes = 'open'; p.look = [0, -1];
     PP.audio.meow(p);
     p._forceSay = true; p.say(text, 8); p._forceSay = false;

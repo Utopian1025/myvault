@@ -135,6 +135,9 @@
   // 10x10 像素小图标：k 黑 w 白 y 黄 r 红 g 绿 G 深绿 b 蓝 B 深蓝 c 浅蓝 o 橙 p 粉 n 棕 N 深棕 s 沙 e 灰 E 深灰 v 紫
   const PAL = { k: '#231c20', w: '#ffffff', y: '#ffcf33', r: '#e0453a', g: '#6cc04a', G: '#2f7a3a', b: '#4a9ad8', B: '#1e4a7a', c: '#bfe6f8', o: '#f08a3a', p: '#ff9ab8', n: '#a8703a', N: '#5a3a20', s: '#f0d090', e: '#9a9aa8', E: '#5a5a68', v: '#9a6ad8' };
   const SICON = {
+    isleIco: ['..........', '..w.....w.', '.www..ww..', '....rr....', '...rwwr...', '..gggggg..', '.gGgggGgg.', '..nnnnnn..', '...nnnn...', '....nn....'],
+    castleIco: ['..v....v..', '..e....e..', '.eee..eee.', '.eye..eye.', '.eee..eee.', 'eeeeeeeeee', 'eyeeyyeeye', 'eeeeNNeeee', 'eeeeNNeeee', 'gggggggggg'],
+    shroomIco: ['..........', '..pppppp..', '.pwpppwpp.', 'pppppppppp', '..kwwwwk..', '....ww..c.', '....ww.ccc', '....ww..c.', 'GGGGwwGGGG', 'NNNNNNNNNN'],
     penguinIco: ['...kkkk...', '..kkkkkk..', '..kwkkwk..', '..kwwwwk..', '.kkwyywkk.', '.kkwwwwkk.', '..kwwwwk..', '..kwwwwk..', '...kwwk...', '..yy..yy..'],
     ice: ['..........', '....w.....', '...wwc....', '..wwwcc...', '.wwwwwcc..', 'wwwwwwccc.', 'bbbbbbbbbb', 'bBbbbBbbbb', 'BBbBBBbBBB', 'BBBBBBBBBB'],
     peak: ['....w.....', '...www....', '..wweew...', '..eeeeee..', '.eeEeeeee.', '.eEEEeeEe.', 'eeEEEEeEEe', 'eEEEEEEEEe', 'GGGGGGGGGG', 'GGGGGGGGGG'],
@@ -158,10 +161,17 @@
   PP.sceneIcon = (k, px) => icon((PP.SCENE_ICON || {})[k], px);
   let scBtn = null;
   function initSceneBtn() {
-    scBtn = $(`<div class="orb scenebtn" title="场景：去别的地方 / 季节 / 环境声 / 场景信息"><canvas width="10" height="10"></canvas></div>`);
+    scBtn = $(`<div class="orb scenebtn" title="场景&#10;点一下：藏起 / 显示场景&#10;鼠标停留：地图（去别的地方）、季节、环境声"><canvas width="10" height="10"></canvas></div>`);
     document.getElementById('ui').appendChild(scBtn);
     let t = 0;
-    scBtn.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.stopPropagation(); clearTimeout(t); showScenePop(); });
+    // 点一下：藏起 / 显示场景画面（动物还在）；极简模式下点一下就回到场景
+    scBtn.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; e.stopPropagation(); clearTimeout(t); hidePop();
+      const s = S();
+      if (s.mode === 'mini') { s.sceneHidden = false; PP.setMode(s.lastMode && s.lastMode !== 'mini' ? s.lastMode : 'band'); }
+      else { s.sceneHidden = !s.sceneHidden; PP.ui && PP.ui.toast(s.sceneHidden ? '场景藏起来了，动物还在（再点一下显示）' : '场景回来了'); }
+      PP.save.soon(); scBtn.dataset.k = ''; drawSceneBtn(); PP.refreshInteractive();
+    });
     scBtn.addEventListener('mouseenter', () => { t = setTimeout(showScenePop, 350); });
     scBtn.addEventListener('mouseleave', () => { clearTimeout(t); setTimeout(() => { if (pop && !pop.matches(':hover') && !scBtn.matches(':hover')) hidePop(); }, 350); });
   }
@@ -174,17 +184,19 @@
   function showScenePop() {
     hidePop();
     const s = S(), cur = PP.scene.active() ? PP.scene.view() : null, c = PP.wild ? PP.wild.census() : {};
-    const groups = (PP.REGIONS || []).map((r) => `<div class="rg"><div class="rn"><i data-ico="${r.subs[0][0]}"></i>${esc(r.name)}</div><div class="subs">${r.subs.map(([k, n]) => { const t = PP.wild ? PP.wild.censusText(k, c[k]) : ''; return `<button class="small ${cur === k ? 'on' : ''}" data-s="${k}" title="${esc(t || '现在没人')}"><i data-ico="${k}"></i>${esc(n)}</button>`; }).join('')}</div></div>`).join('');
-    pop = $(`<div class="orb-pop scene-pop"><div class="regions">${groups}</div>
+    // 地图：每个地方一张小全景，直接看到那边的样子，点一下就过去
+    const groups = (PP.REGIONS || []).map((r) => `<div class="rg"><div class="rn"><i data-ico="${r.subs[0][0]}"></i>${esc(r.name)}</div><div class="tiles">${r.subs.map(([k, n]) => { const t = PP.wild ? PP.wild.censusText(k, c[k]) : ''; return `<button class="tile ${cur === k ? 'on' : ''}" data-s="${k}" title="${esc(n + '：' + (t || '现在没人'))}"><i data-th="${k}"></i><span class="tn"><i data-ico="${k}"></i>${esc(n)}</span>${PP.NEST && PP.NEST[k] ? '<span class="tnest">在' + esc(PP.SCENES[PP.NEST[k]].name) + '里</span>' : ''}</button>`; }).join('')}</div></div>`).join('');
+    pop = $(`<div class="orb-pop scene-pop"><div class="maphead"><b>地图</b><span class="muted">点一下就过去 · 点场景按钮本身：${s.sceneHidden ? '显示场景' : '藏起场景'}</span></div><div class="regions">${groups}</div>
       <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
       <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
       <div class="sound"><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
       <div class="env">${esc(PP.env.label())}</div></div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
+    pop.querySelectorAll('i[data-th]').forEach((el) => { try { const cv = PP.scene.thumb(el.dataset.th, 156, 46); const im = document.createElement('canvas'); im.width = 156; im.height = 46; im.className = 'thumb'; im.getContext('2d').drawImage(cv, 0, 0); el.replaceWith(im); } catch (err) { console.warn('thumb', err); el.remove(); } });
     openPop(scBtn);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.s) { if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
+      if (b.dataset.s) { S().sceneHidden = false; if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }
       if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showScenePop(); return; }
       if (b.dataset.a === 'info') { S().sceneInfo = !S().sceneInfo; PP.save.soon(); showScenePop(); return; }

@@ -309,8 +309,25 @@
   const nextHop = (a, b) => PP.nextHop(a, b);
   // 谁能去哪儿：海里的只在海里和海岸；南极、洞穴、北极只有本地居民（北极：耐寒的也能去；下雪时狗和狐狸会去玩）
   const RESTRICT = { sea: 1, antarctic: 1, cave: 1, snow: 1 };
-  function canBe(sp, sc, e) {
-    const h = HAB[sp] || HAB.cat;
+  // 认养的动物搬进你的小天地：住在那里的小屋，吃食盆、喝泉水、在草地上玩（离不开水的、长在洞里的除外）
+  const OWN = new Map();
+  function canMoveIn(p) { const h = HAB[p.d.species] || HAB.cat, m = PP.motionOf ? PP.motionOf(p.d.species) : 'normal'; return !h.sea && m !== 'swim' && m !== 'fixed'; }
+  PP.canMoveIn = canMoveIn;
+  function habOf(p) {
+    const sp = p.d.species, base = HAB[sp] || HAB.cat, sc = p.d.ownHome;
+    if (p.d.wild || !sc || !(PP.MINE || []).includes(sc) || !canMoveIn(p)) return base;
+    const key = sp + '|' + sc; let o = OWN.get(key);
+    if (!o) {
+      o = Object.assign({}, base, { home: sc, range: [sc], open: 0, own: true, about: base.about + '（现在住在你的' + (PP.SCENES[sc] ? PP.SCENES[sc].name : '小天地') + '里）',
+        foods: [F(sc, 'feeder', 'forage', '在食盆边吃饭', 1.4)], water: [W(sc, 'fountain')],
+        fun: [F(sc, 'lawn', 'zoom', '在草地上撒欢', 1), F(sc, 'sunspot', 'nap', '找个舒服的地方打盹', 1), F(sc, 'lookout', 'watch', '看风景', 0.8), F(sc, sp + '_home', 'groom', '在小屋门口理毛', 0.6)] });
+      OWN.set(key, o);
+    }
+    return o;
+  }
+  PP.habOf = habOf;
+  function canBe(sp, sc, e, hh) {
+    const h = hh || HAB[sp] || HAB.cat;
     if (sc === h.home) return true;
     if (h.range) return h.range.includes(sc);
     if (h.sea) return sc === 'sea' || sc === 'beach';
@@ -318,7 +335,7 @@
     if (sc === 'snow') return h.cold <= -30 || ((sp === 'dog' || sp === 'fox') && snowy(e || env()));
     return false;
   }
-  const homeScene = (p) => (HAB[p.d.species] || HAB.cat).home;
+  const homeScene = (p) => habOf(p).home;
   const env = (sc) => (sc ? PP.env.at(sc) : PP.env.get());
   const lay = () => (PP.scene && PP.scene.layout()) || null;
   const iceNow = (e) => (e || env()).season === 'winter';
@@ -330,12 +347,12 @@
 
   // ---------- 天气、冬眠 ----------
   function hibernating(p, e) {
-    const h = HAB[p.d.species];
+    const h = habOf(p);
     return !!(h.hibernate && e.season === 'winter' && (e.weather.temp == null || e.weather.temp < 10));
   }
   // 返回“为什么不想出门”，没有就是 null
   function weatherBad(p, e) {
-    const h = HAB[p.d.species], k = e.weather.kind, t = e.weather.temp;
+    const h = habOf(p), k = e.weather.kind, t = e.weather.temp;
     const v = (h.avoid || {})[k] || 0;
     // 胆子大的偶尔也会冒雨出门；胆小的更容易躲着
     const brave = (1 - p.tr.timid) * 0.25;
@@ -348,7 +365,7 @@
 
   // ---------- 计划：现在该干嘛 ----------
   function plan(p) {
-    const sp = p.d.species, h = HAB[sp] || HAB.cat, e = env(p.d.scene || h.home), n = p.n, season = e.realSeason || e.season;
+    const sp = p.d.species, h = habOf(p), e = env(p.d.scene || h.home), n = p.n, season = e.realSeason || e.season;
     // 睡露天的（斑马、狮子、鲨鱼…）：回“家”就是在家门口那块地方趴下 / 泡着 / 站着睡，一直看得见
     const home = (why, label, dur) => (h.open && why !== 'hibernate'
       ? { scene: h.home, spot: sp + '_home', kind: sp === 'hippo' ? 'soak' : sp === 'gardeneel' ? 'watch' : 'nap', why, rest: true, label: label.replace('在家里睡觉', '在家门口睡觉').replace('回家睡个午觉', '在老地方打个盹').replace('躲在家里', '找个地方躲着'), dur }
@@ -361,7 +378,7 @@
     if (bad && !(h.rainLover && wet(e) && bad !== '太冷了' && e.weather.kind !== 'storm')) return home('shelter', `${bad}，躲在家里`, U.rand(60, 120));
     const here = p.d.scene || h.home;
     const cands = [];
-    const ok = (o) => canBe(sp, o.scene, e) && (!o.season || o.season.includes(season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e));
+    const ok = (o) => canBe(sp, o.scene, e, h) && (!o.season || o.season.includes(season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e));
     const far = (o) => 1 / (1 + hops(here, o.scene) * 0.8 + (o.scene !== h.home ? 0.3 : 0));
     const push = (o, kind, wgt, label) => cands.push([{ scene: o.scene, spot: o.spot, kind, label, dur: U.rand(...(KIND[kind] || KIND.groom).d) }, wgt]);
     // 饿了：去觅食（越饿越想去远一点的好地方）
@@ -373,7 +390,7 @@
     for (const f of h.fun) if (ok(f)) push(f, f.kind, funNeed * (f.w || 1) * far(f) * (0.6 + p.tr.playful * 0.6), f.label);
     for (const f of ((SEASONAL[sp] || {})[season] || [])) if (ok(f)) push(f, f.kind, (0.5 + funNeed * 0.6) * (f.w || 1) * far(f), f.label);
     // 串门：去找好朋友
-    const livable = (sc) => canBe(sp, sc, e);
+    const livable = (sc) => canBe(sp, sc, e, h);
     const friend = G.all.filter((o) => o !== p && !o.d.hidden && !o.d.inHome && o.d.scene && livable(o.d.scene) && p.relWith(o) > 58 && hops(here, o.d.scene) <= 1).sort((a, b) => p.relWith(b) - p.relWith(a))[0];
     if (friend && n.social < 80) cands.push([{ scene: friend.d.scene, kind: 'visit', friend: friend.d.id, label: `去找${friend.name}玩`, dur: U.rand(20, 40) }, (0.3 + p.tr.extro * 0.6) * ((100 - n.social) / 100) * 1.4]);
     // 回家歇会儿
@@ -577,7 +594,7 @@
     if ((p.cooldown.wx || 0) > 0) return;
     p.cooldown.wx = 6;
     if (p.ecoTask && p.ecoTask.home) return;
-    const h = HAB[p.d.species], e = env(p.d.scene || h.home);
+    const h = habOf(p), e = env(p.d.scene || h.home);
     const bad = weatherBad(p, e);
     const hib = hibernating(p, e);
     if ((bad && !(h.rainLover && wet(e) && e.weather.kind !== 'storm')) || hib) {
@@ -594,8 +611,10 @@
     p.surf = surf; if (lane != null) p.lane = lane;
     const y1 = floorY(p);
     p.transit = true;
-    const n = 8, h = Math.max(10, Math.abs(y1 - y0) * 0.4 + 10);
-    for (let k = 1; k <= n; k++) { const a = k / n; p.y = y0 + (y1 - y0) * a - Math.sin(a * Math.PI) * h; p.anim = a < 0.5 ? 'jump' : 'fall'; yield 0.04; }
+    // 大块头、游的不会蹦：慢慢走下去 / 走上去（不腾空）
+    const mo = PP.motionOf ? PP.motionOf(p.d.species) : 'normal', grounded = mo === 'heavy' || mo === 'swim' || mo === 'fixed';
+    const n = grounded ? 14 : 8, h = grounded ? 0 : Math.max(10, Math.abs(y1 - y0) * 0.4 + 10);
+    for (let k = 1; k <= n; k++) { const a = k / n; p.y = y0 + (y1 - y0) * a - Math.sin(a * Math.PI) * h; p.anim = grounded ? 'walk' : a < 0.5 ? 'jump' : 'fall'; yield 0.04; }
     p.transit = false; p.y = y1; p.anim = 'land'; p.jolt(-2, 0); yield 0.15; p.anim = 'idle';
   }
   function* walkTo(p, pos, task, run) {
@@ -616,7 +635,7 @@
       return;
     }
     yield p.goto(tx, run);
-    if (pos.perch) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, hang: pos.hang, c: pos.c, id: pos.id }, null); }
+    if (pos.perch && PP.canClimb(p.d.species)) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, hang: pos.hang, c: pos.c, id: pos.id }, null); }
   }
   function wadeOf(p, task) {
     const sp = p.d.species, S = SZ();
@@ -932,7 +951,7 @@
 
   // ---------- 档案里用的描述 ----------
   PP.eco.describe = function (p) {
-    const h = HAB[p.d.species] || HAB.cat;
+    const h = habOf(p);
     const where = PP.SCENES[p.d.scene || h.home] ? PP.SCENES[p.d.scene || h.home].name : '';
     let now = '';
     if (p.d.hidden) now = '回电脑里休息了';
@@ -948,7 +967,7 @@
     for (let i = 0; i <= 24; i++) { const a = awake.includes(i % 24) && i < 24; if (a && st == null) st = i; if (!a && st != null) { ranges.push(`${st}点–${i}点`); st = null; } }
     const SN = { spring: '春', summer: '夏', autumn: '秋', winter: '冬' }, ys = SEASONAL[p.d.species] || {};
     const year = Object.keys(SN).map((k) => [SN[k], (ys[k] || []).map((o) => o.label).join('；') || (k === 'winter' && h.hibernate ? '冬眠，一觉睡到开春' : '照常过日子')]);
-    return { year, home: `${PP.SCENES[h.home].name}的${PP.HOME_NAME[p.d.species]}`, about: h.about, likes: h.likes, hates: h.hates, diet: h.diet, now, active: ranges.join('、') || '随时', hibernate: !!h.hibernate };
+    return { year, home: `${PP.SCENES[h.home].name}的${h.own ? '小屋' : PP.HOME_NAME[p.d.species]}`, about: h.about, likes: h.likes, hates: h.hates, diet: h.diet, now, active: ranges.join('、') || '随时', hibernate: !!h.hibernate };
   };
 
   // ---------- 开机：大家各就各位 ----------
@@ -964,7 +983,7 @@
     }
   };
   // 新来的（领养）：先回家看看
-  PP.eco.adopted = function (p) { p.d.scene = homeScene(p); p.d.inHome = false; p.eco = null; };
+  PP.eco.adopted = function (p) { p.d.scene = homeScene(p); p.d.inHome = false; p.eco = null; p.ecoTask = null; p.surf = null; p.wade = 0; };
   PP.eco.nextHop = nextHop;
   PP.eco.plan = plan;
 })();

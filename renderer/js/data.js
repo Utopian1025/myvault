@@ -301,6 +301,8 @@
   };
 
   // 彩蛋登记表（彩蛋图鉴）
+  // 头顶小图标的意思
+  PP.ICON_TEXT = { bowl: '饿了，喂我', drop: '渴了，想喝水', poop: '想上厕所', zzz: '困了', ball: '想玩', heart: '想你了', cloud: '有点累', excl: '！', q: '？', dots: '……', music: '哼歌', note: '哼歌', star: '好开心', fish: '想吃鱼', cursor: '盯着鼠标', sun: '晒太阳', moon: '看月亮', seed: '想吃瓜子', treat: '想吃零食', meat: '想吃肉', hay: '想吃草', banana: '想吃香蕉', berry: '想吃果子', shrimp: '想吃虾' };
   PP.EGGS = {
     edge_peek: { name: '躲猫猫', hint: '把它拖到屏幕最下面或者最边上放手…' },
     poke_rage: { name: '戳戳狂魔', hint: '有些事情做多了，会被讨厌' },

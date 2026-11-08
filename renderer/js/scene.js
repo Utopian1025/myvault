@@ -15,6 +15,7 @@
   // 套在父场景里的次场景：只有一个路牌回父场景；父场景里有个入口
   for (const [sub, parent] of Object.entries(PP.NEST || {})) { EXITS[sub] = [[-1, parent]]; LINKS[sub] = [parent]; LINKS[parent].push(sub); }
   if (SCENES.cave) SCENES.cave.out = false;
+  if (SCENES.undergrove) SCENES.undergrove.out = false;
   PP.ROUTE = PP.WORLD.map((w) => w[0]);
   PP.LINKS = LINKS;
   // 两个地方之间要走几段路、下一站去哪
@@ -58,6 +59,7 @@
       case 'sea': return [...L('rock', [0.3, 0.78], 0.3)];
       case 'antarctic': return [];
       case 'cave': return [];
+      case 'skyisle': case 'academy': case 'undergrove': return [];
       case 'jungle': return [...L('bush', [0.15, 0.38, 0.62], 0.4), ...L('flower', [0.2, 0.55], 0.5)];
     }
     return [];
@@ -100,12 +102,12 @@
     scatter(lay, R);
     // 自己布置的装饰
     decorOf(scene).forEach((d, i) => { const it = decorItem(d, lay, R); if (it) { it.decor = d; it.di = i; lay.items.push(it); } });
-    // 路牌
-    for (const [side, to] of EXITS[scene]) {
+    // 路牌：只有套在别的场景里的次场景（洞穴）留一个“出去”的牌子；其它地方用场景按钮里的地图直接去
+    for (const [side, to] of (PP.NEST && PP.NEST[scene] ? EXITS[scene] : [])) {
       const sg = A.sign(SCENES[to].name, season === 'winter');
       const c = side < 0 ? 16 : cols - 16, r = base + 3;
       lay.items.push({ s: sg, c, r });
-      lay.hots.push({ x0: c - 14, y0: r - sg.h, x1: c + 14, y1: r + 1, tip: `${side < 0 ? '← ' : ''}去${SCENES[to].name}${side > 0 ? ' →' : ''}`, go: to, sign: { x: c - 13, y: r - sg.h + 1, side, label: SCENES[to].name } });
+      lay.hots.push({ x0: c - 14, y0: r - sg.h, x1: c + 14, y1: r + 1, tip: `${side < 0 ? '← ' : ''}回到${SCENES[to].name}${side > 0 ? ' →' : ''}`, go: to, sign: { x: c - 13, y: r - sg.h + 1, side, label: SCENES[to].name } });
     }
     // 从后往前贴
     lay.items.sort((a, b) => a.r - b.r);
@@ -118,12 +120,12 @@
     }
     // 小场景：顶上用抖动渐隐，和桌面自然衔接
     if (!full) for (let y = 0; y < 6; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 7)) P.d[y * cols + x] = 0;
-    return { cv: P.canvas(), lay };
+    PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 地面上的零碎：前后错落，越靠前越大一点，避开小路、水和房子门口
   function scatter(lay, R) {
     const A = PP.ART, sc = lay.scene, s = lay.season, w = s === 'winter' || sc === 'snow';
-    if (lay.under || lay.cave) return;
+    if (lay.under || lay.cave || lay.noScatter) return;
     const depth = lay.rows - lay.base - 2; if (depth < 4) return;
     const bad = (c, r) => (lay.path && Math.abs(r - lay.path) < 6) || (lay.water && r >= lay.water.y0 - 1 && r <= lay.water.y1 + 2) || lay.homes.some((h) => c > h.x0 - 4 && c < h.x1 + 4 && r < h.y1 + 6) || c < 30 || c > lay.cols - 30;
     // 一丛一丛地长，不是均匀撒满
@@ -177,7 +179,7 @@
     if (lay.steam) sh(lay.steam);
     lay.bubblesX = lay.bubbles ? [ox, rw] : null;
     if (!full) for (let y = 0; y < 4; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 5)) P.d[y * cols + x] = 0;
-    return { cv: P.canvas(), lay };
+    PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 装饰 → 精灵
   function decorItem(d, lay, R) {
@@ -222,7 +224,7 @@
     let bot = { dawn: '#ffe3b8', day: '#d5efff', dusk: '#6a5ca8', night: '#28305f' }[ph];
     const grey = Math.min(0.7, W.cloud * 0.4 + W.rain * 0.35 + W.snow * 0.3 + W.fog * 0.3);
     if (grey > 0) { top = mix(top, ph === 'night' ? '#1c2030' : '#7a8494', grey); bot = mix(bot, ph === 'night' ? '#2a2e3c' : '#b4bcc6', grey); }
-    return [top, bot];
+    return PP.gradeHex ? [PP.gradeHex(top), PP.gradeHex(bot)] : [top, bot];
   }
   function mix(a, b, t) {
     const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
@@ -234,12 +236,14 @@
     const g = geo(); if (!g) return null;
     const s = settings(), scene = SCENES[s.scene] ? s.scene : 'forest', e = PP.env.at(scene);
     if (inside && !(PP.INTERIOR && PP.INTERIOR[inside])) inside = null;
-    const k = [scene, inside || '', g.m, G.W, g.H, g.u, e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName].join('|');
+    const k = [scene, inside || '', g.m, G.W, g.H, g.u, e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName, PP.ownSpecies ? PP.ownSpecies(scene).join(',') : ''].join('|');
     if (k !== key) { const r = inside ? buildInside(inside, scene, g, e) : build(scene, g, e); cache = r.cv; L = r.lay; key = k; lampsOff = {}; }
     return { g, e, scene };
   }
 
-  function render(ctx) { renderInner(ctx); }
+  // 场景按钮点一下：把场景画面藏起来（动物还在），再点一下显示
+  const hidden = () => !!(G.save && settings().sceneHidden && !inside);
+  function render(ctx) { if (hidden()) return; renderInner(ctx); }
   PP.sceneFade = () => 1;
   function renderInner(ctx) {
     if (!G.save) return;
@@ -309,11 +313,11 @@
     ctx.restore();
 
     // 灯：天暗了亮起来（画在调色之后，所以是亮的）
-    const dark = L.cave || night || ph === 'dusk' || (!out && ph !== 'day') || F.dark > 0.2;
+    const dark = L.cave || L.dark || night || ph === 'dusk' || (!out && ph !== 'day') || F.dark > 0.2;
     L.lights.forEach((l, i) => {
       if (lampsOff[i]) return;
       if (l.win) { if (!dark) return; R(l.x, l.y, '#ffd27a', l.w, l.h); R(l.x + 3, l.y, '#5a3a24', 1, l.h); R(l.x, l.y + 2, '#5a3a24', l.w, 1); }
-      else if (!dark) return;
+      else if (!dark && !l.always) return;
       glow(ctx, (l.x + l.w / 2) * u, y0 + (l.y + l.h / 2) * u, (l.r + l.w) * u, l.col || '#ffd27a', 0.45 + Math.sin(t * 3 + l.x) * 0.05);
       if (!l.win) R(l.x, l.y, l.col || '#ffe08a', l.w, l.h);
     });
@@ -524,7 +528,7 @@
   const TIP = { pine: '摇一摇', oak: '摇一摇', apple: '摇一摇（会掉苹果）', bush: '扒拉一下', flower: '闻一闻', mushroom: '戳一下', lamp: '开灯 / 关灯', snowman: '摸摸雪人', pumpkin: '敲一敲', hay: '扒拉一下', bench: '坐坐' };
   function hot(x, y) {
     hover = null;
-    if (G.editing) return null;
+    if (G.editing || hidden()) return null;
     const g = geo(); if (!g || !L) return null;
     const lx = x / g.u, ly = (y - g.y0) / g.u;
     hover = L.hots.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1) || null;
@@ -676,6 +680,24 @@
     ctx.restore();
   }
 
-  PP.scene = { render, renderFront, update, hot, click, go, active, height, bandHeight, geo, fav, exitX, view, layout, edit, editDown, editMove, editUp, get hover() { return hover; }, defaultDecor, splash(x, y) { ripples.push({ x, y, t: 0, max: 0.7 }); }, fishAt(x) { jumpFish(x); }, enter, leave, inside: () => inside };
+  // 地图用的小画面：每个地方的全景缩略图（按季节缓存）
+  const thumbs = {};
+  function thumb(sc, w, h) {
+    const e = PP.env.at(sc), u = 2, bh = 150;
+    const k = [sc, e.season, e.holiday ? e.holiday.id : '', w, h, JSON.stringify(settings().decor[sc] || 0)].join('|');
+    if (thumbs[sc] && thumbs[sc].k === k) return thumbs[sc].cv;
+    const W0 = G.W; let r;
+    try { G.W = 1200; r = build(sc, { m: 'band', u, H: bh, y0: 0 }, e); } finally { G.W = W0; }
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+    const [top, bot] = sc === 'cave' ? ['#2a2430', '#3a3242'] : sc === 'sea' ? ['#2a6a9a', '#4a9ac8'] : skyCols(e);
+    const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, top); gr.addColorStop(1, bot); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    // 取中间偏左的一段（家和动物最多的地方），按比例缩放
+    const src = r.cv, sh = src.height, sw = Math.min(src.width, Math.round(sh * w / h));
+    const sx = Math.max(0, Math.round((src.width - sw) * 0.35));
+    c.drawImage(src, sx, 0, sw, sh, 0, 0, w, h);
+    thumbs[sc] = { k, cv };
+    return cv;
+  }
+  PP.scene = { thumb, hidden, render, renderFront, update, hot, click, go, active, height, bandHeight, geo, fav, exitX, view, layout, edit, editDown, editMove, editUp, get hover() { return hover; }, defaultDecor, splash(x, y) { ripples.push({ x, y, t: 0, max: 0.7 }); }, fishAt(x) { jumpFish(x); }, enter, leave, inside: () => inside };
 
 })();

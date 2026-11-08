@@ -93,4 +93,29 @@
     if (m >= 9 && m <= 11) return 'autumn';
     return 'winter';
   };
+
+  // ---------- 调色：整体往柔和、温暖的绘本色调靠（参考巫奇魔法学院那种配色） ----------
+  // 饱和度降一点、暗部提亮并偏紫、亮部偏暖，所有场景和动物统一用这一套
+  (function () {
+    const cache = new Map();
+    function hsl(r, g, b) { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b); let h = 0, s = 0; const l = (mx + mn) / 2; if (mx !== mn) { const d = mx - mn; s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h /= 6; } return [h, s, l]; }
+    function rgb(h, s, l) { if (!s) return [l, l, l].map((v) => Math.round(v * 255)); const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q; const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; }; return [f(h + 1 / 3), f(h), f(h - 1 / 3)].map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255)); }
+    function grade(r, g, b) {
+      let [h, s, l] = hsl(r, g, b);
+      s = s * (0.84 + 0.1 * (1 - Math.abs(l - 0.55) * 2));
+      // 暗部：别太黑，往紫色偏一点
+      if (l < 0.4) { const k = (0.4 - l) / 0.4; h = h + ((0.74 - h + (h > 0.24 ? 0 : -1)) % 1) * 0.18 * k; s = Math.min(1, s + 0.06 * k); l = l + 0.05 * k; }
+      // 亮部：带一点暖意
+      if (l > 0.62) { const k = (l - 0.62) / 0.38; const dh = ((0.1 - h + 1.5) % 1) - 0.5; h = (h + dh * 0.1 * k + 1) % 1; }
+      l = 0.03 + l * 0.95;
+      let [R, G2, B] = rgb(h, s, l);
+      // 一层很淡的暖光
+      R = Math.round(R * 0.97 + 255 * 0.03); G2 = Math.round(G2 * 0.975 + 242 * 0.025); B = Math.round(B * 0.98 + 225 * 0.02);
+      return [R, G2, B];
+    }
+    PP.grade = function (r, g, b) { const k = (r << 16) | (g << 8) | b; let v = cache.get(k); if (!v) { v = grade(r, g, b); cache.set(k, v); } return v; };
+    PP.gradeHex = function (hex) { const n = parseInt(hex.slice(1, 7), 16); const [r, g, b] = PP.grade(n >> 16, (n >> 8) & 255, n & 255); return '#' + [r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('') + (hex.length > 7 ? hex.slice(7) : ''); };
+    // Pix（ABGR 的 Uint32）整张调色
+    PP.gradePix = function (d) { const m = new Map(); for (let i = 0; i < d.length; i++) { const v = d[i]; if (!(v >>> 24)) continue; let o = m.get(v); if (o === undefined) { const [r, g, b] = PP.grade(v & 255, (v >>> 8) & 255, (v >>> 16) & 255); o = ((v >>> 24) << 24 | (b << 16) | (g << 8) | r) >>> 0; m.set(v, o); } d[i] = o; } };
+  })();
 })();

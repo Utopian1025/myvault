@@ -306,32 +306,46 @@
         // 翅膀
         if (fly) { h.poly(b, [[cx - rx + 1, cy - 1], [cx - rx - 6, cy - 6 + flap * 5], [cx - rx + 1, cy + 3]], C.dark); h.poly(b, [[cx + rx - 1, cy - 1], [cx + rx + 6, cy - 6 + flap * 5], [cx + rx - 1, cy + 3]], C.dark); }
         h.ell(b, cx, cy, rx, ry, C.base);
+        if (opt.wing && !fly) for (const sd of [-1, 1]) h.ell(b, cx + sd * (rx - 1.4), cy + 1.2, 2.4, ry * 0.62, C.wing || C.dark, true);
         if (opt.crest) for (let k = 0; k < 3; k++) h.rect(b, Math.round(cx - 1 + k), Math.round(cy - ry - 1 - (k === 1 ? 1 : 0)), 1, 2, C.crest || C.base);
         if (!lie) { const fy = Math.round(Math.min(cy + ry + 1, 28)); h.rect(b, Math.round(cx - 3), fy - 1, 1, 2, C.paw); h.rect(b, Math.round(cx - 4), fy + 1, 3, 1, C.paw); h.rect(b, Math.round(cx + 2), fy - 1, 1, 2, C.paw); h.rect(b, Math.round(cx + 1), fy + 1, 3, 1, C.paw); }
         p.__geo = { kind: 'chick', cx, cy, rx, ry, hx: cx + f * 0.6, hy: cy - 1.8, lie, hatX: cx, hatY: cy - ry + 5 };
       },
     };
   }
-  X.seagull = bird({ tail: 3 });
+  X.seagull = bird({ tail: 3, wing: true });
   X.parrot = bird({ tail: 6, crest: true });
   // 花园鳗：从沙子的小洞里探出细细的身体，随水流左右摆
+  // 花园鳗：从沙洞里探出一截弯弯的身子，脸朝着水流，随水摇摆；睡觉 / 害羞时缩回洞里只露个头
   X.gardeneel = {
     custom(b, p, g, h) {
-      const C = p.pal, t = g.t, anim = g.anim, lie = anim === 'sleep' || anim === 'lie';
-      const len = lie ? 7 : anim === 'held' ? 20 : 15 + Math.sin(t * 0.7) * 1.5;
-      const base = 28, sway = (k) => Math.sin(t * 1.6 + k * 0.25) * (k / len) * (lie ? 0.6 : 2.6);
-      h.ell(b, 16, base + 0.6, 4.6, 1.4, C.sand);
-      for (let k = 0; k < len; k++) { const y = base - k, x = 16 + sway(k); h.rect(b, Math.round(x - 1.5), Math.round(y), 3, 1, (Math.floor(k / 2) * 7) % 5 === 0 && k > 2 ? C.dark : C.base); }
-      const hx = 16 + sway(len), hy = base - len - 1;
-      h.ell(b, hx, hy, 2.6, 2.2, C.base);
-      h.ell(b, 16, base + 1, 3.4, 0.9, C.sandDark);
+      const C = p.pal, t = g.t, anim = g.anim, f = g.f, lie = anim === 'sleep' || anim === 'lie';
+      const len = lie ? 4 : anim === 'held' ? 22 : anim === 'eat' ? 17 : 15 + Math.sin(t * 0.7) * 1.2;
+      const base = 29, pts = [];
+      for (let k = 0; k <= len; k += 0.5) {
+        const a = k / len, sw = Math.sin(t * 1.7 - k * 0.22) * a * (lie ? 0.4 : 2.2);
+        // 上半截向着脸的方向弯（问号形）
+        const lean = Math.pow(a, 2.2) * (anim === 'eat' ? 6 : 3.6) * f;
+        pts.push([16 + sw + lean, base - k + Math.pow(a, 3) * 2.2]);
+      }
+      // 沙洞
+      h.ell(b, 16, base + 0.8, 5.2, 1.6, C.sand); h.ell(b, 16, base + 0.9, 3, 0.9, C.sandDark);
+      // 身体：越往上越细一点
+      pts.forEach(([x, y], i) => { const a = i / (pts.length - 1); h.ell(b, x, y, 1.9 - a * 0.3, 1, C.base); });
+      const [hx0, hy0] = pts[pts.length - 1], hx = hx0 + f * 1.2, hy = hy0 - 0.4;
+      h.ell(b, hx, hy, 2.8, 2.2, C.base); h.ell(b, hx + f * 2.2, hy + 0.6, 1.6, 1.2, C.base);
+      // 斑点
+      pts.forEach(([x, y], i) => { if (i % 5 === 2 && i > 3) b.setOn(Math.round(x + ((i * 3) % 2 ? 0.6 : -0.6)), Math.round(y), C.dark); });
+      h.ell(b, 16, base + 1.2, 2.6, 0.7, C.sandDark);
       g.hx = hx; g.hy = hy;
-      p.__geo = { kind: 'eel', hx, hy, hatX: hx, hatY: hy + 3 };
+      p.__geo = { kind: 'eel', hx, hy, f, hatX: hx, hatY: hy + 3 };
     },
     face(b, p, g, h) {
-      const q = p.__geo, ex = Math.round(q.hx), ey = Math.round(q.hy - 0.4), closed = ['closed', 'sleepy', 'happy'].includes(p.eyes);
-      for (const s of [-1, 1]) { if (closed) b.set(ex + s, ey, h.K); else { b.set(ex + s, ey, h.K); b.set(ex + s, ey - 1, '#ffffff'); } }
-      b.set(ex, ey + 1, p.mouth === 'open' || p.mouth === 'chew' ? '#6e2434' : h.K);
+      const q = p.__geo, f = q.f || 1, ex = Math.round(q.hx + f * 0.6), ey = Math.round(q.hy - 0.6), closed = ['closed', 'sleepy', 'happy'].includes(p.eyes) || g.anim === 'sleep';
+      if (closed) { b.set(ex - 1, ey, h.K); b.set(ex, ey + 0.4, h.K); b.set(ex + 1, ey, h.K); }
+      else { h.rect(b, ex - 1, ey - 1, 3, 3, '#ffffff'); h.rect(b, ex - (f > 0 ? 0 : 1), ey - 1, 2, 2, h.K); b.set(ex + (f > 0 ? 1 : -1), ey - 1, '#ffffff'); }
+      const mx = Math.round(q.hx + f * 3.4), my = Math.round(q.hy + 1.2);
+      b.set(mx, my, p.mouth === 'open' || p.mouth === 'chew' ? '#6e2434' : h.K); b.set(mx - f, my, h.K);
       return true;
     },
   };
@@ -371,7 +385,7 @@
   // 豪猪：刺猬的身体，背上竖着又长又粗的黑白长刺
   X.porcupine = { as: 'hedgehog' };
   X.brownbear = X.polarbear;
-  X.albatross = bird({ tail: 3 });
+  X.albatross = bird({ tail: 3, wing: true });
   // 海獭：小圆耳朵、白白的脸、粗尾巴
   X.otter = {
     geo(g) { g.hrx -= 0.4; },
@@ -416,7 +430,7 @@
     marmot: { brown: P({ base: '#a8804e', dark: '#6a4a2a', light: '#e8d0a8', paw: '#5a3a24', inner: '#c8907a', nose: '#3a2a1a', pattern: 'bib', name: '土拨鼠' }), shiny: P({ base: '#e8c8f0', dark: '#a880b8', light: '#fff4ff', paw: '#a880b8', inner: '#f0a8c8', nose: '#6a3a6a', pattern: 'bib', name: '香芋土拨鼠' }) },
     porcupine: { crested: P({ base: '#b0988a', dark: '#231c20', light: '#e0d0c4', spine: '#2a2420', tip: '#f4f0e8', paw: '#5a4a42', inner: '#c89090', nose: '#231c20', name: '豪猪' }), shiny: P({ base: '#d8c8f0', dark: '#1a1430', light: '#f4f0ff', spine: '#4a3a8a', tip: '#ffd84a', paw: '#8a7ab8', inner: '#e8a0c8', nose: '#1a1430', name: '金刺豪猪' }) },
     brownbear: { brown: P({ base: '#8a5a34', dark: '#5a3a22', light: '#c89a6a', paw: '#5a3a22', inner: '#a87050', nose: '#231c20', name: '棕熊' }), honey: P({ base: '#b8804a', dark: '#7a5030', light: '#e0b884', paw: '#7a5030', inner: '#c8906a', nose: '#231c20', name: '蜂蜜熊' }), shiny: P({ base: '#d8d8e0', dark: '#8a8a98', light: '#ffffff', paw: '#8a8a98', inner: '#e8b8c8', nose: '#3a3a48', name: '银熊' }) },
-    albatross: { wandering: P({ base: '#fbfaf6', dark: '#4a4a52', light: '#ffffff', paw: '#f0b8b0', nose: '#f0c8a0', tail: '#4a4a52', tail2: '#fbfaf6', name: '信天翁' }), shiny: P({ base: '#fff0d0', dark: '#8a6a3a', light: '#ffffff', paw: '#f0b8b0', nose: '#ffa860', tail: '#8a6a3a', name: '金翅信天翁' }) },
+    albatross: { wandering: P({ base: '#fbfaf6', wing: '#4a4a52', dark: '#4a4a52', light: '#ffffff', paw: '#f0b8b0', nose: '#f0c8a0', tail: '#4a4a52', tail2: '#fbfaf6', name: '信天翁' }), shiny: P({ base: '#fff0d0', dark: '#8a6a3a', light: '#ffffff', paw: '#f0b8b0', nose: '#ffa860', tail: '#8a6a3a', name: '金翅信天翁' }) },
     otter: { sea: P({ base: '#7a5a42', dark: '#4a3424', light: '#e8dccb', paw: '#4a3424', inner: '#a87a60', nose: '#231c20', name: '海獭' }), shiny: P({ base: '#c8e0d8', dark: '#6a8a80', light: '#ffffff', paw: '#6a8a80', inner: '#e0b8c0', nose: '#2a3a36', name: '薄荷海獭' }) },
     bat: { brown: P({ base: '#6a5048', dark: '#2a1e1c', light: '#a88a7a', wing: '#3a2a2a', inner: '#c89090', nose: '#e8a0a8', name: '小蝙蝠' }), fruit: P({ base: '#c8783a', dark: '#4a2a1a', light: '#f0b878', wing: '#5a3424', inner: '#e0a080', nose: '#3a2018', name: '果蝠' }), shiny: P({ base: '#b8a8f0', dark: '#3a2a6a', light: '#e8e0ff', wing: '#5a4a9a', inner: '#f0b8e0', nose: '#ff9ac8', name: '星光蝙蝠' }) },
     lion: { male: P({ base: '#e0a85a', dark: '#6a3a1a', light: '#f8e2b8', paw: '#d89a4e', inner: '#c8784a', nose: '#5a3020', mane: '#a8582a', mane2: '#c8743a', name: '雄狮' }), lioness: P({ base: '#e4b46a', dark: '#6a3a1a', light: '#faead0', paw: '#dca45a', inner: '#c8784a', nose: '#5a3020', name: '母狮' }), shiny: P({ base: '#f4f0e6', dark: '#8a7a6a', light: '#ffffff', inner: '#f0b0a8', nose: '#6a4a3a', mane: '#e8d8b0', mane2: '#fff2d0', name: '白狮' }) },
@@ -496,6 +510,11 @@
     hippo: 'heavy', cow: 'heavy', yak: 'heavy', camel: 'heavy', brownbear: 'heavy', polarbear: 'heavy', sheep: 'heavy', alpaca: 'heavy', capybara: 'heavy', lion: 'heavy', seal: 'heavy', porcupine: 'heavy',
   };
   PP.motionOf = (sp) => PP.MOTION[sp] || 'normal';
+  // 谁能跳上高处（石头、栅栏、屋顶、树屋）：小个子、猫科、会飞的；牛羊骆驼河马这些大块头不行
+  const CLIMB = new Set(['cat', 'fox', 'arcticfox', 'fennec', 'snowleopard', 'tiger', 'monkey', 'parrot', 'seagull', 'albatross', 'bat', 'chick', 'dragon', 'meerkat', 'hamster', 'marmot', 'lion', 'penguin', 'turtle', 'otter', 'dog', 'rabbit', 'arctichare', 'deer', 'antelope']);
+  PP.canClimb = (sp) => CLIMB.has(sp);
+  // 谁会原地蹦起来（扑东西、开心跳）
+  PP.canJump = (sp) => { const m = PP.motionOf(sp); return m === 'normal' || m === 'fly'; };
   // 每种风格不做的事
   PP.MOTION_NO = {
     fixed: ['wander', 'explore', 'play', 'cursor_play', 'seek_user', 'social', 'bug', 'ball', 'treat', 'holiday_food', 'gift', 'follow', 'zoomies'],

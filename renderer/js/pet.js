@@ -100,7 +100,12 @@
       if (this.sulk > 0) return '在生你的气';
       return m > 80 ? '超开心' : m > 62 ? '心情不错' : m > 45 ? '还行' : m > 28 ? '有点低落' : '很难过';
     }
-    get headPos() { const S = G.S * (this.scaleMul || 1); return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + this.sinkPx() + (this.wade || 0)]; }
+    get headPos() {
+      const S = G.S * (this.scaleMul || 1);
+      // 侧身的四脚动物：头在前面，用画的时候记下来的位置
+      if (this._head && PP.QUAD && PP.QUAD.has(this.d.species)) return [this.x + (this._head[0] - 16) * S, this.y + (this._head[1] - 31) * S + this.sinkPx() + (this.wade || 0)];
+      return [this.x + this.facing * S, this.y - (this.anim === 'sleep' || this.anim === 'lie' ? 13 : 19) * S + this.sinkPx() + (this.wade || 0)];
+    }
     get busy() { return this.held || this.airborne; }
     // 脚下的地面：场景里按前后排 / 水面 / 高处算，极简模式就是屏幕底边
     get floor() { return PP.eco ? PP.eco.floorY(this) : G.ground; }
@@ -115,7 +120,8 @@
       if (this.inDoor || this.outing) return false;
       const S = G.S * (this.scaleMul || 1);
       const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
-      return mx > this.x - 10 * S && mx < this.x + 10 * S && my > this.y - top + (this.wade || 0) && my < this.y + G.S * 2;
+      const half = (PP.QUAD && PP.QUAD.has(this.d.species) ? 14 : 10) * S;
+      return mx > this.x - half && mx < this.x + half && my > this.y - top + (this.wade || 0) && my < this.y + G.S * 2;
     }
     hitHead(mx, my) {
       const S = G.S; const [hx, hy] = this.headPos;
@@ -129,7 +135,8 @@
       this.bubble = { text, icon: null, t: 0, dur, kind };
       PP.audio && PP.audio.chirp(this);
     }
-    think(icon, dur = 2.4) { this.bubble = { text: null, icon, t: 0, dur, kind: 'think' }; }
+    // 头顶冒的小图标：旁边配几个字，一看就懂它想干嘛
+    think(icon, dur = 2.4, label) { this.bubble = { text: null, icon, label: label != null ? label : PP.ICON_TEXT[icon] || '', t: 0, dur, kind: 'think' }; }
     line(key, dur) {
       const arr = (this.sp.lines && this.sp.lines[key]) || PP.LINES[key];
       if (arr) this.say(U.pick(arr), dur);
@@ -502,6 +509,7 @@
         jelly: { sy: 1 + this.jy, sx: 1 - this.jy * 0.55, skew: this.jsk + (this.purr > 0 ? Math.sin(this.t * 55) * 0.25 : 0), sway: this.tsw },
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
       });
+      if (buf.head) this._head = buf.head;
       const SS = S * (this.scaleMul || 1);
       // 只露头（沉到屏幕底下）/ 泡在水里（下半身在水下）/ 钻进洞里（慢慢沉下去）
       const sink = this.sinkPx() + (this.wade || 0) + (this.sinkOut ? this.sinkOut * 30 * SS : 0);
@@ -538,10 +546,13 @@
         if (b.icon) {
           const [iw, ih] = PP.SPR.iconSize(b.icon);
           const s = Math.max(2, S);
-          const w = iw * s + 14, h = ih * s + 12;
-          const x = Math.round(hx - w / 2), y = Math.round(by - h);
+          ctx.font = PP.FONT(12);
+          const lw = b.label ? Math.ceil(ctx.measureText(b.label).width) + 6 : 0;
+          const w = iw * s + 14 + lw, h = Math.max(ih * s + 12, 26);
+          const x = Math.round(U.clamp(hx - w / 2, 4, G.W - w - 4)), y = Math.round(by - h);
           bubbleBox(ctx, x, y, w, h, b.kind === 'think', hx);
-          PP.SPR.drawIcon(ctx, b.icon, x + 7, y + 6, s);
+          PP.SPR.drawIcon(ctx, b.icon, x + 7, Math.round(y + (h - ih * s) / 2), s);
+          if (b.label) { ctx.fillStyle = '#2b2a33'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(b.label, x + 7 + iw * s + 5, y + h / 2 + 1); }
         } else if (b.text) {
           ctx.font = PP.FONT(13);
           ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -562,7 +573,12 @@
         ctx.globalAlpha = 1;
       }
       const showName = G.save.settings.names === 'always' || (G.hoverPet === this && !this.held);
-      if (showName) PP.drawPixelLabel(ctx, this.d.name, Math.round(this.x), Math.round(this.y + 6), { size: 12 });
+      if (showName) {
+        // 脚下放不下（贴着屏幕底 / 任务栏）就写在头顶上；头顶有气泡时写在气泡旁边
+        let ly = this.y + 6;
+        if (ly + 18 > G.H) { const [, hy] = this.headPos; ly = hy - (this.bubble ? 40 : 16) * G.S; }
+        PP.drawPixelLabel(ctx, this.d.name, Math.round(this.x), Math.round(Math.max(4, ly)), { size: 12 });
+      }
     }
   }
 

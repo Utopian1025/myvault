@@ -8,6 +8,8 @@
   // ---------- 地图 ----------
   // 主场景（大的生物群系）→ 次场景（具体的地方）。顺序就是路牌连起来的路；洞穴是高山里套着的次场景（从洞口走进去）
   PP.REGIONS = [
+    // 你自己的小天地：认养的动物住在这里（不和野外的路连在一起，从地图直接去）
+    { id: 'mine', name: '我的小天地', icon: 'mine', mine: true, subs: [['skyisle', '浮空岛'], ['academy', '魔法学院'], ['undergrove', '地底森林']] },
     { id: 'polar', name: '极地', icon: 'polar', subs: [['antarctic', '南极'], ['snow', '北极冰原']] },
     { id: 'mount', name: '山地', icon: 'mount', subs: [['mountain', '高山'], ['cave', '洞穴']] },
     { id: 'woods', name: '森林', icon: 'woods', subs: [['forest', '温带森林'], ['jungle', '热带雨林']] },
@@ -21,8 +23,10 @@
   for (const r of PP.REGIONS) for (const [k, n] of r.subs) { PP.WORLD.push([k, n]); PP.REGION_OF[k] = r.id; }
   // 嵌在别的场景里的次场景：不在路上，从父场景里的入口进去
   PP.NEST = { cave: 'mountain' };
-  PP.CHAIN = PP.WORLD.map((w) => w[0]).filter((k) => !PP.NEST[k]);
-  PP.SCENE_ICON = { antarctic: 'penguinIco', snow: 'ice', mountain: 'peak', cave: 'caveIco', forest: 'tree', jungle: 'palmIco', meadow: 'flowerIco', savanna: 'acaciaIco', desert: 'cactusIco', farm: 'barnIco', lake: 'lakeIco', beach: 'shellIco', sea: 'coralIco' };
+  PP.ISOLATED = { skyisle: 1, academy: 1, undergrove: 1 };
+  PP.MINE = ['skyisle', 'academy', 'undergrove'];
+  PP.CHAIN = PP.WORLD.map((w) => w[0]).filter((k) => !PP.NEST[k] && !PP.ISOLATED[k]);
+  PP.SCENE_ICON = { skyisle: 'isleIco', academy: 'castleIco', undergrove: 'shroomIco', antarctic: 'penguinIco', snow: 'ice', mountain: 'peak', cave: 'caveIco', forest: 'tree', jungle: 'palmIco', meadow: 'flowerIco', savanna: 'acaciaIco', desert: 'cactusIco', farm: 'barnIco', lake: 'lakeIco', beach: 'shellIco', sea: 'coralIco' };
   PP.HOME_NAME = {
     cat: '谷仓阁楼', dog: '狗窝', chick: '鸡舍', pig: '猪圈', rabbit: '兔子洞', hamster: '向日葵下的地洞', fox: '大树根下的狐狸洞',
     hedgehog: '倒木下的落叶窝', dragon: '石头山洞', frog: '大荷叶下的泥窝', duck: '芦苇丛里的鸭窝', capybara: '湖边温泉', penguin: '鹅卵石巢',

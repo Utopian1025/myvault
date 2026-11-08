@@ -70,6 +70,21 @@
       }
     b.d = out;
   }
+  // 有颜色的描边：用旁边那块颜色的深色版（偏一点紫），比统一的黑边柔和、精致
+  const _oc = new Map();
+  function outlineSel(b) {
+    const out = b.d.slice();
+    for (let y = 0; y < b.h; y++)
+      for (let x = 0; x < b.w; x++) {
+        if (b.raw(x, y) != null) continue;
+        const n = b.raw(x, y + 1) || b.raw(x - 1, y) || b.raw(x + 1, y) || b.raw(x, y - 1);
+        if (n == null) continue;
+        let c = _oc.get(n);
+        if (!c) { c = n === OUT || n === '#ffffff' && false ? OUT : tone(n, -0.62); const a = parseInt(c.slice(1), 16), t2 = parseInt('2a1a30', 16); c = '#' + [16, 8, 0].map((sh) => Math.round(((a >> sh) & 255) * 0.55 + ((t2 >> sh) & 255) * 0.45).toString(16).padStart(2, '0')).join(''); _oc.set(n, c); }
+        out[y * b.w + x] = c;
+      }
+    b.d = out;
+  }
   // 以下变换都在逻辑坐标（32x32 方格）里做
   function flipV(b) {
     const o = b.clone0();
@@ -259,6 +274,8 @@
   }
 
   function drawPet(p) {
+    // 四条腿的动物走侧身模型（头像 / 图标仍用正脸）
+    if (!p.portrait && PP.QUAD && PP.QUAD.draw && PP.QUAD.has(p.species)) return PP.QUAD.draw(p);
     // 新动作映射到第一版的姿势上
     let keyboard = false;
     if (p.anim === 'type' || p.anim === 'roll') { keyboard = p.anim === 'type'; p = Object.assign({}, p, { anim: 'knead' }); }
@@ -424,7 +441,7 @@
       if (sp === 'cat' || sp === 'fox') drawWhiskers(b, g, '#ffffff');
     }
 
-    outline(b, OUT);
+    outlineSel(b);
 
     // ===== 轮廓内的细节 =====
     if (!custom) {
@@ -1391,7 +1408,7 @@
       const c = buf.d[i];
       if (c == null) continue;
       let rgb = _cache.get(c);
-      if (!rgb) { rgb = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; _cache.set(c, rgb); }
+      if (!rgb) { rgb = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; if (PP.grade) rgb = PP.grade(rgb[0], rgb[1], rgb[2]); _cache.set(c, rgb); }
       const k = i * 4;
       img.data[k] = rgb[0]; img.data[k + 1] = rgb[1]; img.data[k + 2] = rgb[2]; img.data[k + 3] = 255;
     }
@@ -1422,5 +1439,5 @@
   }
 
   var HP = { ell, rect, poly, outline, K, OUT, RIM, drawEye, lookX, blobFit, FACES: null };
-  PP.SPR = { HP, customPal, tone, _h: { outline, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
+  PP.SPR = { HP, customPal, tone, _h: { outline, outlineSel, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
 })();
