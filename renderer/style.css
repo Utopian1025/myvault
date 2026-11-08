@@ -209,3 +209,15 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .census .sc { display: flex; gap: 8px; align-items: baseline; }
 .census .sc b { white-space: nowrap; min-width: 3em; }
 .census .sc span { flex: 1; line-height: 1.5; }
+/* 场景按钮 + 按主场景分组的场景列表 */
+.scenebtn canvas { width: 18px; height: 18px; }
+.orb.scenebtn.mini { opacity: .3; }
+.orb.scenebtn.peekhide { opacity: 0 !important; pointer-events: none !important; }
+.scene-pop { max-width: 440px; }
+.scene-pop .regions { display: flex; flex-direction: column; gap: 4px; }
+.scene-pop .rg { display: flex; align-items: center; gap: 6px; }
+.scene-pop .rn { width: 52px; flex: none; display: flex; align-items: center; gap: 3px; font-weight: 700; font-size: 12px; }
+.scene-pop .subs { display: flex; gap: 4px; flex-wrap: wrap; }
+.scene-pop .subs button { display: inline-flex; align-items: center; gap: 3px; }
+.sico { image-rendering: pixelated; flex: none; }
+.view-pop .muted { font-size: 11px; color: var(--muted); }
