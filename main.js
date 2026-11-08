@@ -45,11 +45,30 @@ function createWindow() {
   win.on('closed', () => (win = null));
 }
 
+let barMode = false, barTimer = null;
 function fitToWorkArea() {
   if (!win) return;
-  area = screen.getPrimaryDisplay().workArea;
-  win.setBounds({ x: area.x, y: area.y, width: area.width, height: area.height });
+  const d = screen.getPrimaryDisplay();
+  area = d.workArea;
+  const r = barMode ? d.bounds : area;
+  win.setBounds({ x: r.x, y: r.y, width: r.width, height: r.height });
 }
+// 任务栏视图：窗口盖住整块屏幕（含任务栏），动物住在任务栏那一条里；不在底部的任务栏 / 自动隐藏的任务栏就不支持
+function taskbarInfo() {
+  const d = screen.getPrimaryDisplay(), b = d.bounds, wa = d.workArea;
+  const h = (b.y + b.height) - (wa.y + wa.height);
+  return { h, top: wa.y + wa.height - b.y, ok: h >= 24 };
+}
+ipcMain.handle('set-bar-mode', (_e, v) => {
+  if (!win) return null;
+  const info = taskbarInfo();
+  barMode = !!v && info.ok;
+  fitToWorkArea();
+  clearInterval(barTimer);
+  // 点了任务栏以后 Windows 会把任务栏提到最前面，隔一会儿把我们再放回它上面
+  if (barMode) barTimer = setInterval(() => { if (win && !win.isDestroyed() && win.isVisible()) { win.setAlwaysOnTop(true, 'screen-saver'); win.moveTop(); } }, 1500);
+  return barMode ? info : null;
+});
 
 function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch, data); }
 
@@ -189,6 +208,12 @@ ipcMain.on('full-mode', (_e, v) => {
     if (v && !escOn) { escOn = globalShortcut.register('Escape', () => send('hotkey', 'exitFull')); }
     else if (!v && escOn) { globalShortcut.unregister('Escape'); escOn = false; }
   } catch (e) { console.warn('esc', e); }
+});
+// 置顶：极简模式 / 全屏场景时浮在最前面；小场景默认不置顶——点别的窗口时它会盖在场景上面
+ipcMain.on('set-on-top', (_e, v) => {
+  if (!win) return;
+  if (v) { win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver'); }
+  else { win.setAlwaysOnTop(false); }
 });
 ipcMain.on('set-interactive', (_e, v) => {
   if (!win) return;
