@@ -1,7 +1,7 @@
 {
   "name": "pixel-nest",
   "productName": "摸鱼动物园",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "住在你电脑里的一群小动物，陪你一起摸鱼。",
   "author": "Pixel Nest",
   "main": "main.js",
