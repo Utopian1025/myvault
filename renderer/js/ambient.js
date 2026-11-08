@@ -104,7 +104,7 @@
 
   function on() {
     const s = G.save && G.save.settings;
-    return !!(s && s.ambient && PP.scene && PP.scene.active());
+    return !!(s && s.ambient && PP.scene && PP.scene.active() && !(PP.sleepTime && PP.sleepTime()));
   }
 
   let last = 0, wasInside = null;
@@ -113,8 +113,8 @@
     if (!on()) { if (ac && master) master.gain.setTargetAtTime(0, ac.currentTime, 0.6); return; }
     if (!init()) return;
     if (ac.state === 'suspended') ac.resume().catch(() => {});
-    const s = G.save.settings, e = PP.env.get();
-    const scene = (PP.scene && PP.scene.view()) || 'forest', under = scene === 'sea', inside = !!(PP.scene && PP.scene.inside && PP.scene.inside()) || under;
+    const s = G.save.settings;
+    const scene = (PP.scene && PP.scene.view()) || 'forest', e = PP.scene && PP.scene.active() ? PP.env.at(scene) : PP.env.get(), under = scene === 'sea', inside = !!(PP.scene && PP.scene.inside && PP.scene.inside()) || under;
     // 雪原在山上：下雨在这里是下雪（和画面一致）
     const F = under ? Object.assign({}, e.fx, { rain: 0, snow: 0, storm: 0, wind: 0 }) : scene === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0, storm: 0 }) : e.fx;
     // 你在打字工作的时候，环境声自动调小一些

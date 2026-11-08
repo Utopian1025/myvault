@@ -12,6 +12,7 @@
       return D[k];
     },
     add(pet, text, kind = 'note') {
+      if (pet && pet.d && pet.d.wild) return; // 野生的不记日记
       const d = diary.day();
       const h = new Date();
       d.events.push({ t: h.getTime(), pid: pet ? pet.d.id : null, text, kind });

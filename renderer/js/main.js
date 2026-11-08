@@ -33,9 +33,11 @@
     window.addEventListener('resize', resize);
     const had = await PP.save.load();
     const s = G.save;
-    if (s.items && s.items.length) s.items.forEach((o) => PP.addItem(o)); else defaultItems();
+    if (s.items && s.items.length) s.items.filter((o) => !['food', 'water', 'bed', 'litter', 'poop'].includes(o.type)).forEach((o) => PP.addItem(o));
     G.all = (s.pets || []).filter((d) => PP.SPECIES[d.species]).map((d) => new PP.Pet(d));
-    for (const p of G.all) { p.y = G.ground; if (p.d.lane != null) p.lane = p.d.lane; }
+    for (const p of G.all) { p.y = G.ground; if (p.d.lane != null) p.lane = p.d.lane; p.d.hidden = false; p.d.calm = false; p.d.headOnly = false; }
+    G.save.settings.work = false; G.save.settings.headOnly = false;
+    const born = PP.wild.populate(); // 世界里默认住满野生动物
     PP.eco && PP.eco.init();
     PP.syncPets();
     PP.ui.init();
@@ -48,7 +50,7 @@
     if (s.settings.mode === 'mini') G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
     else PP.eco && PP.eco.onView(PP.scene.view());
     const emergeT = 300 + G.pets.length * 650 + 2600;
-    if (!G.all.length) setTimeout(() => PP.ui.adopt(), 400);
+    if (!PP.mine().length && !s.flags.welcomed) { s.flags.welcomed = 1; setTimeout(() => PP.ui.toast('这里住满了野生动物：指着喜欢的那只，点“认养”就能给它取名字', 'egg'), 1200); }
     else if (away > 5 * 60000) {
       // 然后发现你回来了
       G.user.lastActive = Date.now() - away;

@@ -111,7 +111,6 @@
       };
       refresh();
       box.querySelector('.go').onclick = () => {
-        if (G.all.length >= 12) { ui.toast('最多养 12 只（可以让一些去“放假”，不显示在桌面上）'); return; }
         const name = nameIn.value.trim() || PP.randomName();
         const p = PP.Pet.create(pick, PP.SPECIES[pick].coats[coatIdx], name);
         PP.addPet(p);
@@ -183,14 +182,17 @@
     },
 
     overview() {
-      if (!G.all.length) { ui.adopt(); return; }
-      const box = $(`<div class="overview"></div>`);
-      for (const p of G.all) {
-        const r = $(`<button class="ov"><b>${esc(p.name)}</b><span>${p.d.hidden ? '放假中（不显示）' : p.moodName}</span><span>${p.d.hidden ? '' : PP.eco ? esc(PP.eco.describe(p).now) : actName(p.action)}</span></button>`);
-        r.onclick = () => ui.petPanel(p);
+      const box = $(`<div class="census"></div>`);
+      const c = PP.wild.census();
+      for (const k of Object.keys(PP.SCENES)) {
+        const t = PP.wild.censusText(k, c[k]);
+        const r = $(`<div class="sc"><button class="small">${esc(PP.SCENES[k].name)}</button><span>${t ? esc(t) : '<i class="muted">现在没人</i>'}</span></div>`);
+        r.querySelector('button').onclick = () => { ui.closePanel(); if (PP.scene.inside()) PP.scene.leave(); if (G.save.settings.mode === 'mini') PP.setMode('band'); PP.scene.go(k); };
         box.appendChild(r);
       }
-      ui.panel('大家的状态', box);
+      const mine = PP.mine();
+      box.appendChild($(`<p class="muted" style="margin-top:6px">${mine.length ? '我认养的：' + mine.map((p) => esc(p.name) + '（' + esc(p.sp.name) + '）').join('、') : '还没有认养：指着喜欢的动物，点“认养”就能给它取名字。'}</p>`));
+      ui.panel('每个地方都有谁', box);
     },
 
     diaryPanel(only) {
@@ -456,6 +458,7 @@
   PP.audio = {
     unlock() { if (!ac) try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } },
     chirp(p) {
+      if (PP.sleepTime && PP.sleepTime()) return;
       if (!G.save.settings.sound) return;
       PP.audio.unlock(); if (!ac) return;
       const o = ac.createOscillator(), g = ac.createGain();
@@ -467,6 +470,7 @@
       o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.3);
     },
     meow(p, sad) {
+      if (PP.sleepTime && PP.sleepTime()) return;
       if (!G.save.settings.sound) return;
       PP.audio.unlock(); if (!ac) return;
       // 合成一声“喵”：音高先升后降，加一点颤音

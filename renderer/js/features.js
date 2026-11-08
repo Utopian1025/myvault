@@ -15,7 +15,7 @@
       const vis = G.pets.filter((p) => !p.held);
       if (!vis.length) return null;
       const id = G.save.settings.mainId;
-      return vis.find((p) => p.d.id === id) || vis[0];
+      return vis.find((p) => p.d.id === id) || vis.find((p) => !p.d.wild) || vis[0];
     },
     S() { return G.save.settings; },
     name() { return (G.save.settings.ownerName || '').trim(); },
@@ -252,6 +252,25 @@
     yield 6;
   };
 
+  // 躲猫猫：被拖到屏幕最下面 / 最边上，就躲在那儿只露个头偷看你；过一会儿自己出来
+  A.edgePeek = function* () {
+    const p = this, e = p.edgePeek; if (!e) return;
+    if (!G.save.eggs || !G.save.eggs.edge_peek) { PP.events.found('edge_peek'); }
+    p.facing = e.side === 'left' ? 1 : e.side === 'right' ? -1 : p.facing;
+    p.anim = 'idle'; p.eyes = 'wide'; yield 0.6;
+    if (Math.random() < 0.6) { p._forceSay = true; p.say(U.pick(['（偷看）', '你看不见我～', '嘘…', '…（探头）']), 2); p._forceSay = false; }
+    const stay = U.rand(40, 90);
+    while (p.edgePeek && G.t - e.since < stay) {
+      if (e.side !== 'bottom') p.x = e.side === 'left' ? 4 * G.S : G.W - 4 * G.S;
+      p.look = [U.clamp((G.mouse.x - p.x) / 300, -1, 1), U.clamp((G.mouse.y - p.y) / 300, -1, 1)];
+      if (G.hoverPet === p) { p.eyes = 'happy'; yield 0.5; p.eyes = 'open'; }
+      yield 0.5; if (Math.random() < 0.04) p.setExpr('closed', 'w', 0.2);
+    }
+    // 出来
+    p.edgePeek = null; p.eyes = 'open';
+    if (e.side !== 'bottom') yield p.goto(e.side === 'left' ? 60 : G.W - 60);
+    p.anim = 'idle'; yield 0.5;
+  };
   // 看视频模式：躲到屏幕右下角，只露半个脑袋偷看
   A.peekIdle = function* () {
     const p = this;

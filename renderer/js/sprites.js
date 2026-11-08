@@ -265,7 +265,8 @@
     else if (p.anim === 'drink') p = Object.assign({}, p, { anim: 'eat', mouth: Math.floor((p.t || 0) * 6) % 2 ? 'tongue' : 'w' });
     else if (p.anim === 'think') p = Object.assign({}, p, { anim: 'groom', thinking: true });
     let b = new Buf(W, H, PAD);
-    const C = p.pal, f = p.facing >= 0 ? 1 : -1, sp = p.species, t = p.t || 0;
+    const X = PP.BEASTS && PP.BEASTS[p.species];
+    const C = p.pal, f = p.facing >= 0 ? 1 : -1, sp = (X && X.as) || p.species, t = p.t || 0;
     const anim = p.anim || 'idle';
     // 默认：正面坐姿，大头
     let g = {
@@ -375,12 +376,14 @@
       g.jsy = sy; g.jsx = sx; g.jsk = sk;
     }
     if (J) g.sway = (J.sway || 0) * 0.8;
-    if (CUSTOM.has(sp) && anim === 'held') g.extra = Math.ceil((p.stretch || 0.5) * 9);
+    const custom = CUSTOM.has(sp) || !!(X && X.custom);
+    if (custom && anim === 'held') g.extra = Math.ceil((p.stretch || 0.5) * 9);
     if (g.extra) b = new Buf(W, H + g.extra, PAD);
     if (sp === 'rabbit') { g.hy += anim === 'held' ? 3.5 : 2; }
     if (sp === 'capybara') { g.hrx += 0.2; g.hry += 1.6; g.hy += 1.6; g.brx += 1.4; g.bry += 0.4; }
     if (sp === 'pig') { g.hrx += 0.4; g.hy += 0.6; g.brx += 0.8; } // 兔子耳朵长，头放低一点免得被裁掉
     g.f = f; g.t = t; g.anim = anim;
+    if (X && X.geo) X.geo(g, p);
 
     if (sp === 'penguin') drawPenguin(b, p, g);
     else if (sp === 'hamster') drawHamster(b, p, g);
@@ -391,22 +394,27 @@
     else if (sp === 'turtle') drawTurtle(b, p, g);
     else if (sp === 'crab') drawCrab(b, p, g);
     else if (sp === 'octopus') drawOctopus(b, p, g);
+    else if (X && X.custom) X.custom(b, p, g, HP);
     else {
-      drawTail(b, sp, C, g);
+      drawTail(b, sp, C, g); if (X && X.tail) X.tail(b, C, g, HP, p);
       if (sp === 'dragon') {
         const flap = Math.sin(t * (anim === 'jump' || anim === 'fall' ? 16 : 2)) > 0 ? 1 : 0;
         poly(b, [[g.bx - 3, g.by - 3], [g.bx - 10.5, g.by - 8.5 - flap * 2], [g.bx - 9, g.by - 1.5], [g.bx - 6, g.by + 0.5]], C.dark);
         poly(b, [[g.bx + 3, g.by - 3], [g.bx + 10.5, g.by - 8.5 - flap * 2], [g.bx + 9, g.by - 1.5], [g.bx + 6, g.by + 0.5]], C.dark);
       }
-      drawEars(b, sp, C, g, p);
+      if (X && X.ears) X.ears(b, C, g, HP, p); else drawEars(b, sp, C, g, p);
+      if (X && X.back) X.back(b, C, g, HP, p);
       ell(b, g.bx, g.by, g.brx, g.bry, C.base);
+      if (X && X.body) X.body(b, C, g, HP, p);
       // 后脚（跳跃/悬空时）
       if (g.hind) {
         rect(b, Math.round(g.bx - g.pawSpread - 1.5), g.pawY + 1 - g.pawL, 3, 2, C.paw);
         rect(b, Math.round(g.bx + g.pawSpread - 1.5), g.pawY + 1 - g.pawR, 3, 2, C.paw);
       }
       // 头
+      if (X && X.behindHead) X.behindHead(b, C, g, HP, p);
       ell(b, g.hx, g.hy, g.hrx, g.hry, C.base);
+      if (X && X.head) X.head(b, C, g, HP, p);
       if (sp === 'fox') {
         // 狐狸蓬松的腮毛
         poly(b, [[g.hx - g.hrx + 0.5, g.hy - 0.5], [g.hx - g.hrx - 1.8, g.hy + 3.5], [g.hx - g.hrx + 3, g.hy + 4.5]], C.light);
@@ -419,8 +427,8 @@
     outline(b, OUT);
 
     // ===== 轮廓内的细节 =====
-    if (!CUSTOM.has(sp)) {
-      drawCoat(b, sp, C, g);
+    if (!custom) {
+      drawCoat(b, sp, C, g); if (X && X.coat) X.coat(b, C, g, HP, p);
       // 前爪
       if (g.paws && !g.hind) {
         const py = g.pawY;
@@ -436,7 +444,7 @@
       }
     }
 
-    drawFace(b, p, g);
+    if (!(X && X.face && X.face(b, p, g, HP))) drawFace(b, p, g, X);
     const q = p.__geo;
     if (p.hat && !(q && q.curl)) { if (q && q.hatX != null) drawHat(b, p.hat, q.hatX, q.hatY, f); else drawHat(b, p.hat, g.hx, g.hy - g.hry + 6.5, f); }
 
@@ -999,8 +1007,8 @@
     }
   }
 
-  function drawFace(b, p, g) {
-    const C = p.pal, sp = p.species, f = g.f;
+  function drawFace(b, p, g, X) {
+    const C = p.pal, sp = (X && X.as) || p.species, f = g.f;
     let hx = g.hx, hy = g.hy, gap = 4;
     let fur = C.base;
     if (p.__geo && p.__geo.kind === 'hamster') {
@@ -1055,6 +1063,7 @@
       return;
     }
     const nose = C.nose;
+    if (X && X.mouth && X.mouth(b, p, g, HP, mx, my)) return;
     if (sp === 'pig') {
       ell(b, mx + 0.5, my + 0.2, 3.3, 2.2, nose);
       b.set(mx - 1, my, C.inner); b.set(mx + 1, my, C.inner); b.set(mx - 1, my + 1, C.inner); b.set(mx + 1, my + 1, C.inner);
@@ -1265,6 +1274,9 @@
     apple: ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
     melon: ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
     kelp: ['.g..g.', 'gg.gg.', '.gg.gg', 'gg.gg.', '.gg.g.', '..g...'],
+    meat: ['..rrr.', '.rrRrr', 'rrRrrr', 'rrrrr.', 'wwr...', 'ww....'],
+    hay: ['y.y.y.', 'yyyyyy', '.oooo.', 'yyyyyy', 'y.y.y.'],
+    banana: ['....oy', '...yy.', '..yyy.', 'yyyy..', '.yy...'],
     shrimp: ['..rrr.', '.r...r', 'rRrr..', 'rrRr..', '.rrRr.', '...rr.'],
     yuzu: ['..g.', '.yy.', 'yyyy', 'yyyy', '.yy.'],
     mud: ['.ooo.', 'ooOoo', '.ooo.'],
@@ -1319,6 +1331,9 @@
     treat_bread: () => ['.oooo.', 'oOOOOo', 'oOOOOo', 'oooooo'],
     treat_apple: () => ['..g.', '.rr.', 'rrrr', 'rWrr', '.rr.'],
     treat_melon: () => ['gggggg', 'rrrrrr', 'rkrrkr', '.rrrr.'],
+    treat_meat: () => ['..rrr.', '.rrRrr', 'rrRrrr', 'rrrrr.', 'wwr...', 'ww....'],
+    treat_hay: () => ['y.y.y.', 'yyyyyy', '.oooo.', 'yyyyyy', 'y.y.y.'],
+    treat_banana: () => ['....oy', '...yy.', '..yyy.', 'yyyy..', '.yy...'],
     treat_kelp: () => ['.g..g.', 'gg.gg.', '.gg.gg', 'gg.gg.', '.gg.g.', '..g...'],
     treat_shrimp: () => ['..rrr.', '.r...r', 'rRrr..', 'rrRr..', '.rrRr.', '...rr.'],
     treat_cake: () => ['..y..', '..r..', '.www.', 'ppppp', 'wwwww', 'ppppp'],
@@ -1406,5 +1421,6 @@
     return pal;
   }
 
-  PP.SPR = { customPal, tone, _h: { outline, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
+  var HP = { ell, rect, poly, outline, K, OUT, RIM, drawEye, lookX, blobFit, FACES: null };
+  PP.SPR = { HP, customPal, tone, _h: { outline, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
 })();

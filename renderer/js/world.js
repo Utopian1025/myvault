@@ -128,7 +128,7 @@
     const vis = G.all.filter((p) => !p.d.hidden);
     if (s && s.mode === 'mini') {
       // 极简：只留主角（正在走回门里的也先留着，等它进去）
-      const main = vis.find((p) => p.d.id === s.mainId) || vis.find((p) => p.d.id === s.miniMain) || vis[0];
+      const main = vis.find((p) => p.d.id === s.miniMain) || vis.find((p) => p.d.id === s.mainId) || vis.find((p) => !p.d.wild) || vis[0];
       G.pets = vis.filter((p) => p === main || (p.action === 'enterDoor' && G.pets.includes(p)));
     } else if (PP.eco) {
       // 场景里：只显示正在这个场景、没在家里、没在路上的（刚叫回电脑的也等它走进门）
@@ -239,22 +239,26 @@
       // 季节粒子（很稀疏，不打扰工作）
       // 有场景时，天气粒子（雨雪落叶）全部交给场景来画，这里不再重复
       const sceneOn = PP.scene && PP.scene.active();
-      const efx = PP.env && PP.env.get().fx;
-      const rate = sceneOn ? 0 : dt * (efx && efx.snow ? 1.2 : 0.25);
+      // 极简模式：天气只在动物身边下（一小片），不铺满全屏
+      const mp = !sceneOn && PP.F && PP.F.main && PP.F.main();
+      const pe = mp && PP.env && (PP.env.at ? PP.env.at(mp.d.scene) : PP.env.get());
+      const efx = pe && pe.fx;
+      const rate = !mp ? 0 : dt * (efx && efx.snow ? 0.9 : 0.25);
+      const rx = () => (mp ? mp.x : G.W / 2) + U.rand(-90, 90) * G.S / 2;
       if (Math.random() < rate) {
         if (efx && efx.snow)
-          PP.fx({ kind: 'snow', x: U.rand(0, G.W), y: G.H - U.rand(260, 420), vy: U.rand(18, 30), life: 14, seed: Math.random() * 9 });
-        else if (season === 'autumn')
-          PP.fx({ kind: 'leaf', x: U.rand(0, G.W), y: G.H - U.rand(280, 420), vy: U.rand(20, 34), life: 16, seed: Math.random() * 9, col: U.pick(['#e8913a', '#d9662a', '#c9a23a', '#b8552a']) });
-        else if (season === 'spring')
-          PP.fx({ kind: 'leaf', x: U.rand(0, G.W), y: G.H - U.rand(280, 420), vy: U.rand(16, 26), life: 16, seed: Math.random() * 9, col: U.pick(['#ffc4d8', '#ffb0c8', '#fff0f4']) });
-        else if (season === 'summer' && night)
-          PP.fx({ kind: 'firefly', x: U.rand(0, G.W), y: G.ground - U.rand(20, 160), life: 10, vy: 0, seed: Math.random() * 9 });
+          PP.fx({ kind: 'snow', x: rx(), y: G.ground - U.rand(90, 150), vy: U.rand(18, 30), life: 4, seed: Math.random() * 9 });
+        else if ((pe.season || season) === 'autumn')
+          PP.fx({ kind: 'leaf', x: rx(), y: G.ground - U.rand(90, 150), vy: U.rand(20, 34), life: 4, seed: Math.random() * 9, col: U.pick(['#e8913a', '#d9662a', '#c9a23a', '#b8552a']) });
+        else if ((pe.season || season) === 'spring')
+          PP.fx({ kind: 'leaf', x: rx(), y: G.ground - U.rand(90, 150), vy: U.rand(16, 26), life: 5, seed: Math.random() * 9, col: U.pick(['#ffc4d8', '#ffb0c8', '#fff0f4']) });
+        else if ((pe.season || season) === 'summer' && night)
+          PP.fx({ kind: 'firefly', x: rx(), y: G.ground - U.rand(10, 80), life: 10, vy: 0, seed: Math.random() * 9 });
       }
       if (hol && (hol.deco === 'hearts') && Math.random() < dt * 0.3)
-        PP.fx({ kind: 'icon', icon: 'heart', x: U.rand(0, G.W), y: G.ground - 10, vy: -U.rand(15, 30), life: 6, s: 2 });
-      if (hol && hol.deco === 'confetti' && Math.random() < dt * 2)
-        PP.fx({ kind: 'confetti', x: U.rand(0, G.W), y: G.H - 400, vy: U.rand(40, 80), vx: U.rand(-20, 20), life: 7, col: U.pick(['#ffcf33', '#ff3d6e', '#56c2ff', '#7be07b']), size: G.S * 2 });
+        PP.fx({ kind: 'icon', icon: 'heart', x: rx(), y: G.ground - 10, vy: -U.rand(15, 30), life: 6, s: 2 });
+      if (hol && hol.deco === 'confetti' && Math.random() < dt * 0.6)
+        PP.fx({ kind: 'confetti', x: rx(), y: G.ground - 150, vy: U.rand(40, 80), vx: U.rand(-20, 20), life: 7, col: U.pick(['#ffcf33', '#ff3d6e', '#56c2ff', '#7be07b']), size: G.S * 2 });
     }
 
     // 蝴蝶：偶尔飞过，好奇的宠物会去追

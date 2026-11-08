@@ -10,23 +10,22 @@
   function petSub(p, full) {
     const d = p.d, id = d.id, hid = !!d.hidden, sp = p.sp;
     const main = PP.F && PP.F.main() === p;
+    const wild = !!d.wild, here = G.pets.includes(p);
     const items = [
-      { id: `pet:${id}:show`, label: '显示在桌面上', type: 'checkbox', checked: !hid },
-      { id: `pet:${id}:calm`, label: '乖乖待着（不乱跑不乱跳）', type: 'checkbox', checked: !!d.calm, enabled: !hid },
-      { id: `pet:${id}:head`, label: '只露个头', type: 'checkbox', checked: !!d.headOnly, enabled: !hid },
-      { id: `pet:${id}:main`, label: '设为主角（提醒 / 陪打字）', type: 'radio', checked: main && !hid, enabled: !hid },
+      { id: `pet:${id}:feed`, label: `喂${sp.favName}`, hint: full ? '最爱' : null },
+      { id: `pet:${id}:water`, label: '喂水' },
+      { id: `pet:${id}:pat`, label: '摸摸它', enabled: here },
+      { id: `pet:${id}:ball`, label: '扔球给它', enabled: here },
+      { id: `pet:${id}:sleep`, label: p.sleeping ? '叫醒它' : '哄它睡觉', enabled: here },
+      { id: `pet:${id}:think`, label: '看看它在想什么', enabled: here },
       '-',
-      { id: `pet:${id}:fav`, label: `喂${sp.favName}`, enabled: !hid },
-      { id: `pet:${id}:treat`, label: '喂零食', enabled: !hid },
-      { id: `pet:${id}:ball`, label: '扔球给它', enabled: !hid },
-      { id: `pet:${id}:sleep`, label: p.sleeping ? '叫醒它' : '哄它睡觉', enabled: !hid },
-      { id: `pet:${id}:think`, label: '看看它在想什么', enabled: !hid },
-      { id: `pet:${id}:note`, label: d.note ? '撕掉头顶便签' : '贴一张头顶便签', enabled: !hid },
-      { id: `pet:${id}:coat`, label: '换花色' },
+      wild ? { id: `pet:${id}:adopt`, label: '认养它（取个名字）…' } : { id: `pet:${id}:main`, label: '让它陪着我（极简模式、提醒、陪打字）', type: 'radio', checked: main },
+      ...(wild ? [] : [{ id: `pet:${id}:note`, label: d.note ? '撕掉头顶便签' : '贴一张头顶便签' }, { id: `pet:${id}:coat`, label: '换花色' }, { id: `pet:${id}:rename`, label: '改名字…' }]),
+      { id: `pet:${id}:goto`, label: `去它在的地方看看（${PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
       '-',
       { id: `pet:${id}:profile`, label: '查看档案' },
+      ...(wild ? [] : [{ id: `pet:${id}:release`, label: '放回野外…' }]),
     ];
-    if (full) items[5].hint = '最爱';
     return items;
   }
 
@@ -44,21 +43,29 @@
     const items = [];
     if (focus) items.push({ label: `${focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
     const modeName = (PP.MODES.find((m) => m[0] === s.mode) || ['', ''])[1];
-    const pets = G.all.map((p) => ({ label: p.name + (p.d.hidden ? '（回电脑了）' : '') + (PP.F && PP.F.main() === p ? ' ★' : ''), sub: petSub(p) }));
-    const petsMenu = { label: '宠物们', hint: T(`${G.all.length} 只`), sub: [
-      ...pets, ...(pets.length ? ['-'] : []),
-      { id: 'pickPets', label: '选择谁在桌面上（多选）…', enabled: G.all.length > 0 },
-      { id: 'showAll', label: '全部叫出来', enabled: G.all.some((p) => p.d.hidden) },
-      { id: 'adopt', label: '领养新伙伴', hint: T(`${G.all.length}/12`), enabled: G.all.length < 12 },
-      { id: 'overview', label: '大家在干嘛' },
+    const mineList = G.all.filter((p) => !p.d.wild);
+    const pets = mineList.map((p) => ({ label: p.name + `（${p.sp.name}）` + (G.save.settings.mainId === p.d.id ? ' ★' : ''), sub: petSub(p) }));
+    const petsMenu = { label: '我认养的', hint: T(`${mineList.length} 只`), sub: [
+      ...pets, ...(pets.length ? ['-'] : [{ label: '还没有认养：指着喜欢的动物点“认养”', enabled: false }, '-']),
+      { id: 'adopt', label: '再领养一只新的…' },
+      { id: 'feedAll', label: '给认养的都喂点吃的喝的', enabled: mineList.length > 0 },
+      { id: 'overview', label: '每个地方都有谁' },
     ] };
     const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: s.mode === k }));
     const quiet = { label: '勿扰', hint: T(s.quiet ? '开' : s.autoQuiet !== false ? '自动' : ''), sub: [
       { id: 'autoQuiet', label: '工作时自动安静（打字时不说话、不来找你、声音调小）', type: 'checkbox', checked: s.autoQuiet !== false },
       { id: 'quiet', label: '一直安静（不说话、不来找你）', type: 'checkbox', checked: !!s.quiet },
-      { id: 'work', label: '大家都乖乖待着（不乱跑）', hint: T('Ctrl+Alt+Shift+W'), type: 'checkbox', checked: !!s.work },
-      { id: 'headOnly', label: '只露个头（全部）', type: 'checkbox', checked: !!s.headOnly },
-      { id: 'peek', label: '看视频模式（主角躲到右下角）', type: 'checkbox', checked: !!s.peek },
+      { label: '睡眠时间（不出声、大家都去睡）', hint: T(s.sleepMode && s.sleepMode.on ? `${s.sleepMode.from}:00–${s.sleepMode.to}:00` : '关'), sub: [
+        { id: 'sleep:off', label: '关闭', type: 'radio', checked: !(s.sleepMode && s.sleepMode.on) },
+        ...[[22, 7], [23, 7], [0, 8], [12, 14]].map(([a, b]) => ({ id: `sleep:${a}:${b}`, label: `${a}:00 – ${b}:00${a === 12 ? '（午休）' : ''}`, type: 'radio', checked: !!(s.sleepMode && s.sleepMode.on && s.sleepMode.from === a && s.sleepMode.to === b) })),
+        { id: 'sleepCustom', label: '自定义时间…' },
+      ] },
+      { label: '小场景避让（挡住窗口时）', hint: T({ both: '透明+压低', fade: '指针经过变透明', duck: '打字时压低', off: '关' }[s.bandAvoid || 'both']), sub: [
+        { id: 'avoid:both', label: '指针经过就变透明 + 打字时自动压低', type: 'radio', checked: (s.bandAvoid || 'both') === 'both' },
+        { id: 'avoid:fade', label: '只在指针经过时变透明', type: 'radio', checked: s.bandAvoid === 'fade' },
+        { id: 'avoid:duck', label: '只在打字时自动压低', type: 'radio', checked: s.bandAvoid === 'duck' },
+        { id: 'avoid:off', label: '不避让', type: 'radio', checked: s.bandAvoid === 'off' },
+      ] },
       '-', { id: 'toggleAll', label: s.allAway ? '把大家叫出来' : '让大家都回电脑里', hint: T('Ctrl+Alt+Shift+P') },
     ] };
     const remind = { label: '提醒', sub: [
@@ -107,7 +114,7 @@
       quiet, remind,
       { label: '照顾 & 回忆', sub: [
         { id: 'ball', label: '扔个球' },
-        { id: 'clean', label: '打扫干净' },
+        { id: 'feedAll', label: '给认养的都喂点吃的喝的' },
         '-',
         { id: 'diary', label: '日记' },
         { id: 'collection', label: '收藏柜' },
@@ -133,10 +140,12 @@
     if (a === 'ms') { s.menuScale = +b; PP.applyMenuScale(); PP.save.soon(); syncTray(true); return; }
     if (a === 'bgh') { s.bgH = +b; PP.save.soon(); syncTray(true); return; }
     if (a === 'tray') { s.trayMenu = b; PP.save.soon(); syncTray(true); ui.toast(b === 'full' ? '托盘菜单：完整' : '托盘菜单：精简'); return; }
+    if (a === 'sleep') { s.sleepMode = b === 'off' ? Object.assign({}, s.sleepMode || {}, { on: false }) : { on: true, from: +b, to: +c }; ui.toast(b === 'off' ? '睡眠时间：关' : `睡眠时间：${b}:00–${c}:00，这段时间大家都去睡觉，不出声`); PP.save.soon(); syncTray(true); return; }
+    if (a === 'avoid') { s.bandAvoid = b; PP.save.soon(); syncTray(true); return; }
     if (a === 'calmAll') { G.all.forEach((p) => (p.d.calm = false)); PP.save.soon(); syncTray(true); return; }
     switch (id) {
       case 'adopt': ui.adopt(); break;
-      case 'pickPets': PP.pickPets(); break;
+      case 'sleepCustom': PP.sleepPanel(); break;
       case 'city': PP.cityPanel(); break;
       case 'decorate': PP.scene.edit(true); break;
       case 'ambient': s.ambient = !s.ambient; if (!s.ambient) PP.ambient.stop(); ui.toast(s.ambient ? '环境声音开了（音量在“场景”菜单里调）' : '环境声音关了'); break;
@@ -144,15 +153,12 @@
       case 'overview': ui.overview(); break;
       case 'showAll': { const back = G.all.filter((p) => p.d.hidden); back.forEach((p) => { p.d.hidden = false; PP.hereNow(p); }); PP.syncPets(); back.forEach((p, i) => PP.petEmerge(p, U.rand(G.W * 0.2, G.W * 0.8), i * 600)); break; }
       case 'work': s.work = !s.work; ui.toast(s.work ? '工作模式：大家会乖乖待着，不乱跑不乱跳' : '下班啦，大家可以随便玩了'); if (s.work) G.pets.forEach((p) => { if (['wander', 'explore', 'play', 'cursor_play', 'seek_user', 'social', 'bug', 'ball', 'zoomies', 'special', 'follow', 'root', 'forage'].includes(p.action)) p.interrupt(); }); break;
-      case 'headOnly': s.headOnly = !s.headOnly; break;
-      case 'peek': s.peek = !s.peek; { const m = PP.F.main(); m && m.interrupt(); } break;
       case 'autoQuiet': s.autoQuiet = s.autoQuiet === false; ui.toast(s.autoQuiet ? '工作时自动安静：开（你打字时它们不说话、不来找你）' : '工作时自动安静：关'); break;
       case 'appIcon': ui.appIconPanel && ui.appIconPanel(); break;
       case 'quiet': s.quiet = !s.quiet; ui.toast(s.quiet ? '它们会安静地自己玩' : '欢迎回来'); break;
       case 'pomo': PP.F.pomo.phase === 'off' ? PP.F.pomoStart() : PP.F.pomoStop(); break;
       case 'reminders': ui.reminders(); break;
-      case 'feed': G.items.forEach((i) => { if (i.type === 'food' || i.type === 'water') i.level = 1; }); ui.toast('饭碗和水碗都满了'); break;
-      case 'clean': G.items.forEach((i) => { if (i.type === 'poop') i.dead = true; if (i.type === 'litter') i.data.dirty = 0; }); ui.toast('打扫干净了'); break;
+      case 'feedAll': { const L2 = G.all.filter((p) => !p.d.wild); L2.forEach((p) => PP.feedPet(p, 'both')); ui.toast(L2.length ? `${L2.length} 只都吃饱喝足了` : '还没有认养的伙伴'); break; }
       case 'ball': PP.throwBall(G.W / 2, G.ground - 200); break;
       case 'diary': ui.diaryPanel(); break;
       case 'collection': ui.collectionPanel(); break;
@@ -169,15 +175,14 @@
     if (!p) return;
     const d = p.d, ui = PP.ui;
     switch (c) {
-      case 'show':
-        if (d.hidden) { d.hidden = false; PP.hereNow(p); PP.syncPets(); PP.petEmerge(p, U.rand(G.W * 0.3, G.W * 0.7)); }
-        else if (p.action !== 'enterDoor') { PP.petEnter(p, () => { d.hidden = true; PP.syncPets(); PP.save.soon(); syncTray(true); }); ui.toast(`${p.name}回电脑里休息了（菜单里随时可以叫出来）`); }
-        break;
-      case 'calm': d.calm = !d.calm; if (d.calm) p.interrupt(); ui.toast(d.calm ? `${p.name}会乖乖待着` : `${p.name}可以到处玩了`); break;
-      case 'head': d.headOnly = !d.headOnly; break;
-      case 'main': G.save.settings.mainId = d.id; ui.toast(`${p.name}是主角了：提醒、陪你打字都由它来`); break;
-      case 'fav': ui.dropTreat(p.x + p.facing * 40, p.sp.fav); break;
-      case 'treat': ui.dropTreat(p.x + p.facing * 40, U.pick(['treat_fish', 'treat_bone', 'treat_carrot', 'treat_seed', 'treat_berry', 'treat_apple', 'treat_corn'].filter((t) => t !== p.sp.fav))); break;
+      case 'main': G.save.settings.mainId = d.id; if (G.save.settings.mode === 'mini') { G.save.settings.miniMain = d.id; PP.syncPets(); } ui.toast(`${p.name}会陪着你：极简模式里待在右下角，提醒、陪打字都由它来`); break;
+      case 'feed': case 'fav': PP.feedPet(p, 'food'); break;
+      case 'water': PP.feedPet(p, 'water'); break;
+      case 'pat': if (G.pets.includes(p)) p.run('petted', PP.ACTIONS.petted); break;
+      case 'adopt': PP.wild.adoptPanel(p); break;
+      case 'release': if (confirm(`让${p.name}回到野外吗？它还会在${PP.SCENES[PP.HAB[d.species].home].name}生活，只是不再是你认养的了。`)) PP.wild.release(p); break;
+      case 'rename': PP.renamePanel(p); break;
+      case 'goto': if (PP.scene.inside()) PP.scene.leave(); if (G.save.settings.mode === 'mini') PP.setMode(G.save.settings.lastMode && G.save.settings.lastMode !== 'mini' ? G.save.settings.lastMode : 'band'); PP.scene.go(d.inHome ? d.scene : d.scene); break;
       case 'ball': PP.throwBall(p.x, p.y - 200); break;
       case 'sleep': if (p.sleeping) p.run('poked', PP.ACTIONS.poked); else p.run('sleep', PP.ACTIONS.sleep); break;
       case 'think': ui.thoughts(p); break;
@@ -208,7 +213,6 @@
   };
   if (api && api.onHotkey) api.onHotkey((k) => {
     if (k === 'exitFull') { PP.exitFull && PP.exitFull(); return; }
-    if (k === 'work') PP.menuRun('work');
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });
 

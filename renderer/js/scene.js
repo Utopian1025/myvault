@@ -28,14 +28,15 @@
     const L = (k, xs, v) => xs.map((x, i) => ({ k, x, v: v != null ? v : ((i * 37) % 10) / 10 }));
     const winter = PP.season() === 'winter';
     switch (scene) {
-      case 'snow': return [...L('pine', [0.035, 0.085, 0.6, 0.66, 0.975], 0.5), ...L('rock', [0.3, 0.7], 0.3), ...L('snowman', [0.4], 0.2)];
-      case 'mountain': return [...L('pine', [0.05, 0.1, 0.48, 0.7, 0.94], 0.4), ...L('rock', [0.27, 0.56, 0.9], 0.5), ...L('bush', [0.15], 0.2)];
-      case 'forest': return [...L('pine', [0.035, 0.205, 0.395, 0.585, 0.785], 0.6), ...L('oak', [0.075, 0.68, 0.98], 0.4), ...L('bush', [0.17, 0.52, 0.9], 0.3), ...L('flower', [0.25, 0.44, 0.8], 0.6), ...L('lamp', [0.61], 0.1), ...(winter ? L('snowman', [0.92], 0.1) : [])];
+      case 'snow': return [...L('pine', [0.035, 0.27, 0.565, 0.975], 0.5), ...L('rock', [0.33, 0.705], 0.3), ...L('snowman', [0.42], 0.2)];
+      case 'mountain': return [...L('pine', [0.04, 0.16, 0.56, 0.72], 0.4), ...L('rock', [0.27, 0.66], 0.5), ...L('bush', [0.39], 0.2)];
+      case 'forest': return [...L('pine', [0.035, 0.205, 0.585, 0.785], 0.6), ...L('oak', [0.075, 0.68, 0.98], 0.4), ...L('bush', [0.17, 0.52, 0.9], 0.3), ...L('flower', [0.25, 0.44, 0.8], 0.6), ...L('lamp', [0.61], 0.1), ...(winter ? L('snowman', [0.92], 0.1) : [])];
       case 'lake': return [...L('pine', [0.02, 0.97], 0.6), ...L('oak', [0.6], 0.8), ...L('reed', [0.22, 0.38, 0.73], 0.2), ...L('lily', [0.18, 0.47, 0.56, 0.68], 0.5), ...L('rock', [0.2, 0.76], 0.3), ...L('bench', [0.62], 0.1), ...L('flower', [0.35, 0.71], 0.7)];
-      case 'meadow': return [...L('oak', [0.04], 0.5), ...L('bush', [0.11, 0.4, 0.72], 0.3), ...L('flower', [0.08, 0.15, 0.28, 0.36, 0.55, 0.74, 0.84, 0.97], 0.5), ...L('rock', [0.86], 0.4), ...L('bench', [0.5], 0.1)];
-      case 'farm': return [...L('oak', [0.025], 0.4), ...L('fence', [0.06, 0.97], 0.1), ...L('flower', [0.465, 0.62, 0.84], 0.7), ...L('lamp', [0.405], 0.1), ...(PP.env && PP.env.get().holiday && PP.env.get().holiday.id === 'halloween' ? L('pumpkin', [0.82]) : [])];
-      case 'desert': return [...L('rock', [0.36, 0.66], 0.4), ...L('cactus', [0.05], 0.5)];
-      case 'beach': return [...L('rock', [0.17, 0.85], 0.4), ...L('palm', [0.97], 0.4)];
+      case 'meadow': return [...L('oak', [0.04], 0.5), ...L('bush', [0.11, 0.4, 0.72], 0.3), ...L('flower', [0.08, 0.15, 0.28, 0.36, 0.55, 0.74, 0.84, 0.97], 0.5), ...L('bench', [0.5], 0.1)];
+      case 'farm': return [...L('oak', [0.025], 0.4), ...L('fence', [0.06], 0.1), ...L('flower', [0.465, 0.62, 0.84], 0.7), ...L('lamp', [0.405], 0.1), ...(PP.env && PP.env.get().holiday && PP.env.get().holiday.id === 'halloween' ? L('pumpkin', [0.82]) : [])];
+      case 'desert': return [...L('rock', [0.36, 0.86], 0.4), ...L('cactus', [0.05], 0.5)];
+      case 'beach': return [...L('rock', [0.17], 0.4), ...L('palm', [0.97], 0.4)];
+      case 'savanna': return [...L('rock', [0.06, 0.55], 0.4), ...L('bush', [0.26], 0.2)];
       case 'sea': return [...L('rock', [0.3, 0.78], 0.3)];
       case 'jungle': return [...L('bush', [0.15, 0.38, 0.62], 0.4), ...L('flower', [0.2, 0.55], 0.5)];
     }
@@ -211,14 +212,42 @@
 
   function ensure() {
     const g = geo(); if (!g) return null;
-    const s = settings(), e = PP.env.get(), scene = SCENES[s.scene] ? s.scene : 'forest';
+    const s = settings(), scene = SCENES[s.scene] ? s.scene : 'forest', e = PP.env.at(scene);
     if (inside && !(PP.INTERIOR && PP.INTERIOR[inside])) inside = null;
     const k = [scene, inside || '', g.m, G.W, g.H, g.u, e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName].join('|');
     if (k !== key) { const r = inside ? buildInside(inside, scene, g, e) : build(scene, g, e); cache = r.cv; L = r.lay; key = k; lampsOff = {}; }
     return { g, e, scene };
   }
 
+  // ---------- 小场景避让：别挡住你的窗口 ----------
+  // 指针移进小场景（又没指着动物 / 路牌 / 家）→ 很快淡到几乎透明，点击本来就会穿过去；
+  // 一直在打字 → 背景淡掉，只留地面和动物
+  let fadeA = 1, duckK = 0, inSince = 0, lastR = performance.now(), buf = null;
   function render(ctx) {
+    const g = G.save && geo(), now = performance.now(), dt = Math.min(0.1, (now - lastR) / 1000); lastR = now;
+    const av = (G.save && settings().bandAvoid) || 'both';
+    if (!g || g.m !== 'band' || av === 'off' || inside) { fadeA = 1; duckK = 0; return renderInner(ctx); }
+    const M = G.mouse, inBand = M.onScreen && M.y > g.y0 + 4 && !G.hoverPet && !G.hoverHot && !G.hoverItem && !G.editing && !G.uiDrag && !document.querySelector('.homepop,.menu,.orb-pop');
+    if (inBand) { if (!inSince) inSince = now; } else inSince = 0;
+    const wantFade = (av === 'both' || av === 'fade') && inSince && now - inSince > 220 ? 0.1 : 1;
+    const wantDuck = (av === 'both' || av === 'duck') && PP.F && PP.F.working && PP.F.working() ? 1 : 0;
+    fadeA += (wantFade - fadeA) * Math.min(1, dt * (wantFade < fadeA ? 9 : 5));
+    duckK += (wantDuck - duckK) * Math.min(1, dt * 2.5);
+    if (fadeA > 0.985 && duckK < 0.015) return renderInner(ctx);
+    const cv = ctx.canvas;
+    if (!buf || buf.width !== cv.width || buf.height !== cv.height) { buf = document.createElement('canvas'); buf.width = cv.width; buf.height = cv.height; }
+    const b = buf.getContext('2d'); b.setTransform(1, 0, 0, 1, 0, 0); b.clearRect(0, 0, buf.width, buf.height); b.setTransform(ctx.getTransform()); b.imageSmoothingEnabled = false;
+    renderInner(b);
+    const k = cv.width / G.W, gyPx = L ? Math.round((g.y0 + (L.gy - 2) * g.u) * k) : Math.round((g.y0 + g.H * 0.6) * k), y0Px = Math.round(g.y0 * k);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = Math.min(fadeA, 1 - duckK * 0.9);
+    ctx.drawImage(buf, 0, y0Px, buf.width, gyPx - y0Px, 0, y0Px, buf.width, gyPx - y0Px);
+    ctx.globalAlpha = Math.min(fadeA, 1 - duckK * 0.35);
+    ctx.drawImage(buf, 0, gyPx, buf.width, buf.height - gyPx, 0, gyPx, buf.width, buf.height - gyPx);
+    ctx.restore();
+  }
+  PP.sceneFade = () => fadeA;
+  function renderInner(ctx) {
     if (!G.save) return;
     const st = ensure(); if (!st) return;
     const { g, e, scene } = st, u = g.u, y0 = g.y0, W = G.W, t = G.t, F = e.fx;
@@ -399,7 +428,7 @@
   function renderFront(ctx) {
     if (!G.save || !L) return;
     const g = geo(); if (!g) { fxs.length = 0; return; }
-    const F = PP.env.get().fx;
+    const F = PP.env.at(view()).fx;
     for (const p of fxs) {
       if (p.k === 'rain') { ctx.strokeStyle = p.sleet ? 'rgba(220,235,255,.8)' : 'rgba(180,205,255,.7)'; ctx.lineWidth = Math.max(1, g.u / 2); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx * 0.012, p.y + p.len); ctx.stroke(); }
       else if (p.k === 'snow') { ctx.fillStyle = '#ffffff'; ctx.fillRect(p.x, p.y, p.s, p.s); }
@@ -417,7 +446,7 @@
     if (fadeTo) { fade += dt * 3.2; if (fade >= 1) { const to = fadeTo; fadeTo = null; arrive(to); } }
     else if (fade > 0) fade = Math.max(0, fade - dt * 2.4);
     const g = geo(); if (!g || !L) return;
-    const e = PP.env.get(), out = true;
+    const e = PP.env.at(view()), out = true;
     // 雪原在山上：下雨在这里就是下雪
     const F = inside || view() === 'sea' ? Object.assign({}, e.fx, { snow: 0, rain: 0, storm: 0, wind: 0 }) : view() === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0 }) : e.fx;
     const top = g.m === 'full' ? -10 : Math.max(0, g.y0 - 40), bottom = G.ground;
@@ -504,7 +533,7 @@
     if (h.go) { go(h.go); return; }
     if (h.leave) { leave(); return; }
     if (h.home) { homeMenu(h); return; }
-    const g = geo(), e = PP.env.get();
+    const g = geo(), e = PP.env.at(view());
     if (h.water) { const x = (h.x0 + h.x1) / 2; ripples.push({ x, y: (L.water.y0 + L.water.y1) / 2, t: 0, max: 0.9 }); if (Math.random() < 0.6) jumpFish(x); return; }
     if (h.skyClick) {
       if (e.time.phase === 'night') { shoot = { x: (h.x0 + h.x1) / 2 - 30, y: h.y0 - 10, t: 0, max: 0.9 }; const p = PP.F.main(); p && p.say(U.pick(['许愿！', '流星！快许愿', '希望明天也一起玩']), 2.2); }
@@ -570,7 +599,7 @@
     if (popEl) popEl.remove();
     const sp = h.home, g = geo(), who = PP.eco ? PP.eco.residentsOf(sp) : [];
     popEl = document.createElement('div'); popEl.className = 'homepop';
-    popEl.innerHTML = `<div class="t">${PP.eco.homeTip(sp).replace(/ · 点一下叫出来$/, '')}</div><div class="row"><button class="small" data-a="in">进去看看</button><button class="small" data-a="out" ${who.length ? '' : 'disabled'}>叫出来</button></div>`;
+    popEl.innerHTML = `<div class="t">${PP.eco.homeTip(sp).replace(/ · 点一下叫出来$/, '')}</div><div class="row">${PP.INTERIOR && PP.INTERIOR[sp] ? '<button class="small" data-a="in">进去看看</button>' : ''}<button class="small" data-a="out" ${who.length ? '' : 'disabled'}>叫出来</button></div>`;
     document.getElementById('ui').appendChild(popEl);
     const x = ((h.x0 + h.x1) / 2) * g.u, y = g.y0 + h.y0 * g.u, r = popEl.getBoundingClientRect();
     popEl.style.left = U.clamp(x - r.width / 2, 4, G.W - r.width - 4) + 'px'; popEl.style.top = Math.max(4, y - r.height - 6) + 'px';

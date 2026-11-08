@@ -97,108 +97,44 @@
     }
   }
 
+  // 饿了 / 渴了：先在身边转转等你喂（指着它点“喂”），等不到就自己出去找点吃的。
+  // 以前是去找饭碗；现在不用你添碗，喂它就能吃饱。
   A.eat = function* () {
     const p = this;
-    let bowl = bowlFor('food');
-    if (!bowl || bowl.level < 0.05) {
-      if (p.d.species === 'hamster' && p.d.stash > 0) {
-        p.say('幸好我有存粮！'); p.d.stash--; p.cheeks = true; yield 1;
-        p.anim = 'eat'; p.mouth = 'chew'; yield 3; p.cheeks = false;
-        p.n.hunger = Math.min(100, p.n.hunger + 35); p.anim = 'idle'; p.mouth = 'w';
-        PP.events.found('stash'); p.log('碗空了，偷偷吃了一颗藏起来的存粮。');
-        return;
-      }
-      yield* askOwner(p, 'bowl', 'hungry', () => (bowl = bowlFor('food')) && bowl.level > 0.05);
-      if (!bowl || bowl.level < 0.05) { p.d.needs.fun -= 5; p.cooldown.ask = 240; p.setExpr('sad', 'w', 3); return; }
-      if (p.affLevel >= 1) { p.addAff(0.5); p.say(U.pick(['谢谢！', '开饭啦', '♪'])); }
+    if (p.n.hunger > 60) return;
+    if (p.d.species === 'hamster' && p.d.stash > 0) {
+      p.say('幸好我有存粮！'); p.d.stash--; p.cheeks = true; yield 1;
+      p.anim = 'eat'; p.mouth = 'chew'; yield 3; p.cheeks = false;
+      p.n.hunger = Math.min(100, p.n.hunger + 35); p.anim = 'idle'; p.mouth = 'w';
+      PP.events.found('stash'); p.log('偷偷吃了一颗藏起来的存粮。');
+      return;
     }
-    // 碗边有别人？
-    const other = G.pets.find((o) => o !== p && o.action === 'eat' && Math.abs(o.x - bowl.x) < 30 * S() / 2);
-    let off = 0;
-    if (other) {
-      const rel = p.relWith(other);
-      if (rel > 55) off = (p.x < bowl.x ? -1 : 1) * 12 * S();
-      else {
-        yield p.goto(bowl.x + (p.x < bowl.x ? -1 : 1) * 28 * S());
-        p.think('dots'); p.anim = 'idle';
-        if (rel < 30 && Math.random() < 0.5) { p.setExpr('angry', 'frown', 1.5); p.emote('anger'); other.setExpr('wide', 'o', 1); p.addRel(other, -2); }
-        yield () => other.action !== 'eat';
-      }
-    }
-    yield p.goto(bowl.x + off);
-    p.facing = off ? -Math.sign(off) : p.facing;
-    p.anim = 'eat'; p.mouth = 'chew'; p.eyes = 'closed';
-    if (other && off) { p.addRel(other, 1.5); PP.hearts(p.x, p.headPos[1] - 20, 1); }
-    const dur = U.rand(3.5, 6);
-    yield dur;
-    bowl.level = Math.max(0, bowl.level - 0.085);
-    p.n.hunger = Math.min(100, p.n.hunger + 48);
-    p.n.bladder -= 6;
-    p.anim = 'idle'; p.mouth = 'tongue'; p.eyes = 'happy'; yield 1;
-    p.mouth = 'w'; p.eyes = 'open';
-    p.count('ate'); p.remember('bowl');
-    if (Math.random() < 0.3) yield* fidget(p);
+    if (!p.d.wild && userHere()) yield* askOwner(p, 'bowl', 'hungry', () => p.n.hunger > 60);
+    if (p.n.hunger > 60) return;
+    // 自己找吃的
+    yield p.goto(p.x + U.rand(-120, 120));
+    p.anim = 'eat'; p.mouth = 'chew'; yield U.rand(3, 5);
+    p.n.hunger = Math.min(100, p.n.hunger + 45); p.anim = 'idle'; p.mouth = 'w'; p.cooldown.ask = 120;
+    p.count('ate');
   };
 
   A.drink = function* () {
     const p = this;
-    let bowl = bowlFor('water');
-    if (!bowl || bowl.level < 0.05) {
-      yield* askOwner(p, 'drop', 'thirsty', () => (bowl = bowlFor('water')) && bowl.level > 0.05);
-      if (!bowl || bowl.level < 0.05) { p.cooldown.ask = 240; return; }
-    }
-    yield p.goto(bowl.x + U.rand(-4, 4));
-    p.anim = 'drink'; p.eyes = 'closed';
-    // 舔水时溅起小水滴
-    for (let k = 0, n = Math.floor(U.rand(5, 8)); k < n; k++) {
-      yield 0.45;
-      PP.fx({ kind: 'dot', x: p.x + U.rand(-6, 6), y: p.y - 6 * G.S, vx: U.rand(-30, 30), vy: U.rand(-90, -50), grav: 400, life: 0.5, col: '#8fd0ff', size: Math.max(1, G.S - 1) });
-    }
-    bowl.level = Math.max(0, bowl.level - 0.07);
-    p.n.thirst = 100; p.n.bladder -= 8;
-    p.anim = 'idle'; p.mouth = 'w'; p.eyes = 'open';
+    if (p.n.thirst > 60) return;
+    if (!p.d.wild && userHere()) yield* askOwner(p, 'drop', 'thirsty', () => p.n.thirst > 60);
+    if (p.n.thirst > 60) return;
+    p.anim = 'drink'; p.eyes = 'closed'; yield U.rand(2, 3.5);
+    p.n.thirst = 100; p.anim = 'idle'; p.eyes = 'open'; p.cooldown.ask = 120;
     p.count('drank');
-    // 喝水提醒：顺便关心一下主人
-    if (userHere() && G.save.settings.care && Math.random() < 0.15 && !(PP.events.cd('water') > 0)) { PP.events.setCd('water', 1800); p.say('你也喝口水吧～'); }
   };
 
   A.toilet = function* () {
     const p = this;
-    const box = PP.findItem('litter');
-    const useBox = box && (box.data.dirty || 0) < 4 && (p.tr.neat > 0.3 || ['cat', 'rabbit'].includes(p.d.species));
-    if (useBox) yield p.goto(box.x);
-    else {
-      // 找个离别人远一点的地方
-      yield p.goto(U.rand(30, G.W - 30));
-    }
-    p.facing = U.chance(0.5) ? 1 : -1;
-    p.anim = 'poop'; p.eyes = 'strain'; p.mouth = 'none';
-    yield U.rand(2, 3);
-    p.n.bladder = 100;
-    if (useBox) {
-      box.data.dirty = (box.data.dirty || 0) + 1;
-      if (p.tr.neat > 0.5) { p.anim = 'groom'; p.eyes = 'open'; yield 1.2; } // 刨砂
-    } else {
-      PP.addItem({ type: 'poop', x: p.x - p.facing * 8 * S(), y: G.ground });
-      if (box && (box.data.dirty || 0) >= 4) { p.think('poop'); }
-    }
-    p.anim = 'idle'; p.eyes = 'happy'; p.mouth = 'w'; yield 0.8; p.eyes = 'open';
-    p.count('poop');
-    if (!useBox) { p.anim = 'run'; yield p.goto(p.x + p.facing * 80, true); } // 拉完就跑
+    p.n.bladder = 100; // 不再留“礼物”，也不用你打扫
+    yield 0.1;
   };
 
-  A.dirty = function* () {
-    const p = this;
-    const poop = PP.findItem('poop');
-    if (!poop) return;
-    p.cooldown.dirty = 300;
-    yield p.goto(poop.x + (p.x < poop.x ? -26 : 26) * S() / 2);
-    p.anim = 'eat'; yield 1; p.anim = 'idle';
-    p.setExpr('strain', 'frown', 1.2); yield 1.2;
-    p.think('poop', 2.5);
-    if (userHere()) { p.line('dirty'); p.facing = Math.sign(G.mouse.x - p.x) || 1; }
-    yield 2;
-  };
+  A.dirty = function* () { yield 0.1; };
 
   A.sleep = function* () {
     const p = this;
@@ -228,6 +164,7 @@
       if (Math.random() < 0.03 && p.d.memories.length) { p.think(U.pick(p.d.memories), 3); if (G.hoverPet === p) PP.events.found('dream'); }
       if (Math.random() < 0.01) p.setExpr('closed', 'smile', 2);
       const sleepy = p.sleepiness();
+      if (PP.sleepTime && PP.sleepTime()) { p.n.bladder = Math.max(p.n.bladder, 50); p.n.hunger = Math.max(p.n.hunger, 40); continue; } // 睡眠时间：一直睡
       if (p.n.energy >= 98 && (sleepy < 0.55 || t > 3600)) break;
       if (sleepy < 0.7 && t > napMax && p.n.energy > 60) break; // 白天的盹不会太长
       if (p.n.bladder < 15 || p.n.hunger < 12) break;

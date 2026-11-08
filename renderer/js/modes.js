@@ -14,7 +14,7 @@
     if (!MODE_NAME[m] || old === m) return;
     if (m === 'mini') {
       // 主角：你指定的那只；没指定就挑一只醒着、在外面的
-      const main = (s.mainId && G.all.find((p) => p.d.id === s.mainId && !p.d.hidden)) || PP.F.main() || G.all.find((p) => !p.d.hidden);
+      const main = (s.mainId && G.all.find((p) => p.d.id === s.mainId)) || G.all.find((p) => !p.d.wild && G.pets.includes(p)) || G.all.find((p) => !p.d.wild) || PP.F.main() || G.all[0];
       s.miniMain = main ? main.d.id : null;
       // 场景里的动物继续在后台过日子，只有主角跟你来
       for (const p of G.pets) if (p !== main) PP.eco.toOffscreen(p);
@@ -101,23 +101,12 @@
     else { P(7, 7, '#ffd84a'); for (let y = 3; y < 12; y += 2) P(3, y, '#b07a46', 6, 1); }
     orb.classList.toggle('mini', m === 'mini');
   }
-  // 大家在哪：每只在哪个地方、在干嘛；点一下过去看它，在家的可以进家里看或者叫出来
+  // 每个地方现在有谁：按地方列出来（同一种合在一起），点地方名就过去
   function whereList() {
-    const list = G.all.filter((p) => !p.d.hidden);
-    if (!list.length || !PP.eco) return '';
-    const rows = list.map((p) => {
-      const d = PP.eco.describe(p), home = p.d.inHome;
-      const btns = home ? `<button class="small" data-pid="${p.d.id}" data-w="in">进家看</button><button class="small" data-pid="${p.d.id}" data-w="out">叫出来</button>` : `<button class="small" data-pid="${p.d.id}" data-w="go">去看</button>`;
-      return `<div class="w"><b>${esc(p.name)}</b><span title="${esc(d.now)}">${esc(d.now)}</span>${btns}</div>`;
-    }).join('');
-    return `<div class="where"><span>大家在哪</span>${rows}</div>`;
-  }
-  function whereGo(p, w) {
-    if (w === 'in') { PP.scene.enter(p.d.species); return; }
-    if (w === 'out') { if (PP.scene.view() !== p.d.scene || PP.scene.inside()) { PP.scene.leave(); if (PP.scene.view() !== p.d.scene) { PP.scene.go(p.d.scene); setTimeout(() => PP.eco.callOut(p.d.species), 900); return; } } PP.eco.callOut(p.d.species); return; }
-    const sc = p.eco && p.eco.state === 'travel' ? p.eco.to : p.d.scene;
-    if (PP.scene.inside()) PP.scene.leave();
-    PP.scene.go(sc);
+    if (!PP.wild) return '';
+    const c = PP.wild.census();
+    const rows = Object.keys(PP.SCENES).map((k) => { const t = PP.wild.censusText(k, c[k]); return `<div class="w"><button class="small" data-s="${k}">${esc(PP.SCENES[k].name)}</button><span title="${esc(t)}">${t ? esc(t) : '<i class="muted">现在没人</i>'}</span></div>`; }).join('');
+    return `<div class="where"><span>每个地方都有谁</span>${rows}</div>`;
   }
   function showPop() {
     hidePop();
@@ -135,8 +124,7 @@
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.m) PP.setMode(b.dataset.m);
-      if (b.dataset.s) PP.scene.go(b.dataset.s);
-      if (b.dataset.pid) { const p = G.all.find((x) => x.d.id === b.dataset.pid); if (p) whereGo(p, b.dataset.w); }
+      if (b.dataset.s) { if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showPop(); return; }
       if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showPop(); return; }
       if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showPop(); return; }
@@ -157,6 +145,8 @@
     menu: ['..........', '..........', '..........', '..........', 'kk..kk..kk', 'kk..kk..kk', '..........', '..........', '..........', '..........'],
     pick: ['kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........', 'kkkk......', 'kgwk.kkkkk', 'kkgk......', 'kkkk......', '..........'],
     pet: ['..........', '.kk....kk.', 'kppk..kppk', 'kpppkkpppk', 'kppppppppk', '.kppppppk.', '..kppppk..', '...kppk...', '....kk....', '..........'],
+    water: ['....kk....', '...kbbk...', '..kbbbbk..', '..kbbbbk..', '.kbbbwbbk.', '.kbbbbwbk.', '.kbbbbbbk.', '..kbbbbk..', '...kkkk...', '..........'],
+    adopt: ['..........', '.kk....kk.', 'kppk..kppk', 'kpppkkpppk', 'kppwwwwppk', '.kppwwppk.', '..kpwwpk..', '...kppk...', '....kk....', '..........'],
     info: ['kkkkkkkkkk', 'kwwwwwwwwk', 'kwbbwwwwwk', 'kbbbbwkkwk', 'kwbbwwwwwk', 'kbbbbwkkwk', 'kwwwwwwwwk', 'kwkkkkkkwk', 'kwwwwwwwwk', 'kkkkkkkkkk'],
   };
   const ICOL = { k: '#231c20', w: '#ffffff', y: '#ffcf33', r: '#e33b3b', g: '#3fa34d', b: '#4b9bcc', o: '#ff8a2a', p: '#ff7aa0' };
@@ -180,11 +170,24 @@
     m.forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') { c.fillStyle = ICOL[ch]; c.fillRect(x * 2, y * 2, 2, 2); } }));
   }
   let ring = null, ringPet = null, hoverSince = 0, lastHover = null, hideT = 0;
-  const BTN = [['info', '档案'], ['fav', '喂它'], ['main', '设为主角'], ['calm', '乖乖待着'], ['head', '只露个头'], ['hide', '回电脑里'], ['pick', '选择谁在桌面上'], ['menu', '更多']];
+  // 每只动物都一样：档案、喂吃的、喂水、摸摸；野生的可以认养，认养的可以让它陪着你
+  const btnsFor = (p) => [['info', '档案'], ['fav', `喂${p.sp.favName}`], ['water', '喂水'], ['pet', '摸摸'], p.d.wild ? ['adopt', '认养它'] : ['main', '让它陪着我'], ['menu', '更多']];
   Object.defineProperty(PP, 'ringPet', { get: () => ringPet });
+  // 极简模式：小门和爪子两个按钮平时藏起来（免得误点），指着宠物时才出现
+  let revealUntil = 0;
+  function miniButtons(hp) {
+    const mini = G.save.settings.mode === 'mini', now = performance.now();
+    if (hp || (ring && ring.matches(':hover')) || pop) revealUntil = now + 2500;
+    const dock = document.querySelector('.dock');
+    const hovered = (orb && orb.matches(':hover')) || (dock && dock.matches(':hover'));
+    const hide = mini && !hovered && now > revealUntil && !document.querySelector('.menu');
+    if (orb) orb.classList.toggle('peekhide', hide);
+    if (dock) dock.classList.toggle('peekhide', hide);
+  }
   function barTick() {
     if (!G.save) return;
     const hp = G.hoverPet;
+    miniButtons(hp);
     const over = ring && ring.matches(':hover');
     if (hp !== lastHover) { lastHover = hp; hoverSince = performance.now(); }
     const menuOpen = !!document.querySelector('.menu');
@@ -201,25 +204,28 @@
       // 弧的半径：保证按钮之间不挤在一起
       const span = Math.PI * 0.9;
       const R = Math.max(12 * S + bs * 0.9, ((n - 1) * bs * 1.12) / span);
-      // 弧的方向：默认在头顶；贴着屏幕右边 / 左边 / 上边时往里转
-      let mid = -Math.PI / 2;
-      if (cx > G.W - R - bs) mid = -Math.PI * 0.78; else if (cx < R + bs) mid = -Math.PI * 0.22;
-      if (cy - R < bs) mid = cx > G.W / 2 ? Math.PI : 0;
-      btns.forEach((b, i) => {
-        const a = mid - span / 2 + (span * i) / (n - 1);
-        const x = U.clamp(cx + Math.cos(a) * R, bs / 2 + 2, G.W - bs / 2 - 2), y = U.clamp(cy + Math.sin(a) * R, bs / 2 + 2, G.H - bs / 2 - 2);
-        b.style.left = x - bs / 2 + 'px'; b.style.top = y - bs / 2 + 'px';
-      });
-      const d = ringPet.d;
-      ring.querySelector('[data-c=calm]').classList.toggle('on', !!d.calm);
-      ring.querySelector('[data-c=head]').classList.toggle('on', !!d.headOnly);
-      ring.querySelector('[data-c=main]').classList.toggle('on', PP.F.main() === ringPet);
+      const nearL = cx < R + bs * 1.2, nearR = cx > G.W - R - bs * 1.2;
+      if (nearL || nearR) {
+        // 贴着屏幕左右边：弧会被切掉一半，改成在它朝里的一侧竖着排一列
+        const side = nearR ? -1 : 1, gap = bs * 1.15, colX = U.clamp(cx + side * (10 * S + bs * 0.9), bs / 2 + 2, G.W - bs / 2 - 2);
+        const top = U.clamp(cy - ((n - 1) * gap) / 2, bs / 2 + 2, G.H - bs / 2 - 2 - (n - 1) * gap);
+        btns.forEach((b, i) => { b.style.left = colX - bs / 2 + 'px'; b.style.top = top + i * gap - bs / 2 + 'px'; });
+      } else {
+        // 默认在头顶一圈；太靠上就转到下面
+        const mid = cy - R < bs ? Math.PI / 2 : -Math.PI / 2;
+        btns.forEach((b, i) => {
+          const a = mid - span / 2 + (span * i) / (n - 1);
+          const x = U.clamp(cx + Math.cos(a) * R, bs / 2 + 2, G.W - bs / 2 - 2), y = U.clamp(cy + Math.sin(a) * R, bs / 2 + 2, G.H - bs / 2 - 2);
+          b.style.left = x - bs / 2 + 'px'; b.style.top = y - bs / 2 + 'px';
+        });
+      }
+      const mb = ring.querySelector('[data-c=main]'); if (mb) mb.classList.toggle('on', G.save.settings.mainId === ringPet.d.id);
     }
   }
   function showBar(p) {
     hideBar();
     ringPet = p;
-    ring = $(`<div class="hoverbar petring">${BTN.map(([c, tip]) => `<button data-c="${c}" title="${tip}"><canvas width="20" height="20"></canvas></button>`).join('')}</div>`);
+    ring = $(`<div class="hoverbar petring">${btnsFor(p).map(([c, tip]) => `<button data-c="${c}" title="${tip}"><canvas width="20" height="20"></canvas></button>`).join('')}</div>`);
     ring.querySelectorAll('button').forEach((b) => drawIconTo(b.querySelector('canvas'), b.dataset.c, p));
     document.getElementById('ui').appendChild(ring);
     barTick();
@@ -228,11 +234,14 @@
     ring.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b || !ringPet) return;
       const id = ringPet.d.id, c = b.dataset.c;
-      if (c === 'hide') { PP.menuRun(`pet:${id}:show`); hideBar(); }
-      else if (c === 'info') { const p = ringPet; hideBar(); PP.ui.petPanel(p); }
+      if (c === 'info') { const p = ringPet; hideBar(); PP.ui.petPanel(p); }
       else if (c === 'menu') { const r = b.getBoundingClientRect(); const p = ringPet; hideBar(); PP.ui.petMenu(p, r.left, r.top); }
-      else if (c === 'pick') { hideBar(); pickPets(); }
-      else { PP.menuRun(`pet:${id}:${c}`); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 250); }
+      else if (c === 'adopt') { const p = ringPet; hideBar(); PP.wild.adoptPanel(p); }
+      else {
+        const cmd = { fav: 'feed', water: 'water', pet: 'pat', main: 'main' }[c] || c;
+        PP.menuRun(`pet:${id}:${cmd}`); b.classList.add('pop'); setTimeout(() => b.classList.remove('pop'), 250);
+        if (c === 'main') { const r2 = ring; setTimeout(() => r2 === ring && barTick(), 30); }
+      }
     });
     PP.refreshInteractive();
   }
@@ -278,7 +287,7 @@
     PP.ui.toast(`桌面上：${G.all.filter((p) => want[p.d.id]).length} 只，回电脑休息：${G.all.filter((p) => !want[p.d.id]).length} 只`);
     PP.save.soon(); PP.syncTray && PP.syncTray(true);
   }
-  PP.pickPets = pickPets;
+  PP.pickPets = () => PP.ui.overview();
 
   // ---------- 天气：设置所在城市 ----------
   function cityPanel() {

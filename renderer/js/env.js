@@ -183,11 +183,12 @@
   // ---------- 汇总（每秒算一次） ----------
   let cur = null, curAt = 0;
   function get() {
-    if (cur && performance.now() - curAt < 1000) return cur;
+    const fixNow = G.save && G.save.settings.seasonFix;
+    if (cur && performance.now() - curAt < 1000 && cur.fix === fixNow) return cur;
     const d = new Date();
     const hol = PP.holiday(d);
     const w = weather(d);
-    cur = { season: PP.season(d), term: termOf(d), holiday: hol, time: phaseOf(d), weather: w, fx: fx(w), date: d };
+    cur = { fix: fixNow, season: PP.season(d), term: termOf(d), holiday: hol, time: phaseOf(d), weather: w, fx: fx(w), date: d };
     curAt = performance.now();
     return cur;
   }
@@ -234,8 +235,42 @@
   }
   setInterval(tick, 5000);
 
+  // ---------- 每个地方自己的气候 ----------
+  // season：画面上看起来是什么季节；allow：这里会出现的天气。
+  // 实时天气不在这个地方的范围里时（比如沙漠下雪），这里就随机换成一种它有的天气（每两小时换一次，不会乱跳）
+  const ALL = PP.WEATHER.map((w) => w[0]);
+  const CLIMATE = {
+    snow: { season: () => 'winter', allow: ['clear', 'partly', 'cloudy', 'snow', 'heavysnow', 'fog', 'windy'], temp: (t) => Math.min(t, -3) },
+    mountain: { season: (s) => s, allow: ALL.filter((k) => k !== 'heavyrain'), temp: (t) => t - 8 },
+    jungle: { season: () => 'summer', allow: ['clear', 'partly', 'cloudy', 'drizzle', 'rain', 'heavyrain', 'storm', 'fog'], temp: (t) => Math.max(t, 24) },
+    desert: { season: () => 'summer', allow: ['clear', 'clear', 'partly', 'windy'], temp: (t) => Math.max(t, 30) },
+    savanna: { season: (s) => (s === 'winter' || s === 'autumn' ? 'autumn' : 'summer'), allow: ['clear', 'clear', 'partly', 'cloudy', 'drizzle', 'rain', 'storm', 'windy'], temp: (t) => Math.max(t, 22) },
+    beach: { season: (s) => (s === 'winter' ? 'autumn' : s), allow: ['clear', 'partly', 'cloudy', 'drizzle', 'rain', 'heavyrain', 'storm', 'windy', 'fog'], temp: (t) => t + 2 },
+    sea: { season: () => 'summer', allow: ['clear'], temp: () => 20 },
+  };
+  const atCache = {};
+  function at(scene) {
+    const e = get(), c = CLIMATE[scene];
+    if (!c) return Object.assign({}, e, { realSeason: e.season });
+    const k0 = e.weather.kind, slot = Math.floor(Date.now() / 7200000);
+    const key = scene + '|' + k0 + '|' + slot + '|' + e.season;
+    let w = atCache[key];
+    if (!w) {
+      let kind = k0;
+      if (!c.allow.includes(kind)) {
+        let h = 0; for (const ch of scene + slot) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+        kind = c.allow[h % c.allow.length];
+      }
+      w = { kind, temp: e.weather.temp != null ? Math.round(c.temp(e.weather.temp)) : null, wind: kind === 'windy' ? Math.max(3, e.weather.wind) : Math.min(e.weather.wind, kind === 'clear' ? 1 : 9), source: kind === k0 ? e.weather.source : 'local' };
+      for (const k in atCache) delete atCache[k];
+      atCache[key] = w;
+    }
+    return Object.assign({}, e, { season: c.season(e.season), realSeason: e.season, weather: w, fx: fx(w) });
+  }
+  PP.CLIMATE = CLIMATE;
+
   PP.env = {
-    get, label, tick, searchCity, refresh: () => fetchLive(true),
+    get, at, label, tick, searchCity, refresh: () => fetchLive(true),
     weatherName: (k) => WNAME[k] || k, seasonName: (s) => SEASON_NAME[s],
     get liveError() { return liveErr; },
     TERMS,

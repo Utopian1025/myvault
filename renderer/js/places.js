@@ -8,12 +8,16 @@
   // ---------- 地图 ----------
   PP.WORLD = [
     ['snow', '雪原'], ['mountain', '高山'], ['forest', '森林'], ['jungle', '雨林'], ['lake', '湖边'], ['meadow', '草地'],
-    ['farm', '农场'], ['desert', '沙漠'], ['beach', '海滩'], ['sea', '海底'],
+    ['farm', '农场'], ['savanna', '草原'], ['desert', '沙漠'], ['beach', '海滩'], ['sea', '海底'],
   ];
   PP.HOME_NAME = {
     cat: '谷仓阁楼', dog: '狗窝', chick: '鸡舍', pig: '猪圈', rabbit: '兔子洞', hamster: '向日葵下的地洞', fox: '大树根下的狐狸洞',
     hedgehog: '倒木下的落叶窝', dragon: '石头山洞', frog: '大荷叶下的泥窝', duck: '芦苇丛里的鸭窝', capybara: '湖边温泉', penguin: '冰屋',
-    turtle: '珊瑚礁下的海草窝', crab: '礁石边的大海螺', octopus: '沉船里的陶罐',
+    turtle: '珊瑚礁下的海草窝', crab: '沙滩上的大海螺', octopus: '沉船里的陶罐',
+    polarbear: '雪坡里的冰洞', arcticfox: '雪地里的小洞', yak: '石头垒的牛圈', alpaca: '山脚的小木棚', snowleopard: '岩壁上的山洞',
+    deer: '灌木丛里的草窝', tiger: '大树板根下的阴凉', monkey: '大树上的树屋', parrot: '大树上的树洞', sheep: '羊圈',
+    cow: '牛棚', lion: '大石台', zebra: '金合欢树下', antelope: '高草丛', hippo: '水塘', camel: '棕榈树下的帐篷',
+    fennec: '沙丘下的洞', meerkat: '狐獴的地道', seagull: '海边的木桩', seal: '礁石', gardeneel: '沙地里的小洞', shark: '礁石洞',
   };
   // 设施的大致位置（比例）。eco.js 用来决定去哪儿
   const SPOTS = {
@@ -29,7 +33,7 @@
     sea: { turtle_home: 0.18, seagrass: 0.3, kelp: 0.42, crab_home: 0.52, sandflat: 0.6, coral: 0.7, octopus_home: 0.84, clam: 0.93, reef: 0.2 },
   };
   PP.SPOTS = SPOTS;
-  const HOME_SCENE = { penguin: 'snow', hedgehog: 'forest', fox: 'forest', dragon: 'forest', duck: 'lake', frog: 'lake', capybara: 'lake', turtle: 'sea', crab: 'sea', octopus: 'sea', rabbit: 'meadow', hamster: 'meadow', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm' };
+  const HOME_SCENE = { penguin: 'snow', hedgehog: 'forest', fox: 'forest', dragon: 'forest', duck: 'lake', frog: 'lake', capybara: 'lake', turtle: 'sea', crab: 'beach', octopus: 'sea', rabbit: 'meadow', polarbear: 'snow', arcticfox: 'snow', yak: 'mountain', alpaca: 'mountain', snowleopard: 'mountain', deer: 'forest', tiger: 'jungle', monkey: 'jungle', parrot: 'jungle', sheep: 'meadow', cow: 'farm', lion: 'savanna', zebra: 'savanna', antelope: 'savanna', hippo: 'savanna', camel: 'desert', fennec: 'desert', meerkat: 'desert', seagull: 'beach', seal: 'beach', gardeneel: 'sea', shark: 'sea', hamster: 'meadow', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm' };
   PP.HOME_SCENE = HOME_SCENE;
 
   // ---------- 家（精灵） ----------
@@ -195,5 +199,105 @@
     s.set(Math.round(w * 0.75), Math.round(h * 0.6), '#bfe6ff'); s.set(Math.round(w * 0.75) + 1, Math.round(h * 0.6), '#bfe6ff');
     return { s: s.outline('#2a1a10'), door: { x: px } };
   }
-  PP.HOMES = { barn, kennel, coop, sty, igloo, mound, foxDen, leafNest, cave, duckNest, hotSpring, lilyHome, reefArch, conch, wreck };
+  // ---------- 新伙伴们的家 ----------
+  // 北极熊：雪坡里挖出来的冰洞
+  function iceCave(h) {
+    const { spr, noise } = A(); const w = Math.round(h * 2), s = spr(w, h), cx = (w + 2) / 2;
+    s.ell(cx, h + 1, w / 2, h, (nx, ny, x, y) => { if (ny > 0) return null; const n = noise((cx + x) / 4, (h + y) / 3, 51); return -nx - ny > 0.9 ? '#ffffff' : n < 0.35 ? '#c8dcec' : '#e6f0f8'; });
+    s.ell(cx + 2, h + 1, w * 0.2, h * 0.55, (nx, ny) => (ny > 0 ? null : nx * nx + ny * ny > 0.7 ? '#8ab8d8' : '#1e3a5a'));
+    for (const [dx, dy] of [[-8, -4], [7, -6]]) s.rect(cx + dx, h + dy, 2, 1, '#a8d4f0');
+    return { s: s.outline('#6a8aa8'), door: { x: Math.round(cx + 2) } };
+  }
+  // 地洞：一个土包 + 洞口（可以换颜色：雪地、沙地）
+  function burrow(w, h, pal, holes) {
+    const { spr, noise } = A(); const s = spr(w, h);
+    s.ell(w / 2 + 1, h + 1, w / 2, h, (nx, ny, x, y) => (ny > 0 ? null : ny < -0.75 ? pal[1] : noise(x / 2, y / 2, 5) < 0.35 ? pal[2] : pal[0]));
+    let door = 0;
+    holes.forEach((hx0, i) => { const hx = Math.round(w * hx0), r = i ? 2.4 : 3.4; s.ell(hx, h + 1, r, r * 0.9, (nx, ny) => (ny > 0 ? null : ny < -0.6 ? pal[3] : '#2a1a12')); if (!i) door = hx; });
+    return { s: s.outline(pal[3]), door: { x: door } };
+  }
+  // 石头垒的牛圈 + 草顶（牦牛）
+  function stoneShelter(h, season) {
+    const { spr, hash } = A(); const w = Math.round(h * 1.8), s = spr(w, h), roof = Math.round(h * 0.4);
+    for (let y = roof; y <= h; y++) for (let x = 2; x < w; x++) { const bx = Math.floor((x + (Math.floor(y / 3) % 2) * 2) / 4); s.set(x, y, y % 3 === 0 || (x + (Math.floor(y / 3) % 2) * 2) % 4 === 0 ? '#5a5a62' : hash(bx, Math.floor(y / 3), 3) < 0.5 ? '#8e8e98' : '#a4a4ae'); }
+    for (let y = 1; y <= roof; y++) { const k = y / roof; for (let x = Math.round(w * 0.5 * (1 - k)); x <= w - Math.round(w * 0.5 * (1 - k)) + 1; x++) s.set(x, y, season === 'winter' && y < roof * 0.6 ? '#ffffff' : (x + y) % 3 === 0 ? '#a8883a' : '#c8a84a'); }
+    s.rect(Math.round(w * 0.4), h - Math.round(h * 0.42), Math.round(w * 0.22), Math.round(h * 0.42) + 1, '#2a1a12');
+    return { s: s.outline('#3a3a42'), door: { x: Math.round(w * 0.51) } };
+  }
+  // 木头小棚（羊驼、牛）：前面敞开，里面堆着干草
+  function shed(h, season, wall, roofCol) {
+    const { spr } = A(); const w = Math.round(h * 1.5), s = spr(w, h), roof = Math.round(h * 0.32);
+    for (let y = roof; y <= h; y++) for (let x = 2; x < w; x++) s.set(x, y, x % 4 === 0 ? A().shade(wall, -0.25) : wall);
+    for (let y = 1; y <= roof; y++) for (let x = 1; x <= w + 1; x++) s.set(x, y, season === 'winter' && y < roof * 0.6 ? '#ffffff' : y % 2 ? roofCol : A().shade(roofCol, -0.15));
+    const ox = Math.round(w * 0.22), ow = Math.round(w * 0.56); s.rect(ox, roof + 3, ow, h - roof - 2, '#3a2418');
+    s.rect(ox + 1, h - 3, ow - 2, 4, '#d8b04a'); s.hl(ox + 1, h - 3, ow - 2, '#f0cc6a');
+    return { s: s.outline('#3a2418'), door: { x: Math.round(w / 2) } };
+  }
+  // 灌木丛里压出来的草窝（小鹿，露天）
+  function thicket(season, R) {
+    const { spr, bush } = A(); const a = bush(7, season, R), b2 = bush(6, season, R), s = spr(a.w + b2.w - 6, a.h + 2);
+    a.stamp(s, a.w / 2, a.h + 1); b2.stamp(s, a.w + b2.w / 2 - 6, a.h + 2);
+    s.ell(s.w / 2, s.h - 1, s.w * 0.25, 1.4, season === 'winter' ? '#e8eef4' : '#c8a84a');
+    return { s, door: { x: Math.round(s.w / 2) } };
+  }
+  // 雨林大树：树洞（鹦鹉）、树屋（猴子）、粗大的板根（老虎）
+  function bigTree(h, R, kind) {
+    const { spr, jungleTree } = A(); const t = jungleTree(h, R), s = spr(t.w + 10, h + 2), cx = Math.round(s.w / 2);
+    t.stamp(s, s.w / 2, h + 1);
+    let door = { x: cx }, perch = null;
+    if (kind === 'hollow') { const hy = Math.round(h * 0.62); s.ell(cx, hy, 2.4, 3, (nx, ny) => (nx * nx + ny * ny > 0.6 ? '#3a2418' : '#120c08')); perch = { x: cx, y: hy + 3 }; }
+    if (kind === 'house') {
+      const py = Math.round(h * 0.5); s.rect(cx - 9, py, 19, 2, '#8a5e3a'); s.hl(cx - 9, py, 19, '#a87a54');
+      s.rect(cx - 6, py - 7, 12, 7, '#a87a54'); for (let y = py - 7; y < py; y += 2) s.hl(cx - 6, y, 12, '#8a5e3a');
+      for (let y = 0; y < 4; y++) s.hl(cx - 7 + y, py - 8 - y, 14 - y * 2, '#5a8a3a');
+      s.rect(cx - 2, py - 5, 3, 5, '#2a1a12');
+      for (let y = py + 2; y < h; y += 3) { s.set(cx + 7, y, '#c8a060'); s.set(cx + 7, y + 1, '#8a6a3a'); }
+      perch = { x: cx, y: py };
+    }
+    if (kind === 'roots') for (const dx of [-9, -5, 5, 9]) for (let k = 0; k < 6; k++) s.rect(cx + dx + Math.sign(dx) * k, h - 5 + k, 2, 1, '#5a3d2b');
+    return { s: s.outline('#123a1e'), door, perch };
+  }
+  // 羊圈：一圈矮栅栏，里面铺着干草（露天）
+  function pen(w, season) {
+    const { spr, fence } = A(); const f = fence(w, season === 'winter'), s = spr(w + 2, f.h + 3);
+    s.ell(s.w / 2, s.h - 1, s.w * 0.4, 2, season === 'winter' ? '#e8eef4' : '#d8b04a');
+    f.stamp(s, s.w / 2, f.h);
+    return { s, door: { x: Math.round(s.w / 2) } };
+  }
+  // 草原：平顶的金合欢树
+  function acacia(h, R, season) {
+    const { spr, noise } = A(); const w = Math.round(h * 1.5), s = spr(w, h), cx = (w + 2) / 2, th = Math.round(h * 0.62);
+    for (let y = 0; y < th; y++) { const yy = h + 1 - y; s.rect(Math.round(cx - 1 + Math.sin(y / 6) * 1.5), yy, 3, 1, '#6a4a30'); }
+    for (const dx of [-1, 1]) for (let k = 0; k < 8; k++) s.rect(Math.round(cx + dx * k * 1.4), h + 1 - th + 4 - k, 2, 1, '#6a4a30');
+    const L = season === 'autumn' ? ['#7a7a2a', '#9a9a3a', '#b8b04a'] : ['#3f6a2a', '#56823a', '#72a04a'];
+    s.ell(cx, h * 0.24, w / 2 - 1, h * 0.17, (nx, ny, x, y) => { const n = noise((cx + x) / 3, y / 2, 61); if (ny > 0.55 && n < 0.5) return null; return ny < -0.3 ? L[2] : n < 0.4 ? L[0] : L[1]; });
+    return s.outline('#2a3a1a');
+  }
+  // 狮子的大石台（露天，喜欢趴在上面）
+  function prideRock(h, R) {
+    const { spr, hash } = A(); const w = Math.round(h * 2.2), s = spr(w, h);
+    for (let y = 0; y <= h; y++) { const k = y / h, x0 = Math.round(w * 0.1 * (1 - k)) + 1, x1 = w - Math.round(w * 0.35 * Math.max(0, 1 - k * 1.8)); for (let x = x0; x <= x1; x++) s.set(x, y, y < 2 ? '#d8b88a' : hash(x, y, 7) < 0.1 ? '#8a6a4a' : x < w * 0.3 ? '#c8a070' : '#a88458'); }
+    return { s: s.outline('#5a4028'), door: { x: Math.round(w * 0.4) }, top: 0 };
+  }
+  // 海鸥：海边的木桩，桩顶上是草窝
+  function gullPost(h) {
+    const { spr } = A(); const s = spr(12, h);
+    s.rect(5, 4, 3, h - 3, '#8a6a4a'); for (let y = 6; y < h; y += 4) s.hl(5, y, 3, '#6a4a30');
+    s.ell(6.5, 4, 5, 2, '#c8a860'); s.ell(6.5, 3.4, 3, 1, '#8a7040');
+    return { s: s.outline('#3a2a1a'), door: { x: 6 } };
+  }
+  // 海底：鲨鱼的大礁石洞、花园鳗的沙洞群
+  function reefCave(h) {
+    const { spr, noise } = A(); const w = Math.round(h * 2.2), s = spr(w, h), cx = (w + 2) / 2;
+    s.ell(cx, h + 1, w / 2, h, (nx, ny, x, y) => { if (ny > 0) return null; const n = noise((cx + x) / 3, (h + y) / 3, 81); return n < 0.3 ? '#3a5a7a' : n < 0.6 ? '#4a6a8a' : '#5a7a9a'; });
+    s.ell(cx, h + 1, w * 0.26, h * 0.6, (nx, ny) => (ny > 0 ? null : '#0a1a2e'));
+    for (const [dx, c] of [[-w * 0.3, '#ff7a8a'], [w * 0.32, '#ffcf33'], [w * 0.1, '#b98cff']]) { s.rect(cx + dx, 2, 2, 3, c); s.set(cx + dx - 1, 2, c); }
+    return { s: s.outline('#1a2a3a'), door: { x: Math.round(cx) } };
+  }
+  function sandHoles(w) {
+    const { spr } = A(); const s = spr(w, 3);
+    for (let i = 0; i < 5; i++) { const x = 3 + i * Math.round((w - 6) / 4); s.ell(x, 2, 2, 1, '#8a7a5a'); s.set(x, 2, '#3a2a1a'); }
+    return { s, door: { x: Math.round(w / 2) } };
+  }
+  PP.HOMES = { barn, kennel, coop, sty, igloo, mound, foxDen, leafNest, cave, duckNest, hotSpring, lilyHome, reefArch, conch, wreck, iceCave, burrow, stoneShelter, shed, thicket, bigTree, pen, acacia, prideRock, gullPost, reefCave, sandHoles };
 })();

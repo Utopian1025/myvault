@@ -107,7 +107,7 @@
     // 被鼠标指着（或者它的图标环开着）：原地停下来看着你
     get frozen() { return (G.hoverPet === this || PP.ringPet === this) && !this.held && !this.airborne && !this.doorBusy() && !this.transit; }
     // 乖乖待着：这只单独设置的，或者全局“工作模式”
-    get calm() { return !!(this.d.calm || (G.save && (G.save.settings.work || G.save.settings.mode === 'mini'))); }
+    get calm() { return !!(G.save && G.save.settings.mode === 'mini'); }
     // 只露个头：沉到屏幕底边以下的像素数
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
@@ -125,7 +125,7 @@
     // ---------- 说话 / 表情 ----------
     say(text, dur = 3.2, kind = 'say') {
       if (!text) return;
-      if ((G.save.settings.quiet || (PP.F && PP.F.working && PP.F.working())) && kind === 'say' && !this._forceSay) return;
+      if ((G.save.settings.quiet || (PP.F && PP.F.working && PP.F.working()) || (PP.sleepTime && PP.sleepTime())) && kind === 'say' && !this._forceSay) return;
       this.bubble = { text, icon: null, t: 0, dur, kind };
       PP.audio && PP.audio.chirp(this);
     }
@@ -213,8 +213,7 @@
       if (this.blinking > 0) this.blinking -= dt;
 
       // 只露头：看视频模式里的那只，或者开了“只露头”的；提醒/AI 反应时会整只冒出来
-      const headOnly = this.d.headOnly || G.save.settings.headOnly;
-      this.peek = !this.held && !this.airborne && (this.action === 'peekIdle' || (headOnly && !POP.has(this.action)));
+      this.peek = !this.held && !this.airborne && (this.action === 'peekIdle' || (this.action === 'edgePeek' && this.edgePeek && this.edgePeek.side === 'bottom'));
 
       if (this.held) { this.hopY = 0; this.updateHeld(dt); return; }
       // 被鼠标指着：完全停下来、看着你，等你点图标（进出门、跳跃途中除外）
@@ -306,7 +305,9 @@
 
     // ---------- 决策：效用 AI + 随机性 ----------
     decide() {
-      if (G.save.settings.peek && PP.F && PP.F.main() === this) { this.run('peekIdle', PP.ACTIONS.peekIdle); return; }
+      if (this.edgePeek) { this.run('edgePeek', PP.ACTIONS.edgePeek); return; }
+      // 睡眠时间：去睡觉（场景里的会回家睡）
+      if (PP.sleepTime && PP.sleepTime() && !this.sleeping && !(PP.scene && PP.scene.active() && PP.eco && PP.eco.decide(this, () => {}))) { this.run('sleep', PP.ACTIONS.sleep); return; }
       if (this.d.species === 'hedgehog' && this.curlT > 0) { this.run('curl', PP.ACTIONS.curl, this.curlT); this.curlT = 0; return; }
       const n = this.n, tr = this.tr, now = this.t;
       const sceneOn = PP.scene && PP.scene.active();
@@ -444,6 +445,9 @@
       this.facing = M.vx > 50 ? 1 : M.vx < -50 ? -1 : this.facing;
     }
     drop(vx, vy) {
+      // 拖到屏幕最下面 / 最边上放手：它就躲在那儿只露个头（探索玩法）
+      const M = G.mouse, edge = M.y >= G.H - 8 ? 'bottom' : M.x <= 8 ? 'left' : M.x >= G.W - 8 ? 'right' : null;
+      if (edge && !(G.save && G.save.settings.mode === 'full')) { this.held = false; this.airborne = false; this.vx = this.vy = 0; this.y = this.floor; this.edgePeek = { side: edge, since: G.t }; if (edge !== 'bottom') this.x = edge === 'left' ? 4 * G.S : G.W - 4 * G.S; this.interrupt(true); return; }
       this.held = false; this.airborne = true;
       this.vx = U.clamp(vx, -1400, 1400) * 0.6; this.vy = U.clamp(vy, -1200, 1200) * 0.6;
       this.fallFrom = this.y; this.stretch = 0; this.thrown = true;

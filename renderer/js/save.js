@@ -55,9 +55,9 @@
     catchUp() {
       const s = G.save;
       const away = Date.now() - (s.savedAt || Date.now());
-      const list = G.all.filter((p) => !p.d.hidden);
+      const list = G.all.filter((p) => !p.d.wild);
       if (away < 5 * 60000 || !list.length) return 0;
-      const nature = s.settings.mode !== 'mini'; // 在场景里生活的动物自己找吃的
+      const nature = true; // 大家都自己找吃的（不用你添碗）
       const steps = Math.min(Math.floor(away / 600000), 6 * 24 * 3); // 最多推演 3 天
       const food = PP.findItem('food'), water = PP.findItem('water');
       const summary = {};

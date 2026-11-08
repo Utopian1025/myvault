@@ -375,7 +375,8 @@
   };
   function bottle() { const A = T(), s = A.spr(5, 10); s.rect(2, 1, 2, 3, '#7ac8a0'); s.rect(1, 4, 4, 6, '#5aae84'); s.vl(2, 5, 4, '#b8f0d0'); s.rect(2, 6, 2, 2, '#f4ead8'); return s.outline('#2a5a3a'); }
 
-  // 一套家里该有的名字（门边的小牌子用）
+  // 新来的住户：借用相近的屋子
+  Object.assign(I, { polarbear: I.penguin, arcticfox: I.fox, fennec: I.rabbit, meerkat: I.hamster, snowleopard: I.dragon, yak: I.pig, alpaca: I.pig, cow: I.cat, monkey: I.dog, parrot: I.chick, seagull: I.chick });
   PP.INTERIOR = I;
   PP.INTERIOR_SPOTS = ['bed', 'eat', 'play'];
 })();

@@ -15,6 +15,7 @@
   const earlyBird = curve((h) => (h >= 20 || h < 5 ? 0.95 : h >= 12 && h < 14 ? 0.4 : h >= 18 ? 0.55 : 0.08)); // 天一黑就困，天一亮就醒
   const froggy = curve((h) => (h >= 10 && h < 17 ? 0.7 : h >= 2 && h < 6 ? 0.5 : 0.12)); // 傍晚和夜里最精神
   const chill = curve((h) => (h >= 23 || h < 6 ? 0.85 : h >= 12 && h < 16 ? 0.6 : 0.3)); // 卡皮巴拉：随时可以睡
+  PP.CHRONO = { diurnal, crepus, noctur, foxy, earlyBird, froggy, chill, curve };
 
   PP.SPECIES = {
     cat: {
@@ -301,6 +302,7 @@
 
   // 彩蛋登记表（彩蛋图鉴）
   PP.EGGS = {
+    edge_peek: { name: '躲猫猫', hint: '把它拖到屏幕最下面或者最边上放手…' },
     poke_rage: { name: '戳戳狂魔', hint: '有些事情做多了，会被讨厌' },
     dizzy: { name: '人肉摇摇车', hint: '抓起来以后…晃一晃？' },
     perfect_landing: { name: '完美落地', hint: '猫咪从高处落下时…' },
