@@ -158,7 +158,6 @@ app.whenReady().then(() => {
   // 全局快捷键：召唤 / 送回所有宠物（故意选了一个平时不会按到的组合）
   try {
     globalShortcut.register('CommandOrControl+Alt+Shift+P', () => { if (hidden) { setHidden(false); send('hotkey', 'summon'); } else send('hotkey', 'toggle'); });
-    globalShortcut.register('CommandOrControl+Alt+Shift+W', () => send('hotkey', 'work'));
   } catch (e) { console.warn('shortcut', e); }
 
   screen.on('display-metrics-changed', fitToWorkArea);
