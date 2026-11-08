@@ -229,3 +229,28 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .scene-pop .subs button { display: inline-flex; align-items: center; gap: 3px; }
 .sico { image-rendering: pixelated; flex: none; }
 .view-pop .muted { font-size: 11px; color: var(--muted); }
+
+/* ---- 地图弹窗 v2：更柔和的卡片风 ---- */
+.scene-pop { max-width: 560px; width: 560px; padding: 10px; gap: 8px; background: #fbf6ef; border: 2px solid #3b2a4c; border-radius: 12px; box-shadow: 0 10px 28px rgba(59,42,76,.28), 3px 3px 0 #3b2a4c; color: #3b2a4c; }
+.scene-pop .maphead { margin: 0 2px; }
+.scene-pop .maphead b { font-size: 15px; letter-spacing: 1px; }
+.scene-pop .maphead .muted { font-size: 11px; }
+.scene-pop .regions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 62vh; overflow-y: auto; padding-right: 2px; }
+.scene-pop .rg { display: flex; flex-direction: column; align-items: stretch; gap: 4px; background: #fff; border: 1px solid rgba(59,42,76,.14); border-radius: 9px; padding: 5px 6px 6px; }
+.scene-pop .rg:has(.tile:nth-child(3)) { grid-column: span 2; }
+.scene-pop .rn { width: auto; font-size: 12px; color: #6a5a74; gap: 4px; }
+.scene-pop .tiles { display: flex; gap: 5px; flex-wrap: nowrap; }
+.scene-pop .tile { flex: 1 1 0; min-width: 0; width: auto; height: 54px; border: 2px solid transparent; border-radius: 7px; background: #e9e2f0; transition: transform .12s, border-color .12s; }
+.scene-pop .tile canvas.thumb { width: 100%; height: 100%; object-fit: cover; }
+.scene-pop .tile:hover { border-color: #f2a6c2; transform: translateY(-2px); }
+.scene-pop .tile.on { border-color: #e97fa8; box-shadow: 0 0 0 2px rgba(233,127,168,.35); }
+.scene-pop .tile .tn { left: 0; right: 0; top: auto; bottom: 0; border-radius: 0; justify-content: flex-start; background: linear-gradient(transparent, rgba(30,20,40,.72)); color: #fff; padding: 8px 5px 2px; font-size: 11px; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.scene-pop .tile .tnest { top: 3px; bottom: auto; right: 3px; background: rgba(255,255,255,.85); color: #3b2a4c; }
+.scene-pop .seasons, .scene-pop .sound { background: #fff; border: 1px solid rgba(59,42,76,.14); border-radius: 9px; padding: 5px 6px; gap: 4px; }
+.scene-pop .seasons span { font-size: 11px; color: #6a5a74; min-width: 28px; }
+.scene-pop button { border-radius: 6px; border: 1px solid rgba(59,42,76,.3); background: #fff; color: #3b2a4c; }
+.scene-pop button:hover { background: #fdeef4; }
+.scene-pop button.on { background: #3b2a4c; color: #fff; border-color: #3b2a4c; }
+.scene-pop .env { font-size: 11px; color: #6a5a74; padding: 0 4px; }
+.scene-pop .amb-now { color: #8a5a7a; }
+.scene-pop .amb-now:empty { display: none; }
