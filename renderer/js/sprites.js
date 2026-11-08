@@ -399,6 +399,19 @@
     if (sp === 'rabbit') { g.hy += anim === 'held' ? 3.5 : 2; }
     if (sp === 'capybara') { g.hrx += 0.2; g.hry += 1.6; g.hy += 1.6; g.brx += 1.4; g.bry += 0.4; }
     if (sp === 'pig') { g.hrx += 0.4; g.hy += 0.6; g.brx += 0.8; } // 兔子耳朵长，头放低一点免得被裁掉
+    // 四条腿的动物：走路 / 跑 / （大型动物）站着时，身子横过来、四只小短腿着地；头和脸还是原来的 Q 版大头
+    const STAND_WALK = PP.SPR.STAND_WALK, STAND_IDLE = PP.SPR.STAND_IDLE;
+    if (!p.portrait && !custom && STAND_WALK.has(p.species) && (anim === 'walk' || anim === 'run' || ((anim === 'idle' || anim === 'look_up' || anim === 'eat') && STAND_IDLE.has(p.species)))) {
+      const run = anim === 'run', s4 = Math.floor(t * (run ? 12 : 7)) % 4;
+      const bob = anim === 'walk' ? (s4 % 2 ? 0.5 : 0) : run ? (s4 % 2 ? 1 : 0) : breathe * 0.4;
+      g.stand = { run, s4 };
+      g.bx = 16 - f * 3.8; g.by = 21.2 + bob * 0.5; g.brx = run ? 8.8 : 8.4; g.bry = run ? 4.2 : 4.6;
+      g.hrx = 7.4; g.hry = 6; g.hx = 16 + f * 3.2; g.hy = (run ? 15.6 : 14.4) + bob;
+      if (anim === "eat") { g.hx = 16 + f * 4; g.hy = 18.6 + (Math.sin(t * 11) > 0 ? 0.8 : 0); }
+      if (anim === 'look_up') g.hy -= 0.8;
+      g.paws = false; g.hind = false; g.tailMode = anim === 'idle' || anim === 'eat' ? 'sit' : 'walk';
+      if (run && g.ear === 'up') g.ear = 'back';
+    }
     g.f = f; g.t = t; g.anim = anim;
     if (X && X.geo) X.geo(g, p);
 
@@ -421,7 +434,9 @@
       }
       if (X && X.ears) X.ears(b, C, g, HP, p); else drawEars(b, sp, C, g, p);
       if (X && X.back) X.back(b, C, g, HP, p);
+      if (g.stand) drawLegs(b, C, g, false);
       ell(b, g.bx, g.by, g.brx, g.bry, C.base);
+      if (g.stand) drawLegs(b, C, g, true);
       if (X && X.body) X.body(b, C, g, HP, p);
       // 后脚（跳跃/悬空时）
       if (g.hind) {
@@ -494,6 +509,22 @@
     else if (p.transform === 'rotL') out = shift(rot90(b, -1), 0, 4);
     else if (p.transform === 'buried') out = buried(flipV(b));
     return out;
+  }
+
+  // 横身站姿的四条小短腿：远处两条颜色深一点，近处两条正常色；走路时对角两条轮流抬起
+  function drawLegs(b, C, g, near) {
+    const { bx, by, brx, bry, f } = g, { run, s4 } = g.stand;
+    const top = Math.round(by + bry - 2.5), foot = 29;
+    const xs = near ? [bx - f * (brx - 3), bx + f * (brx - 3.4)] : [bx - f * (brx - 4.8), bx + f * (brx - 1.6)];
+    xs.forEach((x, i) => {
+      const pair = (i + (near ? 0 : 1)) % 2; // 对角步态
+      let lift = 0, dx = 0;
+      if (g.anim === 'walk') { if ((s4 === 1 && pair === 0) || (s4 === 3 && pair === 1)) { lift = 1; dx = f * 0.6; } }
+      else if (run) { const ph = (s4 + pair * 2) % 4; lift = ph === 1 ? 2 : ph === 2 ? 1 : 0; dx = (ph < 2 ? 1 : -1) * f * (i ? 1 : -1) * 0.8; }
+      const lx = Math.round(x + dx - 1.5), h = Math.max(2, foot - lift - top);
+      rect(b, lx, top, 3, h, near ? C.base : (C.dark || C.base));
+      rect(b, lx, top + h - 1, 3, 1, C.paw || C.dark);
+    });
   }
 
   function drawWhiskers(b, g, col) {
@@ -1439,5 +1470,7 @@
   }
 
   var HP = { ell, rect, poly, outline, K, OUT, RIM, drawEye, lookX, blobFit, FACES: null };
-  PP.SPR = { HP, customPal, tone, _h: { outline, outlineSel, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
+  const STAND_IDLE = new Set(['lion', 'tiger', 'snowleopard', 'polarbear', 'brownbear', 'zebra', 'antelope', 'deer', 'cow', 'yak', 'alpaca', 'sheep', 'hippo', 'pig', 'capybara']);
+  const STAND_WALK = new Set([...STAND_IDLE, 'cat', 'dog', 'fox', 'arcticfox', 'fennec']);
+  PP.SPR = { STAND_IDLE, STAND_WALK, HP, customPal, tone, _h: { outline, outlineSel, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
 })();

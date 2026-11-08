@@ -120,7 +120,7 @@
     }
     // 小场景：顶上用抖动渐隐，和桌面自然衔接
     if (!full) for (let y = 0; y < 6; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 7)) P.d[y * cols + x] = 0;
-    PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
+    lightPass(P.d, P.w, P.h, lay.gy); PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 地面上的零碎：前后错落，越靠前越大一点，避开小路、水和房子门口
   function scatter(lay, R) {
@@ -179,7 +179,7 @@
     if (lay.steam) sh(lay.steam);
     lay.bubblesX = lay.bubbles ? [ox, rw] : null;
     if (!full) for (let y = 0; y < 4; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 5)) P.d[y * cols + x] = 0;
-    PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
+    lightPass(P.d, P.w, P.h, lay.gy); PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 装饰 → 精灵
   function decorItem(d, lay, R) {
@@ -218,6 +218,19 @@
   let flash = 0, nextBolt = 6, fade = 0, fadeTo = null, hover = null;
   let bats = [], nextRocket = 2, birds = [], nextBirds = 20, fish = null, ripples = [], lampsOff = {}, shoot = null;
   let fogCv = null;
+  // 画面精修：天光从上面打下来——所有东西朝天的那一圈亮边（树冠、屋顶、山头），地面越往前越深一点，有景深
+  function lightPass(d, w, h, gy) {
+    const lit = (v, k, tr, tg, tb) => { const r = v & 255, g = (v >>> 8) & 255, b = (v >>> 16) & 255; return ((v >>> 24) << 24 | (Math.round(b + (tb - b) * k) << 16) | (Math.round(g + (tg - g) * k) << 8) | Math.round(r + (tr - r) * k)) >>> 0; };
+    const src = d.slice();
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x, v = src[i]; if (!(v >>> 24)) continue;
+      const up = y > 0 ? src[i - w] >>> 24 : 0, up2 = y > 1 ? src[i - 2 * w] >>> 24 : 0;
+      if (!up) d[i] = lit(v, 0.2, 255, 246, 222);
+      else if (!up2) d[i] = lit(v, 0.08, 255, 246, 222);
+      if (gy && y > gy + 2) { const k = Math.min(1, (y - gy - 2) / Math.max(6, h - gy - 2)) * 0.12; d[i] = lit(d[i], k, 58, 40, 70); }
+    }
+  }
+
   function skyCols(e) {
     const W = e.fx, ph = e.time.phase;
     let top = { dawn: '#f6b0a0', day: '#7fc8f8', dusk: '#f08a60', night: '#0e1433' }[ph];

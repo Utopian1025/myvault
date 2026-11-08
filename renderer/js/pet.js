@@ -515,6 +515,11 @@
       const sink = this.sinkPx() + (this.wade || 0) + (this.sinkOut ? this.sinkOut * 30 * SS : 0);
       const px = Math.round(this.x - 16 * SS), py = Math.round(this.y - 31 * SS + sink);
       const clipY = this.sinkPx() ? G.ground + 1 : this.y + 1;
+      // 脚下一块像素软影子（离地越高越小越淡）：动物“站”在地上，不再像贴纸浮着
+      if (!sink && !this.held && G.save && G.save.settings.mode !== 'mini') {
+        const air = Math.max(0, G.ground - this.y), k = Math.max(0.25, 1 - air / (40 * SS)), wpx = Math.round((PP.SPR.STAND_WALK.has(this.d.species) ? 11 : 8) * SS * k), hpx = Math.max(1, Math.round(SS));
+        ctx.fillStyle = `rgba(40,24,48,${0.16 * k})`; ctx.fillRect(Math.round(this.x - wpx), Math.round(G.ground - hpx * 0.5), wpx * 2, hpx); ctx.fillRect(Math.round(this.x - wpx + 2 * SS), Math.round(G.ground - hpx * 0.5 - hpx), Math.max(0, wpx * 2 - 4 * SS), hpx);
+      }
       if (sink) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, G.W, clipY); ctx.clip(); }
       PP.SPR.blit(ctx, buf, px, py, SS);
       if (sink) ctx.restore();

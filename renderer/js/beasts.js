@@ -174,7 +174,7 @@
     tail(b, C, g, h) { thinTail(b, C, g, h, C.dark); },
   });
   X.alpaca = {
-    geo(g) { if (!g.lie) { g.hy -= 2.6; } g.hrx -= 1.4; g.hry -= 0.2; },
+    geo(g) { if (!g.lie) { g.hy -= g.stand ? 1.4 : 2.6; } g.hrx -= 1.4; g.hry -= 0.2; },
     ears(b, C, g, h) {
       const { hx, hy } = g, bk = g.ear === 'back' || g.ear === 'down' ? 1.4 : 0;
       for (const s of [-1, 1]) { h.ell(b, hx + s * (3.8 + bk), hy - 7.6 + bk, 1.3, 3, C.base); h.ell(b, hx + s * (3.8 + bk), hy - 7.2 + bk, 0.5, 1.8, C.inner); }
