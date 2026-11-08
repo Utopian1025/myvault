@@ -201,3 +201,11 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .orb-pop .where .w { display: flex; align-items: center; gap: 6px; }
 .orb-pop .where .w span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .85; }
 .orb-pop .where .w b { white-space: nowrap; }
+.orb.peekhide, .dock.peekhide { opacity: 0 !important; pointer-events: none !important; transition: opacity .4s; }
+.orb, .dock { transition: opacity .3s; }
+.adopt-wild .top { display: flex; gap: 10px; align-items: flex-start; }
+.adopt-wild canvas { image-rendering: pixelated; width: 96px; height: 96px; flex: none; }
+.census { display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow-y: auto; }
+.census .sc { display: flex; gap: 8px; align-items: baseline; }
+.census .sc b { white-space: nowrap; min-width: 3em; }
+.census .sc span { flex: 1; line-height: 1.5; }
