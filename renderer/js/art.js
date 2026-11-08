@@ -196,48 +196,160 @@
     }
     return s.outline(outCol(L[1]));
   }
-  function palm(h, R) {
-    const w = Math.round(h * 0.9), s = spr(w, h), cx = (w + 2) / 2;
-    // 弯弯的树干，一节一节
-    for (let y = 0; y < h * 0.82; y++) { const yy = h + 1 - y, x = cx + Math.round(Math.sin(y / (h * 0.55)) * h * 0.08); s.rect(x - 2, yy, 4, 1, y % 4 === 0 ? '#8a6440' : '#b08a5a'); s.set(x + 1, yy, '#7a5434'); }
-    const tx = cx + Math.round(Math.sin((h * 0.82) / (h * 0.55)) * h * 0.08), ty = Math.round(h * 0.2);
-    for (let f = 0; f < 7; f++) {
-      const a = Math.PI * (0.05 + f / 6.2), len = h * (0.38 + (f % 2) * 0.08);
-      for (let i = 0; i < len; i++) { const t = i / len, x = tx + Math.cos(a) * i, y = ty - Math.sin(a) * i * 0.55 + t * t * len * 0.55; s.set(x, y, '#3f8a44'); s.set(x, y + 1, '#2c6f3c'); if (i % 2) { s.set(x, y + 2, '#5aa64e'); s.set(x, y - 1, t > 0.3 ? '#5aa64e' : null); } }
+  function palm(h, R, season) {
+    // 精修椰子树：一节一节的弯树干（每节上沿一道亮环、下沿一道暗缝，左亮右暗，越往上越细），
+    // 顶上八九片羽状长叶（中间一根叶脉，两边一排排往下垂的小叶，叶尖下垂），叶丛中间挂着一串椰子，树脚一圈干叶和沙
+    const w = Math.round(h * 1.2), s = spr(w, h), cx = (w + 2) / 2, seed = h * 11 + 3, rnd = rng(seed);
+    const TR = ['#3e2818', '#5e4028', '#7e5a38', '#a07a4c', '#c4a06a'];
+    const L = season === 'winter' ? ['#2a4a3a', '#3a5e48', '#4e7458', '#6a8e70', '#8aa88a'] : ['#173e24', '#24582e', '#357238', '#4f9246', '#7ab65c'];
+    const th = Math.round(h * 0.7), lean = h * 0.11 * (rnd() < 0.5 ? -1 : 1);
+    let tx = cx, ty = 0;
+    for (let y = 0; y < th; y++) {
+      const t = y / th, x = cx + Math.sin(t * 1.5) * lean, half = Math.max(1.2, (h / 24) * (1.3 - 0.45 * t)), seg = y % 4, yy = h + 1 - y;
+      for (let dx = -Math.ceil(half); dx <= Math.ceil(half); dx++) {
+        const nx = dx / half; if (Math.abs(nx) > 1.15) continue;
+        let c = nx < -0.45 ? TR[3] : nx < 0.2 ? TR[2] : nx < 0.7 ? TR[1] : TR[0];
+        if (seg === 0) c = nx < 0.3 ? TR[4] : TR[2];
+        else if (seg === 3) c = nx < 0 ? TR[1] : TR[0];
+        if (hash(dx, y, seed) < 0.07) c = TR[0];
+        s.set(Math.round(x + dx), yy, c);
+      }
+      tx = x; ty = yy;
     }
-    s.ell(tx, ty + 2, 2.5, 2, '#6b4a30'); s.set(tx - 1, ty + 1, '#8a6440');
-    return s.outline('#1f3a24');
+    // 叶子：先画往下垂的长叶（在后面），再画朝上的短叶；每片叶子一根叶脉 + 两排分开的小叶（中间留缝，看得出一片片）
+    const fronds = [];
+    for (let f = 0; f < 10; f++) { const a = Math.PI * (-0.22 + (f / 9) * 1.44) + (rnd() - 0.5) * 0.1; fronds.push([a, h * (0.38 + rnd() * 0.1) * (Math.abs(Math.cos(a)) < 0.35 ? 0.6 : 1)]); }
+    fronds.sort((p, q) => Math.sin(p[0]) - Math.sin(q[0]));
+    for (const [a, len] of fronds) {
+      const ca = Math.cos(a), sa = Math.sin(a), side = ca < -0.15 ? -1 : ca > 0.15 ? 1 : 0;
+      const pts = [];
+      for (let i = 0; i < len; i++) { const t = i / len; pts.push([tx + ca * i * 1.05, ty - 2 - sa * i * 0.6 + t * t * len * 0.42, t]); }
+      for (let i = 1; i < pts.length; i += 2) {
+        const [px, py, t] = pts[i], lf = Math.max(1, Math.round(Math.sin(Math.min(1, t * 1.1) * Math.PI) * 4.5));
+        for (const dir of side ? [1, -1] : [1, -1]) {
+          // 下面一排长，上面一排短；小叶顺着叶子方向往外、往下斜
+          const n = dir > 0 ? lf : Math.max(1, lf - 2), ddx = side ? side * 0.55 : dir * 0.7, ddy = dir > 0 ? 0.85 : -0.6;
+          for (let j = 1; j <= n; j++) s.set(px + ddx * j, py + ddy * j + (dir > 0 ? 0 : 0), j === n ? L[dir > 0 ? 1 : 3] : dir > 0 ? (t < 0.5 ? L[3] : L[2]) : L[4]);
+        }
+      }
+      for (const [px, py, t] of pts) { s.set(px, py, t < 0.6 ? L[4] : L[3]); }
+    }
+    // 椰子
+    for (const [ox, oy] of [[-2, 2], [1, 3], [3, 1], [-1, 4]]) { const X = Math.round(tx + ox), Y = Math.round(ty + oy); s.set(X, Y, '#6a4a2a'); s.set(X + 1, Y, '#4a3020'); s.set(X, Y + 1, '#4a3020'); s.set(X + 1, Y + 1, '#3a2418'); s.set(X, Y, '#9a7448'); }
+    // 树脚：几片干叶
+    for (let k = -4; k <= 4; k++) if (hash(k, 1, seed) < 0.6) s.set(cx + k, h + 1, k % 2 ? '#b89a5a' : '#8a7040');
+    return s.outline('#16301e');
   }
   function cactus(h, R) {
-    const w = Math.round(h * 0.7), s = spr(w, h), cx = Math.round((w + 2) / 2), bw = Math.max(3, Math.round(h * 0.14));
-    const body = (x0, y0, ww, hh) => { for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) { const nx = x / (ww - 1); s.set(x0 + x, y0 + y, nx < 0.3 ? '#7cc06a' : nx < 0.7 ? '#4f9a4a' : '#3a7a3c'); if ((x === 1 || x === ww - 2) && y % 3 === 0) s.set(x0 + x, y0 + y, '#e8f0c8'); } s.ell(x0 + ww / 2 - 0.5, y0, ww / 2 - 0.5, 1.2, '#5aa64e'); };
-    body(cx - bw / 2, 2, bw, h - 1);
-    const ah = Math.round(h * 0.32), ay = Math.round(h * 0.35);
-    body(cx - bw / 2 - bw - 1, ay, bw - 1, ah); s.rect(cx - bw / 2 - 2, ay + ah - 2, 3, bw - 1, '#4f9a4a');
-    body(cx + bw / 2 + 2, ay - 4, bw - 1, ah - 2); s.rect(cx + bw / 2, ay + ah - 6, 3, bw - 1, '#4f9a4a');
-    if (R() < 0.6) { s.set(cx, 1, '#ff6b9a'); s.set(cx - 1, 1, '#ff9fc0'); s.set(cx + 1, 1, '#ff9fc0'); }
-    return s.outline('#244a2a');
+    // 精修仙人掌（巨柱）：主干和两条手臂都是一道道竖棱（亮棱 / 中间 / 深沟），棱上一排排白色小刺、刺从轮廓上伸出来，
+    // 圆圆的顶，手臂从侧面平伸出去再弯上来（肘部是圆的），顶上可能开一朵花，脚下一小撮沙和阴影
+    const w = Math.round(h * 0.78), s = spr(w, h), cx = Math.round((w + 2) / 2), bw = Math.max(5, Math.round(h * 0.2)), seed = h * 5 + 1;
+    const G = ['#1e4a26', '#2c6a32', '#3e863e', '#58a250', '#80c06a', '#a8d888'];
+    const column = (x0, y0, ww, hh) => {
+      for (let y = 0; y < hh; y++) for (let x = 0; x < ww; x++) {
+        const nx = (x + 0.5) / ww, rib = x % 3;
+        let c = nx < 0.3 ? G[4] : nx < 0.65 ? G[3] : nx < 0.85 ? G[2] : G[1];
+        if (rib === 2) c = G[Math.max(0, G.indexOf(c) - 2)]; else if (rib === 0 && nx < 0.6) c = G[Math.min(5, G.indexOf(c) + 1)];
+        s.set(x0 + x, y0 + y, c);
+        if (rib === 0 && (y + x) % 3 === 0 && y > 1) s.set(x0 + x, y0 + y, '#f2f0d0');
+      }
+      // 圆顶
+      for (let x = 0; x < ww; x++) { const d = Math.abs(x - (ww - 1) / 2) / (ww / 2); if (d > 0.55) s.set(x0 + x, y0, null); if (d > 0.85) s.set(x0 + x, y0 + 1, null); }
+      s.set(x0 + Math.floor(ww / 2), y0, G[5]);
+      // 轮廓上伸出来的刺
+      for (let y = 4; y < hh; y += 5) { s.set(x0 - 1, y0 + y, '#e8e4c0'); s.set(x0 + ww, y0 + y + 2, '#d8d4b0'); }
+    };
+    const top = 2, armW = bw - 1;
+    // 左手臂：在 45% 高度伸出，往上弯
+    const lay = Math.round(h * 0.56), lx = cx - Math.floor(bw / 2) - armW - 2;
+    column(lx, Math.round(h * 0.24), armW, lay - Math.round(h * 0.24) + 2);
+    for (let y = lay - 1; y < lay + armW - 1; y++) for (let x = lx; x < cx - Math.floor(bw / 2) + 1; x++) if (!(x < lx + 2 && y > lay + armW - 3)) s.set(x, y, y === lay - 1 ? G[4] : y > lay + armW - 3 ? G[1] : G[2]);
+    // 右手臂：更高、更短
+    const ray = Math.round(h * 0.46), rx = cx + Math.ceil(bw / 2) + 1;
+    column(rx, Math.round(h * 0.16), armW, ray - Math.round(h * 0.16) + 2);
+    for (let y = ray - 1; y < ray + armW - 1; y++) for (let x = cx + Math.ceil(bw / 2) - 1; x < rx + armW; x++) if (!(x > rx + armW - 3 && y > ray + armW - 3)) s.set(x, y, y === ray - 1 ? G[3] : y > ray + armW - 3 ? G[0] : G[1]);
+    // 主干最后画（压在手臂根上）
+    column(cx - Math.floor(bw / 2), top, bw, h - 1);
+    if (hash(1, 2, seed) < 0.7 || (R && R() < 0.5)) { const fx = cx; s.set(fx - 1, 1, '#ff6b9a'); s.set(fx, 0, '#ff9fc0'); s.set(fx + 1, 1, '#e84a7a'); s.set(fx, 1, '#ffd84a'); }
+    for (let x = -bw; x <= bw; x++) if (hash(x, 3, seed) < 0.7) s.set(cx + x, h + 1, x % 2 ? '#d8b878' : '#c4a060');
+    return s.outline('#163a20');
   }
   function bamboo(h, season, R) {
-    const w = Math.round(h * 0.5), s = spr(w, h);
-    for (let k = 0; k < 6; k++) {
-      const x = 2 + Math.round((k / 5) * (w - 4)), hh = Math.round(h * (0.65 + hash(k, 3) * 0.35));
-      for (let y = 0; y < hh; y++) { const yy = h + 1 - y; s.set(x, yy, y % 9 === 0 ? '#5a8a3a' : '#8cc05a'); s.set(x + 1, yy, y % 9 === 0 ? '#4a7a30' : '#6aa048'); }
-      for (let j = 9; j < hh; j += 9) { const yy = h + 1 - j, d = (j / 9) % 2 ? 1 : -1; for (let i = 1; i < 5; i++) { s.set(x + d * i, yy - Math.round(i * 0.4), season === 'autumn' ? '#b8b04a' : '#5aa64e'); s.set(x + d * i, yy - Math.round(i * 0.4) + 1, '#3f8a44'); } }
+    // 精修竹丛：六七根粗细不一的竹竿（三色圆柱：亮边 / 中间 / 暗边），每节一道浅色竹节环 + 下面一道深线，
+    // 节上斜伸出细枝，枝头一簇簇细长的竹叶（两色、往下垂），脚下几根竹笋
+    const w = Math.round(h * 0.55), s = spr(w, h), seed = h * 3 + 7;
+    const C = season === 'autumn' ? ['#6a6a2a', '#8a8a3a', '#b0a84a', '#d0c868'] : ['#3e6a2a', '#5a8a3a', '#7cae4e', '#a6d06a'];
+    const LF = season === 'autumn' ? ['#7a6a2a', '#a8943a', '#d0b84a'] : season === 'winter' ? ['#3a5a3a', '#5a7a5a', '#dfe8ef'] : ['#24582a', '#3c7e3a', '#6aaa50'];
+    const N = 7;
+    const culms = [];
+    for (let k = 0; k < N; k++) culms.push([2 + Math.round((k / (N - 1)) * (w - 5)), Math.round(h * (0.62 + hash(k, 3, seed) * 0.38)), k % 3 === 0 ? 3 : 2]);
+    culms.sort((a, b) => a[2] - b[2]);
+    for (const [x, hh, cw] of culms) {
+      const node = 7 + (x % 3);
+      for (let y = 0; y < hh; y++) {
+        const yy = h + 1 - y, nd = y % node;
+        for (let i = 0; i < cw; i++) {
+          let c = i === 0 ? C[3] : i === cw - 1 ? C[1] : C[2];
+          if (nd === 0) c = i === 0 ? '#e8f0b8' : C[3]; else if (nd === 1) c = C[0];
+          s.set(x + i, yy, c);
+        }
+        if (nd === 0 && y > 6) { // 节上的细枝和叶
+          const d = (Math.floor(y / node) + x) % 2 ? 1 : -1;
+          for (let i = 1; i < 4; i++) s.set(x + (d > 0 ? cw - 1 : 0) + d * i, yy - i, C[1]);
+          const lx = x + (d > 0 ? cw - 1 : 0) + d * 3, ly = yy - 3;
+          for (let l = 0; l < 3; l++) { const ang = d * (0.4 + l * 0.45); for (let j = 1; j < 6; j++) { const px = lx + Math.round(Math.sin(ang) * j), py = ly + Math.round(j * (l === 0 ? -0.3 : 0.55)); s.set(px, py, j < 2 ? LF[1] : j > 4 ? LF[0] : l === 0 ? LF[2] : LF[1]); } }
+        }
+      }
+      // 竿顶一簇叶
+      for (let l = -2; l <= 2; l++) for (let j = 1; j < 5; j++) s.set(x + l * Math.round(j * 0.6) + 1, h + 1 - hh + Math.round(j * Math.abs(l) * 0.35) - (l === 0 ? j : 0), j > 3 ? LF[0] : LF[2]);
     }
-    return s.outline('#2c4a24');
+    for (const sx of [3, w - 3]) { s.set(sx, h + 1, '#8a6a3a'); s.set(sx, h, '#a8885a'); s.set(sx, h - 1, '#c8a870'); }
+    return s.outline('#1e3a1c');
   }
-  // 雨林大树：粗树干、板根、厚厚的树冠、垂下来的藤
+  // 雨林大树：粗树干（树皮竖纹、苔藓）、张开的板根、好几层叶团组成的厚树冠、垂下来的带叶藤、附生的凤梨花
   function jungleTree(h, R) {
-    const w = Math.round(h * 0.95), s = spr(w, h), cx = (w + 2) / 2, th = Math.round(h * 0.55);
-    for (let y = 0; y < th; y++) { const yy = h + 1 - y, tw = 3 + (y < 5 ? 5 - y : 0); for (let x = -tw; x <= tw; x++) s.set(cx + x, yy, x < -1 ? '#8a6a4a' : x < 2 ? '#6b4f36' : '#4f3a28'); }
-    const L = ['#1c4a2a', '#2a6a36', '#3f8a44', '#6ab05a'];
-    for (const [bx, by, br] of [[0, 0.22, 0.42], [-0.3, 0.3, 0.3], [0.3, 0.3, 0.3], [0, 0.08, 0.3]]) {
-      const r = br * w * 0.55, X = cx + bx * w, Y = 1 + by * h;
-      s.ell(X, Y, r, r * 0.7, (nx, ny, x, y) => { const l = -nx * 0.5 - ny * 0.9 + (noise((X + x) / 2.5, (Y + y) / 2.5, 11) - 0.5); return l > 0.5 ? L[3] : l > 0 ? L[2] : l > -0.6 ? L[1] : L[0]; });
+    const w = Math.round(h * 0.98), s = spr(w, h), cx = Math.round((w + 2) / 2), th = Math.round(h * 0.6), seed = h * 13 + 5, rnd = rng(seed);
+    const B = ['#2e2016', '#4a3424', '#6a4c34', '#8a6a4a', '#a8885e'];
+    const L = ['#0f3018', '#1a4622', '#28602e', '#3a7c3a', '#56984a', '#7cb860'];
+    const tw = Math.max(3, Math.round(h / 13));
+    // 板根：从树干两侧斜着落地的薄板
+    for (const d of [-1, 1]) for (let k = 0; k < tw + 4; k++) { const y = h + 1 - Math.max(0, Math.round((tw + 4 - k) * 1.3)); for (let yy = y; yy <= h + 1; yy++) s.set(cx + d * (tw + k), yy, d < 0 ? (yy === y ? B[4] : B[2]) : yy === y ? B[2] : B[1]); }
+    for (let y = 0; y < th; y++) {
+      const yy = h + 1 - y, half = tw + (y < 4 ? 4 - y : 0);
+      for (let x = -half; x <= half; x++) {
+        const nx = x / half; let c = nx < -0.5 ? B[4] : nx < 0 ? B[3] : nx < 0.5 ? B[2] : B[1];
+        if ((x + 40) % 3 === 0 && hash(x, Math.floor(y / 4), seed) < 0.6) c = B[Math.max(0, B.indexOf(c) - 1)];
+        if (nx > 0.2 && hash(x, y, seed + 1) < 0.22) c = y % 2 ? '#3a6a34' : '#4a8040'; // 背阴面的苔
+        s.set(cx + x, yy, c);
+      }
     }
-    for (let v = 0; v < 6; v++) { const x = cx - w * 0.35 + v * w * 0.14, len = h * (0.15 + hash(v, 9) * 0.25); for (let i = 0; i < len; i++) s.set(x + Math.round(Math.sin(i / 3)), h * 0.32 + i, i % 4 === 0 ? '#6ab05a' : '#2a6a36'); }
-    return s.outline('#123a1e');
+    // 粗枝
+    for (const [d, len] of [[-1, Math.round(h * 0.2)], [1, Math.round(h * 0.18)]]) for (let i = 0; i < len; i++) { s.set(cx + d * Math.round(i * 0.9), h + 1 - th - i * 0.6, B[2]); s.set(cx + d * Math.round(i * 0.9), h + 2 - th - i * 0.6, B[1]); }
+    // 树冠：三层叶团，后暗前亮
+    const CW = w * 0.42, CY = Math.round(h * 0.33), blobs = [];
+    for (let i = 0; i < 18; i++) { const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()); blobs.push([cx + Math.cos(a) * d * (CW - 5), CY + Math.sin(a) * d * h * 0.15, Math.max(3, w / 8 * (0.7 + rnd() * 0.5))]); }
+    for (let i = 0; i < 5; i++) blobs.push([cx + (i / 4 - 0.5) * CW * 1.5 + (rnd() - 0.5) * 4, CY - h * (0.1 + rnd() * 0.07) + Math.abs(i - 2) * h * 0.035, w / 9 * (0.8 + rnd() * 0.4)]); // 顶上鼓起的几团，轮廓起伏
+    blobs.sort((p, q) => q[1] - p[1]);
+    for (const [bx, by, br] of blobs.reverse()) {
+      const depth = (by - CY + h * 0.18) / (h * 0.36);
+      s.ell(bx, by, br * 1.2, br * 0.8, (nx, ny, x, y) => {
+        const l = -nx * 0.6 - ny * 1.0 - depth * 0.7 + 0.35 + (hash(bx + x, by + y, seed) - 0.5) * 0.22;
+        let c = l > 0.85 ? L[5] : l > 0.4 ? L[4] : l > -0.05 ? L[3] : l > -0.5 ? L[2] : l > -0.95 ? L[1] : L[0];
+        if (nx * nx + ny * ny > 0.66 && ny > 0.15) c = L[Math.max(0, L.indexOf(c) - 1)]; // 每团下沿一圈深色，团和团分得清
+        if (((bx + x) * 3 + (by + y) * 5) % 11 === 0 && l > 0) c = L[Math.min(5, L.indexOf(c) + 1)]; // 叶片的小高光
+        return c;
+      });
+    }
+    // 轮廓上零星伸出来的叶尖
+    { const snap = s.d.slice(); for (let y = 1; y < CY + h * 0.2; y++) for (let x = 1; x < s.w - 1; x++) { if (snap[y * s.w + x] || !(snap[y * s.w + x + 1] || snap[y * s.w + x - 1] || snap[(y + 1) * s.w + x])) continue; if (hash(x, y, seed + 2) < 0.14) s.set(x, y, y < CY ? L[4] : L[1]); } }
+    // 垂藤：几根往下垂，藤上隔几格一片小叶
+    for (let v = 0; v < 5; v++) {
+      let x = cx - w * 0.36 + v * w * 0.18 + (rnd() - 0.5) * 3; const y0 = CY + h * 0.1, len = h * (0.1 + rnd() * 0.22);
+      for (let i = 0; i < len; i++) { x += Math.sin(i / 4 + v) * 0.25; const y = y0 + i; s.set(x, y, '#2a5a2a'); if (i % 4 === 2) { s.set(x + 1, y, L[4]); s.set(x + 2, y + 1, L[3]); } if (i % 4 === 0) s.set(x - 1, y, L[3]); }
+    }
+    // 附生的凤梨花（树干上一簇红）
+    const ey = h + 1 - Math.round(th * 0.6); s.set(cx - tw, ey, '#e8403a'); s.set(cx - tw - 1, ey - 1, '#ff7a5a'); s.set(cx - tw + 1, ey - 1, '#c82a2a'); s.set(cx - tw - 1, ey + 1, L[3]); s.set(cx - tw + 1, ey + 1, L[3]);
+    return s.outline('#0c2614');
   }
   function bush(r, season, R, berries) {
     // 精修灌木：很多小叶团叠起来（后暗前亮），叶团之间有深色缝，边缘零星叶尖；可以结浆果 / 开小花；底部压一道阴影
@@ -394,10 +506,45 @@
     if (snow) { s.ell(9.5, 3, 6.5, 1.6, '#ffffff'); s.set(4, 4, '#eef4fa'); s.set(15, 4, '#eef4fa'); }
     return s.outline('#5a3a14');
   }
-  function snowman() { const s = spr(14, 22); s.ell(7.5, 17, 6, 5, (nx, ny) => (nx > 0.4 ? '#d8e4f0' : '#ffffff')); s.ell(7.5, 8, 4, 4, (nx) => (nx > 0.4 ? '#d8e4f0' : '#ffffff')); s.set(6, 7, '#222'); s.set(9, 7, '#222'); s.rect(9, 8, 3, 1, '#ff8a2a'); s.rect(4, 3, 8, 1, '#3a3a44'); s.rect(5, 0, 6, 3, '#3a3a44'); s.rect(3, 11, 9, 2, '#e33b3b'); s.rect(9, 12, 2, 4, '#e33b3b'); return s.outline('#6a7a8a'); }
-  function pumpkin() { const s = spr(12, 9); s.ell(6.5, 6, 6, 3.6, (nx) => (Math.abs(nx) < 0.15 || Math.abs(Math.abs(nx) - 0.55) < 0.12 ? '#d8661a' : nx < -0.3 ? '#ffa04a' : '#ff8a2a')); s.rect(6, 1, 2, 2, '#4c7a30'); return s.outline('#6a2a10'); }
-  function lily(season) { const s = spr(12, 4); if (season === 'winter') return s; s.ell(6.5, 2.5, 6, 1.8, (nx, ny) => (nx > 0.1 && nx < 0.3 && ny < 0 ? null : ny < -0.2 ? '#6ab05a' : '#3f8a44')); if (season === 'summer' || season === 'spring') { s.ell(4, 1, 1.6, 1.2, '#ffb0cc'); s.set(4, 0, '#fff0f6'); } return s; }
-
+  function snowman() {
+    // 精修雪人：三个雪球（左上受光、右下淡蓝阴影、表面一点雪粒），煤块眼睛和纽扣、带阴影的胡萝卜鼻子、
+    // 树枝手臂（带小分叉）、红白条纹围巾（垂下的一截带流苏）、礼帽（帽檐、红帽带），脚下一圈雪
+    const s = spr(22, 30), SN = ['#9ab0c8', '#c4d4e6', '#e2ecf6', '#ffffff'];
+    const ball = (cx, cy, r) => s.ell(cx, cy, r, r * 0.92, (nx, ny, x, y) => { const l = -nx * 0.6 - ny * 0.8; let c = l > 0.45 ? SN[3] : l > -0.2 ? SN[2] : l > -0.7 ? SN[1] : SN[0]; if (hash(cx + x, cy + y, 41) < 0.06) c = SN[Math.max(0, SN.indexOf(c) - 1)]; return c; });
+    ball(11, 24, 7); ball(11, 15.5, 5.2); ball(11, 8.5, 4);
+    // 树枝手臂
+    for (let i = 0; i < 6; i++) { s.set(6 - i, 14 - Math.round(i * 0.6), '#5a3a22'); s.set(16 + i, 14 - Math.round(i * 0.7), '#5a3a22'); }
+    s.set(2, 10, '#5a3a22'); s.set(1, 11, '#5a3a22'); s.set(21, 9, '#5a3a22'); s.set(22, 11, '#5a3a22');
+    // 眼睛、嘴、鼻子
+    for (const [x, y] of [[9, 7], [13, 7]]) { s.set(x, y, '#1e1c24'); s.set(x, y - 1, '#3a3844'); }
+    for (const x of [9, 10, 12, 13]) s.set(x, 11 - (x === 9 || x === 13 ? 1 : 0), '#2a2830');
+    s.set(11, 9, '#ff9a3a'); s.set(12, 9, '#ff8a2a'); s.set(13, 9, '#e86a1a'); s.set(14, 10, '#c8561a'); s.set(11, 10, '#c8561a');
+    for (const y of [15, 18, 21, 24]) { s.set(11, y, '#1e1c24'); s.set(10, y - 1, '#4a4854'); }
+    // 围巾
+    for (let x = 6; x <= 16; x++) { s.set(x, 12, (x % 4 < 2) ? '#d83a3a' : '#f4eee4'); s.set(x, 13, (x % 4 < 2) ? '#a82a2a' : '#d8d0c4'); }
+    for (let y = 13; y < 19; y++) { s.set(14, y, y % 3 ? '#d83a3a' : '#f4eee4'); s.set(15, y, y % 3 ? '#a82a2a' : '#d8d0c4'); }
+    s.set(14, 19, '#d83a3a'); s.set(15, 19, '#a82a2a'); s.set(14, 20, '#f4eee4');
+    // 礼帽
+    s.rect(6, 4, 11, 1, '#2a2834'); s.hl(6, 4, 11, '#3e3c4a'); s.rect(8, 0, 7, 4, '#2a2834'); s.vl(8, 0, 4, '#4a4858'); s.hl(8, 0, 7, '#4a4858'); s.hl(8, 3, 7, '#c83a3a');
+    // 脚下的雪
+    for (let x = 2; x <= 20; x++) { s.set(x, 31, hash(x, 2, 3) < 0.5 ? SN[2] : SN[3]); if (hash(x, 4, 3) < 0.3) s.set(x, 30, SN[3]); }
+    return s.outline('#5a6e88');
+  }
+  function pumpkin() {
+    // 精修南瓜：一瓣瓣的棱（每瓣中间亮、瓣缝深），顶上弯曲的绿茎和一片小叶、一根卷须
+    const s = spr(14, 11), O = ['#8a3a10', '#c45a14', '#e47a1e', '#ff9a3a', '#ffc070'];
+    s.ell(7.5, 7, 7, 4.2, (nx, ny) => { const seg = ((nx + 1) * 3.5) % 1; let c = seg < 0.18 || seg > 0.88 ? O[1] : seg < 0.45 ? O[3] : O[2]; if (nx < -0.4 && ny < -0.2 && seg > 0.2 && seg < 0.5) c = O[4]; if (ny > 0.5) c = O[Math.max(0, O.indexOf(c) - 1)]; if (nx > 0.6) c = O[Math.max(0, O.indexOf(c) - 1)]; return c; });
+    s.set(7, 3, '#3a5a20'); s.set(8, 2, '#4c7a30'); s.set(8, 1, '#5a8a3a'); s.set(9, 1, '#4c7a30');
+    s.set(5, 2, '#5aa04e'); s.set(4, 2, '#6ab05a'); s.set(5, 3, '#3f8a44'); s.set(10, 2, '#6a9a3a'); s.set(11, 3, '#6a9a3a'); s.set(11, 2, '#6a9a3a');
+    return s.outline('#5a2208');
+  }
+  function lily(season) {
+    // 精修荷叶：带缺口的圆叶（叶脉从中心放射、边缘一圈亮），夏天开一朵多层花瓣的荷花
+    const s = spr(14, 6); if (season === 'winter') return s;
+    s.ell(7, 3.5, 6.5, 2.4, (nx, ny) => { if (nx > 0.05 && nx < 0.3 && ny < 0.1) return null; const a = Math.atan2(ny, nx); if (Math.abs(Math.sin(a * 4)) < 0.12 && nx * nx + ny * ny > 0.1) return '#2f6f2a'; return nx * nx + ny * ny > 0.75 ? (ny < 0 ? '#8ac868' : '#2f6f2a') : ny < -0.2 ? '#6ab05a' : '#4a9a44'; });
+    if (season === 'summer' || season === 'spring') { s.set(4, 1, '#ff9fc0'); s.set(3, 2, '#ffb0cc'); s.set(5, 2, '#e8789a'); s.set(4, 0, '#fff0f6'); s.set(4, 2, '#ffd84a'); s.set(3, 1, '#ffe0ec'); s.set(5, 1, '#ff8fb0'); }
+    return s;
+  }
 
   // ---------- 精修建筑小工具：木板墙、鳞片瓦屋顶、门、窗（所有小屋共用，保证每一栋都有同样的细节水准） ----------
   const BLD = {

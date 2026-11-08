@@ -32,7 +32,8 @@
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
       const n = noise(x / 6, y / 4, 41);
       let c = n < 0.4 ? deep : mix(deep, mid, 0.35);
-      if (hash(x, y, 5) < 0.018) c = peb;
+      if (hash(x, y, 5) < 0.005) c = peb; else if (hash(x - 1, y, 5) < 0.005) c = mix(peb, deep, 0.5);
+      if (noise(x / 14, y / 3, 42) > 0.78) c = mix(c, mid, 0.4); // 一层层的土
       if (y < 4) c = mix(deep, '#000000', 0.25);
       P.set(x, y, c);
     }
@@ -47,21 +48,15 @@
         const nx = (x - cx) / rx, ny = (y - cy) / ry; if (nx * nx + ny * ny > 1) continue;
         const rim = nx * nx + ny * ny > 0.82;
         let c = rim ? mix(mid, deep, 0.5) : mix(mid, lit, 0.25 + (1 - Math.abs(nx)) * 0.35 - ny * 0.15);
-        if (!rim && hash(x, y, 9) < 0.02) c = peb;
+        if (!rim && hash(x, y, 9) < 0.006) c = peb;
         if (!rim && noise(x / 3, y / 2, 3) < 0.18) c = mix(c, deep, 0.25);
         P.set(x, y, c);
       }
     }
   }
   function stoneWall(P, lay, R) {
-    const { noise, hash, mix } = T(), { cols, gy } = lay;
-    for (let y = 0; y < gy; y++) for (let x = 0; x < cols; x++) {
-      const n = noise(x / 9, y / 6, 61), b = noise(x / 3, y / 3, 62);
-      let c = n < 0.35 ? '#4a4652' : n < 0.65 ? '#5c5866' : '#6e6a78';
-      if (b < 0.2) c = mix(c, '#2e2a36', 0.5); if (b > 0.85) c = mix(c, '#9a96a6', 0.4);
-      if (hash(x, y, 3) < 0.01) c = '#8a86a0';
-      P.set(x, y, c);
-    }
+    const { cols, gy } = lay, H = PP.BIOME_H, { hash } = T();
+    H.cellRock(P, 0, 0, cols - 1, gy - 1, 14, ['#2a2632', '#46424e', '#5a5664', '#6e6a78', '#868294'], 61, null, { flat: 0.8, gap: 0.9 });
     // 洞顶的钟乳石
     for (let x = 4; x < cols; x += 9 + Math.floor(hash(x, 4) * 14)) { const h = 3 + Math.floor(hash(x, 5) * 8); for (let k = 0; k < h; k++) { const ww = Math.max(0, Math.round((1 - k / h) * 2)); for (let d = -ww; d <= ww; d++) P.set(x + d, k, d < 0 ? '#7a7688' : '#56526a'); } }
   }
@@ -102,16 +97,17 @@
     for (let y = gy; y < rows; y++) for (let x = 0; x < cols; x++) {
       let c;
       const n = noise(x / 5, y / 3, 71), d = (y - gy) / (rows - gy);
-      if (kind === 'plank') { const row = Math.floor((y - gy) / 4), seam = (y - gy) % 4 === 0 || (x + row * 17) % 41 === 0; c = seam ? '#6a4630' : shade('#a87a54', (hash(Math.floor((x + row * 17) / 41), row, 3) - 0.5) * 0.18 + (n - 0.5) * 0.1); }
-      else if (kind === 'straw') { c = n < 0.35 ? '#c49a3a' : n < 0.7 ? '#d8b04a' : '#e8c86a'; if (hash(x, y, 2) < 0.08) c = '#f4dc8a'; if (hash(x, y, 3) < 0.04) c = '#a8822a'; }
-      else if (kind === 'dirt') { c = n < 0.35 ? '#6a4a30' : n < 0.7 ? '#7a5838' : '#8a6644'; if (hash(x, y, 2) < 0.02) c = '#a8865a'; }
-      else if (kind === 'stone') { c = n < 0.4 ? '#4e4a58' : n < 0.75 ? '#5e5a68' : '#6e6a78'; if (hash(x, y, 2) < 0.02) c = '#8a86a0'; }
+      if (kind === 'plank') { const row = Math.floor((y - gy) / 4), yy = (y - gy) % 4, px = (x + row * 17) % 41, seam = yy === 0 || px === 0; c = seam ? '#5a3a24' : shade('#a87a54', (hash(Math.floor((x + row * 17) / 41), row, 3) - 0.5) * 0.2 + (n - 0.5) * 0.1 + (yy === 1 ? 0.08 : yy === 3 ? -0.08 : 0)); if (!seam && (px === 2 || px === 39) && yy === 2) c = '#4a4048'; if (!seam && hash(Math.floor((x + row * 17) / 41), row, 8) < 0.2 && Math.abs(px - 20) < 2 && yy === 2) c = shade('#a87a54', -0.25); }
+      else if (kind === 'straw') { c = n < 0.35 ? '#c49a3a' : n < 0.7 ? '#d8b04a' : '#e8c86a'; const st = (x * 2 + y * 3 + Math.floor(n * 6)) % 9; if (st === 0) c = '#f4dc8a'; else if (st === 4) c = '#a8822a'; if (hash(x, y, 3) < 0.03) c = '#8a6a20'; }
+      else if (kind === 'dirt') { c = n < 0.35 ? '#6a4a30' : n < 0.7 ? '#7a5838' : '#8a6644'; if (hash(x, y, 2) < 0.025) { c = '#a8a0a8'; } else if (hash(x - 1, y, 2) < 0.025) c = '#6a6070'; if (hash(x, y, 5) < 0.015) c = '#c8a060'; }
+      else if (kind === 'stone') { c = null; }
       else if (kind === 'ice') { c = n < 0.4 ? '#cfe6f5' : n < 0.75 ? '#e2f1fb' : '#f4faff'; if (hash(x, y, 2) < 0.02) c = '#ffffff'; }
       else if (kind === 'mud') { c = n < 0.4 ? '#4a3a2a' : n < 0.75 ? '#5a4632' : '#6a5238'; if (hash(x, y, 2) < 0.02) c = '#3a2c20'; }
       else if (kind === 'sand') { c = n < 0.4 ? '#c8b48a' : n < 0.75 ? '#d8c49a' : '#e4d2aa'; }
       else c = '#888';
-      P.set(x, y, mix(c, '#000000', d * 0.12));
+      if (c) P.set(x, y, mix(c, '#000000', d * 0.12));
     }
+    if (kind === 'stone') PP.BIOME_H.cellRock(P, 0, gy, cols - 1, rows - 1, 11, ['#2e2a36', '#4a4652', '#56525e', '#625e6c', '#76727e'], 72, null, { flat: 0.45, gap: 0.8 });
     P.hl(0, gy, cols, mix('#000000', '#ffffff', 0.2));
   }
 
@@ -128,36 +124,124 @@
     s.hl(0, h + 1, w + 2, A.shade(frame, -0.3));
     return s.outline(A.shade(frame, -0.55));
   }
-  function lantern() { const A = T(), s = A.spr(5, 9); s.vl(3, 0, 2, '#3a2a20'); s.rect(1, 2, 5, 1, '#3a2a20'); s.rect(1, 3, 5, 5, '#ffd27a'); s.vl(1, 3, 5, '#3a2a20'); s.vl(5, 3, 5, '#3a2a20'); s.set(3, 5, '#fff6c0'); s.rect(1, 8, 5, 1, '#3a2a20'); return s; }
-  function strawBed(w, h, col = '#e8c86a', blanket) {
-    const A = T(), s = A.spr(w, h);
-    s.ell(w / 2 + 1, h - 1, w / 2, h - 1, (nx, ny, x, y) => (ny < -0.5 ? A.shade(col, 0.2) : (x * 3 + y) % 5 === 0 ? A.shade(col, -0.2) : col));
-    s.ell(w / 2 + 1, h - 1, w / 2 - 3, Math.max(1, h - 4), (nx, ny) => (ny < 0 ? A.shade(col, -0.32) : null));
-    if (blanket) s.rect(Math.round(w * 0.55), h - 4, Math.round(w * 0.35), 3, blanket);
-    return s.outline(A.shade(col, -0.55));
+  function lantern() {
+    // 精修油灯：顶上挂环、金属顶盖、四面玻璃里的火苗（中心最亮）、底座
+    const A = T(), s = A.spr(7, 11), M = ['#2a2028', '#4a3a30', '#6a5444', '#9a7a5a'];
+    s.set(4, 0, M[2]); s.set(3, 1, M[2]); s.set(5, 1, M[2]); s.hl(2, 2, 5, M[3]); s.hl(1, 3, 7, M[1]);
+    s.rect(2, 4, 5, 5, '#ffcf6a'); s.vl(2, 4, 5, '#ffe6a0'); s.vl(6, 4, 5, '#e8a040'); s.set(4, 6, '#fff8d8'); s.set(4, 5, '#fff0b0'); s.set(4, 7, '#ffd27a');
+    s.vl(1, 4, 5, M[1]); s.vl(7, 4, 5, M[0]); s.vl(4, 4, 1, M[1]);
+    s.hl(1, 9, 7, M[2]); s.hl(2, 10, 5, M[0]);
+    return s.outline('#1a1418');
   }
-  function bowl(food = '#c8743a', col = '#e05a5a') { const A = T(), s = A.spr(10, 4); s.rect(1, 2, 10, 3, col); s.hl(1, 2, 10, A.shade(col, 0.3)); s.rect(2, 1, 8, 1, food); s.set(3, 0, food); s.set(7, 0, food); return s.outline(A.shade(col, -0.55)); }
-  function bone() { const A = T(), s = A.spr(9, 3); s.rect(2, 2, 6, 1, '#f4ead8'); for (const x of [1, 8]) { s.set(x, 1, '#f4ead8'); s.set(x, 3, '#f4ead8'); s.set(x + (x === 1 ? 1 : -1), 2, '#f4ead8'); } return s.outline('#8a7a60'); }
-  function ball(col = '#e33b3b') { const A = T(), s = A.spr(5, 5); s.ell(3, 3, 2.5, 2.5, (nx, ny) => (nx + ny < -0.6 ? '#ffffff' : Math.abs(ny) < 0.25 ? '#ffffff' : col)); return s.outline(A.shade(col, -0.55)); }
-  function pile(w, h, cols2, dot) { const A = T(), s = A.spr(w, h); s.ell(w / 2 + 1, h, w / 2, h - 0.5, (nx, ny, x, y) => (A.hash(x, y, 4) < 0.3 ? cols2[1] : ny < -0.4 ? cols2[2] || cols2[0] : cols2[0])); if (dot) for (let i = 0; i < w / 2; i++) s.set(2 + ((i * 7) % (w - 2)), h - 1 - (i % Math.max(1, h - 2)), dot); return s.outline(A.shade(cols2[0], -0.55)); }
-  function eggs(n = 3) { const A = T(), s = A.spr(4 * n + 2, 5); for (let i = 0; i < n; i++) s.ell(3 + i * 4, 3, 1.8, 2.3, (nx, ny) => (nx < -0.2 && ny < 0 ? '#ffffff' : '#f4ead8')); return s.outline('#a8988a'); }
-  function frame(w, h, inner) { const A = T(), s = A.spr(w, h); s.rect(1, 1, w, h, '#c99a6a'); s.rect(2, 2, w - 2, h - 2, inner || '#bfe0f4'); return s.outline('#5a3a24'); }
-  function shelf(w) { const A = T(), s = A.spr(w, 8); s.rect(1, 6, w, 2, '#8a5e40'); s.hl(1, 6, w, '#a87a54'); s.rect(3, 8, 1, 1, '#5a3a24'); s.rect(w - 2, 8, 1, 1, '#5a3a24'); const jars = ['#e05a5a', '#ffcf33', '#7ac8ff', '#7be07b']; for (let x = 3; x < w - 3; x += 5) { const c = jars[(x / 5) % 4 | 0]; s.rect(x, 2, 3, 4, c); s.hl(x, 2, 3, A.shade(c, 0.3)); s.rect(x, 1, 3, 1, '#c99a6a'); } return s.outline('#3a2418'); }
-  function crystal(col) { const A = T(), s = A.spr(9, 12); const pts = [[2, 6, 3], [5, 10, 4], [7, 5, 2.5]]; for (const [x, h, w] of pts) for (let y = 0; y < h; y++) { const ww = Math.max(0.5, w * (y / h)); for (let d = -Math.floor(ww); d <= Math.floor(ww); d++) s.set(x + d, 12 - h + y, d < 0 ? A.shade(col, 0.4) : d > 0 ? A.shade(col, -0.2) : col); } return s.outline(A.shade(col, -0.6)); }
-  function coins(w) { const A = T(), s = A.spr(w, Math.round(w * 0.35)); const h = Math.round(w * 0.35); s.ell(w / 2 + 1, h, w / 2, h - 0.5, (nx, ny, x, y) => (A.hash(x, y, 9) < 0.15 ? '#fff6a0' : (x + y) % 3 === 0 ? '#c89a2a' : '#ffcf33')); s.set(Math.round(w * 0.3), h - 3, '#e05a5a'); s.set(Math.round(w * 0.6), h - 2, '#5ad1ff'); return s.outline('#6a4a10'); }
-  function candle() { const A = T(), s = A.spr(3, 8); s.rect(1, 3, 3, 6, '#f4ead8'); s.set(2, 2, '#ffcf33'); s.set(2, 1, '#fff6c0'); return s.outline('#8a7a60'); }
-  function bucket(fish) { const A = T(), s = A.spr(10, 8); s.rect(2, 3, 8, 6, '#7a8aa0'); s.hl(2, 3, 8, '#a8b8cc'); s.hl(2, 6, 8, '#5a6a80'); if (fish) { s.rect(4, 1, 2, 3, '#7ab8e8'); s.set(5, 0, '#7ab8e8'); s.rect(7, 2, 2, 2, '#9fd0f2'); } return s.outline('#3a4454'); }
-  function trough(w, food) { const A = T(), s = A.spr(w, 6); s.rect(1, 2, w, 5, '#8a5e40'); s.hl(1, 2, w, '#a87a54'); s.rect(2, 3, w - 2, 2, food); s.rect(2, 7, 2, 1, '#5a3a24'); s.rect(w - 2, 7, 2, 1, '#5a3a24'); return s.outline('#3a2418'); }
-  function perchBar(w) { const A = T(), s = A.spr(w, 9); s.rect(1, 2, w, 2, '#a87a54'); s.vl(2, 2, 8, '#8a5e40'); s.vl(w - 1, 2, 8, '#8a5e40'); s.rect(1, 6, w, 1, '#8a5e40'); return s.outline('#3a2418'); }
-  function nestBox(w) { const A = T(), s = A.spr(w, 9); s.rect(1, 1, w, 9, '#a87a54'); s.rect(3, 3, w - 4, 5, '#6a4630'); s.rect(3, 6, w - 4, 2, '#e8c86a'); s.ell(w / 2 + 1, 6, 2, 1.6, '#f4ead8'); return s.outline('#3a2418'); }
-  function leafBed(w, season) { const A = T(), s = A.spr(w, 7), cs = ['#c8642a', '#e8963a', '#a8783a', '#7a9a4a']; s.ell(w / 2 + 1, 6, w / 2, 5, (nx, ny, x, y) => (ny < -0.3 && A.hash(x, y, 5) < 0.5 ? null : cs[Math.floor(A.hash(x, y, 2) * 4)])); return s.outline('#4a2a10'); }
+  function strawBed(w, h, col = '#e8c86a', blanket) {
+    // 精修草窝：一圈厚厚的草沿（一根根草茎、上亮下暗），中间压下去的窝，边上翘出来的草；可以盖一条带格子的小毯子
+    const A = T(), s = A.spr(w, h), L = [A.shade(col, -0.4), A.shade(col, -0.2), col, A.shade(col, 0.22), A.shade(col, 0.42)];
+    s.ell(w / 2 + 1, h - 0.5, w / 2, h - 1, (nx, ny, x, y) => { let c = ny < -0.55 ? L[4] : ny < -0.1 ? L[3] : L[2]; if ((x * 2 + y * 3) % 5 === 0) c = L[1]; if ((x * 3 - y) % 7 === 0) c = L[4]; if (ny > 0.6) c = L[1]; return c; });
+    s.ell(w / 2 + 1, h - 1.5, w / 2 - 3, Math.max(1, h - 4.5), (nx, ny, x, y) => (ny < 0.2 ? ((x + y) % 4 === 0 ? L[0] : L[1]) : null));
+    for (let i = 0; i < w / 3; i++) { const x = 2 + Math.round(A.hash(i, 1, 44) * (w - 2)), y = Math.round(h * 0.25 + A.hash(i, 2, 44) * 2); s.set(x, y, L[4]); s.set(x + (i % 2 ? 1 : -1), y - 1, L[3]); }
+    if (blanket) { const bx = Math.round(w * 0.5), bw = Math.round(w * 0.38); for (let y = h - 5; y < h - 1; y++) for (let x = bx; x < bx + bw; x++) s.set(x, y, (x - bx) % 4 === 0 || (y - h) % 3 === 0 ? A.shade(blanket, -0.25) : y === h - 5 ? A.shade(blanket, 0.25) : blanket); s.hl(bx, h - 2, bw, A.shade(blanket, -0.4)); }
+    return s.outline(A.shade(col, -0.6));
+  }
+  function bowl(food = '#c8743a', col = '#e05a5a') {
+    // 精修食盆：陶碗（左亮右暗、碗沿一圈白边、碗身一道花纹），里面堆着冒尖的饭粒 / 饲料
+    const A = T(), s = A.spr(12, 6);
+    s.ell(6.5, 4.5, 5.6, 2.4, (nx, ny) => (ny < -0.2 ? null : nx < -0.5 ? A.shade(col, 0.3) : nx > 0.5 ? A.shade(col, -0.3) : col));
+    s.hl(2, 4, 10, '#f4ead8'); for (let x = 3; x < 11; x += 2) s.set(x, 5, A.shade(col, 0.45));
+    s.ell(6.5, 3, 4.4, 1.6, (nx, ny, x, y) => (ny > 0.4 ? null : (x + y) % 3 === 0 ? A.shade(food, -0.25) : ny < -0.3 ? A.shade(food, 0.3) : food));
+    s.hl(2, 7, 10, A.shade(col, -0.5));
+    return s.outline(A.shade(col, -0.6));
+  }
+  function bone() { const A = T(), s = A.spr(10, 4); s.rect(3, 2, 6, 2, '#f4ead8'); s.hl(3, 2, 6, '#ffffff'); s.hl(3, 3, 6, '#d8ccb4'); for (const x of [1, 9]) { s.ell(x + 0.5, 1.6, 1.2, 1, '#f4ead8'); s.ell(x + 0.5, 3.4, 1.2, 1, '#e2d6c0'); } return s.outline('#8a7a60'); }
+  function ball(col = '#e33b3b') { const A = T(), s = A.spr(6, 6); s.ell(3.5, 3.5, 2.8, 2.8, (nx, ny) => { if (Math.abs(ny + nx * 0.2) < 0.2) return '#ffffff'; const l = -nx * 0.6 - ny * 0.8; return l > 0.6 ? A.shade(col, 0.45) : l > -0.2 ? col : A.shade(col, -0.3); }); s.set(2, 2, '#ffffff'); return s.outline(A.shade(col, -0.6)); }
+  function pile(w, h, cols2, dot) {
+    const A = T(), s = A.spr(w, h);
+    s.ell(w / 2 + 1, h, w / 2, h - 0.5, (nx, ny, x, y) => { const l = -nx * 0.5 - ny * 0.9 + (A.hash(x, y, 4) - 0.5) * 0.6; return l > 0.5 ? (cols2[2] || A.shade(cols2[0], 0.25)) : l > -0.3 ? cols2[0] : cols2[1]; });
+    if (dot) for (let i = 0; i < w / 2; i++) { const x = 2 + ((i * 7) % (w - 2)), y = h - 1 - (i % Math.max(1, h - 2)); s.set(x, y, dot); s.set(x, y - 1, A.shade(dot, 0.35)); }
+    return s.outline(A.shade(cols2[0], -0.6));
+  }
+  function eggs(n = 3) { const A = T(), s = A.spr(4 * n + 2, 5); for (let i = 0; i < n; i++) { s.ell(3 + i * 4, 3, 1.8, 2.3, (nx, ny) => (nx < -0.2 && ny < -0.2 ? '#ffffff' : nx > 0.4 || ny > 0.5 ? '#d8ccb8' : '#f4ead8')); if (i % 2) { s.set(3 + i * 4, 4, '#c8a888'); s.set(4 + i * 4, 2, '#c8a888'); } } return s.outline('#8a7a68'); }
+  function frame(w, h, inner) {
+    // 精修画框：带斜角的木框（上左亮、下右暗、内沿一道金线），里面是一幅小风景（天空、远山、草地）
+    const A = T(), s = A.spr(w, h);
+    s.rect(1, 1, w, h, '#a87a54'); s.hl(1, 1, w, '#d8b080'); s.vl(1, 1, h, '#c99a6a'); s.hl(1, h, w, '#6a4630'); s.vl(w, 1, h, '#7a5234');
+    s.rect(3, 3, w - 4, h - 4, '#e8c860');
+    for (let y = 4; y < h - 1; y++) for (let x = 4; x < w - 1; x++) { const k = (y - 4) / Math.max(1, h - 6); s.set(x, y, inner && inner !== '#bfe0f4' ? inner : k < 0.5 ? A.mix('#8fd0f8', '#d5efff', k * 2) : k < 0.7 ? ((x * 3 + y) % 5 ? '#8a9ab8' : '#a8b8d0') : '#6aae54'); }
+    if (!inner || inner === '#bfe0f4') { s.set(w - 4, 5, '#fff3b0'); s.set(6, Math.round(h * 0.75), '#ff8fb0'); }
+    return s.outline('#3a2418');
+  }
+  function shelf(w) {
+    // 精修搁板：带木纹的板子 + 两个三角托架，上面摆着高矮不一的罐子（玻璃反光、木塞、标签）和一本书
+    const A = T(), s = A.spr(w, 10);
+    s.rect(1, 8, w, 2, '#8a5e40'); s.hl(1, 8, w, '#b08458'); s.hl(1, 10, w, '#5a3a24');
+    for (const bx of [3, w - 3]) for (let k = 0; k < 3; k++) { s.set(bx, 10 + k, '#5a3a24'); s.set(bx + (bx < w / 2 ? k : -k), 10 + k, '#5a3a24'); }
+    const jars = ['#e05a5a', '#ffcf33', '#7ac8ff', '#7be07b'];
+    let x = 3;
+    for (let i = 0; x < w - 4; i++) {
+      const c = jars[i % 4], hh = 4 + (i % 3);
+      if (i === 2) { for (let y = 8 - 6; y < 8; y++) { s.set(x, y, '#3a5a9a'); s.set(x + 1, y, '#5a7ab8'); s.set(x + 2, y, '#3a5a9a'); } s.hl(x, 3, 3, '#f4ead8'); x += 4; continue; }
+      for (let y = 8 - hh; y < 8; y++) for (let k = 0; k < 3; k++) s.set(x + k, y, k === 0 ? A.shade(c, 0.35) : k === 2 ? A.shade(c, -0.25) : c);
+      s.set(x, 8 - hh, '#ffffff'); s.hl(x, 8 - hh - 1, 3, '#c99a6a'); s.hl(x, 6, 3, '#f4ead8');
+      x += 5;
+    }
+    return s.outline('#3a2418');
+  }
+  function crystal(col) {
+    const A = T(), s = A.spr(10, 13), lt = A.shade(col, 0.45), dk = A.shade(col, -0.3);
+    for (const [x, h, lean] of [[5, 11, 0], [2.5, 6, -0.4], [7.5, 7, 0.35], [4, 4, -0.2]]) for (let i = 0; i < h; i++) { const xx = x + lean * i, half = i > h - 3 ? 0 : 1; for (let d = -half; d <= half; d++) s.set(xx + d, 13 - i, d < 0 ? lt : d > 0 ? dk : col); if (i === h - 1) s.set(xx, 13 - i - 1, '#ffffff'); }
+    return s.outline(A.shade(col, -0.6));
+  }
+  function coins(w) {
+    const A = T(), h = Math.round(w * 0.38), s = A.spr(w, h);
+    s.ell(w / 2 + 1, h, w / 2, h - 0.5, (nx, ny, x, y) => { const k = (x + y * 2) % 3; return A.hash(x, y, 9) < 0.12 ? '#fff6c0' : k === 0 ? '#c89a2a' : ny < -0.4 ? '#ffe680' : '#ffcf33'; });
+    for (const [fx, c] of [[0.3, '#e05a5a'], [0.6, '#5ad1ff'], [0.45, '#7be07b']]) { const x = Math.round(w * fx), y = h - 2 - Math.round(fx * 2); s.set(x, y, c); s.set(x, y - 1, A.shade(c, 0.5)); }
+    return s.outline('#6a4a10');
+  }
+  function candle() { const A = T(), s = A.spr(5, 10); s.rect(2, 4, 3, 5, '#f4ead8'); s.vl(2, 4, 5, '#ffffff'); s.vl(4, 4, 5, '#d8ccb4'); s.set(3, 4, '#e8dcc4'); s.set(1, 5, '#f4ead8'); s.set(3, 3, '#3a2a20'); s.set(3, 2, '#ffcf33'); s.set(3, 1, '#fff6c0'); s.set(3, 0, '#ffe680'); s.hl(1, 9, 5, '#a8a0b0'); s.hl(1, 10, 5, '#7a7488'); return s.outline('#5a4a40'); }
+  function bucket(fish) {
+    const A = T(), s = A.spr(11, 10);
+    for (let y = 4; y < 10; y++) { const half = 4 - Math.round((y - 4) * 0.15); for (let x = -half; x <= half; x++) s.set(6 + x, y, x === -half ? '#c8d4e2' : x === half ? '#5a6a80' : x < 0 ? '#a8b8cc' : '#8898ae'); }
+    s.hl(2, 5, 9, '#5a6a80'); s.hl(2, 8, 9, '#5a6a80'); s.hl(2, 4, 9, '#dce4ee');
+    for (let k = 0; k < 9; k++) s.set(2 + k, 4 - Math.round(Math.sin((k / 8) * Math.PI) * 3), '#4a5464');
+    if (fish) { s.rect(4, 1, 2, 4, '#7ab8e8'); s.set(4, 1, '#b8dcf4'); s.set(5, 0, '#5a98c8'); s.set(4, 0, '#5a98c8'); s.rect(7, 2, 2, 3, '#9fd0f2'); s.set(8, 1, '#7ab8e8'); s.set(7, 3, '#2a3a4a'); }
+    return s.outline('#2a3444');
+  }
+  function trough(w, food) {
+    const A = T(), s = A.spr(w, 8);
+    for (let y = 2; y < 7; y++) for (let x = 1; x <= w; x++) s.set(x, y, y === 2 ? '#c99a6a' : y === 4 ? '#6a4630' : x === 1 ? '#b08458' : x === w ? '#5a3a22' : (x * 3) % 7 === 0 ? '#7a5234' : '#9a6c46');
+    for (let x = 2; x < w; x++) s.set(x, 3, (x * 2) % 5 === 0 ? A.shade(food, -0.25) : x % 3 === 0 ? A.shade(food, 0.3) : food);
+    s.set(4, 5, '#5a5466'); s.set(w - 3, 5, '#5a5466');
+    for (const x of [2, w - 2]) s.rect(x, 7, 2, 2, '#4a3020');
+    return s.outline('#3a2418');
+  }
+  function perchBar(w) { const A = T(), s = A.spr(w, 10); s.rect(1, 2, w, 2, '#a87a54'); s.hl(1, 2, w, '#c99a6a'); s.hl(1, 3, w, '#7a5234'); for (const x of [2, w - 1]) { s.vl(x, 2, 9, '#8a5e40'); s.vl(x + 1, 3, 8, '#5a3a22'); } s.rect(1, 6, w, 1, '#8a5e40'); s.hl(1, 7, w, '#5a3a22'); for (let x = 4; x < w - 2; x += 5) s.set(x, 1, '#e8c86a'); return s.outline('#3a2418'); }
+  function nestBox(w) {
+    const A = T(), s = A.spr(w, 10);
+    for (let y = 1; y < 11; y++) for (let x = 1; x <= w; x++) s.set(x, y, (x - 1) % 3 === 0 ? '#c99a6a' : (x - 1) % 3 === 2 ? '#7a5234' : '#a87a54');
+    s.rect(3, 3, w - 4, 6, '#3a2418'); s.hl(3, 3, w - 4, '#1e1410');
+    for (let x = 3; x < w - 1; x++) { s.set(x, 7, (x % 2) ? '#e8c86a' : '#f4dc8a'); s.set(x, 8, '#c49a3a'); }
+    s.ell(w / 2 + 1, 6.5, 2, 1.5, (nx, ny) => (nx < 0 && ny < 0 ? '#ffffff' : '#f4ead8'));
+    s.hl(1, 0, w, '#8a5e40');
+    return s.outline('#3a2418');
+  }
+  function leafBed(w, season) { const A = T(), s = A.spr(w, 7), cs = ['#c8642a', '#e8963a', '#a8783a', '#7a9a4a', '#f3c058', '#8a3a1a']; s.ell(w / 2 + 1, 6, w / 2, 5, (nx, ny, x, y) => { if (ny < -0.3 && A.hash(x, y, 5) < 0.45) return null; const c = cs[Math.floor(A.hash(x >> 1, y, 2) * 6)]; return ny > 0.4 ? A.shade(c, -0.3) : (x + y) % 3 === 0 ? A.shade(c, 0.25) : c; }); return s.outline('#4a2a10'); }
   function mushroomSmall() { return T().mushrooms('autumn'); }
-  function plate(label) { const A = T(), s = A.spr(Math.max(16, label.length * 7 + 4), 7); s.rect(1, 1, s.w - 2, 7, '#c99a6a'); s.hl(1, 1, s.w - 2, '#e2c49a'); return s.outline('#5a3a24'); }
-  function steamPool(w, h) { const A = T(), s = A.spr(w, h); s.ell(w / 2 + 1, h / 2 + 1, w / 2, h / 2, (nx, ny, x, y) => (nx * nx + ny * ny > 0.72 ? (A.hash(x, y, 2) < 0.5 ? '#8a8a96' : '#a8a8b4') : ny < -0.4 ? '#bfeaf0' : (x + y) % 7 === 0 ? '#e6fbff' : '#8fd8e0')); return s.outline('#4a4a56'); }
-  function yuzu() { const A = T(), s = A.spr(4, 4); s.ell(2.5, 2.5, 2, 2, (nx, ny) => (nx + ny < -0.6 ? '#fff0a0' : '#ffcf33')); s.set(3, 0, '#5aa64e'); return s.outline('#a87a10'); }
-  function cobweb() { const A = T(), s = new A.Pix(10, 10); for (let k = 0; k < 10; k++) { s.set(k, 0, '#d8d8e0'); s.set(0, k, '#d8d8e0'); s.set(k, k, '#c0c0cc'); } for (const r of [3, 6, 9]) for (let k = 0; k <= r; k++) s.set(k, r - k, '#c0c0cc'); return s; }
-  function hayStack(w, h) { const A = T(), s = A.spr(w, h); s.ell(w / 2 + 1, h, w / 2, h, (nx, ny, x, y) => (ny < -0.6 ? '#f0cc6a' : (y * 3 + x) % 4 === 0 ? '#c49a3a' : nx < -0.3 ? '#e8bc52' : '#d4a43a')); for (let i = 0; i < w / 3; i++) s.set(2 + i * 3, 1 + (i % 3) + Math.round(h * 0.2), '#f4dc8a'); return s.outline('#6a4a20'); }
-  function rug(w, c1, c2) { const A = T(), s = new A.Pix(w, 3); for (let x = 0; x < w; x++) for (let y = 0; y < 3; y++) s.set(x, y, (Math.floor(x / 3) + y) % 2 ? c1 : c2); return s; }
+  function plate(label) { const A = T(), s = A.spr(Math.max(16, label.length * 7 + 4), 7); for (let y = 1; y < 8; y++) for (let x = 1; x < s.w - 1; x++) s.set(x, y, y === 1 ? '#e2c49a' : y === 7 ? '#8a6040' : (x * 3 + y) % 11 === 0 ? '#b08458' : '#c99a6a'); s.set(2, 2, '#5a5466'); s.set(s.w - 3, 2, '#5a5466'); return s.outline('#5a3a24'); }
+  function steamPool(w, h) {
+    const A = T(), s = A.spr(w, h);
+    s.ell(w / 2 + 1, h / 2 + 1, w / 2, h / 2, (nx, ny, x, y) => { const d = nx * nx + ny * ny; if (d > 0.72) { const l = -nx * 0.5 - ny; return A.hash(x >> 1, y >> 1, 2) < 0.2 ? '#6a6a78' : l > 0.3 ? '#b4b4c0' : l > -0.3 ? '#9a9aa6' : '#7a7a88'; } return ny < -0.4 ? '#c8f2f4' : d < 0.25 ? '#5ac0c8' : (x + y) % 7 === 0 ? '#e6fbff' : '#8fd8e0'; });
+    return s.outline('#3a3a46');
+  }
+  function yuzu() { const A = T(), s = A.spr(5, 5); s.ell(3, 3, 2.2, 2.1, (nx, ny) => (nx + ny < -0.7 ? '#fff6c0' : nx + ny > 0.6 ? '#e8a020' : '#ffcf33')); s.set(3, 0, '#5aa64e'); s.set(4, 0, '#7ac860'); return s.outline('#a87a10'); }
+  function cobweb() { const A = T(), s = new A.Pix(12, 12); for (let k = 0; k < 12; k++) { s.set(k, 0, '#d8d8e0'); s.set(0, k, '#d8d8e0'); if (k % 1 === 0) s.set(k, k, '#c8c8d4'); s.set(k, Math.round(k * 0.45), '#c0c0cc'); s.set(Math.round(k * 0.45), k, '#c0c0cc'); } for (const r of [3, 6, 9]) for (let k = 0; k <= r; k++) s.set(k, r - k + (k % 2 && k < r ? 1 : 0), '#b8b8c4'); return s; }
+  function hayStack(w, h) {
+    // 精修干草堆：一堆蓬松的干草（一缕缕斜着的草茎、上亮下暗），顶上和边缘翘出来的草尖，脚下撒落的草
+    const A = T(), s = A.spr(w, h + 1), H = ['#8a6420', '#b08a2e', '#d4a43a', '#e8c058', '#f6dc8a'];
+    s.ell(w / 2 + 1, h, w / 2, h, (nx, ny, x, y) => { const l = -nx * 0.5 - ny * 0.9 + (A.hash(x, y, 31) - 0.5) * 0.4; let c = l > 0.65 ? H[4] : l > 0.15 ? H[3] : l > -0.35 ? H[2] : l > -0.8 ? H[1] : H[0]; if ((x * 2 + y * 3) % 7 === 0) c = H[Math.max(0, H.indexOf(c) - 1)]; if ((x * 3 - y * 2) % 11 === 0) c = H[4]; return c; });
+    for (let i = 0; i < w / 2; i++) { const x = 2 + Math.round(A.hash(i, 1, 32) * (w - 2)); let y = 0; while (y < h && !s.get(x, y)) y++; s.set(x, y - 1, H[3]); if (i % 2) s.set(x + 1, y - 2, H[4]); }
+    for (let x = 0; x < w + 2; x++) if (A.hash(x, 3, 33) < 0.45) s.set(x, h + 2, H[x % 2 ? 2 : 3]);
+    return s.outline('#5a3a14');
+  }
+  function rug(w, c1, c2) { const A = T(), s = new A.Pix(w, 4); for (let x = 0; x < w; x++) for (let y = 0; y < 4; y++) { let c = (Math.floor(x / 3) + y) % 2 ? c1 : c2; if (y === 0 || y === 3) c = A.shade(c1, -0.3); if ((x === 0 || x === w - 1) && y % 2 === 0) c = '#f4ead8'; s.set(x, y, c); } return s; }
 
   // ---------- 小工具 ----------
   function put(lay, s, c, r, extra) { lay.items.push(Object.assign({ s, c: Math.round(c), r: Math.round(r) }, extra || {})); return s; }
@@ -373,7 +457,7 @@
     put(lay, coins(Z(lay, 14)), C(lay, 0.88), lay.base + 4);
     lay.bubbles = true; lay.underwater = true;
   };
-  function bottle() { const A = T(), s = A.spr(5, 10); s.rect(2, 1, 2, 3, '#7ac8a0'); s.rect(1, 4, 4, 6, '#5aae84'); s.vl(2, 5, 4, '#b8f0d0'); s.rect(2, 6, 2, 2, '#f4ead8'); return s.outline('#2a5a3a'); }
+  function bottle() { const A = T(), s = A.spr(6, 11); s.rect(3, 0, 2, 1, '#a87a54'); s.rect(3, 1, 2, 3, '#7ac8a0'); s.vl(3, 1, 3, '#b8f0d0'); for (let y = 4; y < 11; y++) for (let x = 1; x < 6; x++) s.set(x, y, x === 1 ? '#8ad8b0' : x === 5 ? '#3a8a64' : '#5aae84'); s.vl(2, 5, 4, '#d8fff0'); s.rect(2, 6, 3, 3, '#f4ead8'); s.hl(2, 7, 3, '#c8a888'); return s.outline('#1e4a30'); }
 
   // 新来的住户：借用相近的屋子
   Object.assign(I, { brownbear: I.dragon, porcupine: I.hedgehog, arctichare: I.rabbit, marmot: I.hamster, polarbear: I.penguin, arcticfox: I.fox, fennec: I.rabbit, meerkat: I.hamster, snowleopard: I.dragon, yak: I.pig, alpaca: I.pig, cow: I.cat, monkey: I.dog, parrot: I.chick, seagull: I.chick });
