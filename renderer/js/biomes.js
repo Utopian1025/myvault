@@ -110,7 +110,7 @@
     P.ell(pc, py, pr, Math.max(3, (lay.rows - lay.base) * 0.28), (nx, ny, x, y) => (A.hash(x, y, 2) < 0.04 ? '#ffffff' : ny < -0.5 ? '#e6f3fb' : (x + y) % 9 === 0 ? '#b8d8ee' : '#cfe6f5'));
     const ic = C(lay, 0.52); P.ell(ic, py, 4, 2, (nx, ny) => (nx * nx + ny * ny > 0.6 ? '#ffffff' : '#1e4f7a'));
     spot(lay, 'icehole', ic, py + 1); lay.icehole = { c: ic, r: py }; spot(lay, 'pond', pc - 6, py + 2);
-    const ig = PP.HOMES.igloo(SZ(lay, 22)); home(lay, 'penguin', ig.s, C(lay, 0.2), lay.base + 1, ig.door);
+    const hr = PP.HOMES.burrow(SZ(lay, 18), SZ(lay, 6), ['#e6eef6', '#ffffff', '#c8d6e4', '#8aa0b4'], [0.5]); home(lay, 'arctichare', hr.s, C(lay, 0.2), lay.base + 2, hr.door);
     // 雪坡滑梯
     const sl = new A.Pix(Math.round(lay.cols * 0.2), SZ(lay, 16)), sw = sl.w, sh = sl.h;
     for (let x = 0; x < sw; x++) { const k = x < sw * 0.25 ? x / (sw * 0.25) : 1 - (x - sw * 0.25) / (sw * 0.75); const hh = Math.round(sh * Math.max(0, Math.pow(k, 0.8))); for (let y = 0; y < hh; y++) sl.set(x, sh - 1 - y, y === hh - 1 && x > sw * 0.25 ? '#bfe0f4' : x < sw * 0.25 ? '#ffffff' : '#eef5fc'); }
@@ -136,6 +136,10 @@
     const ys = PP.HOMES.stoneShelter(SZ(lay, 18), lay.season); home(lay, 'yak', ys.s, C(lay, 0.47), lay.base + 1, ys.door);
     const al = PP.HOMES.shed(SZ(lay, 18), lay.season, '#b8865a', '#7a4a30'); home(lay, 'alpaca', al.s, C(lay, 0.095), lay.base + 1, al.door);
     const sl = PP.HOMES.cave(SZ(lay, 18), lay.season); home(lay, 'snowleopard', sl.s, C(lay, 0.915), lay.base + 1, sl.door);
+    // 洞口：走进去就是洞穴（套在高山里的次场景）
+    const cm = PP.HOMES.caveMouth(SZ(lay, 22)), cmc = C(lay, 0.72), cmr = lay.base;
+    put(lay, cm.s, cmc, cmr); lay.hots.push({ x0: Math.round(cmc - cm.s.w / 2), x1: Math.round(cmc + cm.s.w / 2), y0: cmr - cm.s.h + 1, y1: cmr + 1, tip: '走进洞穴 →', go: 'cave', door: true });
+    lay.caveDoor = cmc;
     spot(lay, 'pasture', C(lay, 0.3), lay.base + 6);
   };
   B.forest = (P, lay, R) => {
@@ -205,7 +209,7 @@
     const hm = new A.Pix(12, 5); hm.ell(6, 5, 5, 3, (nx, ny) => (ny > 0 ? null : nx * nx + ny * ny < 0.4 ? '#2a1a12' : '#8a6448')); home(lay, 'hamster', hm, C(lay, 0.665), lay.base + 3, { x: 6 });
     const pd = new A.Pix(26, 7); pd.ell(13, 3.5, 12, 3, (nx, ny) => (w ? '#dcecf8' : ny < -0.4 ? '#bfe6f8' : '#6ab4dc')); put(lay, pd, C(lay, 0.79), lay.base + 7); spot(lay, 'puddle', C(lay, 0.79), lay.base + 5);
     put(lay, A.broadleaf(SZ(lay, 46), s, R, 'oak'), C(lay, 0.95), lay.base); spot(lay, 'hill', C(lay, 0.9), lay.base + 3);
-    const pn = PP.HOMES.pen(SZ(lay, 30), s); home(lay, 'sheep', pn.s, C(lay, 0.865), lay.base + 1, pn.door);
+    const mm = PP.HOMES.burrow(SZ(lay, 22), SZ(lay, 8), w ? ['#e6eef6', '#ffffff', '#c8d6e4', '#8aa0b4'] : ['#9a7a4a', '#b8986a', '#7a5a3a', '#4a3420'], [0.4, 0.75]); home(lay, 'marmot', mm.s, C(lay, 0.865), lay.base + 2, mm.door);
   };
   function sunflower(h, s) {
     const A = T(), sp = A.spr(9, h);
@@ -241,7 +245,8 @@
     // 菜园：一垄一垄
     const vg = new A.Pix(Math.round(lay.cols * 0.06), 10);
     for (let row = 0; row < 3; row++) for (let x = 1; x < vg.w - 1; x++) { vg.set(x, 3 + row * 3, '#7a5234'); if (x % 4 === 1 && !w) { if (s === 'spring') vg.set(x, 2 + row * 3, '#7cc35a'); else if (row === 1) { vg.ell(x, 1.5 + row * 3, 1.6, 1.2, '#a8e07a'); } else { vg.set(x, 2 + row * 3, '#ff8a2a'); vg.set(x, 1 + row * 3, '#3fa34d'); vg.set(x - 1, 0 + row * 3, '#3fa34d'); } } }
-    put(lay, vg, C(lay, 0.935), b + 5); spot(lay, 'veg', C(lay, 0.935), b + 5);
+    put(lay, vg, C(lay, 0.81), b + 8); spot(lay, 'veg', C(lay, 0.81), b + 8);
+    const pn = PP.HOMES.pen(SZ(lay, 24), s); home(lay, 'sheep', pn.s, C(lay, 0.93), b + 1, pn.door);
     const cs = PP.HOMES.shed(z(20), s, '#f0e6d8', '#8e2620'); home(lay, 'cow', cs.s, C(lay, 0.875), b, cs.door);
     spot(lay, 'pasture', C(lay, 0.84), b + 6);
     spot(lay, 'yard', C(lay, 0.5), b + 6);
@@ -291,7 +296,7 @@
     const cn = PP.HOMES.conch(SZ(lay, 12)); home(lay, 'crab', cn.s, C(lay, 0.4), lay.base + 3, cn.door);
     const gp = PP.HOMES.gullPost(SZ(lay, 20)); home(lay, 'seagull', gp.s, C(lay, 0.69), lay.base + 2, gp.door); lay.spots.seagull_home.r = lay.base + 2 - gp.s.h + 3; lay.spots.seagull_home.perch = true;
     const sr = new A.Pix(SZ(lay, 30), SZ(lay, 9)); A.rock(SZ(lay, 6), R, false, '#7a7a88').stamp(sr, sr.w * 0.35, sr.h); A.rock(SZ(lay, 4), R, false, '#8a8a96').stamp(sr, sr.w * 0.75, sr.h);
-    home(lay, 'seal', sr, C(lay, 0.83), lay.base + 3, { x: Math.round(sr.w / 2) });
+    home(lay, 'otter', sr, C(lay, 0.83), lay.base + 3, { x: Math.round(sr.w / 2) });
     spot(lay, 'sand', C(lay, 0.55), lay.base + 6);
   };
   B.jungle = (P, lay, R) => {
@@ -397,6 +402,64 @@
     // 白蚁丘
     const tm = new A.Pix(8, SZ(lay, 14)); for (let y = 0; y < tm.h; y++) { const half = Math.max(1, Math.round((y / tm.h) * 3.5)); tm.rect(4 - half, y, half * 2, 1, y % 4 === 0 ? '#a8683a' : '#c8804a'); } tm.outline('#5a3018'); put(lay, tm, C(lay, 0.6), lay.base + 2);
     spot(lay, 'grass', C(lay, 0.28), lay.base + 6); spot(lay, 'plain', C(lay, 0.78), lay.base + 6);
+  };
+  // 南极：远处是深蓝的海和冰山，近处是冰架；企鹅的鹅卵石巢、海豹的呼吸孔、信天翁的草巢
+  B.antarctic = (P, lay, R) => {
+    const A = T(); lay.season = 'winter';
+    mountains(P, lay, [[0.7, '#d8e4f0', true, 0.5], [0.45, '#c4d4e6', true, 0.4]], 111);
+    const wy0 = lay.gy - Math.round(lay.gy * (lay.full ? 0.2 : 0.36)), wy1 = lay.gy + 3;
+    for (let y = wy0; y < wy1; y++) { const k = (y - wy0) / (wy1 - wy0); for (let x = 0; x < lay.cols; x++) P.set(x, y, y === wy0 ? '#c8e0f0' : A.hash(x, y, 5) < 0.012 ? '#ffffff' : k < 0.35 ? '#1e4a7a' : k < 0.7 ? '#2a5e92' : '#3a74a8'); }
+    // 冰山：平顶，侧面淡蓝
+    for (const [f, ww, hh] of [[0.12, 26, 12], [0.4, 16, 8], [0.68, 34, 15], [0.9, 12, 6]]) {
+      const cx = C(lay, f), top = wy0 + 3 - Math.round(SZ(lay, hh));
+      for (let y = top; y < wy0 + 4; y++) { const k = (y - top) / (wy0 + 4 - top), half = Math.round(SZ(lay, ww) / 2 * (0.6 + k * 0.4)); for (let x = -half; x <= half; x++) P.set(cx + x, y, x > half * 0.4 ? '#b8d4ea' : y === top ? '#ffffff' : '#eaf4fb'); }
+    }
+    lay.water = { y0: wy0, y1: wy1, ice: false, sea: true };
+    ground(P, Object.assign({}, lay, { gy: wy1 }), GROUND.winter, {});
+    for (let x = 0; x < lay.cols; x++) { P.set(x, wy1, A.hash(x, 2) < 0.5 ? '#ffffff' : '#d8eaf6'); if (A.hash(x, 3) < 0.4) P.set(x, wy1 + 1, '#c8dcec'); }
+    spot(lay, 'shore', C(lay, 0.45), wy1 + 1); lay.icehole = { c: C(lay, 0.45), r: wy1 };
+    spot(lay, 'icefield', C(lay, 0.36), lay.base + 5);
+    // 冰坡：企鹅肚皮滑
+    const sl = new A.Pix(Math.round(lay.cols * 0.16), SZ(lay, 14)), sw = sl.w, sh = sl.h;
+    for (let x = 0; x < sw; x++) { const k = x < sw * 0.25 ? x / (sw * 0.25) : 1 - (x - sw * 0.25) / (sw * 0.75); const hh = Math.round(sh * Math.max(0, Math.pow(k, 0.8))); for (let y = 0; y < hh; y++) sl.set(x, sh - 1 - y, y === hh - 1 && x > sw * 0.25 ? '#bfe0f4' : x < sw * 0.25 ? '#ffffff' : '#eef5fc'); }
+    sl.outline('#a8c0d8'); put(lay, sl, C(lay, 0.74), lay.base + 1);
+    spot(lay, 'slidetop', C(lay, 0.74) - sw / 2 + sw * 0.25, lay.base + 1 - sh, { perch: true }); spot(lay, 'slideend', C(lay, 0.74) + sw / 2 - 4, lay.base + 4);
+    const pn = PP.HOMES.pebbleNest(SZ(lay, 30)); home(lay, 'penguin', pn.s, C(lay, 0.2), lay.base + 4, pn.door);
+    const bh = PP.HOMES.breathingHole(SZ(lay, 14)); home(lay, 'seal', bh.s, C(lay, 0.56), lay.base + 5, bh.door);
+    const tn = PP.HOMES.tussockNest(SZ(lay, 13), R); home(lay, 'albatross', tn.s, C(lay, 0.92), lay.base + 1, tn.door);
+    lay.spots.albatross_home.r = lay.base + 1 - tn.s.h + 3; lay.spots.albatross_home.perch = true;
+    for (const f of [0.08, 0.63]) put(lay, A.rock(SZ(lay, 4), R, true), C(lay, f), lay.base + 3);
+  };
+  // 洞穴：没有天空，洞顶垂下钟乳石，左边是透着光的洞口；地下水潭、会发光的蘑菇和萤火虫
+  B.cave = (P, lay, R) => {
+    const A = T(); lay.cave = true;
+    const { cols, gy } = lay, mouth = Math.round(cols * 0.07);
+    for (let y = 0; y < gy; y++) for (let x = 0; x < cols; x++) {
+      const n = A.noise(x / 6, y / 5, 201); let c = n < 0.33 ? '#241e2a' : n < 0.66 ? '#2e2734' : '#3a3242';
+      const dx = x / mouth, dy = (y - gy * 0.55) / (gy * 0.5);
+      if (dx * dx + dy * dy < 1) c = A.mix('#c8d4dc', c, Math.min(1, Math.sqrt(dx * dx + dy * dy) * 1.1));
+      P.set(x, y, c);
+    }
+    // 钟乳石
+    for (let x = mouth + 4; x < cols; x += 3 + Math.floor(R() * 6)) { const len = 2 + Math.floor(R() * Math.min(14, gy * 0.25)); for (let k = 0; k < len; k++) { const half = Math.max(0, Math.round((1 - k / len) * 1.6)); P.rect(x - half, k, half * 2 + 1, 1, k === len - 1 ? '#6a6070' : '#4a4252'); } }
+    ground(P, lay, ['#3a3242', '#332c3a', '#4a4252', '#241e2a'], {});
+    for (let x = 0; x < mouth; x++) for (let y = gy; y < gy + 3; y++) P.set(x, y, '#6a6a72');
+    // 地下水潭
+    const pc = C(lay, 0.55), py = lay.base + Math.round((lay.rows - lay.base) * 0.4);
+    P.ell(pc, py, lay.cols * 0.08, Math.max(3, (lay.rows - lay.base) * 0.25), (nx, ny, x, y) => (nx * nx + ny * ny > 0.78 ? '#4a4252' : A.hash(x, y, 4) < 0.05 ? '#7fe0ff' : ny < -0.3 ? '#2a5a7a' : '#1a3a5a'));
+    spot(lay, 'pool', pc, py - 2); spot(lay, 'entrance', C(lay, 0.06) + 6, lay.base + 4);
+    // 石笋
+    for (const [f, hh] of [[0.83, 14], [0.86, 9], [0.88, 18], [0.2, 10]]) { const sp = new A.Pix(7, SZ(lay, hh)); for (let y = 0; y < sp.h; y++) { const half = Math.round((y / sp.h) * 3); sp.rect(3 - half, y, half * 2 + 1, 1, y % 4 ? '#5a5262' : '#6a6272'); } sp.outline('#241e2a'); put(lay, sp, C(lay, f), lay.base + 1); }
+    spot(lay, 'stalagmites', C(lay, 0.86), lay.base + 4);
+    // 发光蘑菇
+    const ms = new A.Pix(20, 6); for (let i = 0; i < 5; i++) { const x = 2 + i * 4, h2 = 2 + (i % 3); ms.rect(x, 6 - h2, 1, h2, '#d8d0e0'); ms.rect(x - 1, 5 - h2, 3, 1, i % 2 ? '#7fe0ff' : '#b8f0a0'); } put(lay, ms, C(lay, 0.3), lay.base + 3); spot(lay, 'mushrooms', C(lay, 0.3), lay.base + 4);
+    for (let i = 0; i < 5; i++) lay.lights.push({ x: C(lay, 0.3) - 9 + i * 4, y: lay.base - 2, w: 1, h: 1, r: 3, col: '#9fe8ff' });
+    // 洞顶的萤火虫（发光蕈蚊）
+    for (let i = 0; i < 26; i++) { const x = mouth + 10 + Math.floor(R() * (cols - mouth - 20)), y = 2 + Math.floor(R() * gy * 0.35); lay.lights.push({ x, y, w: 1, h: 1, r: 2, col: '#7fe8ff', glow: true }); }
+    const br = PP.HOMES.batRoost(SZ(lay, 26), Math.max(8, SZ(lay, 12))); home(lay, 'bat', br.s, C(lay, 0.66), br.s.h + 5, br.door);
+    lay.spots.bat_home.r = br.s.h + 26; lay.spots.bat_home.perch = true; lay.spots.bat_home.hang = true;
+    const bd = PP.HOMES.bearDen(SZ(lay, 22)); home(lay, 'brownbear', bd.s, C(lay, 0.74), lay.base + 1, bd.door);
+    const pc2 = PP.HOMES.burrow(SZ(lay, 20), SZ(lay, 7), ['#4a4252', '#5a5262', '#3a3242', '#1a1620'], [0.5]); home(lay, 'porcupine', pc2.s, C(lay, 0.4), lay.base + 2, pc2.door);
   };
   PP.BIOMES = B;
 })();

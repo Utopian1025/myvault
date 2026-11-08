@@ -49,8 +49,9 @@
   // ---------- 悬浮小按钮：平时几乎透明，可以拖到任何地方 ----------
   let orb = null, pop = null, popT = 0;
   function initOrb() {
-    orb = $(`<div class="orb" title="点一下：收起 / 展开（只留主角）&#10;拖动：换个位置&#10;鼠标停留：切换显示模式"><canvas width="12" height="12"></canvas></div>`);
+    orb = $(`<div class="orb" title="显示视图&#10;点一下：极简 ↔ 场景&#10;鼠标停留：选小场景还是全屏场景&#10;拖动：换个位置"><canvas width="12" height="12"></canvas></div>`);
     document.getElementById('ui').appendChild(orb);
+    initSceneBtn();
     placeOrb();
     let down = null;
     orb.addEventListener('mousedown', (e) => {
@@ -61,7 +62,7 @@
       const mv = (ev) => {
         if (!down) return;
         if (Math.hypot(ev.clientX - down.x, ev.clientY - down.y) > 4) { down.moved = true; hidePop(); }
-        if (down.moved) { S().orb = { x: U.clamp(down.ox + ev.clientX - down.x, 4, G.W - 70) / G.W, y: U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) / G.H }; placeOrb(); }
+        if (down.moved) { S().orb = { x: U.clamp(down.ox + ev.clientX - down.x, 4, G.W - 106) / G.W, y: U.clamp(down.oy + ev.clientY - down.y, 2, G.H - 34) / G.H }; placeOrb(); }
       };
       const up = () => {
         window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
@@ -83,11 +84,12 @@
     if (!orb) return;
     const o = S().orb, sh = PP.scene.bandHeight();
     // 爪子菜单按钮固定在切换按钮的右边，所以切换按钮最多放到离右边 70 像素
-    const x = o ? U.clamp(o.x * G.W, 4, G.W - 70) : G.W - 78;
+    const x = o ? U.clamp(o.x * G.W, 4, G.W - 106) : G.W - 114;
     const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
     orb.style.left = x + 'px'; orb.style.top = y + 'px';
+    if (scBtn) { scBtn.style.left = x + 36 + 'px'; scBtn.style.top = y + 'px'; scBtn.classList.toggle('mini', S().mode === 'mini'); drawSceneBtn(); }
     const dock = document.querySelector('.dock');
-    if (dock) { dock.style.left = x + 36 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; dock.style.right = 'auto'; }
+    if (dock) { dock.style.left = x + 72 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; dock.style.right = 'auto'; }
   }
   // 小图标：一扇小门（极简模式下门是关着的）
   function drawOrb() {
@@ -108,30 +110,87 @@
     const rows = Object.keys(PP.SCENES).map((k) => { const t = PP.wild.censusText(k, c[k]); return `<div class="w"><button class="small" data-s="${k}">${esc(PP.SCENES[k].name)}</button><span title="${esc(t)}">${t ? esc(t) : '<i class="muted">现在没人</i>'}</span></div>`; }).join('');
     return `<div class="where"><span>每个地方都有谁</span>${rows}</div>`;
   }
+  // 视图按钮悬停：只选“大场景”用哪一种（小场景 / 全屏场景）；点按钮本身在极简和它之间切换
   function showPop() {
     hidePop();
-    const s = S();
-    pop = $(`<div class="orb-pop"><div class="modes">${PP.MODES.map(([k, n, d]) => `<button class="small ${s.mode === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div>
-      <div class="scenes">${Object.entries(PP.SCENES).map(([k, v]) => `<button class="small ${s.scene === k && PP.scene.active() ? 'on' : ''}" data-s="${k}">${v.name}</button>`).join('')}</div>
-      ${whereList()}
-      <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
-      <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
-      <div class="env">${esc(PP.env.label())}</div></div>`);
-    document.getElementById('ui').appendChild(pop);
-    const r = orb.getBoundingClientRect(), pr = pop.getBoundingClientRect();
-    pop.style.left = U.clamp(r.left + r.width / 2 - pr.width / 2, 4, G.W - pr.width - 4) + 'px';
-    pop.style.top = (r.top - pr.height - 6 > 4 ? r.top - pr.height - 6 : r.bottom + 6) + 'px';
+    const s = S(), big = s.mode === 'mini' ? (s.lastMode && s.lastMode !== 'mini' ? s.lastMode : 'band') : s.mode;
+    pop = $(`<div class="orb-pop view-pop"><span class="muted">点按钮：极简 ↔ ${MODE_NAME[big]}</span><div class="modes">${PP.MODES.filter(([k]) => k !== 'mini').map(([k, n, d]) => `<button class="small ${big === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div></div>`);
+    openPop(orb);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.m) PP.setMode(b.dataset.m);
-      if (b.dataset.s) { if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); }
-      if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showPop(); return; }
-      if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showPop(); return; }
-      if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showPop(); return; }
-      hidePop();
+      if (S().mode === 'mini') { S().lastMode = b.dataset.m; PP.save.soon(); }
+      PP.setMode(b.dataset.m); hidePop();
     });
-    pop.addEventListener('mouseleave', () => setTimeout(() => { if (pop && !pop.matches(':hover') && !orb.matches(':hover')) hidePop(); }, 300));
+  }
+  function openPop(anchor) {
+    document.getElementById('ui').appendChild(pop);
+    const r = anchor.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+    pop.style.left = U.clamp(r.left + r.width / 2 - pr.width / 2, 4, G.W - pr.width - 4) + 'px';
+    pop.style.top = (r.top - pr.height - 6 > 4 ? r.top - pr.height - 6 : r.bottom + 6) + 'px';
+    pop.addEventListener('mouseleave', () => setTimeout(() => { if (pop && !pop.matches(':hover') && !anchor.matches(':hover')) hidePop(); }, 300));
     PP.refreshInteractive();
+  }
+
+  // ---------- 场景按钮：按主场景分组的场景切换 + 场景设置 ----------
+  // 10x10 像素小图标：k 黑 w 白 y 黄 r 红 g 绿 G 深绿 b 蓝 B 深蓝 c 浅蓝 o 橙 p 粉 n 棕 N 深棕 s 沙 e 灰 E 深灰 v 紫
+  const PAL = { k: '#231c20', w: '#ffffff', y: '#ffcf33', r: '#e0453a', g: '#6cc04a', G: '#2f7a3a', b: '#4a9ad8', B: '#1e4a7a', c: '#bfe6f8', o: '#f08a3a', p: '#ff9ab8', n: '#a8703a', N: '#5a3a20', s: '#f0d090', e: '#9a9aa8', E: '#5a5a68', v: '#9a6ad8' };
+  const SICON = {
+    penguinIco: ['...kkkk...', '..kkkkkk..', '..kwkkwk..', '..kwwwwk..', '.kkwyywkk.', '.kkwwwwkk.', '..kwwwwk..', '..kwwwwk..', '...kwwk...', '..yy..yy..'],
+    ice: ['..........', '....w.....', '...wwc....', '..wwwcc...', '.wwwwwcc..', 'wwwwwwccc.', 'bbbbbbbbbb', 'bBbbbBbbbb', 'BBbBBBbBBB', 'BBBBBBBBBB'],
+    peak: ['....w.....', '...www....', '..wweew...', '..eeeeee..', '.eeEeeeee.', '.eEEEeeEe.', 'eeEEEEeEEe', 'eEEEEEEEEe', 'GGGGGGGGGG', 'GGGGGGGGGG'],
+    caveIco: ['EEEEEEEEEE', 'EeeeeeeeeE', 'Eek.k.keeE', 'Eekkkkkkee', 'eekkkkkkee', 'eekkcckkee', 'eekkkkkkee', 'eekkkkkkee', 'EEkkkkkkEE', 'EEEEEEEEEE'],
+    tree: ['....G.....', '...GgG....', '...GgG....', '..GggGG...', '..GgggG...', '.GgggggG..', '.GggggggG.', 'GGGGGGGGG.', '....N.....', '....N.....'],
+    palmIco: ['.GG...GG..', 'GggG.GggG.', '...GgG....', '..GgGgG...', '.G..n..G..', '....n.....', '....n.....', '...n......', '...n......', '..nnn.....'],
+    flowerIco: ['..........', '...pp.....', '..pyyp....', '..pyyp....', '...pp..y..', '....g.yoy.', '.g..g..y..', '..g.g.gg..', 'ggggggggg.', 'GGGGGGGGGG'],
+    acaciaIco: ['..........', '.GGGGGGGG.', 'GggggggggG', '.GGGGGGGG.', '...N..N...', '....NN....', '....N.....', '....N.....', 'ssssNsssss', 'ssssssssss'],
+    cactusIco: ['....g.....', '...gGg....', '.g.gGg....', '.g.gGg.g..', '.ggggGgg..', '...gGg....', '...gGg....', '...gGg....', 'ssssssssss', 'ssssssssss'],
+    barnIco: ['....rr....', '...rrrr...', '..rrrrrr..', '.rrrrrrrr.', 'wwwwwwwwww', '.rrwwwwrr.', '.rrwrrwrr.', '.rrwrrwrr.', '.rrwrrwrr.', 'gggggggggg'],
+    lakeIco: ['..........', '..........', '..gg......', '.gGgg..p..', '..gg..ggg.', 'bbbbbbbbbb', 'bccbbbbccb', 'bbbbbbbbbb', 'BbbBbbbBbb', 'BBBBBBBBBB'],
+    shellIco: ['..........', '...ppp....', '..pwpwp...', '.pwpwpwp..', '.pwpwpwp..', '.pppppppp.', '..pppppp..', '...pppp...', 'ssssssssss', 'ssssssssss'],
+    coralIco: ['B.r....v.B', 'B.r.r.vv.B', 'Brrr.r.v.B', 'B.rrr.vvvB', 'B..r..v..B', 'B..r..v.yB', 'Bb.r..v.yB', 'BbbbbbbbbB', 'sssssssss', 'ssssssssss'],
+  };
+  function icon(name, px) {
+    const cv = document.createElement('canvas'); cv.width = 10; cv.height = 10; cv.className = 'sico'; if (px) cv.style.width = cv.style.height = px + 'px';
+    const c = cv.getContext('2d'), rows = SICON[name] || SICON.tree;
+    rows.forEach((r, y) => [...r].forEach((ch, x) => { if (PAL[ch]) { c.fillStyle = PAL[ch]; c.fillRect(x, y, 1, 1); } }));
+    return cv;
+  }
+  PP.sceneIcon = (k, px) => icon((PP.SCENE_ICON || {})[k], px);
+  let scBtn = null;
+  function initSceneBtn() {
+    scBtn = $(`<div class="orb scenebtn" title="场景：去别的地方 / 季节 / 环境声 / 场景信息"><canvas width="10" height="10"></canvas></div>`);
+    document.getElementById('ui').appendChild(scBtn);
+    let t = 0;
+    scBtn.addEventListener('mousedown', (e) => { if (e.button !== 0) return; e.stopPropagation(); clearTimeout(t); showScenePop(); });
+    scBtn.addEventListener('mouseenter', () => { t = setTimeout(showScenePop, 350); });
+    scBtn.addEventListener('mouseleave', () => { clearTimeout(t); setTimeout(() => { if (pop && !pop.matches(':hover') && !scBtn.matches(':hover')) hidePop(); }, 350); });
+  }
+  function drawSceneBtn() {
+    if (!scBtn) return;
+    const k = PP.scene.view(), key = k + '|' + S().mode; if (scBtn.dataset.k === key) return; scBtn.dataset.k = key;
+    const c = scBtn.querySelector('canvas').getContext('2d'); c.clearRect(0, 0, 10, 10);
+    c.drawImage(icon((PP.SCENE_ICON || {})[k]), 0, 0);
+  }
+  function showScenePop() {
+    hidePop();
+    const s = S(), cur = PP.scene.active() ? PP.scene.view() : null, c = PP.wild ? PP.wild.census() : {};
+    const groups = (PP.REGIONS || []).map((r) => `<div class="rg"><div class="rn"><i data-ico="${r.subs[0][0]}"></i>${esc(r.name)}</div><div class="subs">${r.subs.map(([k, n]) => { const t = PP.wild ? PP.wild.censusText(k, c[k]) : ''; return `<button class="small ${cur === k ? 'on' : ''}" data-s="${k}" title="${esc(t || '现在没人')}"><i data-ico="${k}"></i>${esc(n)}</button>`; }).join('')}</div></div>`).join('');
+    pop = $(`<div class="orb-pop scene-pop"><div class="regions">${groups}</div>
+      <div class="seasons"><span>季节</span>${[['auto', '跟随日历'], ['spring', '春'], ['summer', '夏'], ['autumn', '秋'], ['winter', '冬']].map(([k, n]) => `<button class="small ${(s.seasonFix || 'auto') === k ? 'on' : ''}" data-season="${k}">${n}</button>`).join('')}</div>
+      <div class="sound"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
+      <div class="sound"><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
+      <div class="env">${esc(PP.env.label())}</div></div>`);
+    pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
+    openPop(scBtn);
+    pop.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.s) { if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
+      if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }
+      if (b.dataset.a === 'amb') { PP.menuRun('ambient'); showScenePop(); return; }
+      if (b.dataset.a === 'info') { S().sceneInfo = !S().sceneInfo; PP.save.soon(); showScenePop(); return; }
+      if (b.dataset.a === 'decor') { hidePop(); if (S().mode === 'mini') PP.setMode('band'); PP.scene.edit(true); return; }
+      if (b.dataset.vol) { S().ambientVol = +b.dataset.vol; PP.save.soon(); showScenePop(); return; }
+    });
   }
   function hidePop() { if (pop) { pop.remove(); pop = null; PP.refreshInteractive(); } }
 
@@ -179,10 +238,11 @@
     const mini = G.save.settings.mode === 'mini', now = performance.now();
     if (hp || (ring && ring.matches(':hover')) || pop) revealUntil = now + 2500;
     const dock = document.querySelector('.dock');
-    const hovered = (orb && orb.matches(':hover')) || (dock && dock.matches(':hover'));
+    const hovered = (orb && orb.matches(':hover')) || (dock && dock.matches(':hover')) || (scBtn && scBtn.matches(':hover'));
     const hide = mini && !hovered && now > revealUntil && !document.querySelector('.menu');
     if (orb) orb.classList.toggle('peekhide', hide);
     if (dock) dock.classList.toggle('peekhide', hide);
+    if (scBtn) scBtn.classList.toggle('peekhide', hide);
   }
   function barTick() {
     if (!G.save) return;

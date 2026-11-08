@@ -60,12 +60,6 @@
         ...[[22, 7], [23, 7], [0, 8], [12, 14]].map(([a, b]) => ({ id: `sleep:${a}:${b}`, label: `${a}:00 – ${b}:00${a === 12 ? '（午休）' : ''}`, type: 'radio', checked: !!(s.sleepMode && s.sleepMode.on && s.sleepMode.from === a && s.sleepMode.to === b) })),
         { id: 'sleepCustom', label: '自定义时间…' },
       ] },
-      { label: '小场景避让（挡住窗口时）', hint: T({ both: '透明+压低', fade: '指针经过变透明', duck: '打字时压低', off: '关' }[s.bandAvoid || 'both']), sub: [
-        { id: 'avoid:both', label: '指针经过就变透明 + 打字时自动压低', type: 'radio', checked: (s.bandAvoid || 'both') === 'both' },
-        { id: 'avoid:fade', label: '只在指针经过时变透明', type: 'radio', checked: s.bandAvoid === 'fade' },
-        { id: 'avoid:duck', label: '只在打字时自动压低', type: 'radio', checked: s.bandAvoid === 'duck' },
-        { id: 'avoid:off', label: '不避让', type: 'radio', checked: s.bandAvoid === 'off' },
-      ] },
       '-', { id: 'toggleAll', label: s.allAway ? '把大家叫出来' : '让大家都回电脑里', hint: T('Ctrl+Alt+Shift+P') },
     ] };
     const remind = { label: '提醒', sub: [
@@ -141,7 +135,6 @@
     if (a === 'bgh') { s.bgH = +b; PP.save.soon(); syncTray(true); return; }
     if (a === 'tray') { s.trayMenu = b; PP.save.soon(); syncTray(true); ui.toast(b === 'full' ? '托盘菜单：完整' : '托盘菜单：精简'); return; }
     if (a === 'sleep') { s.sleepMode = b === 'off' ? Object.assign({}, s.sleepMode || {}, { on: false }) : { on: true, from: +b, to: +c }; ui.toast(b === 'off' ? '睡眠时间：关' : `睡眠时间：${b}:00–${c}:00，这段时间大家都去睡觉，不出声`); PP.save.soon(); syncTray(true); return; }
-    if (a === 'avoid') { s.bandAvoid = b; PP.save.soon(); syncTray(true); return; }
     if (a === 'calmAll') { G.all.forEach((p) => (p.d.calm = false)); PP.save.soon(); syncTray(true); return; }
     switch (id) {
       case 'adopt': ui.adopt(); break;

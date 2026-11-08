@@ -355,19 +355,7 @@
       // 已经领养的用它自己的花色；没领养过的物种再补一个默认花色（同一种不重复出现）
       const have = new Set(G.all.map((p) => p.d.species));
       for (const k of PP.SPECIES_LIST) { if (have.has(k)) continue; const P = PP.SPR.PAL[k]; const c = Object.keys(P).find((x) => x !== 'shiny'); opts.push({ key: 'sp:' + k, label: PP.SPECIES[k].name, species: k, pal: P[c], coat: c }); }
-      // 只画动物本身：透明底、没有框；按它实际占的范围裁好、放大到铺满图标
-      const draw = (o, size) => {
-        const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop });
-        const tmp = document.createElement('canvas'); tmp.width = tmp.height = 64; const tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false;
-        PP.SPR.blit(tc, buf, 0, 0, 2);
-        const d = tc.getImageData(0, 0, 64, 64).data; let x0 = 64, y0 = 64, x1 = 0, y1 = 0;
-        for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (d[(y * 64 + x) * 4 + 3] > 20) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-        const bw = x1 - x0 + 1, bh = y1 - y0 + 1, sc = Math.max(1, Math.floor((size * 0.96) / Math.max(bw, bh)));
-        const cv = document.createElement('canvas'); cv.width = cv.height = size;
-        const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
-        c.drawImage(tmp, x0, y0, bw, bh, Math.round((size - bw * sc) / 2), Math.round((size - bh * sc) / 2), bw * sc, bh * sc);
-        return cv;
-      };
+      const draw = (o, size) => PP.iconCanvas(o, size);
       const box = $(`<div class="appicon"><p class="lead">选一只，托盘图标${navigator.platform.startsWith('Win') ? '、桌面和开始菜单的快捷方式' : ''}就会变成它。</p><div class="grid"></div><div class="row"><button class="small reset">恢复默认图标</button></div><p class="muted tip"></p></div>`);
       const grid = box.querySelector('.grid');
       for (const o of opts) {
@@ -496,4 +484,35 @@
       }
     },
   };
+
+  // 软件图标：圆角方块底色（取这只动物的毛色，调浅）+ 半身像从底边探出来，铺满整个图标
+  (function () {
+    const PP = window.PP;
+    const hex = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const mixc = (a, b, t) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`; };
+    PP.iconCanvas = function (o, size) {
+      const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop });
+      const tmp = document.createElement('canvas'); tmp.width = tmp.height = 64; const tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false;
+      PP.SPR.blit(tc, buf, 0, 0, 2);
+      const d = tc.getImageData(0, 0, 64, 64).data; let x0 = 64, y0 = 64, x1 = 0, y1 = 0;
+      for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) if (d[(y * 64 + x) * 4 + 3] > 20) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+      // 只要头和肩膀：裁掉下半身，让脸尽量大
+      const ch = Math.min(bh, Math.round(Math.max(bw * 0.78, bh * 0.66)));
+      const cv = document.createElement('canvas'); cv.width = cv.height = size;
+      const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
+      const r = size * 0.22, P = o.pal || {};
+      c.save(); c.beginPath(); c.moveTo(r, 0); c.arcTo(size, 0, size, size, r); c.arcTo(size, size, 0, size, r); c.arcTo(0, size, 0, 0, r); c.arcTo(0, 0, size, 0, r); c.closePath(); c.clip();
+      const base = P.base || '#e8a050', light = P.light || '#ffffff';
+      const gr = c.createLinearGradient(0, 0, 0, size); gr.addColorStop(0, mixc(light, '#ffffff', 0.35)); gr.addColorStop(1, mixc(base, '#ffffff', 0.45));
+      c.fillStyle = gr; c.fillRect(0, 0, size, size);
+      // 太浅的动物（白色的）换成淡蓝底，不然看不清
+      const [rr, gg, bb] = hex(base); if (rr + gg + bb > 640) { const g2 = c.createLinearGradient(0, 0, 0, size); g2.addColorStop(0, '#e6f1fb'); g2.addColorStop(1, '#a9cbe8'); c.fillStyle = g2; c.fillRect(0, 0, size, size); }
+      const sc = Math.max(1, (size * 0.9) / Math.max(bw, ch * 1.02));
+      const w = bw * sc, h = ch * sc;
+      c.drawImage(tmp, x0, y0, bw, ch, Math.round((size - w) / 2), Math.round(size - h), Math.round(w), Math.round(h));
+      c.restore();
+      return cv;
+    };
+  })();
 })();

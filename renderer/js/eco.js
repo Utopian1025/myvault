@@ -44,12 +44,12 @@
       stash: true,
     },
     penguin: {
-      home: 'snow', about: '住在雪原上的冰屋里——这里是整个世界唯一常年有雪的地方。每天去冰窟窿钓鱼，吃饱了就从雪坡上肚皮滑下来，一遍又一遍。越冷越开心，下雪天最兴奋；只有打雷会让它回冰屋。很少离开雪原。',
-      likes: '下雪 · 肚皮滑行 · 钓鱼 · 一群人一起走', hates: '热 · 打雷', diet: '冰窟窿里的鱼',
+      home: 'antarctic', open: 1, range: ['antarctic'], about: '住在南极的冰架上，和一大群伙伴挤在鹅卵石垒的小巢里。每天排着队走到冰架边，一个猛子扎进海里抓鱼和磷虾，吃饱了从冰坡上肚皮滑下来。越冷越开心，只有暴风雪会让大家挤成一团。',
+      likes: '下雪 · 肚皮滑行 · 抓鱼 · 一群人一起走', hates: '热 · 被落下', diet: '鱼、磷虾',
       avoid: { storm: 1 }, cold: -60, heat: 99, snowLover: 1,
-      foods: [{ scene: 'snow', spot: 'icehole', kind: 'dive', label: '在冰窟窿里抓鱼', w: 1.5 }],
-      water: [{ scene: 'snow', spot: 'icehole' }],
-      fun: [{ scene: 'snow', spot: 'slidetop', kind: 'slide', label: '从雪坡上肚皮滑下来', w: 1.6 }, { scene: 'snow', spot: 'pond', kind: 'waddle', label: '在冰面上摇摇摆摆地散步', w: 0.8 }, { scene: 'snow', spot: 'snowfield', kind: 'groom', label: '站在雪地里理羽毛', w: 0.6 }],
+      foods: [{ scene: 'antarctic', spot: 'shore', kind: 'dive', label: '从冰架边扎进海里抓鱼', w: 1.5 }],
+      water: [{ scene: 'antarctic', spot: 'shore' }],
+      fun: [{ scene: 'antarctic', spot: 'slidetop', kind: 'slide', label: '从冰坡上肚皮滑下来', w: 1.6 }, { scene: 'antarctic', spot: 'icefield', kind: 'waddle', label: '排着队摇摇摆摆地散步', w: 0.8 }, { scene: 'antarctic', spot: 'penguin_home', kind: 'groom', label: '在巢边理羽毛', w: 0.6 }],
     },
     fox: {
       home: 'forest', about: '住在森林大橡树根下的狐狸洞。清晨和黄昏出来觅食：摘浆果、到草地上听地下的田鼠，一跃扎进去。下雪天会专门去雪地里“扎雪堆”捕猎。白天中午在洞里打盹，或者趴在大石头上晒太阳。下大雨、打雷时不出门。',
@@ -176,9 +176,9 @@
     parrot: Object.assign({ home: 'jungle', about: '住在大树上的树洞里。天一亮就开始叫，嗑坚果、学别的动物说话，飞到河边喝水。最喜欢热闹的地方。', likes: '坚果 · 学说话 · 热闹', hates: '暴雨 · 安静太久', diet: '坚果、种子、果子',
       avoid: { heavyrain: 0.8, storm: 1 }, foods: [F('jungle', 'flowers', 'peck', '在花丛里啄种子', 1.3), F('jungle', 'bigtree', 'peck', '在大树下嗑坚果', 1)], water: [W('jungle', 'river')],
       fun: [F('jungle', 'parrot_home', 'perch', '站在树洞口唱歌', 1.2), F('jungle', 'treehouse', 'perch', '飞到树屋顶上学猴子叫', 0.8)] }, HOTOK),
-    sheep: { home: 'meadow', open: 1, about: '睡在草地边的羊圈里，晚上挤成一团。白天跟着大家在草地上吃草，谁走它就跟着走。', likes: '嫩草 · 挤在一起 · 跟着走', hates: '大雨 · 被落下', diet: '草、三叶草',
-      avoid: { heavyrain: 0.8, storm: 1, heavysnow: 0.7 }, cold: -20, heat: 30, foods: [F('meadow', 'grass', 'graze', '在草地上低头吃草', 1.4), F('meadow', 'clover', 'graze', '在三叶草地吃草', 1)], water: [W('meadow', 'puddle')],
-      fun: [F('meadow', 'hill', 'nap', '在大树下躺着反刍', 1), F('meadow', 'rabbit_home', 'follow', '跟着兔子走', 0.5)] },
+    sheep: { home: 'farm', open: 1, about: '家养的绵羊，睡在农场角落的羊圈里，晚上挤成一团。白天出去草原上吃草，谁走它就跟着走，傍晚自己排队回来。', likes: '嫩草 · 挤在一起 · 跟着走', hates: '大雨 · 被落下', diet: '草、三叶草、干草',
+      avoid: { heavyrain: 0.8, storm: 1, heavysnow: 0.7 }, cold: -20, heat: 30, foods: [F('meadow', 'grass', 'graze', '在草原上低头吃草', 1.4), F('farm', 'pasture', 'graze', '在牧场吃草', 1.2), F('farm', 'hay', 'eat', '在草垛边吃干草', 0.6)], water: [W('farm', 'trough')],
+      fun: [F('farm', 'sheep_home', 'nap', '在羊圈里躺着反刍', 1), F('farm', 'cow_home', 'follow', '跟着奶牛走', 0.5)] },
     cow: { home: 'farm', about: '住在农场的牛棚里。白天在牧场慢悠悠地吃草，然后躺下来反刍，去水槽喝水。嚼东西能嚼一整天。', likes: '嫩草 · 晒太阳 · 慢慢来', hates: '被催 · 打雷', diet: '草、干草',
       avoid: { heavyrain: 0.7, storm: 1, heavysnow: 0.7 }, cold: -15, heat: 32, foods: [F('farm', 'pasture', 'graze', '在牧场慢悠悠地吃草', 1.6), F('farm', 'hay', 'eat', '在草垛边嚼干草', 1, { season: ['winter'] })], water: [W('farm', 'trough')],
       fun: [F('farm', 'pasture', 'nap', '躺着反刍', 1.2), F('meadow', 'grass', 'graze', '去草地散步吃草', 0.5, { season: ['spring', 'summer'] })] },
@@ -206,10 +206,32 @@
     seagull: Object.assign({ home: 'beach', sea: true, about: '住在海边木桩顶上的草窝。在浪花边找小鱼小虾，站在漂流木上发呆，看到谁手里有吃的就凑过去。', likes: '鱼 · 风 · 抢吃的', hates: '暴风雨', diet: '鱼、虾、薯条（嘘）',
       avoid: { storm: 1 }, foods: [F('beach', 'waves', 'peck', '在浪花边啄小鱼', 1.4), F('beach', 'tidepool', 'peck', '在潮池里找小虾', 1)], water: [W('beach', 'tidepool')],
       fun: [F('beach', 'seagull_home', 'perch', '站在木桩上吹风', 1.2), F('beach', 'driftwood', 'watch', '站在漂流木上发呆', 0.8)] }, HOTOK, { cold: -10 }),
-    seal: Object.assign({ home: 'beach', sea: true, open: 1, about: '睡在海滩的礁石上。白天趴着晒太阳翻个身，饿了就下海抓鱼，游完再爬回礁石，拍拍肚子。', likes: '晒太阳 · 鱼 · 拍肚子', hates: '被打扰', diet: '鱼、乌贼',
-      avoid: {}, foods: [F('beach', 'waves', 'fish', '在浪里抓鱼', 1.3), F('sea', 'kelp', 'hunt', '下海在海带林里抓鱼', 0.8)], water: [W('beach', 'waves')],
-      fun: [F('beach', 'seal_home', 'nap', '趴在礁石上晒太阳', 1.6), F('beach', 'sand', 'roll', '在沙滩上翻身', 0.6)] }, { cold: -30, heat: 34 }),
-    gardeneel: { home: 'sea', sea: true, open: 1, about: '一大群住在海底沙地的小洞里，从不离开家。整天把身子从洞里探出来，随着水流摇摆，吃漂过来的浮游生物；一有动静就缩回去。', likes: '水流 · 一大群 · 安静', hates: '被盯着看', diet: '浮游生物',
+    seal: Object.assign({ home: 'antarctic', open: 1, range: ['antarctic'], about: '住在南极冰面上自己咬开的呼吸孔旁边。白天趴在冰上晒太阳、翻身，饿了就从洞里钻下去抓鱼，再从洞里探出头来换气。', likes: '晒太阳 · 鱼 · 拍肚子', hates: '被打扰', diet: '鱼、乌贼、磷虾',
+      avoid: {}, foods: [F('antarctic', 'seal_home', 'fish', '钻进呼吸孔下面抓鱼', 1.4), F('antarctic', 'shore', 'fish', '在冰架边抓鱼', 1)], water: [W('antarctic', 'seal_home')],
+      fun: [F('antarctic', 'icefield', 'nap', '趴在冰上晒太阳', 1.6), F('antarctic', 'icefield', 'roll', '在冰上翻身', 0.6)] }, { cold: -60, heat: 20 }),
+    arctichare: Object.assign({ home: 'snow', about: '住在北极冰原雪地里刨出来的浅雪窝。冬天一身白毛，躲在雪窝里只露出黑黑的耳朵尖；晚上出来刨开雪吃下面的苔藓和柳树芽，跑起来一蹦好远。', likes: '苔藓 · 蹦跶 · 雪窝', hates: '北极狐 · 暴风雪', diet: '苔藓、柳芽、草根',
+      avoid: { storm: 1, heavysnow: 0.6 }, foods: [F('snow', 'snowfield', 'graze', '刨开雪吃下面的苔藓', 1.4)], water: [W('snow', 'pond')],
+      fun: [F('snow', 'slideend', 'zoom', '在雪坡下蹦来蹦去', 1), F('snow', 'arctichare_home', 'groom', '在雪窝边洗脸', 0.8)] }, COLDOK),
+    albatross: Object.assign({ home: 'antarctic', range: ['antarctic', 'beach'], about: '翅膀展开比人还长的大海鸟。在南极小土丘的草巢里孵蛋，其它时间都在海上滑翔，偶尔飞到海岸边歇脚。', likes: '大风 · 滑翔 · 鱼', hates: '没有风', diet: '鱼、乌贼',
+      avoid: {}, foods: [F('antarctic', 'shore', 'peck', '贴着海面掠过抓鱼', 1.4)], water: [W('antarctic', 'shore')],
+      fun: [F('antarctic', 'albatross_home', 'perch', '站在草巢上吹风', 1.2), F('beach', 'driftwood', 'watch', '飞到海岸边歇歇脚', 0.5, { when: 'windy' })] }, COLDOK),
+    marmot: Object.assign({ home: 'meadow', stash: true, about: '住在草原下面的地洞里，洞口有好几个。早上出来站成小柱子晒太阳、吹口哨放哨，吃饱了就躺在洞口发呆。冬天一整个冬天都在冬眠。', likes: '晒太阳 · 站岗 · 嫩草', hates: '下雨 · 老鹰', diet: '草、花、草根',
+      hibernate: 1, avoid: { rain: 0.8, storm: 1 }, foods: [F('meadow', 'grass', 'graze', '低头吃嫩草', 1.3), F('meadow', 'flowers', 'graze', '啃花朵', 1)], water: [W('meadow', 'puddle')],
+      fun: [F('meadow', 'marmot_home', 'watch', '站在洞口吹口哨放哨', 1.4), F('meadow', 'hill', 'nap', '躺在坡上晒太阳', 0.8, { when: 'sunny' })] }, { cold: -30, heat: 30 }),
+    bat: { home: 'cave', range: ['cave', 'mountain', 'forest', 'lake'], open: 1, about: '白天倒挂在洞顶的岩缝里睡觉，翅膀裹着身体。天一黑就飞出洞口，去森林和湖面上抓飞虫，天亮前再飞回来挂好。', likes: '夜晚 · 飞虫 · 倒挂', hates: '太阳 · 吵闹', diet: '飞虫',
+      avoid: { storm: 1, heavyrain: 1 }, cold: -10, heat: 35, nocturnal: 1,
+      foods: [F('lake', 'reeds', 'hunt', '在湖面上抓飞虫', 1.3, { when: 'night' }), F('forest', 'brook', 'hunt', '在小溪上空抓蚊子', 1, { when: 'night' })], water: [W('cave', 'pool')],
+      fun: [F('cave', 'bat_home', 'hang', '倒挂着理翅膀', 1.4), F('cave', 'pool', 'hunt', '贴着水潭飞', 0.6)] },
+    brownbear: Object.assign({ home: 'cave', range: ['cave', 'mountain', 'forest'], hibernate: 1, about: '住在洞穴深处铺着干草的熊窝。春天醒来饿坏了，去森林里摘浆果、去高山溪流边等鱼；秋天拼命吃，冬天回洞里冬眠一整个冬天。', likes: '浆果 · 蜂蜜 · 鱼 · 睡觉', hates: '被吵醒', diet: '浆果、鱼、蜂蜜、坚果',
+      avoid: { storm: 1 }, foods: [F('forest', 'berries', 'berries', '在森林里摘浆果吃', 1.4), F('mountain', 'stream', 'fish', '站在溪水里等鱼', 1.2)], water: [W('cave', 'pool')],
+      fun: [F('cave', 'brownbear_home', 'nap', '在熊窝里翻个身', 1), F('forest', 'sunrock', 'groom', '靠着大树蹭痒痒', 0.8)] }, COLDOK),
+    porcupine: Object.assign({ home: 'cave', range: ['cave', 'mountain', 'forest'], about: '住在洞穴口附近的石缝里。夜里出去啃树皮、找果子，一紧张就把满身的长刺竖起来，沙沙作响。', likes: '树皮 · 果子 · 安静', hates: '被摸 · 狗', diet: '树皮、草根、果子',
+      avoid: { rain: 0.6, storm: 1 }, foods: [F('forest', 'log', 'forage', '啃倒木的树皮', 1.3), F('cave', 'mushrooms', 'forage', '在洞里找蘑菇', 0.8)], water: [W('cave', 'pool')],
+      fun: [F('cave', 'porcupine_home', 'groom', '在石缝边整理长刺', 1), F('cave', 'entrance', 'watch', '在洞口看外面', 0.6)] }, { cold: -15, heat: 35 }),
+    otter: Object.assign({ home: 'beach', sea: true, about: '住在海岸边礁石缝里的石窝。在浪里仰面漂着，把贝壳放在肚子上用石头敲开吃；睡觉时会抓着海带，免得漂走。', likes: '贝壳 · 漂着 · 玩石头', hates: '暴风雨', diet: '贝类、海胆、螃蟹',
+      avoid: { storm: 1 }, foods: [F('beach', 'waves', 'fish', '仰面漂在浪里敲贝壳吃', 1.4), F('sea', 'kelp', 'hunt', '潜到海带林里找海胆', 0.8)], water: [W('beach', 'waves')],
+      fun: [F('beach', 'tidepool', 'splash', '在潮池里玩石头', 1.2), F('beach', 'otter_home', 'groom', '在石窝边梳毛', 0.8)] }, { cold: -20, heat: 32 }),
+    gardeneel: { home: 'sea', sea: true, open: 1, range: ['sea'], about: '一大群住在海底沙地的小洞里，从不离开家。整天把身子从洞里探出来，随着水流摇摆，吃漂过来的浮游生物；一有动静就缩回去。', likes: '水流 · 一大群 · 安静', hates: '被盯着看', diet: '浮游生物',
       avoid: {}, cold: -99, heat: 99, foods: [F('sea', 'gardeneel_home', 'forage', '探出身子吃漂过来的浮游生物', 2)], water: [W('sea', 'gardeneel_home')],
       fun: [F('sea', 'gardeneel_home', 'watch', '随着水流摇摆', 1.6)] },
     shark: { home: 'sea', sea: true, open: 1, about: '在礁石洞边睡觉（其实是慢慢游着睡）。傍晚出来巡游，绕着沉船和珊瑚转圈，是个爱巡游的老实人。', likes: '巡游 · 黄昏 · 沉船', hates: '被说凶', diet: '小鱼',
@@ -222,7 +244,7 @@
     dog: { spring: [{ scene: 'meadow', spot: 'flowers', kind: 'sniff', label: '春天到处闻花', w: 0.8 }], summer: [{ scene: 'beach', spot: 'waves', kind: 'splash', label: '夏天跑去海边追浪花', w: 1 }], autumn: [{ scene: 'forest', spot: 'leaves', kind: 'zoom', label: '秋天在落叶堆里疯跑', w: 1 }], winter: [{ scene: 'snow', spot: 'snowfield', kind: 'roll', label: '冬天去雪原打滚', w: 0.8 }] },
     rabbit: { spring: [{ scene: 'meadow', spot: 'rabbit_home', kind: 'dig', label: '春天给洞里挖个新房间', w: 1 }], summer: [{ scene: 'forest', spot: 'shade', kind: 'nap', label: '夏天躲到树荫下乘凉', w: 0.8 }], autumn: [{ scene: 'farm', spot: 'veg', kind: 'graze', label: '秋天去菜园偷胡萝卜', w: 1 }], winter: [{ scene: 'meadow', spot: 'rabbit_home', kind: 'groom', label: '冬天在洞口晒一会儿太阳', w: 0.6, when: 'sunny' }] },
     hamster: { spring: [{ scene: 'meadow', spot: 'grass', kind: 'zoom', label: '春天在草地上跑圈', w: 0.8 }], summer: [{ scene: 'meadow', spot: 'sunflowers', kind: 'seeds', label: '夏天在向日葵下等瓜子掉下来', w: 1 }], autumn: [{ scene: 'meadow', spot: 'sunflowers', kind: 'seeds', label: '秋收！拼命往洞里囤瓜子', w: 2 }], winter: [] },
-    penguin: { spring: [{ scene: 'snow', spot: 'pond', kind: 'waddle', label: '春天排着队散步', w: 0.8 }], summer: [{ scene: 'snow', spot: 'icehole', kind: 'dive', label: '夏天一个猛子扎进冰水里', w: 1 }], autumn: [{ scene: 'snow', spot: 'snowfield', kind: 'groom', label: '秋天换毛，到处是绒毛', w: 0.8 }], winter: [{ scene: 'snow', spot: 'slidetop', kind: 'slide', label: '冬天滑雪坡滑到停不下来', w: 2 }] },
+    penguin: { spring: [F('antarctic', 'icefield', 'waddle', '春天排着长队走向冰架边', 1)], summer: [F('antarctic', 'shore', 'dive', '夏天一个猛子扎进海里', 1)], autumn: [F('antarctic', 'penguin_home', 'groom', '秋天换毛，到处是绒毛', 0.8)], winter: [F('antarctic', 'penguin_home', 'nap', '冬天大家挤成一团取暖', 1.2)] },
     fox: { spring: [{ scene: 'meadow', spot: 'flowers', kind: 'pounce', label: '春天在花丛里扑蝴蝶', w: 0.9 }], summer: [{ scene: 'mountain', spot: 'meadow', kind: 'patrol', label: '夏天去高山草甸巡视', w: 0.8 }], autumn: [{ scene: 'forest', spot: 'berries', kind: 'berries', label: '秋天摘浆果养膘', w: 1.4 }], winter: [{ scene: 'snow', spot: 'snowfield', kind: 'hunt', label: '冬天一头扎进雪堆抓老鼠', w: 1 }] },
     frog: { spring: [{ scene: 'lake', spot: 'frog_home', kind: 'croak', label: '春天开演唱会，呱呱个不停', w: 2 }], summer: [{ scene: 'jungle', spot: 'river', kind: 'swim', label: '夏天去雨林的河里玩', w: 0.6 }], autumn: [{ scene: 'lake', spot: 'lily', kind: 'nap', label: '秋天在荷叶上养膘准备冬眠', w: 1 }], winter: [] },
     chick: { spring: [{ scene: 'meadow', spot: 'grass', kind: 'follow', label: '春天跟着大家去草地散步', w: 1 }], summer: [{ scene: 'farm', spot: 'yard', kind: 'dust', label: '夏天洗沙浴降温', w: 1 }], autumn: [{ scene: 'farm', spot: 'apple', kind: 'peck', label: '秋天在苹果树下找虫子', w: 1 }], winter: [{ scene: 'farm', spot: 'hay', kind: 'nap', label: '冬天挤在干草堆边取暖', w: 0.8 }] },
@@ -245,7 +267,11 @@
     tiger: { summer: [F('jungle', 'river', 'swim', '夏天整天泡在河里', 1.6)] },
     monkey: { summer: [F('jungle', 'flowers', 'berries', '夏天果子熟了，吃个够', 1.4)] },
     parrot: { spring: [F('jungle', 'parrot_home', 'perch', '春天在树洞口唱求偶歌', 1.2)] },
-    sheep: { spring: [F('meadow', 'grass', 'groom', '春天剪完毛，凉快多了', 1)], winter: [F('farm', 'hay', 'eat', '冬天去农场吃干草', 1)] },
+    sheep: { spring: [F('farm', 'sheep_home', 'groom', '春天剪完毛，凉快多了', 1)], winter: [F('farm', 'hay', 'eat', '冬天在农场吃干草', 1)] },
+    brownbear: { autumn: [F('forest', 'berries', 'berries', '秋天拼命吃浆果，准备冬眠', 1.6)] },
+    marmot: { autumn: [F('meadow', 'marmot_home', 'dig', '秋天往洞里铺干草', 1.2)] },
+    bat: { summer: [F('lake', 'reeds', 'hunt', '夏夜湖上的飞虫最多', 1.2, { when: 'night' })] },
+    albatross: { spring: [F('antarctic', 'albatross_home', 'perch', '春天和老伴在巢边跳求偶舞', 1.2)] },
     cow: { summer: [F('farm', 'mud', 'nap', '夏天躺在树荫下反刍', 0.8)], winter: [F('farm', 'cow_home', 'eat', '冬天在牛棚里嚼干草', 1.2)] },
     lion: { summer: [F('savanna', 'acacia', 'nap', '雨季在树荫下睡一整天', 1.2)] },
     zebra: { autumn: [F('savanna', 'plain', 'waddle', '旱季跟着大家去找水草', 1.2)] },
@@ -255,7 +281,7 @@
     fennec: { winter: [F('desert', 'fennec_home', 'nap', '沙漠的冬夜很冷，窝在洞里', 1)] },
     meerkat: { winter: [F('desert', 'meerkat_home', 'watch', '冬天早上在洞口排队晒太阳', 1.4)] },
     seagull: { summer: [F('beach', 'waves', 'peck', '夏天跟着游客抢吃的', 1.2)] },
-    seal: { winter: [F('snow', 'icehole', 'swim', '冬天去雪原的冰窟窿游泳', 0.6)] },
+    seal: { winter: [F('antarctic', 'seal_home', 'groom', '冬天守着呼吸孔，不让它冻上', 1)] },
     gardeneel: {},
     shark: { summer: [F('sea', 'clam', 'patrol', '夏天在砗磲边巡游', 1)] },
   });
@@ -279,8 +305,19 @@
   const on = () => !!(G.save && S().mode !== 'mini');
   const view = () => (PP.scene && PP.scene.view()) || 'forest';
   const ROUTE = () => PP.ROUTE;
-  const hops = (a, b) => Math.abs(ROUTE().indexOf(a) - ROUTE().indexOf(b));
-  const nextHop = (a, b) => { const r = ROUTE(), i = r.indexOf(a), j = r.indexOf(b); return r[i + Math.sign(j - i)] || b; };
+  const hops = (a, b) => PP.hops(a, b);
+  const nextHop = (a, b) => PP.nextHop(a, b);
+  // 谁能去哪儿：海里的只在海里和海岸；南极、洞穴、北极只有本地居民（北极：耐寒的也能去；下雪时狗和狐狸会去玩）
+  const RESTRICT = { sea: 1, antarctic: 1, cave: 1, snow: 1 };
+  function canBe(sp, sc, e) {
+    const h = HAB[sp] || HAB.cat;
+    if (sc === h.home) return true;
+    if (h.range) return h.range.includes(sc);
+    if (h.sea) return sc === 'sea' || sc === 'beach';
+    if (!RESTRICT[sc]) return !h.homebody;
+    if (sc === 'snow') return h.cold <= -30 || ((sp === 'dog' || sp === 'fox') && snowy(e || env()));
+    return false;
+  }
   const homeScene = (p) => (HAB[p.d.species] || HAB.cat).home;
   const env = (sc) => (sc ? PP.env.at(sc) : PP.env.get());
   const lay = () => (PP.scene && PP.scene.layout()) || null;
@@ -288,7 +325,7 @@
   const sunny = (e) => ['clear', 'partly'].includes(e.weather.kind) && e.time.phase === 'day';
   const wet = (e) => ['drizzle', 'rain', 'heavyrain', 'storm'].includes(e.weather.kind) || e.fx.rain > 0;
   const snowy = (e) => ['snow', 'heavysnow'].includes(e.weather.kind) || e.season === 'winter';
-  const COND = { sunny, wet, snowy };
+  const COND = { sunny, wet, snowy, night: (e) => e.time.phase === 'night' || e.time.phase === 'dusk', windy: (e) => e.weather.kind === 'windy' || (e.fx && e.fx.wind >= 2) };
   PP.eco = {};
 
   // ---------- 天气、冬眠 ----------
@@ -324,7 +361,7 @@
     if (bad && !(h.rainLover && wet(e) && bad !== '太冷了' && e.weather.kind !== 'storm')) return home('shelter', `${bad}，躲在家里`, U.rand(60, 120));
     const here = p.d.scene || h.home;
     const cands = [];
-    const ok = (o) => (o.scene !== 'sea' || h.sea) && (!h.sea || o.scene === 'sea' || o.scene === 'beach') && (!o.season || o.season.includes(season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e)) && (o.scene === 'snow' ? h.home === 'snow' || snowy(e) || sp === 'dog' || sp === 'fox' : true);
+    const ok = (o) => canBe(sp, o.scene, e) && (!o.season || o.season.includes(season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e));
     const far = (o) => 1 / (1 + hops(here, o.scene) * 0.8 + (o.scene !== h.home ? 0.3 : 0));
     const push = (o, kind, wgt, label) => cands.push([{ scene: o.scene, spot: o.spot, kind, label, dur: U.rand(...(KIND[kind] || KIND.groom).d) }, wgt]);
     // 饿了：去觅食（越饿越想去远一点的好地方）
@@ -336,7 +373,7 @@
     for (const f of h.fun) if (ok(f)) push(f, f.kind, funNeed * (f.w || 1) * far(f) * (0.6 + p.tr.playful * 0.6), f.label);
     for (const f of ((SEASONAL[sp] || {})[season] || [])) if (ok(f)) push(f, f.kind, (0.5 + funNeed * 0.6) * (f.w || 1) * far(f), f.label);
     // 串门：去找好朋友
-    const livable = (sc) => (sc === 'sea' ? !!h.sea : !h.sea || sc === 'beach') && (sc !== 'snow' || h.home === 'snow' || ((sp === 'dog' || sp === 'fox') && snowy(e)));
+    const livable = (sc) => canBe(sp, sc, e);
     const friend = G.all.filter((o) => o !== p && !o.d.hidden && !o.d.inHome && o.d.scene && livable(o.d.scene) && p.relWith(o) > 58 && hops(here, o.d.scene) <= 1).sort((a, b) => p.relWith(b) - p.relWith(a))[0];
     if (friend && n.social < 80) cands.push([{ scene: friend.d.scene, kind: 'visit', friend: friend.d.id, label: `去找${friend.name}玩`, dur: U.rand(20, 40) }, (0.3 + p.tr.extro * 0.6) * ((100 - n.social) / 100) * 1.4]);
     // 回家歇会儿
@@ -350,7 +387,7 @@
   function spotPos(id) {
     const l = lay(); if (!l) return null;
     const s = l.L.spots[id]; if (!s) return null;
-    return { x: s.c * l.g.u, r: s.r, water: !!s.water, perch: !!s.perch, c: s.c, id };
+    return { x: s.c * l.g.u, r: s.r, water: !!s.water, perch: !!s.perch, hang: !!s.hang, c: s.c, id };
   }
   function rowY(r) { const l = lay(); return l ? l.g.y0 + r * l.g.u : G.ground; }
   // 宠物脚下的“地面”：陆地分前后好几排（lane），水里、高处另算
@@ -499,8 +536,8 @@
   }
   // 从路牌那边走进来
   function enterFromEdge(p, from) {
-    const side = PP.ROUTE.indexOf(from) < PP.ROUTE.indexOf(p.d.scene) ? -1 : 1;
-    p.x = side < 0 ? 18 : G.W - 18; p.lane = U.rand(0.4, 0.95); p.surf = null; p.wade = 0;
+    const ex = (PP.EXITS[p.d.scene] || []).find((x) => x[1] === from), side = ex ? ex[0] : -1;
+    p.x = PP.NEST && PP.NEST[from] === p.d.scene && PP.scene.exitX ? PP.scene.exitX(from) : side < 0 ? 18 : G.W - 18; p.lane = U.rand(0.4, 0.95); p.surf = null; p.wade = 0;
   }
 
   // 显示出来以后的第一件事：从家里出来 / 从路边走进来，然后继续干活
@@ -579,7 +616,7 @@
       return;
     }
     yield p.goto(tx, run);
-    if (pos.perch) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, c: pos.c, id: pos.id }, null); }
+    if (pos.perch) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, hang: pos.hang, c: pos.c, id: pos.id }, null); }
   }
   function wadeOf(p, task) {
     const sp = p.d.species, S = SZ();

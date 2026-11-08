@@ -183,7 +183,7 @@
 
     // 走路
     goto(x, run = false, lane) {
-      this.target = U.clamp(x, 20, G.W - 20); this.running = run;
+      this.target = U.clamp(x, 20, G.W - 20); this.running = run; this.hang = false;
       // 极简模式：只在右下角那一小块走动
       if (G.save && G.save.settings.mode === 'mini' && PP.miniZone) { const [a, b] = PP.miniZone(); this.target = U.clamp(this.target, a, b); }
       // 场景里走路时顺便换一排（往前 / 往后），看起来是在场景里走，不是在一条线上
@@ -357,6 +357,10 @@
       }
       // 工作的时候：不来找你、不追鼠标
       if (PP.F && PP.F.working && PP.F.working()) for (let i = sc.length - 1; i >= 0; i--) if (['cursor_play', 'seek_user', 'bug', 'special'].includes(sc[i][0])) sc.splice(i, 1);
+      // 动作风格：不会的就不做（花园鳗不会跑来跑去，鲨鱼不会追球……）
+      const no = PP.MOTION_NO && PP.MOTION_NO[PP.motionOf(this.d.species)];
+      if (no && no.length) for (let i = sc.length - 1; i >= 0; i--) if (no.includes(sc[i][0])) sc.splice(i, 1);
+      if (!sc.length) add('idle', 1);
       const roam = this.sp.roam != null ? this.sp.roam : 1;
       for (const it of sc) if (['wander', 'explore', 'play', 'special'].includes(it[0])) it[1] *= roam;
       if (this.sulk > 0) { sc.length = 0; add('alone', 1); add('idle', 0.5); }

@@ -206,12 +206,45 @@
     },
     tail(b, C, g, h) { const side = -g.f; h.rect(b, Math.round(g.bx + side * (g.brx - 0.3)), Math.round(g.by - 1), 1, 3, C.base); },
   };
+  // 骆驼：侧面站着——长腿、驼峰、往前伸的长脖子和长嘴巴，一眼就认得出来
   X.camel = {
-    geo(g) { if (!g.lie) g.hy -= 1.2; g.hrx -= 0.6; g.brx += 1; },
-    ears(b, C, g, h) { roundEars(b, C, g, h, 1.2, 5.8, 5.6); },
-    back(b, C, g, h) { const { bx, by, brx, bry, f } = g, s = -f; if (C.humps === 2) { h.ell(b, bx + s * (brx + 0.4), by - bry + 1.4, 2.8, 2.6, C.base); h.ell(b, bx + s * (brx + 1.6), by - 0.4, 2.6, 2.4, C.base); } else h.ell(b, bx + s * (brx + 0.8), by - bry + 2.2, 3.6, 3.4, C.base); if (!g.lie) h.rect(b, Math.round(g.hx - 2.5), Math.round(g.hy + 3), 5, Math.max(1, Math.round(by - bry - g.hy - 1)), C.base); },
-    tail(b, C, g, h) { thinTail(b, C, g, h, C.dark); },
-    coat(b, C, g, h) { bellyLight(b, C, g, h); muzzle(b, C, g, h, 3.4, 2.4, 3.4, C.light); },
+    custom(b, p, g, h) {
+      const C = p.pal, f = g.f, t = g.t, anim = g.anim, lie = anim === 'sleep' || anim === 'lie';
+      const walk = ['walk', 'run'].includes(anim), st = walk ? Math.floor(t * (anim === 'run' ? 10 : 6)) % 2 : 0;
+      const cx = 15 - f * 1, cy = lie ? 24 : 18.6 + (anim === 'jump' ? -2 : 0);
+      const leg = (x, ph) => { const lift = walk && ph === st ? 1 : 0; h.rect(b, Math.round(x), Math.round(cy + 2), 2, Math.max(1, 29 - Math.round(cy + 2) - lift), C.base); h.rect(b, Math.round(x), 29 - lift, 2, 1, C.dark); h.rect(b, Math.round(x), Math.round(cy + 6), 2, 1, C.dark); };
+      // 尾巴
+      const tx = cx - f * 8.4; for (let k = 0; k < 5; k++) b.set(Math.round(tx - f * (k > 2 ? 1 : 0)), Math.round(cy - 1 + k), C.dark);
+      if (!lie) { leg(cx - f * 6, 0); leg(cx + f * 4, 1); }
+      h.ell(b, cx, cy, 8.4, lie ? 3.8 : 4.6, C.base);
+      if (!lie) { leg(cx - f * 4.4 - (f > 0 ? 0 : 1), 1); leg(cx + f * 5.6 - (f > 0 ? 1 : 0), 0); }
+      else { h.ell(b, cx - f * 4, cy + 3, 3, 1.4, C.base); h.ell(b, cx + f * 4, cy + 3, 3, 1.4, C.base); }
+      // 驼峰（一个或两个）
+      if (C.humps === 2) { h.ell(b, cx - f * 3.4, cy - 4, 3.2, 3.4, C.base); h.ell(b, cx + f * 2.2, cy - 4, 3, 3.2, C.base); h.ell(b, cx - f * 3.4, cy - 6.2, 2, 1, C.light, true); h.ell(b, cx + f * 2.2, cy - 6.2, 1.8, 1, C.light, true); }
+      else { h.ell(b, cx - f * 0.6, cy - 4.4, 4.4, 4, C.base); h.ell(b, cx - f * 1.2, cy - 6.8, 2.6, 1.2, C.light, true); }
+      // 脖子：从胸前弯上去，再往前伸
+      const nx0 = cx + f * 6.4, ny0 = cy - 1.6, hx = cx + f * (lie ? 10.6 : 10), hy = lie ? cy - 9 : cy - 10.6;
+      for (let k = 0; k <= 8; k++) { const a = k / 8, x = nx0 + (hx - f * 1.2 - nx0) * Math.pow(a, 1.4), y = ny0 + (hy + 1.4 - ny0) * a; h.ell(b, x, y, 1.9, 1.9, C.base); }
+      h.ell(b, hx, hy, 3.6, 3, C.base);
+      h.ell(b, hx + f * 3.6, hy + 1.2, 2.6, 2, C.light);
+      // 小耳朵
+      h.rect(b, Math.round(hx - f * 2.4) - (f > 0 ? 1 : 0), Math.round(hy - 3.6), 1, 2, C.dark);
+      g.hx = hx; g.hy = hy;
+      p.__geo = { kind: 'camel', hx, hy, f, lie, hatX: hx, hatY: hy - 2 };
+    },
+    face(b, p, g, h) {
+      const C = p.pal, q = p.__geo, eyes = p.eyes || 'open', f = q.f;
+      const ex = Math.round(q.hx + f * 0.6), ey = Math.round(q.hy - 0.6);
+      const closed = ['closed', 'sleepy', 'happy'].includes(eyes);
+      if (closed) { b.set(ex - 1, ey, h.K); b.set(ex, ey + (eyes === 'happy' ? -1 : 0), h.K); b.set(ex + 1, ey, h.K); }
+      else { h.rect(b, ex - 1, ey - 1, 2, 3, h.K); b.set(ex - (f > 0 ? 1 : 0), ey - 1, '#ffffff'); h.rect(b, ex - 1, ey - 2, 3, 1, C.dark); }
+      // 长睫毛
+      b.set(ex + f * 2, ey - 2, h.K);
+      const mx = Math.round(q.hx + f * 5.2), my = Math.round(q.hy + 1.4);
+      b.set(mx, my - 1, C.dark); // 鼻孔
+      if (p.mouth === 'chew' && Math.floor((p.t || 0) * 8) % 2) h.rect(b, mx - f * 2, my + 1, 2, 1, h.K); else b.set(mx - f, my + 1, h.K);
+      return true;
+    },
   };
   X.monkey = {
     ears(b, C, g, h) { const { hx, hy, hrx } = g; for (const s of [-1, 1]) ear2(b, h, hx + s * (hrx + 0.8), hy, 2, 2.4, C.base, C.inner); },
@@ -265,7 +298,7 @@
       custom(b, p, g, h) {
         const C = p.pal, f = g.f, t = g.t, anim = g.anim, lie = anim === 'sleep' || anim === 'lie';
         let [cy, ry, rx] = h.blobFit(g, p, lie ? 22.6 : 20.4, lie ? 6.4 : 7.6, lie ? 8.6 : 7.4);
-        const cx = 16 + (g.jsk || 0) * 0.5, fly = ['jump', 'fall'].includes(anim) || p.struggle;
+        const cx = 16 + (g.jsk || 0) * 0.5, fly = ['jump', 'fall'].includes(anim) || p.struggle || p.flying;
         const flap = fly || ['walk', 'run', 'dance'].includes(anim) ? Math.floor(t * 10) % 2 : 0;
         // 尾羽
         const side = -f;
@@ -332,11 +365,60 @@
     },
   };
 
+  // ---------- 新来的：借用相近的画法 ----------
+  X.arctichare = { as: 'rabbit' };
+  X.marmot = { as: 'hamster', geo(g) { if (!g.lie) { g.hy -= 1.2; g.by -= 0.4; g.bry += 0.8; } } };
+  // 豪猪：刺猬的身体，背上竖着又长又粗的黑白长刺
+  X.porcupine = { as: 'hedgehog' };
+  X.brownbear = X.polarbear;
+  X.albatross = bird({ tail: 3 });
+  // 海獭：小圆耳朵、白白的脸、粗尾巴
+  X.otter = {
+    geo(g) { g.hrx -= 0.4; },
+    ears(b, C, g, h) { roundEars(b, C, g, h, 1.4, 6, 4.6, false); },
+    tail(b, C, g, h) { const side = -g.f; if (g.tailMode === 'lie') { h.ell(b, g.bx + side * 6, g.by + 3, 5, 1.4, C.base); return; } h.ell(b, g.bx + side * (g.brx + 2), g.by + 2.4, 4, 1.8, C.base); },
+    coat(b, C, g, h) { const { hx, hy, f } = g; h.ell(b, hx + f * 0.6, hy + 1.4, g.hrx - 1.6, g.hry - 1.8, C.light, true); bellyLight(b, C, g, h, 0.8); for (const s2 of [-1, 1]) { b.setOn(hx + f * 0.8 + s2 * 4, hy + 3, C.dark); b.setOn(hx + f * 0.8 + s2 * 5, hy + 3.6, C.dark); } },
+  };
+  // 蝙蝠：一团小毛球 + 两只尖耳朵；飞的时候张开翅膀，在家里倒挂着、用翅膀裹住自己
+  X.bat = {
+    custom(b, p, g, h) {
+      const C = p.pal, t = g.t, anim = g.anim, hang = !p.held && (p.hang || anim === 'hang' || !!(p.surf && p.surf.perch));
+      const fly = !hang && (['jump', 'fall', 'walk', 'run'].includes(anim) || p.struggle || p.flying);
+      const flap = Math.floor(t * 12) % 2;
+      const cx = 16, cy = hang ? 12 : fly ? 17 + flap : 22, rx = 5.6, ry = 5.4;
+      if (fly) {
+        for (const s2 of [-1, 1]) { h.poly(b, [[cx + s2 * 3, cy - 2], [cx + s2 * 14, cy - 6 + flap * 6], [cx + s2 * 12, cy + 2 + flap * 3], [cx + s2 * 8, cy + 1], [cx + s2 * 5, cy + 3]], C.wing); for (let k = 0; k < 3; k++) h.rect(b, Math.round(cx + s2 * (5 + k * 3)), Math.round(cy - 2 + (flap ? k : -k) * 0.6), 1, 3, C.dark); }
+      } else {
+        // 收起来的翅膀裹在身体两边
+        h.ell(b, cx - rx + 0.6, cy + 0.6, 2.2, ry, C.wing); h.ell(b, cx + rx - 0.6, cy + 0.6, 2.2, ry, C.wing);
+      }
+      h.ell(b, cx, cy, rx, ry, C.base);
+      const ed = hang ? 1 : -1; // 倒挂时耳朵朝下
+      for (const s2 of [-1, 1]) { h.poly(b, [[cx + s2 * 1.2, cy + ed * 3.6], [cx + s2 * 5, cy + ed * 10], [cx + s2 * 5.2, cy + ed * 2.4]], C.base); h.poly(b, [[cx + s2 * 2.4, cy + ed * 4], [cx + s2 * 4.6, cy + ed * 8.4], [cx + s2 * 4.6, cy + ed * 3.6]], C.inner); }
+      if (hang) { h.rect(b, cx - 2, cy - ry - 3, 1, 3, C.dark); h.rect(b, cx + 1, cy - ry - 3, 1, 3, C.dark); }
+      g.hx = cx; g.hy = cy + (hang ? 1 : -0.6);
+      p.__geo = { kind: 'bat', cx, cy, rx, ry, hang, hatX: cx, hatY: hang ? cy + ry : cy - ry + 3 };
+    },
+    face(b, p, g, h) {
+      const C = p.pal, q = p.__geo, eyes = p.eyes || 'open', look = p.look || [0, 0], ey = Math.round(g.hy), mx = Math.round(g.hx);
+      h.drawEye(b, mx - 2, ey, eyes, look, true, C, C.base); h.drawEye(b, mx + 2, ey, eyes, look, false, C, C.base);
+      const my = q.hang ? ey - 2 : ey + 2; b.set(mx, my, C.nose); b.set(mx + 1, my + (q.hang ? -1 : 1), '#ffffff');
+      return true;
+    },
+  };
+
   PP.BEASTS = X;
 
   // ---------- 花色 ----------
   const P = (o) => Object.assign({ inner: '#f2a0a8', nose: '#3a2a2a', paw: o.base }, o);
   Object.assign(PP.SPR.PAL, {
+    arctichare: { white: P({ base: '#f6f8fb', dark: '#c8d0dc', light: '#ffffff', paw: '#ffffff', inner: '#2a2a32', nose: '#e8a0ac', pattern: 'solid', name: '北极兔' }), shiny: P({ base: '#e8f4ff', dark: '#a8c8e8', light: '#ffffff', paw: '#ffffff', inner: '#7ab8e8', nose: '#e8a0c0', pattern: 'solid', name: '冰晶兔' }) },
+    marmot: { brown: P({ base: '#a8804e', dark: '#6a4a2a', light: '#e8d0a8', paw: '#5a3a24', inner: '#c8907a', nose: '#3a2a1a', pattern: 'bib', name: '土拨鼠' }), shiny: P({ base: '#e8c8f0', dark: '#a880b8', light: '#fff4ff', paw: '#a880b8', inner: '#f0a8c8', nose: '#6a3a6a', pattern: 'bib', name: '香芋土拨鼠' }) },
+    porcupine: { crested: P({ base: '#b0988a', dark: '#231c20', light: '#e0d0c4', spine: '#2a2420', tip: '#f4f0e8', paw: '#5a4a42', inner: '#c89090', nose: '#231c20', name: '豪猪' }), shiny: P({ base: '#d8c8f0', dark: '#1a1430', light: '#f4f0ff', spine: '#4a3a8a', tip: '#ffd84a', paw: '#8a7ab8', inner: '#e8a0c8', nose: '#1a1430', name: '金刺豪猪' }) },
+    brownbear: { brown: P({ base: '#8a5a34', dark: '#5a3a22', light: '#c89a6a', paw: '#5a3a22', inner: '#a87050', nose: '#231c20', name: '棕熊' }), honey: P({ base: '#b8804a', dark: '#7a5030', light: '#e0b884', paw: '#7a5030', inner: '#c8906a', nose: '#231c20', name: '蜂蜜熊' }), shiny: P({ base: '#d8d8e0', dark: '#8a8a98', light: '#ffffff', paw: '#8a8a98', inner: '#e8b8c8', nose: '#3a3a48', name: '银熊' }) },
+    albatross: { wandering: P({ base: '#fbfaf6', dark: '#4a4a52', light: '#ffffff', paw: '#f0b8b0', nose: '#f0c8a0', tail: '#4a4a52', tail2: '#fbfaf6', name: '信天翁' }), shiny: P({ base: '#fff0d0', dark: '#8a6a3a', light: '#ffffff', paw: '#f0b8b0', nose: '#ffa860', tail: '#8a6a3a', name: '金翅信天翁' }) },
+    otter: { sea: P({ base: '#7a5a42', dark: '#4a3424', light: '#e8dccb', paw: '#4a3424', inner: '#a87a60', nose: '#231c20', name: '海獭' }), shiny: P({ base: '#c8e0d8', dark: '#6a8a80', light: '#ffffff', paw: '#6a8a80', inner: '#e0b8c0', nose: '#2a3a36', name: '薄荷海獭' }) },
+    bat: { brown: P({ base: '#6a5048', dark: '#2a1e1c', light: '#a88a7a', wing: '#3a2a2a', inner: '#c89090', nose: '#e8a0a8', name: '小蝙蝠' }), fruit: P({ base: '#c8783a', dark: '#4a2a1a', light: '#f0b878', wing: '#5a3424', inner: '#e0a080', nose: '#3a2018', name: '果蝠' }), shiny: P({ base: '#b8a8f0', dark: '#3a2a6a', light: '#e8e0ff', wing: '#5a4a9a', inner: '#f0b8e0', nose: '#ff9ac8', name: '星光蝙蝠' }) },
     lion: { male: P({ base: '#e0a85a', dark: '#6a3a1a', light: '#f8e2b8', paw: '#d89a4e', inner: '#c8784a', nose: '#5a3020', mane: '#a8582a', mane2: '#c8743a', name: '雄狮' }), lioness: P({ base: '#e4b46a', dark: '#6a3a1a', light: '#faead0', paw: '#dca45a', inner: '#c8784a', nose: '#5a3020', name: '母狮' }), shiny: P({ base: '#f4f0e6', dark: '#8a7a6a', light: '#ffffff', inner: '#f0b0a8', nose: '#6a4a3a', mane: '#e8d8b0', mane2: '#fff2d0', name: '白狮' }) },
     tiger: { bengal: P({ base: '#f0903a', dark: '#2a1a14', light: '#fff4e4', paw: '#f0a050', inner: '#f2b0a0', nose: '#d86a6a', name: '孟加拉虎' }), white: P({ base: '#f2f0ea', dark: '#3a3438', light: '#ffffff', paw: '#e8e6e0', inner: '#f2b8c0', nose: '#e08a9a', name: '白虎' }), shiny: P({ base: '#ffd84a', dark: '#6a3a10', light: '#fff8d0', inner: '#ffb0a0', nose: '#d86a6a', name: '金虎' }) },
     snowleopard: { snow: P({ base: '#d8d6cc', dark: '#4a4a52', light: '#f6f6f0', paw: '#e0ded4', inner: '#e8b8c0', nose: '#c88a9a', name: '雪豹' }), shiny: P({ base: '#c8d8ff', dark: '#4a5aa8', light: '#f0f4ff', inner: '#e8b8e0', nose: '#a88ad0', name: '星豹' }) },
@@ -388,12 +470,38 @@
     seal: S('海豹', ['harbor', 'pup'], 'treat_fish', '鱼', 'fish', CH.chill, 20, '在海滩礁石上晒太阳的胖团子，下水就变灵活', '趴在礁石上晒太阳 · 下海抓鱼 · 拍肚子', '拍肚子', L(['（拍拍鳍）', '嗷～'], ['想吃鱼'], ['（拍肚子）', '嗷嗷'], ['太阳好暖', '（翻个身）', '海水真舒服'], ['我晒着呢']), { pitch: 500, bias: { lazy: 0.4, extro: 0.2 } }),
     seagull: S('海鸥', ['gull'], 'treat_fish', '鱼', 'fish', CH.earlyBird, 40, '海边的常客，看到吃的眼睛就亮', '在海浪边找吃的 · 站在木桩上 · 跟着渔船飞', '抢吃的', L(['嘎！', '（盯着你手里）'], ['有吃的吗'], ['嘎嘎！'], ['那是鱼吗', '风真大', '嘎？'], ['嘎…']), { pitch: 1600, bias: { greedy: 0.5, extro: 0.3 } }),
     gardeneel: S('花园鳗', ['spotted', 'orange'], 'treat_shrimp', '小虾', 'shrimp', CH.diurnal, 6, '一群住在沙子里的细长家伙，一害羞就缩回洞里', '从沙洞里探出身子吃浮游生物 · 一有动静就缩回去', '缩回去', L(['（探出头）', '…嗨'], ['想吃小虾'], ['（摇摆）'], ['水流好舒服', '（摇摆摇摆）', '那边有什么'], ['（缩回洞里）']), { pitch: 1700, roam: 0.05, bias: { timid: 0.6, extro: -0.2 } }),
+    arctichare: S('北极兔', ['white'], 'treat_hay', '苔藓', 'hay', CH.noctur, 46, '冬天一身雪白，只有耳朵尖是黑的', '躲在雪窝里 · 刨开雪吃苔藓 · 一蹦好远', '蹦一下', L(['（耳朵转过来）', '你好～'], ['想吃东西'], ['（蹦）'], ['雪下面有吃的', '（竖耳朵）', '好冷但我有毛'], ['（缩进雪窝）']), { pitch: 1300, bias: { timid: 0.5 } }),
+    albatross: S('信天翁', ['wandering'], 'treat_fish', '鱼', 'fish', CH.diurnal, 34, '翅膀张开比人还长，能在海上滑翔好几天', '在草巢里孵蛋 · 贴着海面滑翔 · 跳求偶舞', '展翅', L(['嘎——', '（张开大翅膀）'], ['想吃鱼'], ['（摇头晃脑）'], ['风真好', '我去海上转一圈', '（理羽毛）'], ['我在巢里']), { pitch: 700, bias: { lazy: 0.2 } }),
+    marmot: S('土拨鼠', ['brown'], 'treat_seed', '嫩草', 'seed', CH.diurnal, 30, '站起来像根小柱子，会吹口哨放哨', '站在洞口放哨 · 吃嫩草 · 冬天冬眠', '吹口哨', L(['（站起来）', '啾——！'], ['饿了'], ['（打滚）'], ['我来放哨', '太阳好舒服', '啊——！'], ['（钻回洞里）']), { pitch: 1200, bias: { lazy: 0.3, curious: 0.2 } }),
+    bat: S('蝙蝠', ['brown', 'fruit'], 'treat_berry', '果子', 'berry', CH.noctur, 40, '白天倒挂着睡觉，晚上出去抓飞虫', '倒挂在洞顶 · 夜里飞出去 · 天亮前回来', '倒挂', L(['（倒挂着眨眼）', '吱'], ['想吃虫子'], ['（扑扇翅膀）'], ['天黑了吗', '（倒过来看世界）', '外面有好多虫'], ['（用翅膀裹住自己）']), { pitch: 2000, roam: 0.5, bias: { timid: 0.3, curious: 0.3 } }),
+    brownbear: S('棕熊', ['brown', 'honey'], 'treat_berry', '浆果', 'berry', CH.diurnal, 26, '冬天在洞里睡一整个冬天，春天醒来饿坏了', '在溪里等鱼 · 摘浆果 · 冬眠', '站起来', L(['（站起来看你）', '嗷～'], ['饿……'], ['（蹭蹭树）'], ['浆果在哪', '（嗅嗅）', '好困'], ['让我再睡会儿']), { pitch: 180, bias: { lazy: 0.4 } }),
+    porcupine: S('豪猪', ['crested'], 'treat_berry', '果子', 'berry', CH.noctur, 22, '满身长刺，一紧张就竖起来沙沙响', '夜里出去啃树皮 · 在石缝里睡觉', '竖刺', L(['（抖抖刺）', '沙沙'], ['饿了'], ['（刺放下来）'], ['别摸我的刺', '（啃啃）', '洞里好凉快'], ['（竖起刺）']), { pitch: 900, bias: { timid: 0.4, extro: -0.2 } }),
+    otter: S('海獭', ['sea'], 'treat_shrimp', '贝壳', 'shrimp', CH.diurnal, 34, '仰面漂在海上，用石头敲贝壳吃', '在浪里漂着 · 敲贝壳 · 抓着海带睡觉', '敲贝壳', L(['（漂过来）', '嘿～'], ['想吃贝壳'], ['（拍肚子）'], ['这块石头是我的', '（梳毛）', '浪好舒服'], ['（抓着海带睡）']), { pitch: 1100, bias: { playful: 0.5, extro: 0.3 } }),
     shark: S('鲨鱼', ['reef', 'whale'], 'treat_fish', '鱼', 'fish', CH.crepus, 36, '看起来凶，其实是个爱巡游的老实人', '在礁石边巡游 · 傍晚出来找吃的 · 绕着沉船转圈', '露背鳍', L(['（游过来）', '嗨～'], ['饿了…'], ['（转个圈）'], ['我不咬人的', '游一圈去', '（露出背鳍）'], ['我去深一点的地方']), { pitch: 260, bias: { curious: 0.3 } }),
   });
-  const extra = ['lion', 'tiger', 'snowleopard', 'polarbear', 'arcticfox', 'fennec', 'zebra', 'antelope', 'hippo', 'cow', 'yak', 'alpaca', 'deer', 'sheep', 'camel', 'monkey', 'parrot', 'meerkat', 'seal', 'seagull', 'gardeneel', 'shark'];
+  const extra = ['lion', 'tiger', 'snowleopard', 'polarbear', 'arcticfox', 'fennec', 'zebra', 'antelope', 'hippo', 'cow', 'yak', 'alpaca', 'deer', 'sheep', 'camel', 'monkey', 'parrot', 'meerkat', 'seal', 'seagull', 'gardeneel', 'shark', 'arctichare', 'albatross', 'marmot', 'bat', 'brownbear', 'porcupine', 'otter'];
   for (const k of extra) if (!PP.SPECIES_LIST.includes(k)) PP.SPECIES_LIST.push(k);
   // 鸟、鳗、鲨鱼的走路方式
   PP.SPECIES.parrot.gait = 'hop'; PP.SPECIES.parrot.hopH = 8; PP.SPECIES.parrot.hopT = 0.3;
   PP.SPECIES.seagull.gait = 'hop'; PP.SPECIES.seagull.hopH = 6; PP.SPECIES.seagull.hopT = 0.3;
+  PP.SPECIES.albatross.gait = 'hop'; PP.SPECIES.albatross.hopH = 5; PP.SPECIES.albatross.hopT = 0.3;
+  PP.SPECIES.arctichare.gait = 'hop'; PP.SPECIES.arctichare.hopH = 7; PP.SPECIES.arctichare.hopT = 0.26;
   PP.SPECIES.meerkat.gait = 'hop'; PP.SPECIES.meerkat.hopH = 4; PP.SPECIES.meerkat.hopT = 0.22;
+  // ---------- 动作风格：不同的动物能做的动作不一样 ----------
+  // fixed：一直待在原地（花园鳗只会在洞里摇摆、缩回去）；swim：只会游；fly：会飞；heavy：大块头，不扑不跳不追球
+  PP.MOTION = {
+    gardeneel: 'fixed',
+    shark: 'swim', turtle: 'swim', octopus: 'swim',
+    bat: 'fly', albatross: 'fly', seagull: 'fly', parrot: 'fly',
+    hippo: 'heavy', cow: 'heavy', yak: 'heavy', camel: 'heavy', brownbear: 'heavy', polarbear: 'heavy', sheep: 'heavy', alpaca: 'heavy', capybara: 'heavy', lion: 'heavy', seal: 'heavy', porcupine: 'heavy',
+  };
+  PP.motionOf = (sp) => PP.MOTION[sp] || 'normal';
+  // 每种风格不做的事
+  PP.MOTION_NO = {
+    fixed: ['wander', 'explore', 'play', 'cursor_play', 'seek_user', 'social', 'bug', 'ball', 'treat', 'holiday_food', 'gift', 'follow', 'zoomies'],
+    swim: ['ball', 'bug', 'cursor_play', 'gift'],
+    fly: ['ball'],
+    heavy: ['ball', 'bug', 'cursor_play'],
+    normal: [],
+  };
 })();

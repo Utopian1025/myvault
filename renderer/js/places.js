@@ -6,22 +6,38 @@
   const A = () => PP.ART;
 
   // ---------- 地图 ----------
-  PP.WORLD = [
-    ['snow', '雪原'], ['mountain', '高山'], ['forest', '森林'], ['jungle', '雨林'], ['lake', '湖边'], ['meadow', '草地'],
-    ['farm', '农场'], ['savanna', '草原'], ['desert', '沙漠'], ['beach', '海滩'], ['sea', '海底'],
+  // 主场景（大的生物群系）→ 次场景（具体的地方）。顺序就是路牌连起来的路；洞穴是高山里套着的次场景（从洞口走进去）
+  PP.REGIONS = [
+    { id: 'polar', name: '极地', icon: 'polar', subs: [['antarctic', '南极'], ['snow', '北极冰原']] },
+    { id: 'mount', name: '山地', icon: 'mount', subs: [['mountain', '高山'], ['cave', '洞穴']] },
+    { id: 'woods', name: '森林', icon: 'woods', subs: [['forest', '温带森林'], ['jungle', '热带雨林']] },
+    { id: 'grass', name: '草原', icon: 'grass', subs: [['meadow', '温带草原'], ['savanna', '稀树草原']] },
+    { id: 'dry', name: '荒漠', icon: 'dry', subs: [['desert', '沙漠']] },
+    { id: 'farmland', name: '农场', icon: 'farmland', subs: [['farm', '农场']] },
+    { id: 'water', name: '水域', icon: 'water', subs: [['lake', '湖泊湿地'], ['beach', '海岸'], ['sea', '珊瑚礁']] },
   ];
+  PP.WORLD = [];
+  PP.REGION_OF = {};
+  for (const r of PP.REGIONS) for (const [k, n] of r.subs) { PP.WORLD.push([k, n]); PP.REGION_OF[k] = r.id; }
+  // 嵌在别的场景里的次场景：不在路上，从父场景里的入口进去
+  PP.NEST = { cave: 'mountain' };
+  PP.CHAIN = PP.WORLD.map((w) => w[0]).filter((k) => !PP.NEST[k]);
+  PP.SCENE_ICON = { antarctic: 'penguinIco', snow: 'ice', mountain: 'peak', cave: 'caveIco', forest: 'tree', jungle: 'palmIco', meadow: 'flowerIco', savanna: 'acaciaIco', desert: 'cactusIco', farm: 'barnIco', lake: 'lakeIco', beach: 'shellIco', sea: 'coralIco' };
   PP.HOME_NAME = {
     cat: '谷仓阁楼', dog: '狗窝', chick: '鸡舍', pig: '猪圈', rabbit: '兔子洞', hamster: '向日葵下的地洞', fox: '大树根下的狐狸洞',
-    hedgehog: '倒木下的落叶窝', dragon: '石头山洞', frog: '大荷叶下的泥窝', duck: '芦苇丛里的鸭窝', capybara: '湖边温泉', penguin: '冰屋',
+    hedgehog: '倒木下的落叶窝', dragon: '石头山洞', frog: '大荷叶下的泥窝', duck: '芦苇丛里的鸭窝', capybara: '湖边温泉', penguin: '鹅卵石巢',
     turtle: '珊瑚礁下的海草窝', crab: '沙滩上的大海螺', octopus: '沉船里的陶罐',
     polarbear: '雪坡里的冰洞', arcticfox: '雪地里的小洞', yak: '石头垒的牛圈', alpaca: '山脚的小木棚', snowleopard: '岩壁上的山洞',
     deer: '灌木丛里的草窝', tiger: '大树板根下的阴凉', monkey: '大树上的树屋', parrot: '大树上的树洞', sheep: '羊圈',
     cow: '牛棚', lion: '大石台', zebra: '金合欢树下', antelope: '高草丛', hippo: '水塘', camel: '棕榈树下的帐篷',
-    fennec: '沙丘下的洞', meerkat: '狐獴的地道', seagull: '海边的木桩', seal: '礁石', gardeneel: '沙地里的小洞', shark: '礁石洞',
+    fennec: '沙丘下的洞', meerkat: '狐獴的地道', seagull: '海边的木桩', seal: '冰面上的呼吸孔', gardeneel: '沙地里的小洞', shark: '礁石洞',
+    arctichare: '雪窝', albatross: '小土丘上的草巢', marmot: '草原下的地洞', bat: '洞顶的岩缝', brownbear: '洞穴深处的熊窝', porcupine: '石缝里的窝', otter: '水边的石窝',
   };
   // 设施的大致位置（比例）。eco.js 用来决定去哪儿
   const SPOTS = {
-    snow: { penguin_home: 0.2, icehole: 0.52, slidetop: 0.75, slideend: 0.92, pond: 0.46, snowfield: 0.34 },
+    snow: { icehole: 0.52, slidetop: 0.75, slideend: 0.92, pond: 0.46, snowfield: 0.34 },
+    antarctic: { shore: 0.5, icefield: 0.42, slidetop: 0.78, slideend: 0.92 },
+    cave: { pool: 0.55, mushrooms: 0.3, entrance: 0.06, stalagmites: 0.85 },
     mountain: { stream: 0.62, meadow: 0.36, cairn: 0.2, ledge: 0.82 },
     forest: { hedgehog_home: 0.12, fox_home: 0.3, berries: 0.47, brook: 0.555, berries2: 0.64, mushrooms: 0.73, dragon_home: 0.85, sunrock: 0.95, leaves: 0.21, log: 0.12, shade: 0.4 },
     lake: { duck_home: 0.08, reeds: 0.15, frog_home: 0.3, lily: 0.4, swim: 0.24, dock: 0.5, shore: 0.66, capybara_home: 0.84 },
@@ -33,7 +49,7 @@
     sea: { turtle_home: 0.18, seagrass: 0.3, kelp: 0.42, crab_home: 0.52, sandflat: 0.6, coral: 0.7, octopus_home: 0.84, clam: 0.93, reef: 0.2 },
   };
   PP.SPOTS = SPOTS;
-  const HOME_SCENE = { penguin: 'snow', hedgehog: 'forest', fox: 'forest', dragon: 'forest', duck: 'lake', frog: 'lake', capybara: 'lake', turtle: 'sea', crab: 'beach', octopus: 'sea', rabbit: 'meadow', polarbear: 'snow', arcticfox: 'snow', yak: 'mountain', alpaca: 'mountain', snowleopard: 'mountain', deer: 'forest', tiger: 'jungle', monkey: 'jungle', parrot: 'jungle', sheep: 'meadow', cow: 'farm', lion: 'savanna', zebra: 'savanna', antelope: 'savanna', hippo: 'savanna', camel: 'desert', fennec: 'desert', meerkat: 'desert', seagull: 'beach', seal: 'beach', gardeneel: 'sea', shark: 'sea', hamster: 'meadow', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm' };
+  const HOME_SCENE = { penguin: 'antarctic', seal: 'antarctic', albatross: 'antarctic', polarbear: 'snow', arcticfox: 'snow', arctichare: 'snow', yak: 'mountain', alpaca: 'mountain', snowleopard: 'mountain', bat: 'cave', brownbear: 'cave', porcupine: 'cave', hedgehog: 'forest', fox: 'forest', dragon: 'forest', deer: 'forest', tiger: 'jungle', monkey: 'jungle', parrot: 'jungle', rabbit: 'meadow', hamster: 'meadow', marmot: 'meadow', lion: 'savanna', zebra: 'savanna', antelope: 'savanna', hippo: 'savanna', camel: 'desert', fennec: 'desert', meerkat: 'desert', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', cow: 'farm', sheep: 'farm', duck: 'lake', frog: 'lake', capybara: 'lake', crab: 'beach', seagull: 'beach', otter: 'beach', turtle: 'sea', octopus: 'sea', gardeneel: 'sea', shark: 'sea' };
   PP.HOME_SCENE = HOME_SCENE;
 
   // ---------- 家（精灵） ----------
@@ -299,5 +315,50 @@
     for (let i = 0; i < 5; i++) { const x = 3 + i * Math.round((w - 6) / 4); s.ell(x, 2, 2, 1, '#8a7a5a'); s.set(x, 2, '#3a2a1a'); }
     return { s, door: { x: Math.round(w / 2) } };
   }
-  PP.HOMES = { barn, kennel, coop, sty, igloo, mound, foxDen, leafNest, cave, duckNest, hotSpring, lilyHome, reefArch, conch, wreck, iceCave, burrow, stoneShelter, shed, thicket, bigTree, pen, acacia, prideRock, gullPost, reefCave, sandHoles };
+  // ---------- 极地 / 洞穴 / 海岸 ----------
+  // 企鹅：冰面上一圈圈鹅卵石垒的小巢（露天，一大群挤在一起）
+  function pebbleNest(w) {
+    const { spr, hash } = A(); const s = spr(w, 5);
+    for (let i = 0; i < 3; i++) { const cx = 4 + i * Math.round((w - 8) / 2), cy = 3 + (i % 2); for (let a = 0; a < 12; a++) { const x = Math.round(cx + Math.cos(a / 12 * Math.PI * 2) * 3.4), y = Math.round(cy + Math.sin(a / 12 * Math.PI * 2) * 1.4); s.set(x, y, hash(x, y, 9) < 0.5 ? '#8a8a96' : '#6a6a78'); } s.set(cx, cy, '#5a5a66'); }
+    return { s, door: { x: Math.round(w / 2) } };
+  }
+  // 海豹：冰面上的呼吸孔（露天，趴在旁边）
+  function breathingHole(w) {
+    const { spr } = A(); const s = spr(w, 6);
+    s.ell(w / 2, 3.4, w / 2 - 1, 2.6, (nx, ny) => (nx * nx + ny * ny > 0.55 ? (ny < 0 ? '#ffffff' : '#c8dcec') : ny < -0.2 ? '#2a5a8a' : '#1a3a6a'));
+    s.set(Math.round(w / 2) - 2, 3, '#7ab8e8');
+    return { s, door: { x: Math.round(w / 2) } };
+  }
+  // 信天翁：小土丘顶上用草和泥堆的巢
+  function tussockNest(h, R) {
+    const { spr, noise } = A(); const w = Math.round(h * 2.2), s = spr(w, h), cx = (w + 2) / 2;
+    s.ell(cx, h + 1, w / 2, h - 2, (nx, ny, x, y) => (ny > 0 ? null : noise((cx + x) / 3, (h + y) / 3, 91) < 0.4 ? '#6a6a5a' : '#8a8a70'));
+    for (let k = 0; k < 14; k++) { const x = Math.round(3 + R() * (w - 6)), y = Math.round(h * 0.4 + R() * h * 0.4); s.set(x, y, '#7a9a4a'); s.set(x, y - 1, '#9aba5a'); }
+    s.ell(cx, 3, 5, 2, '#8a7040'); s.ell(cx, 2.6, 3, 1, '#5a4a2a');
+    return { s: s.outline('#3a3a2a'), door: { x: Math.round(cx) }, perchY: 2 };
+  }
+  // 蝙蝠：洞顶垂下来的岩缝（倒挂在这里睡觉）
+  function batRoost(w, h) {
+    const { spr, noise } = A(); const s = spr(w, h);
+    for (let x = 1; x <= w; x++) { const d = Math.round(h * (0.35 + 0.65 * Math.abs(Math.sin(x / w * Math.PI)) * (0.7 + noise(x / 3, 0, 33) * 0.3))); for (let y = 0; y < d; y++) s.set(x, y, noise(x / 2, y / 2, 34) < 0.35 ? '#6a6274' : '#7e7688'); }
+    s.rect(Math.round(w * 0.3), Math.round(h * 0.15), Math.round(w * 0.4), Math.round(h * 0.3), '#120e16');
+    return { s: s.outline('#1a1620'), door: { x: Math.round(w / 2) } };
+  }
+  // 棕熊：洞穴深处的凹进去的石窝，铺着干草
+  function bearDen(h) {
+    const { spr, noise } = A(); const w = Math.round(h * 1.9), s = spr(w, h), cx = (w + 2) / 2;
+    s.ell(cx, h + 1, w / 2, h, (nx, ny, x, y) => (ny > 0 ? null : noise((cx + x) / 3, (h + y) / 3, 35) < 0.4 ? '#4a4048' : '#5a5058'));
+    s.ell(cx, h + 1, w * 0.32, h * 0.7, (nx, ny) => (ny > 0 ? null : '#140e12'));
+    s.rect(Math.round(cx - w * 0.24), h - 2, Math.round(w * 0.48), 3, '#a8883a'); s.hl(Math.round(cx - w * 0.24), h - 2, Math.round(w * 0.48), '#c8a84a');
+    return { s: s.outline('#1a1418'), door: { x: Math.round(cx) } };
+  }
+  // 高山上的洞口（通往洞穴）
+  function caveMouth(h) {
+    const { spr, noise } = A(); const w = Math.round(h * 1.8), s = spr(w, h), cx = (w + 2) / 2;
+    s.ell(cx, h + 1, w / 2, h, (nx, ny, x, y) => { if (ny > 0) return null; const n = noise((cx + x) / 3, (h + y) / 3, 36); return -nx - ny > 0.9 ? '#b4b4c0' : n < 0.35 ? '#7a7a88' : '#8e8e9a'; });
+    s.ell(cx, h + 1, w * 0.28, h * 0.68, (nx, ny) => (ny > 0 ? null : ny < -0.6 ? '#1a1620' : '#0a080c'));
+    for (const dx of [-4, -1, 3]) s.rect(Math.round(cx + dx), Math.round(h * 0.38), 1, 2, '#5a5a66');
+    return { s: s.outline('#3a3a46'), door: { x: Math.round(cx) } };
+  }
+  PP.HOMES = { pebbleNest, breathingHole, tussockNest, batRoost, bearDen, caveMouth, barn, kennel, coop, sty, igloo, mound, foxDen, leafNest, cave, duckNest, hotSpring, lilyHome, reefArch, conch, wreck, iceCave, burrow, stoneShelter, shed, thicket, bigTree, pen, acacia, prideRock, gullPost, reefCave, sandHoles };
 })();

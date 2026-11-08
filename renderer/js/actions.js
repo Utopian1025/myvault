@@ -181,8 +181,17 @@
 
   A.play = function* () {
     const p = this;
-    const sp = p.d.species;
+    const sp = p.d.species, mo = PP.motionOf ? PP.motionOf(sp) : 'normal';
     const r = Math.random();
+    if (mo !== 'normal') {
+      // 各有各的玩法：游的就游一圈，飞的飞一圈，大块头慢慢走，花园鳗原地摇
+      if (mo === 'fly' && r < 0.6) { p.flying = true; for (let i = 0; i < U.randi(1, 3); i++) yield p.goto(U.rand(40, G.W - 40), true); p.flying = false; }
+      else if (mo === 'swim' && r < 0.6) { for (let i = 0; i < U.randi(2, 3); i++) yield p.goto(p.x + U.rand(-160, 160)); }
+      else if (mo === 'heavy' && r < 0.4) { yield p.goto(p.x + U.rand(-120, 120)); p.anim = 'idle'; yield U.rand(1, 2); }
+      else yield* A.special.call(p);
+      p.n.fun = Math.min(100, p.n.fun + 24); p.anim = 'idle'; p.eyes = 'open'; p.flying = false; p.count('played');
+      return;
+    }
     if (r < 0.3) {
       // 追自己的尾巴
       p.wag = 12;
@@ -271,9 +280,49 @@
       for (let i = 0; i < 8; i++) PP.fx({ kind: 'dot', x: p.x + p.facing * 10 * S(), y: p.headPos[1] + 6 * S(), vx: p.facing * U.rand(60, 140), vy: U.rand(-30, 10), life: 0.6, col: U.pick(['#ff9a3a', '#ffcf33', '#ff5a3a']), size: S() * 2 });
       yield 0.8; p.mouth = 'smile'; p.eyes = 'happy'; yield 1;
     }
-    p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w'; p.transform = null;
+    else yield* specialMore(p, sp);
+    p.anim = 'idle'; p.eyes = 'open'; p.mouth = 'w'; p.transform = null; p.flying = false;
   };
   function dtGuess() { return 1 / 60; }
+  // 新伙伴们的招牌动作（按习性来：鳗鱼缩回洞里、蝙蝠扑扇翅膀、骆驼慢慢嚼……）
+  const say1 = (p, t) => PP.fx({ kind: 'text', text: t, x: p.x + p.facing * 12, y: p.y - 26 * S(), vy: -20, life: 0.9, style: { size: 11, shadow: false } });
+  function* hopUp(p, v) { p.airborne = true; p.vy = -v; p.vx = 0; p.fallFrom = p.y; yield () => !p.airborne; }
+  function* specialMore(p, sp) {
+    switch (sp) {
+      case 'arctichare': for (let i = 0; i < U.randi(1, 3); i++) { setTimeout(() => (p.facing = -p.facing), 150); yield* hopUp(p, 520); yield 0.3; } p.eyes = 'happy'; yield 1; break;
+      case 'arcticfox': case 'fennec':
+        p.ears = 'up'; p.think('excl', 1); yield 1.2; p.anim = 'crouch'; yield 0.6; p.airborne = true; p.vy = -560; p.vx = p.facing * 110; p.fallFrom = p.y; yield () => !p.airborne; p.squash = 0.6; p.eyes = 'happy'; yield 0.8; break;
+      case 'lion': p.mouth = 'open'; p.eyes = 'closed'; say1(p, '吼——'); p.jolt(2, 0); yield 1.2; p.mouth = 'w'; p.anim = 'lie'; p.eyes = 'sleepy'; yield U.rand(2, 4); break;
+      case 'tiger': p.anim = 'crouch'; p.eyes = 'open'; yield 1.4; p.airborne = true; p.vy = -380; p.vx = p.facing * 220; p.fallFrom = p.y; yield () => !p.airborne; p.eyes = 'happy'; yield 0.8; break;
+      case 'snowleopard': p.anim = 'lie'; p.eyes = 'sleepy'; yield U.rand(2, 4); break;
+      case 'polarbear': case 'brownbear': p.anim = 'lie'; yield 0.4; p.transform = 'flipV'; p.eyes = 'happy'; yield 1.4; p.transform = null; p.anim = 'idle'; if (sp === 'brownbear') { p.jolt(0, -3); say1(p, '（蹭痒痒）'); yield 1; } break;
+      case 'zebra': for (let i = 0; i < 2; i++) { p.facing = -p.facing; p.jolt(-2, 0); yield 0.3; } break;
+      case 'antelope': for (let i = 0; i < 3; i++) { yield* hopUp(p, 600); yield 0.15; } break;
+      case 'deer': p.ears = 'up'; p.think('excl', 1); yield 1; yield p.goto(p.x - p.facing * U.rand(60, 120), true); break;
+      case 'hippo': p.mouth = 'yawn'; p.eyes = 'closed'; yield 2.2; p.mouth = 'w'; break;
+      case 'cow': say1(p, '哞～'); p.mouth = 'chew'; yield 2.4; break;
+      case 'sheep': say1(p, '咩～'); yield 1; break;
+      case 'yak': for (let i = 0; i < 4; i++) { p.jolt(i % 2 ? 2 : -2, 0); yield 0.12; } break;
+      case 'alpaca': p.mouth = 'o'; yield 0.4; PP.fx({ kind: 'dot', x: p.x + p.facing * 10 * S(), y: p.headPos[1] + 6 * S(), vx: p.facing * 160, vy: -40, life: 0.5, col: '#e6f6ff', size: S() * 2 }); p.mouth = 'w'; p.eyes = 'happy'; yield 0.8; break;
+      case 'camel': p.mouth = 'chew'; p.eyes = 'sleepy'; yield U.rand(3, 5); p.mouth = 'w'; break;
+      case 'monkey': yield* hopUp(p, 640); p.transform = 'flipV'; yield 0.2; p.transform = null; p.eyes = 'happy'; say1(p, '吱吱！'); yield 0.8; break;
+      case 'parrot': case 'seagull': case 'albatross':
+        p.flying = true; yield 1.2; p.flying = false;
+        if (sp === 'parrot') { const o = G.pets.find((q) => q !== p && q.sp && q.sp.lines); p.say(o ? `（学${o.sp.name}）${U.pick(o.sp.lines.idle || ['你好'])}` : '你好你好！', 2); } else say1(p, sp === 'seagull' ? '嘎！' : '嘎——');
+        yield 1; break;
+      case 'meerkat': case 'marmot': p.anim = 'idle'; p.eyes = 'open'; for (let i = 0; i < 3; i++) { p.facing = -p.facing; yield 0.6; } if (sp === 'marmot') say1(p, '啾——！'); p.think('excl', 1); yield 1; break;
+      case 'seal': for (let i = 0; i < 3; i++) { p.jolt(0, -2); say1(p, '啪'); yield 0.3; } p.eyes = 'happy'; yield 0.6; break;
+      case 'otter': p.anim = 'lie'; p.transform = 'flipV'; yield 0.4; for (let i = 0; i < 3; i++) { say1(p, '咚'); p.jolt(0, -1); yield 0.4; } p.transform = null; p.eyes = 'happy'; yield 0.6; break;
+      case 'porcupine': p.anim = 'curl'; say1(p, '沙沙'); yield 1.2; p.anim = 'idle'; break;
+      case 'bat': p.flying = true; for (let i = 0; i < 2; i++) yield p.goto(p.x + U.rand(-80, 80), true); p.flying = false; break;
+      case 'gardeneel': p.anim = 'lie'; p.eyes = 'closed'; yield U.rand(1.5, 3); p.anim = 'idle'; p.eyes = 'open'; yield 1; break;
+      case 'shark': for (let i = 0; i < 2; i++) { yield p.goto(p.x + p.facing * 90); p.facing = -p.facing; } break;
+      case 'turtle': p.anim = 'lie'; p.eyes = 'sleepy'; yield U.rand(2, 4); break;
+      case 'octopus': p.squash = 0.6; yield 0.4; yield p.goto(p.x + U.rand(-90, 90), true); break;
+      case 'crab': for (let i = 0; i < 3; i++) { p.x += p.facing * 6; p.jolt(0, -1); yield 0.2; } break;
+      default: p.anim = 'groom'; p.eyes = 'closed'; yield 1.5;
+    }
+  }
 
   // 跟鼠标玩：盯 → 压低身子扭屁股 → 扑！
   A.cursor_play = function* () {

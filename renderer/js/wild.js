@@ -6,7 +6,7 @@
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   // 每种动物在世界里大概有几只（喜欢成群的多一点）
-  const TARGET = { penguin: 3, zebra: 3, antelope: 3, sheep: 3, meerkat: 3, gardeneel: 4, chick: 3, duck: 2, parrot: 2, seagull: 2, cow: 2, monkey: 2, deer: 2, yak: 2, alpaca: 2, hippo: 2, lion: 2 };
+  const TARGET = { bat: 3, penguin: 3, zebra: 3, antelope: 3, sheep: 3, meerkat: 3, gardeneel: 4, chick: 3, duck: 2, parrot: 2, seagull: 2, cow: 2, monkey: 2, deer: 2, yak: 2, alpaca: 2, hippo: 2, lion: 2 };
   const SKIP = new Set(['dragon']); // 小龙只能从蛋里孵出来
   const mine = (p) => p && !p.d.wild;
   PP.isMine = mine;

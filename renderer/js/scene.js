@@ -8,12 +8,30 @@
 
   // 九个地方，一条路串起来（从左到右）
   const SCENES = {}; (PP.WORLD || []).forEach(([k, n]) => (SCENES[k] = { name: n, out: true }));
-  const EXITS = {};
-  PP.WORLD.forEach(([k], i) => { EXITS[k] = []; if (i > 0) EXITS[k].push([-1, PP.WORLD[i - 1][0]]); if (i < PP.WORLD.length - 1) EXITS[k].push([1, PP.WORLD[i + 1][0]]); });
+  const EXITS = {}, LINKS = {};
+  const CH = PP.CHAIN || PP.WORLD.map((w) => w[0]);
+  PP.WORLD.forEach(([k]) => { EXITS[k] = []; LINKS[k] = []; });
+  CH.forEach((k, i) => { if (i > 0) { EXITS[k].push([-1, CH[i - 1]]); LINKS[k].push(CH[i - 1]); } if (i < CH.length - 1) { EXITS[k].push([1, CH[i + 1]]); LINKS[k].push(CH[i + 1]); } });
+  // 套在父场景里的次场景：只有一个路牌回父场景；父场景里有个入口
+  for (const [sub, parent] of Object.entries(PP.NEST || {})) { EXITS[sub] = [[-1, parent]]; LINKS[sub] = [parent]; LINKS[parent].push(sub); }
+  if (SCENES.cave) SCENES.cave.out = false;
   PP.ROUTE = PP.WORLD.map((w) => w[0]);
+  PP.LINKS = LINKS;
+  // 两个地方之间要走几段路、下一站去哪
+  const pathCache = {};
+  function path(a, b) {
+    const key = a + '>' + b; if (pathCache[key]) return pathCache[key];
+    const prev = { [a]: null }, q = [a];
+    while (q.length) { const c = q.shift(); if (c === b) break; for (const n of LINKS[c] || []) if (!(n in prev)) { prev[n] = c; q.push(n); } }
+    const out = []; let c = b; if (!(b in prev)) return (pathCache[key] = [a, b]);
+    while (c != null) { out.unshift(c); c = prev[c]; }
+    return (pathCache[key] = out);
+  }
+  PP.hops = (a, b) => (a === b ? 0 : path(a, b).length - 1);
+  PP.nextHop = (a, b) => (a === b ? b : path(a, b)[1] || b);
   PP.SCENES = SCENES; PP.EXITS = EXITS;
   // 每种动物的家在哪个场景
-  PP.SCENE_FAV = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
+  PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
   PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
 
   // 装饰：k → [名字, 室内?]
@@ -38,6 +56,8 @@
       case 'beach': return [...L('rock', [0.17], 0.4), ...L('palm', [0.97], 0.4)];
       case 'savanna': return [...L('rock', [0.06, 0.55], 0.4), ...L('bush', [0.26], 0.2)];
       case 'sea': return [...L('rock', [0.3, 0.78], 0.3)];
+      case 'antarctic': return [];
+      case 'cave': return [];
       case 'jungle': return [...L('bush', [0.15, 0.38, 0.62], 0.4), ...L('flower', [0.2, 0.55], 0.5)];
     }
     return [];
@@ -103,7 +123,7 @@
   // 地面上的零碎：前后错落，越靠前越大一点，避开小路、水和房子门口
   function scatter(lay, R) {
     const A = PP.ART, sc = lay.scene, s = lay.season, w = s === 'winter' || sc === 'snow';
-    if (lay.under) return;
+    if (lay.under || lay.cave) return;
     const depth = lay.rows - lay.base - 2; if (depth < 4) return;
     const bad = (c, r) => (lay.path && Math.abs(r - lay.path) < 6) || (lay.water && r >= lay.water.y0 - 1 && r <= lay.water.y1 + 2) || lay.homes.some((h) => c > h.x0 - 4 && c < h.x1 + 4 && r < h.y1 + 6) || c < 30 || c > lay.cols - 30;
     // 一丛一丛地长，不是均匀撒满
@@ -219,34 +239,8 @@
     return { g, e, scene };
   }
 
-  // ---------- 小场景避让：别挡住你的窗口 ----------
-  // 指针移进小场景（又没指着动物 / 路牌 / 家）→ 很快淡到几乎透明，点击本来就会穿过去；
-  // 一直在打字 → 背景淡掉，只留地面和动物
-  let fadeA = 1, duckK = 0, inSince = 0, lastR = performance.now(), buf = null;
-  function render(ctx) {
-    const g = G.save && geo(), now = performance.now(), dt = Math.min(0.1, (now - lastR) / 1000); lastR = now;
-    const av = (G.save && settings().bandAvoid) || 'both';
-    if (!g || g.m !== 'band' || av === 'off' || inside) { fadeA = 1; duckK = 0; return renderInner(ctx); }
-    const M = G.mouse, inBand = M.onScreen && M.y > g.y0 + 4 && !G.hoverPet && !G.hoverHot && !G.hoverItem && !G.editing && !G.uiDrag && !document.querySelector('.homepop,.menu,.orb-pop');
-    if (inBand) { if (!inSince) inSince = now; } else inSince = 0;
-    const wantFade = (av === 'both' || av === 'fade') && inSince && now - inSince > 220 ? 0.1 : 1;
-    const wantDuck = (av === 'both' || av === 'duck') && PP.F && PP.F.working && PP.F.working() ? 1 : 0;
-    fadeA += (wantFade - fadeA) * Math.min(1, dt * (wantFade < fadeA ? 9 : 5));
-    duckK += (wantDuck - duckK) * Math.min(1, dt * 2.5);
-    if (fadeA > 0.985 && duckK < 0.015) return renderInner(ctx);
-    const cv = ctx.canvas;
-    if (!buf || buf.width !== cv.width || buf.height !== cv.height) { buf = document.createElement('canvas'); buf.width = cv.width; buf.height = cv.height; }
-    const b = buf.getContext('2d'); b.setTransform(1, 0, 0, 1, 0, 0); b.clearRect(0, 0, buf.width, buf.height); b.setTransform(ctx.getTransform()); b.imageSmoothingEnabled = false;
-    renderInner(b);
-    const k = cv.width / G.W, gyPx = L ? Math.round((g.y0 + (L.gy - 2) * g.u) * k) : Math.round((g.y0 + g.H * 0.6) * k), y0Px = Math.round(g.y0 * k);
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = Math.min(fadeA, 1 - duckK * 0.9);
-    ctx.drawImage(buf, 0, y0Px, buf.width, gyPx - y0Px, 0, y0Px, buf.width, gyPx - y0Px);
-    ctx.globalAlpha = Math.min(fadeA, 1 - duckK * 0.35);
-    ctx.drawImage(buf, 0, gyPx, buf.width, buf.height - gyPx, 0, gyPx, buf.width, buf.height - gyPx);
-    ctx.restore();
-  }
-  PP.sceneFade = () => fadeA;
+  function render(ctx) { renderInner(ctx); }
+  PP.sceneFade = () => 1;
   function renderInner(ctx) {
     if (!G.save) return;
     const st = ensure(); if (!st) return;
@@ -315,7 +309,7 @@
     ctx.restore();
 
     // 灯：天暗了亮起来（画在调色之后，所以是亮的）
-    const dark = night || ph === 'dusk' || (!out && ph !== 'day') || F.dark > 0.2;
+    const dark = L.cave || night || ph === 'dusk' || (!out && ph !== 'day') || F.dark > 0.2;
     L.lights.forEach((l, i) => {
       if (lampsOff[i]) return;
       if (l.win) { if (!dark) return; R(l.x, l.y, '#ffd27a', l.w, l.h); R(l.x + 3, l.y, '#5a3a24', 1, l.h); R(l.x, l.y + 2, '#5a3a24', l.w, 1); }
@@ -401,6 +395,13 @@
       ctx.textAlign = 'left'; const w = ctx.measureText(title).width + 14;
       ctx.fillStyle = 'rgba(20,14,10,.72)'; const tx = (L.room ? L.room.x0 : 0) * u + 8, ty = y0 + (L.room ? L.room.top : 0) * u + 6; ctx.fillRect(tx, ty, w, 18); ctx.fillStyle = '#ffe6a8'; ctx.fillText(title, tx + 7, ty + 9); ctx.textAlign = 'center';
     }
+    // 可选：左上角显示这里是哪儿、什么季节、什么天气
+    if (settings().sceneInfo && !L.inside) {
+      const sc = view(), reg = (PP.REGIONS || []).find((r) => r.subs.some((x) => x[0] === sc)), e = PP.env.at(sc), w = e.weather;
+      const txt = `${reg && reg.subs.length > 1 ? reg.name + ' · ' : ''}${SCENES[sc].name} · ${PP.env.seasonName(e.season)} · ${PP.env.weatherName(w.kind)}${w.temp != null ? ' ' + w.temp + '°' : ''}`;
+      ctx.textAlign = 'left'; const tw = ctx.measureText(txt).width + 14, tx = 8, ty = y0 + (g.m === 'full' ? 10 : 12);
+      ctx.fillStyle = 'rgba(20,14,10,.6)'; ctx.fillRect(tx, ty, tw, 18); ctx.fillStyle = '#fff'; ctx.fillText(txt, tx + 7, ty + 9); ctx.textAlign = 'center';
+    }
     // 家门口的小牌子：谁在家、在干嘛（不用找了）
     if (PP.eco && PP.eco.homeTag) for (const h of L.homes) {
       const tag = PP.eco.homeTag(h.species); if (!tag) continue;
@@ -441,8 +442,22 @@
     if (F.wind >= 2 && fxs.length < 5) { /* 大风但没有可吹的东西时也让人看得出：在 update 里吹落叶/雪尘 */ }
   }
 
+  // 指着家就弹出“叫出来 / 进去看看”，不用再点
+  let homeHov = null, homeHovT = 0, popAway = 0;
+  function homeHover(dt) {
+    const h = G.hoverHot && G.hoverHot.home ? G.hoverHot : null;
+    if (h && (!homeHov || homeHov.home !== h.home)) { homeHov = h; homeHovT = 0; }
+    if (!h) homeHov = null;
+    if (homeHov) { homeHovT += dt; if (homeHovT > 0.25 && (!popEl || popEl.dataset.sp !== homeHov.home)) homeMenu(homeHov); }
+    if (popEl) {
+      const over = popEl.matches(':hover') || (h && popEl.dataset.sp === h.home);
+      popAway = over ? 0 : popAway + dt;
+      if (popAway > 0.6) { popEl.remove(); popEl = null; popAway = 0; PP.refreshInteractive && PP.refreshInteractive(); }
+    }
+  }
   function update(dt) {
     if (!G.save) return;
+    homeHover(dt);
     if (fadeTo) { fade += dt * 3.2; if (fade >= 1) { const to = fadeTo; fadeTo = null; arrive(to); } }
     else if (fade > 0) fade = Math.max(0, fade - dt * 2.4);
     const g = geo(); if (!g || !L) return;
@@ -571,8 +586,10 @@
     PP.ui.toast(`来到了${SCENES[to].name}${here ? `（${here} 只在这儿）` : ''}`);
     PP.save.soon(); PP.syncTray && PP.syncTray(true);
   }
-  function fav(p) { return PP.SCENE_FAV[p.d.species] || 'forest'; }
+  function fav(p) { return (PP.HOME_SCENE && PP.HOME_SCENE[p.d.species]) || 'forest'; }
   function exitX(to) {
+    const door = L && L.hots.find((h) => h.go === to && h.door);
+    if (door) { const g = geo(); return ((door.x0 + door.x1) / 2) * (g ? g.u : G.S); }
     const ex = (EXITS[view()] || []).find((x) => x[1] === to) || (EXITS[view()] || [])[0];
     return ex && ex[0] > 0 ? G.W - 25 : 25;
   }
@@ -598,13 +615,12 @@
   function homeMenu(h) {
     if (popEl) popEl.remove();
     const sp = h.home, g = geo(), who = PP.eco ? PP.eco.residentsOf(sp) : [];
-    popEl = document.createElement('div'); popEl.className = 'homepop';
+    popEl = document.createElement('div'); popEl.className = 'homepop'; popEl.dataset.sp = sp;
     popEl.innerHTML = `<div class="t">${PP.eco.homeTip(sp).replace(/ · 点一下叫出来$/, '')}</div><div class="row">${PP.INTERIOR && PP.INTERIOR[sp] ? '<button class="small" data-a="in">进去看看</button>' : ''}<button class="small" data-a="out" ${who.length ? '' : 'disabled'}>叫出来</button></div>`;
     document.getElementById('ui').appendChild(popEl);
     const x = ((h.x0 + h.x1) / 2) * g.u, y = g.y0 + h.y0 * g.u, r = popEl.getBoundingClientRect();
     popEl.style.left = U.clamp(x - r.width / 2, 4, G.W - r.width - 4) + 'px'; popEl.style.top = Math.max(4, y - r.height - 6) + 'px';
     popEl.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; ev.stopPropagation(); popEl.remove(); popEl = null; if (b.dataset.a === 'in') enter(sp); else PP.eco.callOut(sp); });
-    popEl.addEventListener('mouseleave', () => setTimeout(() => { if (popEl && !popEl.matches(':hover')) { popEl.remove(); popEl = null; } }, 900));
     PP.refreshInteractive && PP.refreshInteractive();
   }
   // 场景布局（给 eco.js 用）：当前场景的几何和设施位置
