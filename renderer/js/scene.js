@@ -422,7 +422,7 @@
     // 家门口的小牌子：谁在家、在干嘛（不用找了）
     if (PP.eco && PP.eco.homeTag) for (const h of L.homes) {
       const tag = PP.eco.homeTag(h.species); if (!tag) continue;
-      const x = ((h.x0 + h.x1) / 2) * u, y = Math.max(10, y0 + h.y0 * u - 9), w = ctx.measureText(tag).width + 10;
+      const x = ((h.x0 + h.x1) / 2) * u, y = Math.max(y0 + 10, y0 + h.y0 * u - 9), w = ctx.measureText(tag).width + 10;
       ctx.fillStyle = 'rgba(20,14,10,.66)'; ctx.fillRect(x - w / 2, y - 8, w, 16); ctx.fillStyle = '#fff'; ctx.fillText(tag, x, y);
       ctx.fillStyle = 'rgba(20,14,10,.66)'; ctx.fillRect(x - 2, y + 8, 4, 3);
     }

@@ -33,13 +33,39 @@
         const c = typeof fn === 'function' ? fn(nx, ny, x, y) : fn; if (c) this.set(cx + x, cy + y, c);
       }
     }
-    // 外描边（只描透明处）
+    // 精修：受光和体积（左上来光）+ 大块平涂处加一点细纹理，让每样东西都有“手绘像素”的质感
+    polish() {
+      const src = this.d.slice(), w = this.w, h = this.h;
+      const A = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? 0 : src[y * w + x] >>> 24);
+      const tone = (v, k, tr, tg, tb) => { const r = v & 255, g = (v >>> 8) & 255, b = (v >>> 16) & 255; return ((v >>> 24) << 24 | (Math.round(b + (tb - b) * k) << 16) | (Math.round(g + (tg - g) * k) << 8) | Math.round(r + (tr - r) * k)) >>> 0; };
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x, v = src[i]; if ((v >>> 24) < 200) continue;
+        const up = A(x, y - 1), dn = A(x, y + 1), lf = A(x - 1, y), rt = A(x + 1, y);
+        let o = v;
+        if (!up) o = tone(o, 0.24, 255, 248, 226);
+        else if (!lf) o = tone(o, 0.1, 255, 248, 226);
+        if (!dn) o = tone(o, 0.2, 52, 34, 62);
+        else if (!rt) o = tone(o, 0.1, 52, 34, 62);
+        if (o === v && up && dn && lf && rt && src[i - 1] === v && src[i + 1] === v && src[i - w] === v && src[i + w] === v) {
+          const n = hash(x, y, w * 31 + h);
+          if (n < 0.07) o = tone(v, 0.09, 40, 28, 50); else if (n > 0.95) o = tone(v, 0.1, 255, 250, 236);
+        }
+        this.d[i] = o;
+      }
+      return this;
+    }
+    // 外描边（只描透明处）：描边颜色跟着旁边的颜色走（暗一档），比一圈死黑更柔和、更精致
     outline(c, edge) {
+      this.polish();
       const v = rgba(c), src = this.d.slice(), w = this.w, h = this.h;
+      const vr = v & 255, vg = (v >>> 8) & 255, vb = (v >>> 16) & 255;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
         if (src[y * w + x]) continue;
         const n = (x > 0 && src[y * w + x - 1]) || (x < w - 1 && src[y * w + x + 1]) || (y > 0 && src[(y - 1) * w + x]) || (y < h - 1 && src[(y + 1) * w + x]);
-        if (n && (!edge || edge(x, y))) this.d[y * w + x] = v;
+        if (n && (!edge || edge(x, y))) {
+          const r = n & 255, g = (n >>> 8) & 255, b = (n >>> 16) & 255;
+          this.d[y * w + x] = (255 << 24 | (Math.round(vb * 0.55 + b * 0.45 * 0.5) << 16) | (Math.round(vg * 0.55 + g * 0.45 * 0.5) << 8) | Math.round(vr * 0.55 + r * 0.45 * 0.5)) >>> 0;
+        }
       }
       return this;
     }

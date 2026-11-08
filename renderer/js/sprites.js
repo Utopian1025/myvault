@@ -405,8 +405,8 @@
       const run = anim === 'run', s4 = Math.floor(t * (run ? 12 : 7)) % 4;
       const bob = anim === 'walk' ? (s4 % 2 ? 0.5 : 0) : run ? (s4 % 2 ? 1 : 0) : breathe * 0.4;
       g.stand = { run, s4 };
-      g.bx = 16 - f * 3.8; g.by = 21.2 + bob * 0.5; g.brx = run ? 8.8 : 8.4; g.bry = run ? 4.2 : 4.6;
-      g.hrx = 7.4; g.hry = 6; g.hx = 16 + f * 3.2; g.hy = (run ? 15.6 : 14.4) + bob;
+      g.bx = 16 - f * 2.6; g.by = 21.2 + bob * 0.5; g.brx = run ? 8.2 : 7.8; g.bry = run ? 4.2 : 4.6;
+      g.hrx = 7.2; g.hry = 6; g.hx = 16 + f * 4; g.hy = (run ? 15.6 : 14.4) + bob;
       if (anim === "eat") { g.hx = 16 + f * 4; g.hy = 18.6 + (Math.sin(t * 11) > 0 ? 0.8 : 0); }
       if (anim === 'look_up') g.hy -= 0.8;
       g.paws = false; g.hind = false; g.tailMode = anim === 'idle' || anim === 'eat' ? 'sit' : 'walk';
@@ -456,6 +456,7 @@
       if (sp === 'cat' || sp === 'fox') drawWhiskers(b, g, '#ffffff');
     }
 
+    volume(b);
     outlineSel(b);
 
     // ===== 轮廓内的细节 =====
@@ -525,6 +526,22 @@
       rect(b, lx, top, 3, h, near ? C.base : (C.dark || C.base));
       rect(b, lx, top + h - 1, 3, 1, C.paw || C.dark);
     });
+  }
+
+  // 精修：给身体和头加体积——朝上的一圈受光、朝下的一圈背光（左上来光）
+  const VOLC = new Map();
+  function tint(hex, k, t) { const key = hex + k + t; let v = VOLC.get(key); if (v) return v; const n = parseInt(hex.slice(1, 7), 16), r = n >> 16, g = (n >> 8) & 255, bl = n & 255; const T = t ? [255, 248, 228] : [58, 36, 70]; v = '#' + [r, g, bl].map((c, i) => Math.round(c + (T[i] - c) * k).toString(16).padStart(2, '0')).join(''); VOLC.set(key, v); return v; }
+  function volume(b) {
+    const w = b.w, h = b.h, src = b.d.slice();
+    const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? null : src[y * w + x]);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const v = src[y * w + x]; if (!v || v[0] !== '#' || v.length !== 7) continue;
+      const up = at(x, y - 1), dn = at(x, y + 1), up2 = at(x, y - 2), lf = at(x - 1, y);
+      let o = v;
+      if (!up) o = tint(v, 0.22, 1); else if (!up2 || !lf) o = tint(v, 0.08, 1);
+      if (!dn) o = tint(o, 0.18, 0); else if (!at(x, y + 2)) o = tint(o, 0.07, 0);
+      b.d[y * w + x] = o;
+    }
   }
 
   function drawWhiskers(b, g, col) {

@@ -20,6 +20,8 @@
           if ((y - top) < 2) c = mix(col, '#ffffff', 0.12);
           else if (ridge < 0.32) c = mix(col, '#000000', 0.08);
           if (snow && y - top < span * 0.22 * (0.6 + noise(x / 9, 1, seed) * 0.8)) c = (ridge < 0.4 ? '#dde8f2' : '#f6fafe');
+          // 空气感：越靠山脚越被薄雾冲淡，远的山层更淡
+          c = mix(c, '#efe4ee', Math.min(0.32, ((y - top) / Math.max(1, gy - top)) * 0.22 + (layers.length - 1 - li) * 0.06));
           P.set(x, y, c);
         }
       }
@@ -56,19 +58,35 @@
   // ---------- 通用：地面 ----------
   function ground(P, lay, pal, opt = {}) {
     const { noise, hash, dith } = T(), { cols, rows, gy } = lay;
+    const { mix } = T();
     for (let y = gy; y < rows; y++) for (let x = 0; x < cols; x++) {
-      const n = noise(x / 7, y / 4, 101);
+      // 色块之间用抖动过渡，不再是硬邦邦的色阶
+      const n = noise(x / 7, y / 4, 101) + (dith(x, y, 0.5) ? 0.04 : -0.04);
       let c = n < 0.33 ? pal[0] : n < 0.7 ? pal[1] : pal[2];
       if (hash(x, y, 7) < 0.025) c = pal[3];
       if (y - gy < 2) c = pal[2];
+      // 越往前越深一点（近处的地面在阴影里）
+      const depth = (y - gy) / Math.max(1, rows - gy);
+      if (depth > 0.6 && dith(x, y, (depth - 0.6) * 1.2)) c = mix(c, "#3a2846", 0.05);
       P.set(x, y, c);
+    }
+    // 地面上的小细节：一簇簇草叶（亮的叶尖 + 暗的根）、小石子（上亮下暗）
+    if (opt.blades) for (let i = 0; i < cols * (rows - gy) * 0.018; i++) {
+      const x = Math.floor(hash(i, 11, 3) * cols), y = gy + 3 + Math.floor(hash(i, 12, 3) * (rows - gy - 4));
+      P.set(x, y, opt.blades[1]); P.set(x - 1, y + 1, opt.blades[0]); P.set(x + 1, y + 1, opt.blades[0]); P.set(x, y + 1, mix(pal[0], '#2a1e30', 0.25));
+    }
+    for (let i = 0; i < cols * 0.05; i++) {
+      const x = Math.floor(hash(i, 21, 5) * cols), y = gy + 3 + Math.floor(hash(i, 22, 5) * (rows - gy - 4));
+      P.set(x, y, mix(pal[2], '#ffffff', 0.35)); P.set(x + 1, y, mix(pal[1], '#ffffff', 0.15)); P.set(x, y + 1, mix(pal[0], '#2a1e30', 0.3)); P.set(x + 1, y + 1, mix(pal[0], '#2a1e30', 0.35));
     }
     // 小路：从左到右，弯弯的，走的人多所以颜色浅
     if (opt.path) {
       const py = gy + Math.round((rows - gy) * 0.5);
       for (let x = 0; x < cols; x++) {
         const yc = py + Math.round(Math.sin(x / 47) * 2 + Math.sin(x / 13) * 0.7), w = 3 + Math.round(noise(x / 9, 3, 5) * 2);
-        for (let k = -w; k <= w; k++) { if (Math.abs(k) === w && hash(x, k, 3) < 0.5) continue; P.set(x, yc + k, Math.abs(k) >= w - 1 ? opt.path[1] : hash(x, yc + k, 9) < 0.06 ? opt.path[2] : opt.path[0]); }
+        for (let k = -w; k <= w; k++) { if (Math.abs(k) === w && hash(x, k, 3) < 0.5) continue; P.set(x, yc + k, Math.abs(k) >= w - 1 ? opt.path[1] : hash(x, yc + k, 9) < 0.06 ? opt.path[2] : k < -w + 3 && dith(x, yc + k, 0.35) ? mix(opt.path[0], '#ffffff', 0.18) : opt.path[0]); }
+        if (hash(x, 31, 3) < 0.5) P.set(x, yc + w + 1, mix(opt.path[1], '#2a1e30', 0.3)); // 路边一道浅浅的阴影
+        if (hash(x, 32, 3) < 0.035) { const k = Math.round((hash(x, 33, 3) - 0.5) * (w - 1) * 2); P.set(x, yc + k, mix(opt.path[2], '#ffffff', 0.4)); P.set(x, yc + k + 1, mix(opt.path[2], '#2a1e30', 0.3)); }
       }
       lay.path = py;
     }
