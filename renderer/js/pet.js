@@ -112,7 +112,7 @@
     // 被鼠标指着（或者它的图标环开着）：原地停下来看着你
     get frozen() { return (G.hoverPet === this || PP.ringPet === this) && !this.held && !this.airborne && !this.doorBusy() && !this.transit; }
     // 乖乖待着：这只单独设置的，或者全局“工作模式”
-    get calm() { return !!(G.save && G.save.settings.mode === 'mini'); }
+    get calm() { return !!(G.save && (G.save.settings.mode === 'mini' || G.save.settings.quiet)); }
     // 只露个头：沉到屏幕底边以下的像素数
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
@@ -136,7 +136,7 @@
       PP.audio && PP.audio.chirp(this);
     }
     // 头顶冒的小图标：旁边配几个字，一看就懂它想干嘛
-    think(icon, dur = 2.4, label) { this.bubble = { text: null, icon, label: label != null ? label : PP.ICON_TEXT[icon] || '', t: 0, dur, kind: 'think' }; }
+    think(icon, dur = 2.4, label) { if (G.save && G.save.settings.quiet && !this._forceSay) return; this.bubble = { text: null, icon, label: label != null ? label : PP.ICON_TEXT[icon] || '', t: 0, dur, kind: 'think' }; }
     line(key, dur) {
       const arr = (this.sp.lines && this.sp.lines[key]) || PP.LINES[key];
       if (arr) this.say(U.pick(arr), dur);
@@ -372,7 +372,8 @@
       for (const it of sc) if (['wander', 'explore', 'play', 'special'].includes(it[0])) it[1] *= roam;
       if (this.sulk > 0) { sc.length = 0; add('alone', 1); add('idle', 0.5); }
       // 乖乖待着 / 工作模式：只做吃喝拉撒睡和原地的小动作，不乱跑不乱跳
-      if (this.calm) {
+      if (quiet) { sc.length = 0; add('idle', 1); } // 工作模式：原地待着，只跟着你的打字、滚动、鼠标做动作
+      else if (this.calm) {
         const keep = new Set(['eat', 'drink', 'toilet', 'sleep', 'idle', 'groom', 'treat', 'holiday_food', 'peck']);
         for (let i = sc.length - 1; i >= 0; i--) if (!keep.has(sc[i][0])) sc.splice(i, 1);
         add('idle', 0.6);
@@ -423,6 +424,9 @@
     pickUp() {
       if (this.doorBusy()) { this.inDoor = false; this.doorClip = null; this.y = G.ground; }
       this.surf = null; this.wade = 0; this.sinkOut = 0; this.transit = false;
+      // 把躲着的小家伙拖出来：它就不再躲了（之前没清掉，放手后又缩回去）
+      this.edgePeek = null; this.peek = false;
+      this.grabAt = [G.mouse.x, G.mouse.y];
       this.interrupt(true);
       this.held = true; this.airborne = false; this.anim = 'held';
       this.heldT = 0; this.shake = 0; this.lastVx = 0;
@@ -457,7 +461,9 @@
     }
     drop(vx, vy) {
       // 拖到屏幕最下面 / 最边上放手：它就躲在那儿只露个头（探索玩法）
-      const M = G.mouse, edge = M.y >= G.H - 8 ? 'bottom' : M.x <= 8 ? 'left' : M.x >= G.W - 8 ? 'right' : null;
+      // 只有真的把它从别处拖到边上才算（从边上把它拖出来、在边上附近放手，不会又缩回去）
+      const M = G.mouse, g = this.grabAt || [M.x, 0];
+      const edge = M.y >= G.H - 8 && g[1] < G.H - 60 ? 'bottom' : M.x <= 8 && g[0] > 60 ? 'left' : M.x >= G.W - 8 && g[0] < G.W - 60 ? 'right' : null;
       if (edge && !(G.save && G.save.settings.mode === 'full')) { this.held = false; this.airborne = false; this.vx = this.vy = 0; this.y = this.floor; this.edgePeek = { side: edge, since: G.t }; if (edge !== 'bottom') this.x = edge === 'left' ? 4 * G.S : G.W - 4 * G.S; this.interrupt(true); return; }
       this.held = false; this.airborne = true;
       this.vx = U.clamp(vx, -1400, 1400) * 0.6; this.vy = U.clamp(vy, -1200, 1200) * 0.6;

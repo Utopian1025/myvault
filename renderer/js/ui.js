@@ -255,7 +255,7 @@
         <label>它们怎么称呼你 <input class="owner" maxlength="6" placeholder="主人"></label>
         <label><input type="checkbox" class="sound"> 声音（很小声的叫声和呼噜）</label>
         <label><input type="checkbox" class="care"> 久坐提醒 每 <input class="brk" type="number" min="20" max="240" step="10" style="width:56px"> 分钟</label>
-        <label><input type="checkbox" class="quiet"> 勿扰模式（不说话、不来找你）</label>
+        <label><input type="checkbox" class="quiet"> 工作模式（不说话、不找你、不乱动，只跟着你的操作动）</label>
         ${window.petAPI ? '<label><input type="checkbox" class="autostart"> 开机自动启动</label>' : ''}
         <div class="row"><button class="small reset">清空存档…</button></div></div>`);
       const q = (c) => box.querySelector(c);

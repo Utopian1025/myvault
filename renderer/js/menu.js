@@ -55,7 +55,7 @@
     const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: (s.mode === 'mini' && s.taskbar ? 'bar' : s.mode) === k }));
     const quiet = { label: '勿扰', hint: T(s.quiet ? '开' : s.autoQuiet !== false ? '自动' : ''), sub: [
       { id: 'autoQuiet', label: '工作时自动安静（打字时不说话、不来找你、声音调小）', type: 'checkbox', checked: s.autoQuiet !== false },
-      { id: 'quiet', label: '一直安静（不说话、不来找你）', type: 'checkbox', checked: !!s.quiet },
+      { id: 'quiet', label: '工作模式（不说话、不找你、不乱动，只跟着你的操作动）', type: 'checkbox', checked: !!s.quiet },
       { label: '睡眠时间（不出声、大家都去睡）', hint: T(s.sleepMode && s.sleepMode.on ? `${s.sleepMode.from}:00–${s.sleepMode.to}:00` : '关'), sub: [
         { id: 'sleep:off', label: '关闭', type: 'radio', checked: !(s.sleepMode && s.sleepMode.on) },
         ...[[22, 7], [23, 7], [0, 8], [12, 14]].map(([a, b]) => ({ id: `sleep:${a}:${b}`, label: `${a}:00 – ${b}:00${a === 12 ? '（午休）' : ''}`, type: 'radio', checked: !!(s.sleepMode && s.sleepMode.on && s.sleepMode.from === a && s.sleepMode.to === b) })),
@@ -149,7 +149,7 @@
       case 'work': s.work = !s.work; ui.toast(s.work ? '工作模式：大家会乖乖待着，不乱跑不乱跳' : '下班啦，大家可以随便玩了'); if (s.work) G.pets.forEach((p) => { if (['wander', 'explore', 'play', 'cursor_play', 'seek_user', 'social', 'bug', 'ball', 'zoomies', 'special', 'follow', 'root', 'forage'].includes(p.action)) p.interrupt(); }); break;
       case 'autoQuiet': s.autoQuiet = s.autoQuiet === false; ui.toast(s.autoQuiet ? '工作时自动安静：开（你打字时它们不说话、不来找你）' : '工作时自动安静：关'); break;
       case 'appIcon': ui.appIconPanel && ui.appIconPanel(); break;
-      case 'quiet': s.quiet = !s.quiet; ui.toast(s.quiet ? '它们会安静地自己玩' : '欢迎回来'); break;
+      case 'quiet': s.quiet = !s.quiet; ui.toast(s.quiet ? '工作模式：不说话、不找你、不乱动，只跟着你的打字和滚动动一动' : '下班啦，大家可以随便玩了'); if (s.quiet) G.pets.forEach((p) => { p.bubble = null; if (!['sleep', 'knead', 'rollPaper', 'held', 'landing'].includes(p.action) && !p.held && !p.airborne) p.interrupt(); }); break;
       case 'pomo': PP.F.pomo.phase === 'off' ? PP.F.pomoStart() : PP.F.pomoStop(); break;
       case 'reminders': ui.reminders(); break;
       case 'feedAll': { const L2 = G.all.filter((p) => !p.d.wild); L2.forEach((p) => PP.feedPet(p, 'both')); ui.toast(L2.length ? `${L2.length} 只都吃饱喝足了` : '还没有认养的伙伴'); break; }

@@ -37,7 +37,7 @@
       if (s.mode === 'full' && s.autoQuiet !== false && F.keys.filter((t) => now - t < 4000).length >= 8) {
         PP.setMode('band', true); PP.ui.toast('开始打字了，全屏场景自动收起（Esc 也能退出）');
       }
-      if (F.working()) return; // 工作中：不搬键盘过来陪打字
+      if (F.working() && !s.quiet) return; // 工作中：不搬键盘过来陪打字（工作模式例外：只剩这种跟着你动的动画）
       // 开始打字：猫过来拍键盘陪你
       const p = F.main();
       if (p && !p.sleeping && !p.peek && p.action !== 'knead' && !F.busy(p) && !(p.cooldown.type > 0)) {
@@ -48,7 +48,7 @@
     onWheel(dy) {
       const p = F.main();
       if (!p || p.sleeping || p.peek) return;
-      F.roll.len = Math.min(F.roll.max(), F.roll.len + Math.min(60, Math.abs(dy) * 0.25 + 4));
+      F.roll.len = Math.min(F.roll.max(), F.roll.len + Math.min(10, Math.abs(dy) * 0.06 + 2));
       F.roll.last = Date.now();
       if (p.action !== 'rollPaper' && !F.busy(p)) p.run('rollPaper', A.rollPaper);
     },
@@ -72,7 +72,7 @@
         if (F.heat < 0.3) F.heatSaid = false;
       }
       // 卷纸：停止滚动后慢慢卷回去
-      if (now - F.roll.last > 1400) F.roll.len = Math.max(0, F.roll.len - dt * 260);
+      if (now - F.roll.last > 900) F.roll.len = Math.max(0, F.roll.len - dt * 120);
     },
 
     // 每秒检查：提醒、番茄钟
@@ -82,11 +82,11 @@
       const userHere = now - G.user.lastActive < 3 * 60000;
       const quietPomo = F.pomo.phase === 'focus';
       // 喝水
-      if (s.rem.water > 0 && userHere && now - F.lastWater > s.rem.water * 60000 && !quietPomo) {
+      if (!s.quiet && s.rem.water > 0 && userHere && now - F.lastWater > s.rem.water * 60000 && !quietPomo) {
         F.lastWater = now; p.peekPop = 1; p.run('remindDrink', A.remindDrink);
       }
       // 伸懒腰（变大）
-      if (s.rem.stretch > 0 && userHere && now - F.lastStretch > s.rem.stretch * 60000 && !quietPomo) {
+      if (!s.quiet && s.rem.stretch > 0 && userHere && now - F.lastStretch > s.rem.stretch * 60000 && !quietPomo) {
         F.lastStretch = now; p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call(U.pick(['坐太久啦，站起来活动一下吧！', '起来站一站，伸个懒腰～', '站起来走两步吧！'])));
       }
       // 自定义提醒（每天 / 每周几 HH:MM）
@@ -165,7 +165,8 @@
       }
     },
   });
-  F.roll.max = () => Math.max(200, G.W * 0.45);
+  // 卷纸最长：从爪子垂到地上，再往前铺出去，末端离开身体不超过 1 厘米（约 38 个屏幕像素）
+  F.roll.max = () => 7 * G.S + 12 * G.S + 38;
 
   function px(ctx, x, y, w, h, col, outline) {
     if (outline) { ctx.fillStyle = '#2a2026'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, Math.round(w) + 2, Math.round(h) + 2); }

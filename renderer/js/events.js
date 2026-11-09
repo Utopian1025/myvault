@@ -116,7 +116,8 @@
     // 每 5 秒检查一次的时间事件
     tick() {
       const d = new Date(), h = d.getHours(), m = d.getMinutes();
-      const awake = G.pets.filter((p) => !p.sleeping && !p.held && !p.airborne);
+      const workMode = !!G.save.settings.quiet; // 工作模式：小家伙们不参与任何小事件（许愿、跳舞、跑酷、催睡觉……）
+      const awake = workMode ? [] : G.pets.filter((p) => !p.sleeping && !p.held && !p.airborne);
       const userActive = Date.now() - G.user.lastActive < 60000;
 
       // 11:11 许愿
@@ -125,7 +126,7 @@
         if (awake.length) { awake.forEach((p) => p.run('lookUp', PP.ACTIONS.lookUp, 'star', null, 4)); E.found('wish_1111'); awake[0].say('11:11，许个愿！'); }
       }
       // 熬夜被抓
-      if (h >= 1 && h < 4 && userActive && E.cd('latenight') <= 0) {
+      if (!workMode && h >= 1 && h < 4 && userActive && E.cd('latenight') <= 0) {
         E.setCd('latenight', 5 * 3600);
         const p = U.pick(G.pets.filter((q) => !q.held) || []);
         if (p) { p.run('lateNight', PP.ACTIONS.lateNight); E.found('late_night'); p.log('主人半夜还没睡，去提醒了一下。'); }
@@ -269,6 +270,7 @@
     // 主人离开/回来
     onUserReturn(awayMs) {
       const long = awayMs > 60 * 60000;
+      if (G.save.settings.quiet) { diary.add(null, `${G.save.settings.ownerName || '主人'}离开了${U.fmtDur(awayMs)}，回来了。`, 'note'); return; }
       diary.add(null, `${G.save.settings.ownerName || '主人'}离开了${U.fmtDur(awayMs)}，回来了。`, 'note');
       const greeters = G.pets.filter((p) => !p.held && p.affLevel >= 1 && (!p.sleeping || (long && p.tr.clingy > 0.55)));
       greeters.forEach((p, i) => setTimeout(() => p.run('greet', PP.ACTIONS.greet, long), i * 400));
