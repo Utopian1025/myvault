@@ -2,8 +2,8 @@
 
 ClearTask 的公开安装包与签名更新入口。源码保存在私有仓库 Utopian1025/cleartask。
 
-- [镜像下载 ClearTask 0.4.2 Windows 安装包](https://cdn.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.2-Windows.zip)
-- [GitHub Release 备用下载](https://github.com/Utopian1025/myvault/releases/tag/cleartask-v0.4.2)
+- [镜像下载 ClearTask 0.4.3 Windows 安装包](https://cdn.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.3-Windows.zip)
+- [GitHub Release 备用下载](https://github.com/Utopian1025/myvault/releases/tag/cleartask-v0.4.3)
 - [逐项修复与验证范围](https://cdn.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/RELEASE-NOTES.md)
 
 应用内：工作空间设置 → 备份 → 软件更新。检查更新和下载均优先使用镜像，失败时才回退 GitHub。
