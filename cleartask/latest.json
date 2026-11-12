@@ -1,1 +1,11 @@
-{"Version":"0.4.7","Size":1810944,"Sha256":"4074F4DD257AC0B24A87E4EA0CDFCD52AC462CBCCC63B6DF908E2C0AB2DE9255","Downloads":["https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.7.bin","https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.7.bin"],"Notes":"修复备忘录字体格式菜单报错；合并侧边栏切换刷新；小组件统一尺寸和字号，默认 8 像素边距；翻页位置延后合并保存；小组件与设置添加可中断的滑动缓出，减少动态效果时直接切换。","Signature":"rv8PMpOnjQ4zHnNqM4VlB6draQWpSyEPXZcszwbyPyJ+ZQeFOISYewWgezyfnYYm0dI9Q2MPSxYUFT6bcFu7OJCTxzneOIOEodeVR9iZ6YTOS/Fw2XV7KkdSef49JQDyjqO2B1zDXVb+Pcf6uoMhWagnZkSuTWN9fj/bd+t4fhGP6kz4JlCKrVlgAmTUuJ01XkPHKICTZdQrSUDAHb+Kwtura6dTZkoeaR2l1BtvyShPHRDUoateZhTQiGdxK92u39kEMzH7PsZ3qeFU8ws+Hc9Tdg+lXJ+A6Z5oKZM7YpRCa96qEkvadwcX9WthgEw5obkTzuxduKZA3MIOjAMA248dErC0Q6X1pPIWPfcJwsDD7slSFvtSGNvBWSN5cQLjACatBKRKfYvUUY8WvvFPGXyF+/XrWr0J+6M/BJ3R9dcFtvt2bjo0oLFUY/k7sEIHJpIFHV36ok+y6PQnPQ4TaOVHI8zhYVcXpZjoWKS60yS2NhQBDWeNBHgmX45lyyJj"}
+{
+  "Version": "0.4.8",
+  "Size": 1789440,
+  "Sha256": "5B8DECBDFD6BD480108218E06188709B6EF616CD82D55F604F1D50363260E676",
+  "Downloads": [
+    "https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.8.bin",
+    "https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.8.bin"
+  ],
+  "Notes": "# ClearTask 0.4.8\n\n- 修复更新镜像返回旧清单时，错误显示已是最新版本的问题。\n- 同时检查多个免费镜像及源站，选择签名有效的最高版本；单一来源失败不阻断其他来源。\n- 禁用客户端更新请求缓存，统一三段与四段版本号比较。\n- 旧清单或全部来源不可用时明确报告，不再误报最新。\n- 保留安装包 SHA-256、发布签名校验及安装失败回滚。\n\n包含 0.4.7 的备忘录字体菜单崩溃、侧边栏切换、小组件尺寸和动效修复。\n",
+  "Signature": "j/BD87K7LdqZ/CVV140LAg5hsnzjNnCvD8mJKOe8HfYf9wuaYeCby+706Cwk4ebZH9dgX2MeP/KaWQ4TJYmQvq9pMg0O4OHElbBwwt6ZZapT7KuLpIm+fYfSwFuxAQhfJ+3bePW00yxlsOKluaqttJWRdJ2ZaTotdI5kJDXd0Wvhn93QPERdcDQXotZD0olAdcqsPKeB+9mT/pAybIxbYlevuQsenIcQWWPafPZLnsC+X01Scv4rzCzuYtNxNIa46jMreQZpP+jodP+8pgn5MsKedLtT+JYCJ/oAEr0KKzUmJAHvvtnrE+uh8MSGF8CLubZoiw1w7POsb1+re8jOiUJMD49aGcS3CmhnGeKItUgaWtUUL7HgIPZNLVLBGfLBzQz7ywmJzziRKzHWV4HZGi6L8cFZ0Gp9lPGMX/DV8ZjXS/RWHFnqVGpYnqM1rXwfO8CM5f6HMpvj1cMoYGWCk91clfn1bkFPKWOI/quqBZUUAkHEF/latBabwzFp5BZJ"
+}
