@@ -14,6 +14,8 @@
       // 主角：你指定的那只（负责提醒、陪打字）；没指定就是第一只
       const vis = G.pets.filter((p) => !p.held);
       if (!vis.length) return null;
+      const mp = PP.mainPet && PP.mainPet();
+      if (mp && G.pets.includes(mp)) return mp;
       const id = G.save.settings.mainId;
       return vis.find((p) => p.d.id === id) || vis.find((p) => !p.d.wild) || vis[0];
     },
@@ -78,16 +80,19 @@
     // 每秒检查：提醒、番茄钟
     second() {
       const s = F.S(), now = Date.now(), p = F.main();
+      // 正在躲着只露头的：提醒只冒一句话，不把它整只拽出来
+      const hiding = p && (p.action === 'edgePeek' || p.action === 'peekIdle');
+      const nag = (fn) => { if (hiding) { p._forceSay = true; p.say(fn(), 8); p._forceSay = false; return true; } return false; };
       if (!p) return;
       const userHere = now - G.user.lastActive < 3 * 60000;
       const quietPomo = F.pomo.phase === 'focus';
       // 喝水
       if (!s.quiet && s.rem.water > 0 && userHere && now - F.lastWater > s.rem.water * 60000 && !quietPomo) {
-        F.lastWater = now; p.peekPop = 1; p.run('remindDrink', A.remindDrink);
+        F.lastWater = now; if (!nag(() => F.call('该喝水啦～'))) { p.peekPop = 1; p.run('remindDrink', A.remindDrink); }
       }
       // 伸懒腰（变大）
       if (!s.quiet && s.rem.stretch > 0 && userHere && now - F.lastStretch > s.rem.stretch * 60000 && !quietPomo) {
-        F.lastStretch = now; p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call(U.pick(['坐太久啦，站起来活动一下吧！', '起来站一站，伸个懒腰～', '站起来走两步吧！'])));
+        F.lastStretch = now; { const t = F.call(U.pick(['坐太久啦，站起来活动一下吧！', '起来站一站，伸个懒腰～', '站起来走两步吧！'])); if (!nag(() => t)) { p.peekPop = 1; p.run('bigStretch', A.bigStretch, t); } }
       }
       // 自定义提醒（每天 / 每周几 HH:MM）
       const d = new Date(), hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, day = U.dateKey(d);
@@ -98,17 +103,18 @@
         const k = day + r.time + r.text;
         if (F.firedToday[k]) continue;
         F.firedToday[k] = true;
-        p.peekPop = 1; p.run('remind', A.remind, F.call(r.text));
+        if (!nag(() => F.call(r.text))) { p.peekPop = 1; p.run('remind', A.remind, F.call(r.text)); }
       }
       // 番茄钟
       if (F.pomo.phase !== 'off' && now >= F.pomo.end) {
         if (F.pomo.phase === 'focus') {
           F.pomo = { phase: 'break', start: now, end: now + s.pomo.brk * 60000 };
-          p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call('专注结束！休息一下～'));
+          if (!nag(() => F.call('专注结束！休息一下～'))) { p.peekPop = 1; p.run('bigStretch', A.bigStretch, F.call('专注结束！休息一下～')); }
           PP.diary.add(p, '陪主人专注了一个番茄钟。', 'love');
+          PP.econ && PP.econ.onFocusDone(s.pomo.focus);
         } else {
           F.pomo = { phase: 'focus', start: now, end: now + s.pomo.focus * 60000 };
-          p.peekPop = 1; p.run('remind', A.remind, F.call('休息结束，继续加油！'));
+          if (!nag(() => F.call('休息结束，继续加油！'))) { p.peekPop = 1; p.run('remind', A.remind, F.call('休息结束，继续加油！')); }
         }
       }
     },
@@ -258,9 +264,9 @@
     if (!G.save.eggs || !G.save.eggs.edge_peek) { PP.events.found('edge_peek'); }
     p.facing = e.side === 'left' ? 1 : e.side === 'right' ? -1 : p.facing;
     p.anim = 'idle'; p.eyes = 'wide'; yield 0.6;
-    if (Math.random() < 0.6) { p._forceSay = true; p.say(U.pick(['（偷看）', '你看不见我～', '嘘…', '…（探头）']), 2); p._forceSay = false; }
-    const stay = U.rand(40, 90);
-    while (p.edgePeek && G.t - e.since < stay) {
+    if (!G.save.settings.quiet && Math.random() < 0.6) { p._forceSay = true; p.say(U.pick(['（偷看）', '你看不见我～', '嘘…', '…（探头）']), 2); p._forceSay = false; }
+    // 一直躲着，直到你把它拖出来 / 点它一下
+    while (p.edgePeek) {
       if (e.side !== 'bottom') p.x = e.side === 'left' ? 4 * G.S : G.W - 4 * G.S;
       p.look = [U.clamp((G.mouse.x - p.x) / 300, -1, 1), U.clamp((G.mouse.y - p.y) / 300, -1, 1)];
       if (G.hoverPet === p) { p.eyes = 'happy'; yield 0.5; p.eyes = 'open'; }

@@ -409,6 +409,7 @@
   function rowY(r) { const l = lay(); return l ? l.g.y0 + r * l.g.u : G.ground; }
   // 宠物脚下的“地面”：陆地分前后好几排（lane），水里、高处另算
   function floorY(p) {
+    if (G.isle && PP.isle && G.pets.includes(p)) return PP.isle.floorY(p); // 小岛：按“排”站在院子 / 屋里的地板上
     if (!on() || !G.pets.includes(p)) return G.ground;
     if (p.surf && p.surf.r != null) { const l2 = lay(), sp2 = p.surf.id && l2 && l2.L.spots[p.surf.id]; return rowY(sp2 ? sp2.r : p.surf.r) + (p.surf.dy || 0); }
     const l = lay(); if (!l) return G.ground;
@@ -419,13 +420,20 @@
 
   // ---------- 可见 / 不可见 ----------
   const ins = () => (PP.scene && PP.scene.inside && PP.scene.inside()) || null;
-  function visibleIn(p) { const sp = ins(); if (sp) return on() && !p.d.hidden && !!p.d.inHome && p.d.species === sp && p.d.scene === view() && !(S().mode === 'mini' && PP.F && PP.F.main() === p); return on() && !p.d.hidden && !p.d.inHome && p.d.scene === view() && !(p.eco && p.eco.state === 'travel'); }
+  function visibleIn(p) { const sp = ins(); if (p.d.trip) return false; if (!sp && p === PP.mainPet()) return on() && !p.d.hidden; if (sp) return on() && !p.d.hidden && !!p.d.inHome && p.d.species === sp && p.d.scene === view() && !(S().mode === 'mini' && PP.F && PP.F.main() === p); return on() && !p.d.hidden && !p.d.inHome && p.d.scene === view() && !(p.eco && p.eco.state === 'travel'); }
   PP.eco.visible = visibleIn;
   function countAt(scene) { return G.all.filter((p) => !p.d.hidden && p.d.scene === scene && !(p.eco && p.eco.state === 'travel') && !(S().mode === 'mini' && PP.F && PP.F.main() === p)).length; }
   PP.eco.countAt = countAt;
 
   // 切换到某个场景：这里的动物现身，别处的退场
   function onView(to) {
+    // 主角跟着你来到这里
+    const mp = PP.mainPet();
+    if (mp && !ins()) {
+      const busyElsewhere = mp.action === 'eco' && mp.ecoTask && (mp.ecoTask.home || mp.ecoTask.scene !== to);
+      mp.d.scene = to; mp.d.inHome = false; mp.eco = null; mp.homeEco = null;
+      if (busyElsewhere || mp.surf) { mp.interrupt(true); mp.surf = null; mp.wade = 0; mp.sinkOut = 0; mp.y = G.ground; }
+    }
     for (const p of G.all) {
       if (p.d.hidden) continue;
       const was = G.pets.includes(p);
@@ -436,6 +444,14 @@
     G.all.forEach((p) => (p._shown = G.pets.includes(p)));
   }
   PP.eco.onView = onView;
+  // 主角不在眼前（刚指定了新主角 / 刚打开软件 / 刚从探险回来）：把它叫到你正在看的地方
+  setInterval(() => {
+    try {
+      if (!PP.started || !G.save || G.save.settings.mode === 'mini' || G.save.settings.allAway || ins() || !on()) return;
+      const mp = PP.mainPet(); if (!mp || G.pets.includes(mp) || mp.d.trip) return;
+      onView(view());
+    } catch (e) {}
+  }, 1500);
   PP.eco.toOffscreen = (p) => { toOffscreen(p); };
   // 刚出现在画面里：放到它正在干的事情的地方
   function appear(p) {
@@ -573,6 +589,7 @@
     if (p.homeEco) { p.run('eco', A.homeLife); return true; }
     if (p.calm) return false;
     const t = plan(p);
+    if (p === PP.mainPet() && (t.home || t.scene !== p.d.scene)) return false; // 主角不自己走开（回家 / 去别的地方），就在你眼前过日子
     const urgent = t.home || t.scene !== p.d.scene || p.n.hunger < 45 || p.n.thirst < 40;
     if (urgent) { p.run('eco', A.eco, t); return true; }
     // 不着急的时候：和“摸摸你、找朋友玩、发呆”这些放在一起随机
@@ -589,7 +606,7 @@
 
   // 天气突变：正在外面的动物看情况跑回家
   function watchWeather(p) {
-    if (p.homeEco) return;
+    if (p.homeEco || p === PP.mainPet()) return;
     if (p.held || p.airborne || p.doorBusy() || p.calm) return;
     if ((p.cooldown.wx || 0) > 0) return;
     p.cooldown.wx = 6;

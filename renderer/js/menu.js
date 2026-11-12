@@ -14,6 +14,7 @@
     const items = [
       { id: `pet:${id}:feed`, label: `喂${sp.favName}`, hint: full ? '最爱' : null },
       { id: `pet:${id}:water`, label: '喂水' },
+      ...(wild ? [] : [{ id: `pet:${id}:snack`, label: '喂零食 / 装扮…', hint: full && PP.econ ? `Lv${PP.econ.lvOf(p)}` : null }, { id: `pet:${id}:trip`, label: d.trip ? '在外面探险…' : '派它去探险…' }]),
       { id: `pet:${id}:pat`, label: '摸摸它', enabled: here },
       { id: `pet:${id}:ball`, label: '扔球给它', enabled: here },
       { id: `pet:${id}:sleep`, label: p.sleeping ? '叫醒它' : '哄它睡觉', enabled: here },
@@ -43,7 +44,7 @@
     const T = (v) => (forTray ? null : v); // 托盘菜单不显示右侧小字
     const items = [];
     if (focus) items.push({ label: `${focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
-    const curMode = s.mode === 'mini' && s.taskbar ? 'bar' : s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
+    const curMode = s.mode === 'mini' && s.taskbar ? 'bar' : s.mode === 'mini' && s.isle ? 'isle' : s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
     const mineList = G.all.filter((p) => !p.d.wild);
     const pets = mineList.map((p) => ({ label: p.name + `（${p.sp.name}）` + (G.save.settings.mainId === p.d.id ? ' ★' : ''), sub: petSub(p) }));
     const petsMenu = { label: '我认养的', hint: T(`${mineList.length} 只`), sub: [
@@ -52,7 +53,7 @@
       { id: 'feedAll', label: '给认养的都喂点吃的喝的', enabled: mineList.length > 0 },
       { id: 'overview', label: '每个地方都有谁' },
     ] };
-    const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: (s.mode === 'mini' && s.taskbar ? 'bar' : s.mode) === k }));
+    const modes = PP.MODES.map(([k, n, d]) => ({ id: `mode:${k}`, label: forTray ? n : `${n}（${d}）`, type: 'radio', checked: curMode === k }));
     const quiet = { label: '勿扰', hint: T(s.quiet ? '开' : s.autoQuiet !== false ? '自动' : ''), sub: [
       { id: 'autoQuiet', label: '工作时自动安静（打字时不说话、不来找你、声音调小）', type: 'checkbox', checked: s.autoQuiet !== false },
       { id: 'quiet', label: '工作模式（不说话、不找你、不乱动，只跟着你的操作动）', type: 'checkbox', checked: !!s.quiet },
@@ -85,8 +86,15 @@
       return items;
     }
     const counts = (k) => (PP.eco ? PP.eco.countAt(k) : 0);
+    const ec = PP.econ && PP.econ.E();
+    const econMenu = ec ? { label: '小鱼干 · 成长', hint: T(`${ec.fish} 条${PP.econ.unread() ? ' · 有信' : ''}`), sub: [
+      { id: 'econ:bag', label: '背包（零食、收成、装扮）' }, { id: 'econ:shop', label: '商店' }, { id: 'econ:trip', label: '探险' },
+      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和小岛' },
+      '-', { id: 'mode:isle', label: '去小岛（种地、进小屋）' },
+    ] } : null;
+    if (forTray && s.trayMenu !== 'full' && econMenu) econMenu.sub = econMenu.sub.slice(0, 6);
     items.push(
-      petsMenu,
+      petsMenu, ...(econMenu ? [econMenu] : []),
       { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
         ...modes, '-',
         ...Object.entries(PP.SCENES).map(([k, v]) => ({ id: `scene:${k}`, label: `去${v.name}` + (counts(k) ? `（${counts(k)} 只在这儿）` : ''), type: 'radio', checked: PP.scene.active() && PP.scene.view() === k })),
@@ -127,7 +135,9 @@
     if (a === 'pet') { petCmd(G.all.find((p) => p.d.id === b), c); PP.save.soon(); syncTray(true); return; }
     if (a === 'rem') { s.rem[b] = +c; if (b === 'water') PP.F.lastWater = Date.now(); else PP.F.lastStretch = Date.now(); ui.toast(+c ? `${b === 'water' ? '喝水' : '站立'}提醒：每 ${c} 分钟` : `${b === 'water' ? '喝水' : '站立'}提醒已关闭`); PP.save.soon(); syncTray(true); return; }
     if (a === 'size') { s.size = +b; G.pets.forEach((p) => { p.y = G.ground; }); PP.save.soon(); syncTray(true); return; }
-    if (a === 'mode') { if (b === 'mini') { s.taskbar = false; if (s.mode === 'mini') { PP.applyBar(); return; } } PP.setMode(b); return; }
+    if (a === 'mode') { if (b === 'mini') { const was = s.isle || s.taskbar; s.taskbar = false; s.isle = false; if (s.mode === 'mini') { PP.applyBar(); was && PP.setMode('mini', false, true); return; } } PP.setMode(b); return; }
+    if (a === 'econ') { PP.econ.openPanel(b); return; }
+    if (a === 'isle') { PP.isle && PP.isle.cmd(b, c, id.split(':')[3]); return; }
     if (a === 'scene') { PP.scene.go(b); return; }
     if (a === 'weather') { s.weather = b; if (b === 'auto' && !s.city) PP.ui.toast('还没设城市：天气会按季节模拟'); PP.save.soon(); syncTray(true); return; }
     if (a === 'season') { s.seasonFix = b === 'auto' ? null : b; PP.save.soon(); syncTray(true); return; }
@@ -169,8 +179,10 @@
     if (!p) return;
     const d = p.d, ui = PP.ui;
     switch (c) {
-      case 'main': G.save.settings.mainId = d.id; if (G.save.settings.mode === 'mini') { G.save.settings.miniMain = d.id; PP.syncPets(); } ui.toast(`${p.name}会陪着你：极简模式里待在右下角，提醒、陪打字都由它来`); break;
+      case 'main': G.save.settings.mainId = d.id; if (G.save.settings.mode === 'mini') { G.save.settings.miniMain = d.id; PP.syncPets(); } else if (PP.eco && PP.eco.onView && !PP.scene.inside()) PP.eco.onView(PP.scene.view()); ui.toast(`${p.name}会陪着你：极简模式里待在右下角，提醒、陪打字都由它来`); break;
       case 'feed': case 'fav': PP.feedPet(p, 'food'); break;
+      case 'snack': PP.econ.openPanel('bag', { pet: d.id }); break;
+      case 'trip': PP.econ.openPanel('trip', { pet: d.id }); break;
       case 'water': PP.feedPet(p, 'water'); break;
       case 'pat': if (G.pets.includes(p)) p.run('petted', PP.ACTIONS.petted); break;
       case 'adopt': PP.wild.adoptPanel(p); break;

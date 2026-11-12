@@ -1292,6 +1292,22 @@
     } else if (hat === 'yuzu') {
       ell(b, x + 0.5, top + 1.5, 3, 2.6, '#ffb52e'); b.set(x - 1, top, '#ffe08a'); b.set(x, top, '#ffe08a');
       b.set(x + 1, top - 1, '#4f8a3a'); b.set(x + 2, top - 2, '#5fae3c'); b.set(x + 3, top - 2, '#5fae3c');
+    } else if (hat === 'straw') {
+      // 草帽：宽帽檐 + 红色帽带
+      rect(b, x - 6, top + 2, 13, 1, '#d8b060'); rect(b, x - 5, top + 3, 11, 1, '#b88a40');
+      ell(b, x + 0.5, top + 0.5, 3.6, 2.2, '#ecc878'); rect(b, x - 3, top + 1, 7, 1, '#d9465a');
+      b.set(x - 1, top - 1, '#f6dc98');
+    } else if (hat === 'bow') {
+      const bx = x + 3;
+      rect(b, bx - 3, top + 1, 2, 3, '#ff6f9a'); rect(b, bx + 2, top + 1, 2, 3, '#ff6f9a'); b.set(bx - 3, top + 1, '#ffb0c8'); b.set(bx + 2, top + 1, '#ffb0c8');
+      rect(b, bx - 1, top + 2, 3, 1, '#d9466e'); b.set(bx, top + 2, '#ff9ab8');
+    } else if (hat === 'beanie') {
+      ell(b, x + 0.5, top + 1.5, 4.6, 3, '#5a8ad8'); rect(b, x - 4, top + 2, 10, 2, '#e8eef8');
+      for (let i = -3; i <= 4; i += 2) b.set(x + i, top + 2, '#c8d4e8');
+      ell(b, x + 0.5, top - 2, 1.4, 1.3, '#ffffff');
+    } else if (hat === 'wreath') {
+      for (let i = -4; i <= 5; i++) b.set(x + i, top + 2 - (i === -4 || i === 5 ? 0 : 1), '#5aa04e');
+      for (const [i, c] of [[-3, '#ff8fb8'], [0, '#ffe27a'], [3, '#ffffff'], [5, '#b08af0']]) { b.set(x + i, top, c); b.set(x + i, top + 1, c); }
     } else if (hat === 'leaf') {
       b.set(x + 4, top + 1, '#e8913a'); b.set(x + 5, top + 1, '#d9662a'); b.set(x + 4, top + 2, '#d9662a'); b.set(x + 6, top, '#8a4a2a');
     }
@@ -1328,6 +1344,7 @@
     book: ['oooooo', 'owwwwo', 'owwwwo', 'owwwwo', 'oooooo'],
     sleepy_moon: ['..yy', '.y..', 'y...', 'y...', '.y..', '..yy'],
     leaf: ['...gg', '..ggg', '.ggg.', 'ggg..', 'g....'],
+    flower: ['.p.p.', 'ppypp', '.p.p.', '..g..', '.gg..'],
     butterfly: ['p...p', 'pp.pp', '.pkp.', 'pp.pp'],
     friend: ['.k.k.', 'kkkkk', 'kwkwk', 'kkkkk', '.kkk.'],
     egg: ['..ww..', '.wwww.', 'wwwwbw', 'wwbwww', 'wwwwww', '.wwww.'],

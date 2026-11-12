@@ -22,7 +22,7 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .isle-bar:hover');
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
     if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
@@ -73,7 +73,7 @@
 
     G.hoverPet = dragPet ? null : topPet(x, y);
     G.hoverItem = G.hoverPet ? null : topItem(x, y);
-    G.hoverHot = G.hoverPet || G.hoverItem || dragPet || dragItem ? (PP.scene.hot(-9, -9), null) : PP.scene.hot(x, y);
+    G.hoverHot = G.hoverPet || G.hoverItem || dragPet || dragItem ? (PP.scene.hot(-9, -9), null) : (G.isle && PP.isle && PP.isle.hot(x, y)) || PP.scene.hot(x, y);
     if (G.editing) PP.scene.editMove(x, y);
     PP.refreshInteractive();
     if (interactive) document.body.style.cursor = G.hoverPet || G.hoverItem || G.hoverHot ? 'pointer' : 'default';
@@ -196,7 +196,7 @@
     PP.ui.closeMenu();
     if (G.editing) { PP.scene.editDown(x, y, e.button); return; }
     const pet = topPet(x, y), item = pet ? null : topItem(x, y);
-    if (e.button === 0 && G.hoverHot && !pet && !item) { PP.scene.click(G.hoverHot); return; }
+    if (e.button === 0 && G.hoverHot && !pet && !item) { if (G.hoverHot.isle) PP.isle.click(G.hoverHot, x, y); else PP.scene.click(G.hoverHot); return; }
     if (e.button === 2) {
       if (pet) PP.ui.petMenu(pet, x, y);
       else if (item) PP.ui.itemMenu(item, x, y);
@@ -235,6 +235,7 @@
   }
 
   function poke(p) {
+    if (p.edgePeek) { p.edgePeek = null; return; } // 点一下躲着的小家伙：它就出来了
     const now = Date.now();
     p.pokeTimes = p.pokeTimes.filter((t) => now - t < 6000);
     p.pokeTimes.push(now);

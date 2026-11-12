@@ -14,6 +14,7 @@
     ctx.imageSmoothingEnabled = false;
     const bar = document.body.classList.contains('web') ? 44 : 2;
     G.ground = G.bar ? G.H - Math.max(2, Math.round(G.bar.h * 0.1)) : G.H - bar;
+    if (G.isle && PP.isle) { PP.isle.layout(); G.ground = PP.isle.groundY(); }
     for (const p of G.pets) { p.x = U.clamp(p.x, 20, G.W - 20); if (!p.airborne && !p.held) p.y = p.floor; }
     for (const it of G.items) { it.x = U.clamp(it.x, 12, G.W - 12); if (!it.held) it.y = Math.min(it.y, G.ground); }
   }
@@ -117,6 +118,7 @@
     for (const it of items) if ((order[it.type] ?? 5) >= 5 && !it.held) it.render(ctx);
     // 远的先画、近的后画（场景里有前后排）；被拎着的最后画
     const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.airborne ? 0 : a.y) - (b.airborne ? 0 : b.y));
+    if (G.isle && PP.isle) PP.isle.renderBack(ctx);
     PP.doorsRenderBack(ctx);
     if (G.bar && PP.barDecor) PP.barDecor(ctx);
     // 任务栏视图：鼠标在任务栏上时动物变淡，不挡你看图标（停在某只身上一会儿它才会亮起来接住点击）
@@ -130,6 +132,7 @@
     PP.world.renderAmbient(ctx);
     PP.world.renderParticles(ctx);
     PP.scene.renderFront(ctx);
+    if (G.isle && PP.isle) PP.isle.renderFront(ctx);
     for (const p of pets) p.renderOverlay(ctx);
     PP.ui.tick();
   }
