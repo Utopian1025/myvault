@@ -42,10 +42,10 @@ if (cmd === 'prepare') {
   fs.writeFileSync(path.join(REL, 'notes.md'), [
     `## ${cur.title || '摸鱼动物园 v' + V}`, '', ...(cur.notes || []).map((n) => `- ${n}`), '',
     '### 下载', '',
-    '| | Windows | macOS |', '|---|---|---|',
-    `| GitHub | [安装包](${gh('MoyuZoo-Setup-' + V + '.exe')}) | [dmg](${gh('MoyuZoo-' + V + '.dmg')}) |`,
-    `| 国内加速 1 | [安装包](https://gh-proxy.com/${gh('MoyuZoo-Setup-' + V + '.exe')}) | [dmg](https://gh-proxy.com/${gh('MoyuZoo-' + V + '.dmg')}) |`,
-    `| 国内加速 2 | [安装包](https://ghfast.top/${gh('MoyuZoo-Setup-' + V + '.exe')}) | [dmg](https://ghfast.top/${gh('MoyuZoo-' + V + '.dmg')}) |`,
+    '| | Windows |', '|---|---|',
+    `| GitHub | [安装包](${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
+    `| 国内加速 1 | [安装包](https://gh-proxy.com/${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
+    `| 国内加速 2 | [安装包](https://ghfast.top/${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
     '', '已经装过的话不用重新下载：程序会自动更新。',
   ].join('\n'));
   console.log(JSON.stringify(info));
