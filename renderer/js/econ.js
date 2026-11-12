@@ -22,12 +22,20 @@
     s_corn: { kind: 'seed', name: '玉米种子', price: 4, icon: 'seed', crop: 'corn', desc: '1.5 小时成熟' },
     s_sun: { kind: 'seed', name: '向日葵种子', price: 4, icon: 'seed', crop: 'sunflower', desc: '2 小时开花' },
     s_pumpkin: { kind: 'seed', name: '南瓜种子', price: 6, icon: 'seed', crop: 'pumpkin', desc: '3 小时成熟，个头大' },
+    s_tomato: { kind: 'seed', name: '番茄种子', price: 3, icon: 'seed', crop: 'tomato', desc: '45 分钟成熟' },
+    s_cabbage: { kind: 'seed', name: '卷心菜种子', price: 3, icon: 'seed', crop: 'cabbage', desc: '1 小时成熟' },
+    s_tulip: { kind: 'seed', name: '郁金香球茎', price: 5, icon: 'seed', crop: 'tulip', desc: '1.5 小时开花' },
+    s_melon: { kind: 'seed', name: '西瓜种子', price: 8, icon: 'seed', crop: 'melon', desc: '4 小时成熟，又大又甜' },
 
     carrot: { kind: 'crop', name: '胡萝卜', sell: 4, icon: 'carrot', xp: 25, hunger: 30, desc: '自己种的，喂给它 +25 经验' },
     berry: { kind: 'crop', name: '草莓', sell: 6, icon: 'berry', xp: 40, hunger: 20, aff: 1, desc: '酸甜，+40 经验' },
     corn: { kind: 'crop', name: '玉米', sell: 8, icon: 'corn', xp: 50, hunger: 40, desc: '+50 经验' },
     sunflower: { kind: 'crop', name: '向日葵', sell: 9, icon: 'star', xp: 30, aff: 3, desc: '送给它，好感大涨' },
     pumpkin: { kind: 'crop', name: '南瓜', sell: 14, icon: 'melon', xp: 90, hunger: 60, desc: '+90 经验' },
+    tomato: { kind: 'crop', name: '番茄', sell: 5, icon: 'berry', xp: 30, hunger: 25, desc: '+30 经验' },
+    cabbage: { kind: 'crop', name: '卷心菜', sell: 6, icon: 'leaf', xp: 35, hunger: 35, desc: '+35 经验' },
+    tulip: { kind: 'crop', name: '郁金香', sell: 10, icon: 'flower', xp: 20, aff: 3, desc: '送给它，好感大涨' },
+    melon: { kind: 'crop', name: '西瓜', sell: 18, icon: 'melon', xp: 110, hunger: 60, thirst: 40, desc: '+110 经验，解渴' },
 
     bed: { kind: 'furn', name: '软软小床', price: 25, icon: 'moon', slot: 'bed', desc: '小屋里：困了会去床上睡' },
     rug: { kind: 'furn', name: '圆地毯', price: 12, icon: 'heart', slot: 'rug', desc: '小屋里：喜欢在上面打滚、踩奶' },
@@ -63,6 +71,10 @@
     corn: { min: 90, item: 'corn', n: [2, 3] },
     sunflower: { min: 120, item: 'sunflower', n: [1, 2] },
     pumpkin: { min: 180, item: 'pumpkin', n: [1, 2] },
+    tomato: { min: 45, item: 'tomato', n: [2, 4] },
+    cabbage: { min: 60, item: 'cabbage', n: [1, 2] },
+    tulip: { min: 90, item: 'tulip', n: [2, 3] },
+    melon: { min: 240, item: 'melon', n: [1, 2] },
   };
   // 每个地方的特产（图鉴）：[id, 名字, 图标, 稀有度 1 常见 / 2 少见 / 3 稀有]
   const SOUV = {
@@ -252,7 +264,7 @@
     badge(); save();
   }
   const unread = () => (E() ? E().mail.filter((m) => !m.read).length : 0);
-  function badge() { const dk = document.querySelector('.dock'); if (dk) dk.classList.toggle('mail', unread() > 0); PP.isle && PP.isle.dirty(); }
+  function badge() { PP.hud && PP.hud.refresh(); }
 
   // ---------- 探险 ----------
   const sceneName = (k) => (PP.SCENES[k] ? PP.SCENES[k].name : k);
@@ -317,7 +329,7 @@
     const e = E(), it = ITEMS[seedId]; if (!it || it.kind !== 'seed' || !has(seedId) || e.farm[i]) return false;
     give(seedId, -1);
     e.farm[i] = { crop: it.crop, t0: Date.now(), water: 0 };
-    PP.isle && PP.isle.dirty(); save(); return true;
+    save(); return true;
   }
   function plotInfo(i) {
     const e = E(), pl = e.farm[i]; if (!pl) return null;
@@ -330,7 +342,7 @@
     const c = CROPS[inf.crop], n = Math.round(U.rand(c.n[0], c.n[1]));
     give(c.item, n); e.farm[i] = null;
     PP.ui.toast(`收获了 ${n} 个${ITEMS[c.item].name}！（在背包里：可以喂它，也可以卖成小鱼干）`, 'gift');
-    PP.isle && PP.isle.dirty(); save(); refreshOpen(); return true;
+    save(); refreshOpen(); return true;
   }
   function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; pl.water = (pl.water || 0) + 1; save(); return true; }
 

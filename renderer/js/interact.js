@@ -22,7 +22,7 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .dock:hover, .orb:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .isle-bar:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover');
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
     if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
@@ -192,11 +192,11 @@
   function onDown(e) {
     markActive();
     const x = e.clientX, y = e.clientY;
-    if (e.target.closest && e.target.closest('.panel,.menu,.dock,.orb,.orb-pop,.homepop,.hoverbar,.editbar')) return;
+    if (e.target.closest && e.target.closest('.panel,.menu,.hud,.orb-pop,.homepop,.hoverbar,.editbar')) return;
     PP.ui.closeMenu();
     if (G.editing) { PP.scene.editDown(x, y, e.button); return; }
     const pet = topPet(x, y), item = pet ? null : topItem(x, y);
-    if (e.button === 0 && G.hoverHot && !pet && !item) { if (G.hoverHot.isle) PP.isle.click(G.hoverHot, x, y); else PP.scene.click(G.hoverHot); return; }
+    if (e.button === 0 && G.hoverHot && !pet && !item) { if (G.hoverHot.isle) { PP.hud && PP.hud.close(); PP.isle.down(G.hoverHot, x, y); } else PP.scene.click(G.hoverHot); return; }
     if (e.button === 2) {
       if (pet) PP.ui.petMenu(pet, x, y);
       else if (item) PP.ui.itemMenu(item, x, y);

@@ -238,13 +238,13 @@
       if (this._resume != null) { if (this.waitFn && this.target == null) this.target = this._resume; this._resume = null; }
       if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
       // 换排
-      if (this.tLane != null) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * 0.9); }
+      if (this.tLane != null) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else { let rate = 0.9; if (G.isle && this.target != null) { const left = Math.abs(this.target - this.x), sp0 = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * 1.8; rate = Math.max(0.9, Math.abs(d) * sp0 / Math.max(6, left)); } this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * rate); } }
       const floor = this.floor;
 
       // 走路
       if (this.target != null) {
         const dx = this.target - this.x;
-        const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1);
+        const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1) * (G.isle ? 1.8 : 1);
         const sp = this.sp;
         if (Math.abs(dx) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; if (this.tLane != null) { this.lane = this.tLane; this.tLane = null; } this.y = this.floor; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
         else if (sp.gait === 'hop' && !this.peek) {

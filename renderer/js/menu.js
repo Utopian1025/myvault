@@ -39,6 +39,8 @@
     return list;
   }
 
+  const TRAY_ITEMS = [['view', '视图'], ['isle', '去小岛'], ['bag', '背包 · 商店'], ['pets', '我认养的'], ['quiet', '工作模式'], ['pomo', '番茄钟'], ['remind', '提醒'], ['weather', '天气和季节'], ['sound', '环境声音'], ['settings', '设置'], ['hide', '暂时隐藏全部']];
+  const TRAY_DEFAULT = ['view', 'bag', 'pomo', 'settings'];
   PP.menuModel = function (focus, forTray) {
     const s = G.save.settings;
     const T = (v) => (forTray ? null : v); // 托盘菜单不显示右侧小字
@@ -74,17 +76,11 @@
     const settingsMenu = { label: '设置', sub: [
       { label: '宠物大小', sub: PP.SIZES.map(([v, n, d]) => ({ id: `size:${v}`, label: `${n}（${d}）`, type: 'radio', checked: (s.size || 2) === v })) },
       { label: '菜单大小', sub: PP.MENU_SCALES.map(([v, n]) => ({ id: `ms:${v}`, label: n, type: 'radio', checked: (s.menuScale || 0.8) === v })) },
-      { label: '托盘菜单', sub: [{ id: 'tray:simple', label: '精简（常用的几项）', type: 'radio', checked: s.trayMenu !== 'full' }, { id: 'tray:full', label: '完整', type: 'radio', checked: s.trayMenu === 'full' }] },
+      { label: '托盘菜单', sub: [{ id: 'tray:simple', label: '紧凑（只放勾选的几项）', type: 'radio', checked: s.trayMenu !== 'full' }, { id: 'tray:full', label: '完整', type: 'radio', checked: s.trayMenu === 'full' }, '-', { label: '紧凑时第一层显示：', enabled: false }, ...TRAY_ITEMS.map(([k, n]) => ({ id: `trayItem:${k}`, label: n, type: 'checkbox', checked: (s.trayItems || TRAY_DEFAULT).includes(k), enabled: s.trayMenu !== 'full' })), { id: 'trayItem:reset', label: '恢复默认' }] },
       { id: 'appIcon', label: '软件图标（换成喜欢的动物）…' },
       { id: 'settings', label: '更多设置…' },
       { id: 'about', label: `关于 & 检查更新${PP.APP_VERSION ? '（v' + PP.APP_VERSION + '）' : ''}` },
     ] };
-    // 托盘菜单（精简）：只放最常用的
-    if (forTray && s.trayMenu !== 'full') {
-      items.push(...modes, '-', petsMenu, quiet, remind, settingsMenu);
-      if (api) items.push('-', { id: 'hideWin', label: '暂时隐藏全部' }, { id: 'quit', label: '退出' });
-      return items;
-    }
     const counts = (k) => (PP.eco ? PP.eco.countAt(k) : 0);
     const ec = PP.econ && PP.econ.E();
     const econMenu = ec ? { label: '小鱼干 · 成长', hint: T(`${ec.fish} 条${PP.econ.unread() ? ' · 有信' : ''}`), sub: [
@@ -92,39 +88,50 @@
       { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和小岛' },
       '-', { id: 'mode:isle', label: '去小岛（种地、进小屋）' },
     ] } : null;
-    if (forTray && s.trayMenu !== 'full' && econMenu) econMenu.sub = econMenu.sub.slice(0, 6);
-    items.push(
-      petsMenu, ...(econMenu ? [econMenu] : []),
-      { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
+    const viewMenu = { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
         ...modes, '-',
         ...Object.entries(PP.SCENES).map(([k, v]) => ({ id: `scene:${k}`, label: `去${v.name}` + (counts(k) ? `（${counts(k)} 只在这儿）` : ''), type: 'radio', checked: PP.scene.active() && PP.scene.view() === k })),
         '-',
         { label: '场景高度', sub: [[1, '矮一点'], [2, '适中'], [3, '高一点']].map(([h, n]) => ({ id: `bgh:${h}`, label: n, type: 'radio', checked: (s.bgH || 2) === h })) },
         { id: 'decorate', label: '布置这个场景…', enabled: PP.scene.active() },
-      ] },
-      { label: '天气和季节', hint: T(PP.env.weatherName(PP.env.get().weather.kind)), sub: [
+      ] };
+    const weatherMenu = { label: '天气和季节', hint: T(PP.env.weatherName(PP.env.get().weather.kind)), sub: [
         { id: 'weather:auto', label: s.city ? `跟随实时天气（${s.city.name}）` : '按季节模拟（还没设城市）', type: 'radio', checked: (s.weather || 'auto') === 'auto' },
         { label: '固定天气', sub: PP.WEATHER.map(([k, n]) => ({ id: `weather:${k}`, label: `一直${n}`, type: 'radio', checked: s.weather === k })) },
         { id: 'city', label: s.city ? `换城市…（现在：${s.city.name}）` : '设置所在城市（实时天气）…' },
         '-',
         ...[['auto', '季节跟随日历和节气'], ['spring', '一直是春天'], ['summer', '一直是夏天'], ['autumn', '一直是秋天'], ['winter', '一直是冬天']].map(([k, n]) => ({ id: `season:${k}`, label: n, type: 'radio', checked: (s.seasonFix || 'auto') === k })),
         '-', { label: PP.env.label(), enabled: false },
-      ] },
-      { label: '声音', hint: T(s.ambient ? '开' : '关'), sub: [
+      ] };
+    const soundMenu = { label: '声音', hint: T(s.ambient ? '开' : '关'), sub: [
         { id: 'ambient', label: '环境声音（雨声、鸟叫、溪水…）', type: 'checkbox', checked: !!s.ambient },
         ...[[0.25, '很轻'], [0.5, '适中'], [0.8, '大一点']].map(([v, n]) => ({ id: `avol:${v}`, label: `音量：${n}`, type: 'radio', checked: (s.ambientVol != null ? s.ambientVol : 0.5) === v, enabled: !!s.ambient })),
-      ] },
-      quiet, remind,
-      { label: '照顾 & 回忆', sub: [
+      ] };
+    const careMenu = { label: '照顾 & 回忆', sub: [
         { id: 'ball', label: '扔个球' },
         { id: 'feedAll', label: '给认养的都喂点吃的喝的' },
         '-',
         { id: 'diary', label: '日记' },
         { id: 'collection', label: '收藏柜' },
         { id: 'eggs', label: '彩蛋图鉴', hint: T(`${Object.keys(G.save.eggs).length}/${Object.keys(PP.EGGS).length}`) },
-      ] },
-      settingsMenu,
-    );
+      ] };
+    // 托盘菜单（紧凑）：第一层只放你勾选的几项，其他都收进“更多”
+    if (forTray && s.trayMenu !== 'full') {
+      const on = new Set(s.trayItems || TRAY_DEFAULT), pomoOn = PP.F && PP.F.pomo.phase !== 'off';
+      const parts = {
+        view: { label: `视图：${modeName}`, sub: modes },
+        isle: { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开小岛' : '去小岛' },
+        bag: econMenu ? { id: 'econ:bag', label: `背包 · 商店${PP.econ.unread() ? '（有信）' : ''}` } : null,
+        pets: petsMenu, quiet: { id: 'quiet', label: '工作模式（安静）', type: 'checkbox', checked: !!s.quiet },
+        pomo: { id: 'pomo', label: pomoOn ? '停止番茄钟' : `番茄钟 ${s.pomo.focus} 分钟` },
+        remind: remind, weather: weatherMenu, sound: { id: 'ambient', label: '环境声音', type: 'checkbox', checked: !!s.ambient },
+        settings: settingsMenu, hide: api ? { id: 'hideWin', label: '暂时隐藏全部' } : null,
+      };
+      const top = TRAY_ITEMS.filter(([k]) => on.has(k) && parts[k]).map(([k]) => parts[k]);
+      const more = [petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu];
+      return [...top, '-', { label: '更多', sub: more }, ...(api ? [{ id: 'quit', label: '退出' }] : [])];
+    }
+    items.push(petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu);
     if (api) items.push('-', { id: 'hideWin', label: '暂时隐藏全部' }, { id: 'quit', label: '退出' });
     return items;
   };
@@ -144,6 +151,7 @@
     if (a === 'avol') { s.ambientVol = +b; PP.save.soon(); syncTray(true); return; }
     if (a === 'ms') { s.menuScale = +b; PP.applyMenuScale(); PP.save.soon(); syncTray(true); return; }
     if (a === 'bgh') { s.bgH = +b; PP.save.soon(); syncTray(true); return; }
+    if (a === 'trayItem') { if (b === 'reset') s.trayItems = null; else { const L = new Set(s.trayItems || TRAY_DEFAULT); L.has(b) ? L.delete(b) : L.add(b); s.trayItems = TRAY_ITEMS.map(([k]) => k).filter((k) => L.has(k)); } PP.save.soon(); syncTray(true); ui.toast('托盘菜单改好了（右键托盘图标看看）'); return; }
     if (a === 'tray') { s.trayMenu = b; PP.save.soon(); syncTray(true); ui.toast(b === 'full' ? '托盘菜单：完整' : '托盘菜单：精简'); return; }
     if (a === 'sleep') { s.sleepMode = b === 'off' ? Object.assign({}, s.sleepMode || {}, { on: false }) : { on: true, from: +b, to: +c }; ui.toast(b === 'off' ? '睡眠时间：关' : `睡眠时间：${b}:00–${c}:00，这段时间大家都去睡觉，不出声`); PP.save.soon(); syncTray(true); return; }
     if (a === 'calmAll') { G.all.forEach((p) => (p.d.calm = false)); PP.save.soon(); syncTray(true); return; }

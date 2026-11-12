@@ -9,10 +9,6 @@
   const ui = (PP.ui = {
     init() {
       root = document.getElementById('ui');
-      const dock = $(`<div class="dock" title="宠物菜单"><div class="paw"><canvas width="14" height="12"></canvas></div></div>`);
-      root.appendChild(dock);
-      drawPaw(dock.querySelector('canvas'));
-      dock.addEventListener('click', (e) => { e.stopPropagation(); ui.dockMenu(dock); });
       root.addEventListener('mouseover', PP.refreshInteractive);
       root.addEventListener('mouseout', () => setTimeout(PP.refreshInteractive, 0));
       if (window.petAPI) window.petAPI.onTray((cmd) => ui.command(cmd));
