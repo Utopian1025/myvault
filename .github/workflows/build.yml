@@ -46,7 +46,8 @@ jobs:
 
   publish:
     needs: build
-    if: ${{ inputs.release }}
+    # macOS 打包机经常排不上队（GitHub 那边机器不够）：只要 Windows 打好了就照常发布，不让 Mac 拖住整个发布
+    if: ${{ !cancelled() && inputs.release }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -60,13 +61,18 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: out
+      - name: 检查至少有 Windows 安装包
+        run: |
+          ls -R out || true
+          if ! ls out/*/*.exe >/dev/null 2>&1; then echo "没有 Windows 安装包，不发布"; exit 1; fi
+          ls out/*/*.dmg >/dev/null 2>&1 || echo "::warning::这次 Mac 没打出来（GitHub 的 Mac 打包机没排上），先只发布 Windows"
       - name: 准备发布文件（英文文件名、算 SHA-256、切块）
         run: node scripts/publish.js prepare out
       - name: 发布到 GitHub Releases
         run: |
           V=$(node -p "require('./package.json').version")
           cd release
-          ASSETS=$(ls *.exe *.dmg 2>/dev/null)
+          ASSETS=$(ls *.exe *.dmg 2>/dev/null || true)
           if gh release view "v$V" >/dev/null 2>&1; then
             gh release upload "v$V" $ASSETS --clobber
             gh release edit "v$V" --notes-file notes.md
@@ -96,7 +102,8 @@ jobs:
           V=$(node -p "require('./package.json').version")
           git add version.json
           git commit -m "发布 v$V" || echo "没有变化"
-          git push origin HEAD:main
+          # 打包期间仓库里可能有别的提交（比如其他项目），先接上最新的再推
+          for t in 1 2 3; do git pull --rebase -q origin main && git push origin HEAD:main && break; sleep 5; done
           # 让 jsDelivr 马上拿到新的版本信息
           # jsDelivr 有时要过一会儿才发现新提交，多刷几次
           for i in 1 2 3 4; do sleep 20; curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/version.json" || true; done
