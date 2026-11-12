@@ -361,3 +361,32 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .isle-bar button:hover { transform: translateY(-1px); background: #fff8e8; }
 .isle-bar button canvas { image-rendering: pixelated; width: 16px; height: 16px; }
 .isle-bar button.new::after { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); }
+
+/* ---------- HUD：一条工具栏，所有按钮都在这里 ---------- */
+.hud { position: fixed; z-index: 30; display: flex; align-items: center; gap: 4px; padding: 3px; background: rgba(255,255,255,.92); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); border-radius: 18px; transition: opacity .18s, transform .18s; }
+.hud.far { opacity: 0; pointer-events: none; transform: translateY(4px); }
+.hud button { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: none; display: grid; place-items: center; }
+.hud button:hover:not(:disabled), .hud button.on { background: var(--accent); }
+.hud button:active { transform: translateY(1px); }
+.hud button canvas { width: 18px; height: 18px; image-rendering: pixelated; pointer-events: none; }
+.hud button.new::before { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); border-radius: 50%; }
+.hud button[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; font-size: 11px; background: var(--ink); color: var(--paper); padding: 2px 6px; pointer-events: none; z-index: 2; }
+.hud .grip { width: 6px; height: 20px; margin: 0 2px 0 1px; cursor: grab; background: repeating-linear-gradient(0deg, #999 0 2px, transparent 2px 4px); }
+.orb-pop { z-index: 31; }
+.view-pop { gap: 6px; min-width: 230px; }
+.view-pop .flip { width: 100%; padding: 6px 10px; font-size: 13px; }
+.view-pop .vrow { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.view-pop .vrow > span { width: 54px; font-size: 11px; color: var(--muted); }
+.view-pop .hint, .scene-pop .hint { font-size: 11px; color: var(--muted); }
+.scene-pop .hint button { margin-left: 6px; }
+/* 选种子 */
+.seedpick { width: 330px; }
+.seedpick .sp-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0 2px 2px; }
+.seedpick .sp-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.seedpick .sp { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 2px; box-shadow: none; border-width: 2px; }
+.seedpick .sp canvas { image-rendering: pixelated; height: 40px; width: auto; }
+.seedpick .sp b { font-size: 12px; }
+.seedpick .sp small { font-size: 10px; color: var(--muted); }
+.seedpick .sp em { font-style: normal; font-size: 11px; color: #b8703a; }
+.seedpick .sp:disabled em { color: #aaa; }
+.dock, .orb:not(.orb-pop), .isle-bar { display: none !important; }
