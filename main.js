@@ -1,11 +1,14 @@
 // Electron 主进程：一个覆盖整个工作区的透明、置顶、可点击穿透的窗口
-const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, powerMonitor, globalShortcut } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, Tray, Menu, nativeImage, powerMonitor, globalShortcut, desktopCapturer } = require('electron');
 const os = require('os');
 const path = require('path');
 // 全局键盘/滚轮监听（可选的原生模块；装不上也不影响其他功能）。只知道“按了键”，不记录按的是什么。
 let uIOhook = null;
 try { ({ uIOhook } = require('uiohook-napi')); } catch (e) { console.warn('uiohook-napi 不可用，打字检测改用系统空闲时间推测'); }
 const updater = require('./updater');
+// 任何意外错误都只记一下，不弹“主进程 JavaScript 错误”吓人的框
+process.on('uncaughtException', (e) => { try { console.error('uncaught', e); } catch {} });
+process.on('unhandledRejection', (e) => { try { console.error('unhandled', e); } catch {} });
 const fs = require('fs');
 
 if (process.platform === 'linux') {
@@ -69,6 +72,68 @@ ipcMain.handle('set-bar-mode', (_e, v) => {
   if (barMode) barTimer = setInterval(() => { if (win && !win.isDestroyed() && win.isVisible()) { win.setAlwaysOnTop(true, 'screen-saver'); win.moveTop(); } }, 1500);
   return barMode ? info : null;
 });
+
+// 找任务栏上的空白：把自己隐藏一下、截一张屏，看任务栏那一条哪些地方有图标（颜色和底色差别大 / 边缘多），
+// 返回没有图标的几段（窗口坐标，单位和页面里一样）。动物和按钮只待在空白段里，就不会挡住你的图标。
+// 任务栏那一条截图（BGRA）→ 空白段（单位：DIP）。k = 截图像素 / DIP
+function barFree(bmp, w, th, k) {
+  const at = (x, y) => (y * w + x) * 4;
+  // 底色：每一行取中位数（任务栏一般是一种颜色 / 很淡的渐变）
+  const rowBg = [];
+  for (let y = 0; y < th; y++) {
+    const rs = [], gs = [], bs = [];
+    for (let x = 0; x < w; x += 7) { const i = at(x, y); bs.push(bmp[i]); gs.push(bmp[i + 1]); rs.push(bmp[i + 2]); }
+    const md = (a) => a.sort((p, q) => p - q)[a.length >> 1];
+    rowBg.push([md(bs), md(gs), md(rs)]);
+  }
+  const yA = Math.round(th * 0.12), yB = Math.round(th * 0.88), rows = Math.max(1, yB - yA);
+  const busy = new Uint8Array(w);
+  for (let x = 1; x < w; x++) {
+    let diff = 0, edge = 0;
+    for (let y = yA; y < yB; y++) {
+      const i = at(x, y), j = at(x - 1, y), bg = rowBg[y];
+      const dd = Math.abs(bmp[i] - bg[0]) + Math.abs(bmp[i + 1] - bg[1]) + Math.abs(bmp[i + 2] - bg[2]);
+      const ee = Math.abs(bmp[i] - bmp[j]) + Math.abs(bmp[i + 1] - bmp[j + 1]) + Math.abs(bmp[i + 2] - bmp[j + 2]);
+      if (dd > 60) diff++; if (ee > 45) edge++;
+    }
+    if (diff > rows * 0.12 || edge > rows * 0.18) busy[x] = 1;
+  }
+  // 图标周围留一点余地，再把小缝合起来
+  const pad = Math.round(10 * k), dil = new Uint8Array(w);
+  for (let x = 0; x < w; x++) if (busy[x]) for (let t = Math.max(0, x - pad); t <= Math.min(w - 1, x + pad); t++) dil[t] = 1;
+  const free = []; let st = -1;
+  for (let x = 0; x <= w; x++) {
+    const f = x < w && !dil[x];
+    if (f && st < 0) st = x;
+    if (!f && st >= 0) { const a = st / k, z = x / k; if (z - a >= 90) free.push([Math.round(a), Math.round(z)]); st = -1; }
+  }
+  return free;
+}
+let scanning = false;
+async function scanBar() {
+  // 只在 Windows 上看（macOS 截屏要弹“屏幕录制”权限，不值得）
+  if (process.platform !== 'win32' || !win || win.isDestroyed() || !barMode || scanning) return null;
+  scanning = true;
+  try {
+    const d = screen.getPrimaryDisplay(), sf = d.scaleFactor || 1, b = d.bounds, info = taskbarInfo();
+    const W = Math.round(b.width * sf), H = Math.round(b.height * sf);
+    win.setOpacity(0);
+    await new Promise((r) => setTimeout(r, 160));
+    let src = null;
+    try {
+      const list = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: W, height: H } });
+      src = list.find((x) => String(x.display_id) === String(d.id)) || list[0];
+    } finally { if (win && !win.isDestroyed()) win.setOpacity(1); }
+    if (!src || !src.thumbnail || src.thumbnail.isEmpty()) return null;
+    const img = src.thumbnail, isz = img.getSize(), k = isz.width / b.width; // 截图像素 / DIP
+    const th = Math.max(4, Math.round(info.h * k)), y0 = isz.height - th;
+    const bmp = img.crop({ x: 0, y: y0, width: isz.width, height: th }).toBitmap(); // BGRA
+    const free = barFree(bmp, isz.width, th, k);
+    return { free, w: b.width, t: Date.now() };
+  } catch (e) { console.warn('scan bar failed', e && e.message); return null; }
+  finally { scanning = false; }
+}
+ipcMain.handle('bar-scan', () => scanBar());
 
 function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch, data); }
 

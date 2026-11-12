@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('petAPI', {
   setInteractive: (v) => ipcRenderer.send('set-interactive', !!v),
   setOnTop: (v) => ipcRenderer.send('set-on-top', !!v),
   setBarMode: (v) => ipcRenderer.invoke('set-bar-mode', !!v),
+  barScan: () => ipcRenderer.invoke('bar-scan'),
   save: (json) => ipcRenderer.sendSync('save-sync', json),
   load: () => ipcRenderer.invoke('load'),
   quit: () => ipcRenderer.send('quit'),

@@ -65,9 +65,26 @@ async function download() {
   const m = state.latest; if (!m) return state;
   const plat = process.platform === 'darwin' ? m.mac : m.win;
   if (!plat) { state.status = 'error'; state.error = '这个系统暂时没有新版安装包'; notify(state); return state; }
-  const dest = path.join(os.tmpdir(), `MoyuZoo-${m.version}${process.platform === 'darwin' ? '.dmg' : '.exe'}`);
+  const ext = process.platform === 'darwin' ? '.dmg' : '.exe';
+  // 公司电脑常见：临时文件夹被杀毒 / 权限策略锁住（EPERM），或者旧安装包还开着。
+  // 所以准备好几个可写的位置，挨个试，哪个能写就用哪个；绝不让它抛出未处理的异常。
+  const dirs = [];
+  for (const k of ['userData', 'temp', 'downloads', 'documents']) { try { dirs.push(k === 'userData' ? path.join(app.getPath('userData'), 'updates') : app.getPath(k)); } catch {} }
+  try { dirs.push(os.tmpdir()); } catch {}
   // 已经下好了（而且校验通过）就不用再下
-  if (fs.existsSync(dest) && plat.sha256 && sha256File(dest) === plat.sha256) { state.status = 'ready'; state.file = dest; state.progress = 1; notify(state); return state; }
+  for (const d of dirs) {
+    const f = path.join(d, `MoyuZoo-${m.version}${ext}`);
+    try { if (fs.existsSync(f) && plat.sha256 && sha256File(f) === plat.sha256) { state.status = 'ready'; state.file = f; state.progress = 1; notify(state); return state; } } catch {}
+  }
+  const openOut = () => {
+    for (const d of dirs) {
+      for (const name of [`MoyuZoo-${m.version}${ext}`, `MoyuZoo-${m.version}-${Date.now().toString(36)}${ext}`]) {
+        const f = path.join(d, name);
+        try { fs.mkdirSync(d, { recursive: true }); const fd = fs.openSync(f, 'w'); return { f, fd }; } catch (e) { console.warn('cannot write', f, e && e.code); }
+      }
+    }
+    return null;
+  };
   state.status = 'downloading'; state.progress = 0; notify(state);
   let got = 0; const total = plat.size || 1;
   const onBytes = (n) => { got += n; const p = Math.min(0.999, got / total); if (p - state.progress > 0.01) { state.progress = p; notify(state); } };
@@ -81,10 +98,16 @@ async function download() {
   for (const t of tries) {
     got = 0; state.progress = 0;
     const hash = crypto.createHash('sha256');
-    const ws = fs.createWriteStream(dest);
+    const out = openOut();
+    if (!out) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
+    const dest = out.f;
+    let wErr = null;
+    const ws = fs.createWriteStream(dest, { fd: out.fd });
+    ws.on('error', (e) => { wErr = e; });
     try {
-      for (const u of t.parts) await pull(u, ws, hash, onBytes, t.parts.length > 1 ? 90000 : 600000);
-      await new Promise((res) => ws.end(res));
+      for (const u of t.parts) { await pull(u, ws, hash, onBytes, t.parts.length > 1 ? 90000 : 600000); if (wErr) throw wErr; }
+      await new Promise((res, rej) => { ws.on('error', rej); ws.end(res); });
+      if (wErr) throw wErr;
       const h = hash.digest('hex');
       if (plat.sha256 && h !== plat.sha256) throw new Error('校验不一致');
       state.status = 'ready'; state.file = dest; state.progress = 1; state.via = t.name; notify(state);
@@ -111,8 +134,12 @@ function install(relaunch = true) {
   } catch (e) { console.warn('backup before update failed', e); }
   if (process.platform === 'win32') {
     const args = ['/S']; if (relaunch) args.push('--force-run');
-    spawn(state.file, args, { detached: true, stdio: 'ignore' }).unref();
-    setTimeout(() => app.quit(), 300);
+    try {
+      const ch = spawn(state.file, args, { detached: true, stdio: 'ignore' });
+      ch.on('error', (e) => { console.warn('installer failed', e); state.status = 'error'; state.error = '没能启动安装程序（' + (e.code || e.message) + '），可以去网页下载手动安装'; notify(state); });
+      ch.unref();
+      setTimeout(() => { if (state.status === 'ready') app.quit(); }, 600);
+    } catch (e) { state.status = 'error'; state.error = '没能启动安装程序，可以去网页下载手动安装'; notify(state); return false; }
   } else {
     shell.openPath(state.file);
   }
