@@ -112,7 +112,7 @@
     // 被鼠标指着（或者它的图标环开着）：原地停下来看着你
     get frozen() { return (G.hoverPet === this || PP.ringPet === this) && !this.held && !this.airborne && !this.doorBusy() && !this.transit; }
     // 乖乖待着：这只单独设置的，或者全局“工作模式”
-    get calm() { return !!(G.save && (G.save.settings.mode === 'mini' || G.save.settings.quiet)); }
+    get calm() { return !!(G.save && ((G.save.settings.mode === 'mini' && !G.isle) || G.save.settings.quiet)); } // 小岛上可以自在地过日子
     // 只露个头：沉到屏幕底边以下的像素数
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
@@ -157,6 +157,9 @@
     run(name, genFn, ...args) {
       // 正在进出小门时不许被别的事打断（不然会卡在“电脑里”看不见）
       if (this.doorBusy() && name !== 'emerge' && name !== 'enterDoor') return;
+      // 躲在屏幕边上只露头的时候：别的事（打招呼、陪打字、节日活动…）都不把它整只拽出来；只有你拖它 / 点它才出来
+      if (this.action === 'edgePeek' && this.edgePeek && !['edgePeek', 'enterDoor', 'emerge'].includes(name)) return;
+      if (this.action === 'peekIdle' && G.save && G.save.settings.peek && !['peekIdle', 'enterDoor', 'emerge', 'poked', 'petted', 'trick', 'held'].includes(name)) return;
       if (this.gen) { try { this.gen.return(); } catch (e) { } }
       this.cleanupAction();
       this.action = name; this.gen = genFn.call(this, ...args);
@@ -171,7 +174,7 @@
       this.gen = null; this.action = null; this.waitT = 0; this.waitFn = null; this.target = null;
     }
     cleanupAction() {
-      this.sleeping = false; this.sinkOut = 0; this.transit = false; this.transform = null; this.cheeks = this.cheeks && this.action === 'stash';
+      this.sleeping = false; this.sinkOut = 0; this.transit = false; this.transform = null; this.scaleMul = 1; /* 伸大懒腰被打断时会一直保持两倍大，这里复原 */ this.cheeks = this.cheeks && this.action === 'stash';
       if (this.partner && this.partner.partner === this) this.partner.partner = null;
       this.partner = null;
       this.ears = 'up'; this.wag = null; this.blush = false;
@@ -194,7 +197,7 @@
       // 极简模式：只在右下角那一小块走动
       if (G.save && G.save.settings.mode === 'mini' && PP.miniZone) { const [a, b] = PP.miniZone(); this.target = U.clamp(this.target, a, b); }
       // 场景里走路时顺便换一排（往前 / 往后），看起来是在场景里走，不是在一条线上
-      if (lane != null) this.tLane = lane; else if (!this.surf && PP.scene && PP.scene.active() && Math.random() < 0.6) this.tLane = U.clamp((this.lane != null ? this.lane : 0.75) + U.rand(-0.35, 0.35), 0.15, 1);
+      if (lane != null) this.tLane = lane; else if (G.isle && !this.isleSpot && Math.random() < 0.5) this.tLane = U.clamp((this.lane != null ? this.lane : 0.3) + U.rand(-0.3, 0.3), 0.05, 0.95); else if (!this.surf && PP.scene && PP.scene.active() && Math.random() < 0.6) this.tLane = U.clamp((this.lane != null ? this.lane : 0.75) + U.rand(-0.35, 0.35), 0.15, 1);
       return () => this.target == null;
     }
 
@@ -506,7 +509,7 @@
       if (this.dizzy > 0 && !this.sleeping) eyes = 'dizzy';
       if (this.blinking > 0 && (eyes === 'open' || eyes === 'wide' || eyes === 'angry')) eyes = this.blinking > 0.09 || this.blinking < 0.03 ? 'sleepy' : 'closed'; // 眨眼：半闭→闭→半闭
       const hol = PP.holiday();
-      const hat = this.hat || (hol && hol.hat) || null;
+      const hat = this.hat || this.d.outfit || (hol && hol.hat) || null;
       const buf = PP.SPR.drawPet({
         species: this.d.species, pal: this.pal, coatKey: this.d.shiny ? 'shiny' : this.d.coat, facing: this.facing, anim: this.anim, t: this.t,
         eyes, mouth, look: this.look, blush: this.blush || this.petting > 0, ears: this.ears, wag: this.wag,
@@ -522,7 +525,7 @@
       const px = Math.round(this.x - 16 * SS), py = Math.round(this.y - 31 * SS + sink);
       const clipY = this.sinkPx() ? G.ground + 1 : this.y + 1;
       // 脚下一块像素软影子（离地越高越小越淡）：动物“站”在地上，不再像贴纸浮着
-      if (!sink && !this.held && G.save && G.save.settings.mode !== 'mini') {
+      if (!sink && !this.held && G.save && (G.save.settings.mode !== 'mini' || G.isle)) {
         const air = Math.max(0, G.ground - this.y), k = Math.max(0.25, 1 - air / (40 * SS)), wpx = Math.round((PP.SPR.STAND_WALK.has(this.d.species) ? 11 : 8) * SS * k), hpx = Math.max(1, Math.round(SS));
         ctx.fillStyle = `rgba(40,24,48,${0.16 * k})`; ctx.fillRect(Math.round(this.x - wpx), Math.round(G.ground - hpx * 0.5), wpx * 2, hpx); ctx.fillRect(Math.round(this.x - wpx + 2 * SS), Math.round(G.ground - hpx * 0.5 - hpx), Math.max(0, wpx * 2 - 4 * SS), hpx);
       }

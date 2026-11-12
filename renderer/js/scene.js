@@ -33,7 +33,7 @@
   PP.SCENES = SCENES; PP.EXITS = EXITS;
   // 每种动物的家在哪个场景
   PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
-  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
+  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['isle', '小岛', '右下角一座漂浮的小岛：小屋、菜地、信箱，主角在上面过小日子'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
 
   // 装饰：k → [名字, 室内?]
   const DECOR = {

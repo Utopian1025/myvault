@@ -9,13 +9,19 @@
   const MODE_NAME = Object.fromEntries(PP.MODES.map((m) => [m[0], m[1]]));
 
   // ---------- 显示模式 ----------
-  PP.setMode = function (m, quiet) {
+  PP.setMode = function (m, quiet, refresh) {
     const s = S(), old = s.mode;
-    if (m === 'bar') { s.taskbar = true; if (old === 'mini') { applyBar(); drawOrb(); placeOrb(); PP.save.soon(); return; } m = 'mini'; }
+    // 收起时的三种样子：极简（右下角）/ 任务栏 / 小岛
+    if (m === 'bar' || m === 'isle') {
+      s.taskbar = m === 'bar'; s.isle = m === 'isle';
+      if (old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); if (!quiet && m === 'isle') PP.ui.toast('小岛：主角在小岛上过日子。点小屋的门进屋，点菜地种菜，点信箱看信'); return; }
+      m = 'mini';
+    }
+    if (refresh && old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); return; }
     if (!MODE_NAME[m] || old === m) return;
     if (m === 'mini') {
       // 主角：你指定的那只；没指定就挑一只醒着、在外面的
-      const main = (s.mainId && G.all.find((p) => p.d.id === s.mainId)) || G.all.find((p) => !p.d.wild && G.pets.includes(p)) || G.all.find((p) => !p.d.wild) || PP.F.main() || G.all[0];
+      const main = (PP.mainPet && (s.miniMain = null, PP.mainPet())) || (s.mainId && G.all.find((p) => p.d.id === s.mainId)) || G.all.find((p) => !p.d.wild && G.pets.includes(p)) || G.all.find((p) => !p.d.wild) || PP.F.main() || G.all[0];
       s.miniMain = main ? main.d.id : null;
       // 场景里的动物继续在后台过日子，只有主角跟你来
       for (const p of G.pets) if (p !== main) PP.eco.toOffscreen(p);
@@ -37,8 +43,8 @@
       }
       PP.eco.onView(PP.scene.view());
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '小场景', mini: s.taskbar ? '任务栏：主角住进任务栏里（停在它身上一会儿才能点它，其他时候点击都给任务栏）' : '极简：只留主角在右下角' }[m]);
-    drawOrb(); placeOrb(); setFullFlag(); applyBar(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '小场景', mini: s.taskbar ? '任务栏：主角住进任务栏里，只待在没有图标的空白处（停在它身上一会儿才能点它）' : s.isle ? '小岛：主角在小岛上过日子。点小屋的门进屋，点菜地种菜，点信箱看信' : '极简：只留主角在右下角' }[m]);
+    drawOrb(); placeOrb(); setFullFlag(); applyBar(); PP.isle && PP.isle.sync(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true);
   };
   function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); applyOnTop(); }
   // 置顶：极简 / 全屏时在最前面；小场景默认不置顶（你点别的窗口，那个窗口就会盖到场景上面），可以在地图的“设置”里改
@@ -48,9 +54,19 @@
   setInterval(applyOnTop, 1500);
   PP.exitFull = () => { if (S().mode === 'full') PP.setMode('band'); };
   // 极简模式里，主角只在右下角这一小块活动（不跑到你干活的地方去）
-  PP.miniZone = () => G.bar ? barZone() : [Math.max(20, G.W - 300 * Math.max(1, G.S) / 2), G.W - 70];
+  PP.miniZone = () => G.bar ? barZone() : G.isle ? PP.isle.zone() : [Math.max(20, G.W - 300 * Math.max(1, G.S) / 2), G.W - 70];
   // 任务栏视图：动物只在任务栏一侧的空白处活动（默认左边，Win11 图标在中间、托盘在右边）
-  function barZone() { return S().barSide === 'right' ? [G.W * 0.6, G.W * 0.8] : [G.W * 0.012 + 20, G.W * 0.3]; }
+  // 扫描过任务栏，就在真正空着的那几段里挑一段（够放动物 + 三个按钮的）；左 / 右 偏好决定挑最左边还是最右边那段
+  function barZone() {
+    const fr = G.bar && G.bar.free;
+    if (fr && fr.length) {
+      const ok = fr.filter(([a, b]) => b - a >= 190), list = ok.length ? ok : fr.slice().sort((p, q) => (q[1] - q[0]) - (p[1] - p[0])).slice(0, 1);
+      const pick = S().barSide === 'right' ? list[list.length - 1] : list[0];
+      const a = pick[0] + 18, b = Math.max(pick[0] + 40, Math.min(pick[1] - 18, pick[0] + 520));
+      return S().barSide === 'right' ? [Math.max(a, pick[1] - 18 - 520), pick[1] - 18] : [a, b];
+    }
+    return S().barSide === 'right' ? [G.W * 0.6, G.W * 0.8] : [G.W * 0.012 + 20, G.W * 0.3];
+  }
   PP.barZone = barZone;
   // 进 / 出任务栏视图：窗口要盖住任务栏那一条
   let barBusy = false;
@@ -61,10 +77,23 @@
     const info = await api.setBarMode(want);
     barBusy = false;
     if (want && !info) { S().taskbar = false; PP.ui.toast('你的任务栏不在屏幕底部（或者设成了自动隐藏），任务栏视图用不了'); }
-    G.bar = want && info ? { h: info.h } : null;
+    G.bar = want && info ? { h: info.h, free: null } : null;
+    if (G.bar) scanBar();
     setTimeout(() => { window.dispatchEvent(new Event('resize')); for (const p of G.pets) { p.y = G.ground; const [a, b] = PP.miniZone(); p.x = U.clamp(p.x, a, b); } placeOrb(); }, 120);
   }
   PP.applyBar = applyBar;
+  // 看一眼任务栏哪里是空的（开新软件 / 关软件，图标会变，所以隔几分钟再看一次）
+  async function scanBar() {
+    if (!G.bar || !api || !api.barScan) return;
+    const r = await api.barScan().catch(() => null);
+    if (!G.bar || !r || !r.free) return;
+    G.bar.free = r.free.map(([a, b]) => [a * G.W / (r.w || G.W), b * G.W / (r.w || G.W)]);
+    const [a, b] = barZone();
+    for (const p of G.pets) if (p.x < a || p.x > b) { p.interrupt(true); p.x = U.clamp(p.x, a, b); }
+    placeOrb();
+  }
+  PP.scanBar = scanBar;
+  setInterval(() => { if (G.bar && !G.hoverPet && !G.uiDrag) scanBar(); }, 3 * 60000);
   setInterval(applyBar, 2000);
   // 任务栏里的小花园：一溜草叶和小花，只在动物活动的那一段
   PP.barDecor = (ctx) => {
@@ -113,19 +142,62 @@
     window.addEventListener('resize', placeOrb);
     drawOrb();
   }
-  // 小门按钮 + 爪子菜单 放在一起：默认在场景右上角（场景里），没有场景时在右下角
-  function placeOrb() {
-    if (!orb) return;
-    const o = S().orb, sh = PP.scene.bandHeight();
-    // 爪子菜单按钮固定在切换按钮的右边，所以切换按钮最多放到离右边 70 像素
-    const x = o ? U.clamp(o.x * G.W, 4, G.W - 106) : G.W - 114;
-    const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
-    if (G.bar) { const [, zb] = barZone(); const bx = Math.round(zb + 16), by = Math.round(G.H - G.bar.h / 2 - 15); orb.style.left = bx + 'px'; orb.style.top = by + 'px'; if (scBtn) { scBtn.style.left = bx + 36 + 'px'; scBtn.style.top = by + 'px'; scBtn.classList.add('mini'); drawSceneBtn(); } const dk = document.querySelector('.dock'); if (dk) { dk.style.left = bx + 72 + 'px'; dk.style.top = by + 'px'; dk.style.bottom = 'auto'; dk.style.right = 'auto'; } return; }
+  // 三个按钮（视图 / 场景 / 宠物菜单）跟着主角：鼠标靠近主角时，出现在它身边；走开一会儿就隐去。
+  // 任务栏视图里它们也只待在空白段里，不碰其他软件的图标。主角不在眼前时，退回到老位置（场景右上角 / 右下角）。
+  let nearUntil = 0, lastNear = '';
+  const GW = 102; // 三个按钮一排的宽度
+  function groupEls() { return [orb, scBtn, document.querySelector('.dock')].filter(Boolean); }
+  function placeGroup(x, y) {
+    x = Math.round(x); y = Math.round(y);
     orb.style.left = x + 'px'; orb.style.top = y + 'px';
     if (scBtn) { scBtn.style.left = x + 36 + 'px'; scBtn.style.top = y + 'px'; scBtn.classList.toggle('mini', S().mode === 'mini'); drawSceneBtn(); }
-    const dock = document.querySelector('.dock');
-    if (dock) { dock.style.left = x + 72 + 'px'; dock.style.top = y + 'px'; dock.style.bottom = 'auto'; dock.style.right = 'auto'; }
+    const dk = document.querySelector('.dock'); if (dk) { dk.style.left = x + 72 + 'px'; dk.style.top = y + 'px'; dk.style.bottom = 'auto'; dk.style.right = 'auto'; }
   }
+  function setNear(v) {
+    const k = v ? '1' : '0'; if (k === lastNear) return; lastNear = k;
+    for (const el of groupEls()) el.classList.toggle('far', !v);
+    PP.refreshInteractive();
+  }
+  function anchorPet() {
+    const p = PP.mainPet && PP.mainPet();
+    return p && G.pets.includes(p) && !p.inDoor && !p.outing && !p.held ? p : null;
+  }
+  function placeOrb() {
+    if (!orb) return;
+    const p = anchorPet();
+    if (p) {
+      const sc = G.S * (p.scaleMul || 1), half = (PP.QUAD && PP.QUAD.has(p.d.species) ? 14 : 10) * sc;
+      let x = p.x + half + 6, y;
+      if (G.bar) {
+        const [a, b] = barZone();
+        y = G.H - G.bar.h / 2 - 15;
+        if (x + GW > b) x = p.x - half - 6 - GW;
+        x = U.clamp(x, a - 10, Math.max(a - 10, b + 10 - GW));
+      } else {
+        y = U.clamp(p.y - 32 - (p.wade || 0), 4, G.H - 34);
+        if (x + GW > G.W - 4) x = p.x - half - 6 - GW;
+        x = U.clamp(x, 4, G.W - GW - 4);
+      }
+      placeGroup(x, y);
+      // 靠近才出现
+      const M = G.mouse, now = performance.now();
+      const dx = M.x - p.x, dy = M.y - (p.y - 14 * sc);
+      const r = orb.getBoundingClientRect();
+      const nearPet = M.onScreen && Math.hypot(dx, dy) < Math.max(110, half * 4);
+      const nearBtn = M.onScreen && M.x > r.left - 30 && M.x < r.left + GW + 30 && M.y > r.top - 30 && M.y < r.bottom + 30;
+      const busy = !!pop || G.uiDrag || (PP.ui && PP.ui.modalOpen && document.querySelector('.menu')) || groupEls().some((e) => e.matches(':hover'));
+      if (nearPet || nearBtn || busy) nearUntil = now + 1400;
+      setNear(now < nearUntil);
+      return;
+    }
+    setNear(true);
+    const o = S().orb, sh = PP.scene.bandHeight();
+    if (G.bar) { const [, zb] = barZone(); placeGroup(Math.min(zb + 16, G.W - GW - 4), G.H - G.bar.h / 2 - 15); return; }
+    const x = o ? U.clamp(o.x * G.W, 4, G.W - 106) : G.W - 114;
+    const y = o ? U.clamp(o.y * G.H, 2, G.H - 34) : G.H - sh + 8;
+    placeGroup(x, y);
+  }
+  (function follow() { try { if (G.save && orb) placeOrb(); } catch (e) {} requestAnimationFrame(follow); })();
   // 小图标：一扇小门（极简模式下门是关着的）
   function drawOrb() {
     if (!orb) return;
@@ -149,14 +221,14 @@
   function showPop() {
     hidePop();
     const s = S(), big = s.mode === 'mini' ? (s.lastMode && s.lastMode !== 'mini' ? s.lastMode : 'band') : s.mode;
-    const small = s.taskbar ? '任务栏' : '极简';
+    const small = s.taskbar ? '任务栏' : s.isle ? '小岛' : '极简';
     pop = $(`<div class="orb-pop view-pop"><span class="muted">点按钮：${small} ↔ ${MODE_NAME[big]}</span><div class="modes">${PP.MODES.filter(([k]) => k !== 'mini' && k !== 'bar').map(([k, n, d]) => `<button class="small ${big === k ? 'on' : ''}" data-m="${k}" title="${d}">${n}</button>`).join('')}</div>
-      <span class="muted">收起时</span><div class="modes"><button class="small ${!s.taskbar ? 'on' : ''}" data-small="0" title="主角待在屏幕右下角、任务栏上方">极简</button><button class="small ${s.taskbar ? 'on' : ''}" data-small="1" title="主角住进任务栏里：不挡图标，点击都穿透给任务栏">任务栏</button></div>
+      <span class="muted">收起时</span><div class="modes"><button class="small ${!s.taskbar && !s.isle ? 'on' : ''}" data-small="0" title="主角待在屏幕右下角、任务栏上方">极简</button><button class="small ${s.isle && !s.taskbar ? 'on' : ''}" data-small="2" title="右下角一座漂浮的小岛：小屋、菜地、信箱">小岛</button><button class="small ${s.taskbar ? 'on' : ''}" data-small="1" title="主角住进任务栏的空白处：不挡图标">任务栏</button></div>
       ${s.taskbar ? `<span class="muted">住在任务栏的</span><div class="modes"><button class="small ${s.barSide !== 'right' ? 'on' : ''}" data-side="left">左边</button><button class="small ${s.barSide === 'right' ? 'on' : ''}" data-side="right">右边</button></div>` : ''}</div>`);
     openPop(orb);
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.small != null) { S().taskbar = b.dataset.small === '1'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else { applyBar(); drawOrb(); placeOrb(); } hidePop(); showPop(); return; }
+      if (b.dataset.small != null) { const v = b.dataset.small; S().taskbar = v === '1'; S().isle = v === '2'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else PP.setMode('mini', true, true); hidePop(); showPop(); return; }
       if (b.dataset.side) { S().barSide = b.dataset.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } placeOrb(); hidePop(); showPop(); return; }
       if (S().mode === 'mini') { S().lastMode = b.dataset.m; PP.save.soon(); }
       PP.setMode(b.dataset.m); hidePop();
@@ -305,7 +377,8 @@
         <div class="sound"><button class="small ${s.bandOnTop ? 'on' : ''}" data-a="top">${s.bandOnTop ? '小场景：总在最前面' : '小场景：不挡其他窗口'}</button><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
         <div class="env">${esc(PP.env.label())}</div>`;
     }
-    pop = $(`<div class="orb-pop scene-pop map2"><div class="maphead"><b>${cur && PP.SCENES[cur] ? esc(PP.SCENES[cur].name) : '地图'}</b><div class="tabs">${tabs}</div></div>${body}</div>`);
+    const sz = s.popSize || 'S', sizes = [['S', '小'], ['M', '中'], ['L', '大']].map(([k, n]) => `<button class="tab ${sz === k ? 'on' : ''}" data-size="${k}" title="弹窗大小">${n}</button>`).join('');
+    pop = $(`<div class="orb-pop scene-pop map2 size-${sz}"><div class="maphead"><b>${cur && PP.SCENES[cur] ? esc(PP.SCENES[cur].name) : '地图'}</b><div class="tabs">${tabs}</div><div class="tabs sizes">${sizes}</div></div>${body}</div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
     const cvs = pop.querySelector('canvas.worldmap'); if (cvs) cvs.getContext('2d').drawImage(drawWorldMap(), 0, 0);
     // 鼠标停在旗子上：小预览（那边现在的样子 + 谁在那儿）
@@ -326,6 +399,7 @@
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.tab) { popTab = b.dataset.tab; showScenePop(); return; }
+      if (b.dataset.size) { S().popSize = b.dataset.size; PP.save.soon(); showScenePop(); return; }
       if (b.dataset.s) { S().sceneHidden = false; if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }
       if (b.dataset.off) { const o = S().ambOff = S().ambOff || {}; o[b.dataset.off] = !o[b.dataset.off]; PP.save.soon(); showScenePop(); return; }

@@ -122,14 +122,21 @@
   }
   PP.drawItemWithRim = drawItemWithRim;
 
+  // 主角：你指定的那只（没指定就是第一只认养的）。它跟着你走：切到哪个场景，它就在哪个场景
+  PP.mainPet = () => {
+    const s = G.save && G.save.settings; if (!s) return null;
+    const vis = G.all.filter((p) => !p.d.hidden && !p.d.trip);
+    const want = s.mode === 'mini' && s.miniMain ? s.miniMain : s.mainId;
+    return vis.find((p) => p.d.id === want) || vis.find((p) => p.d.id === s.mainId) || vis.find((p) => !p.d.wild) || null;
+  };
   PP.syncPets = () => {
     for (const p of G.all) if (p.d.hidden && G.pets.includes(p)) { p.interrupt(); p.held = false; p.airborne = false; p.y = G.ground; }
     const s = G.save && G.save.settings;
     if (s && s.allAway) { G.pets = []; return; }
-    const vis = G.all.filter((p) => !p.d.hidden);
+    const vis = G.all.filter((p) => !p.d.hidden && !p.d.trip); // 出门探险的不在
     if (s && s.mode === 'mini') {
       // 极简：只留主角（正在走回门里的也先留着，等它进去）
-      const main = vis.find((p) => p.d.id === s.miniMain) || vis.find((p) => p.d.id === s.mainId) || vis.find((p) => !p.d.wild) || vis[0];
+      const main = PP.mainPet() || vis[0];
       G.pets = vis.filter((p) => p === main || (p.action === 'enterDoor' && G.pets.includes(p)));
     } else if (PP.eco) {
       // 场景里：只显示正在这个场景、没在家里、没在路上的（刚叫回电脑的也等它走进门）

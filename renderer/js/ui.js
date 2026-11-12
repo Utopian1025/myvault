@@ -142,7 +142,9 @@
           <div>相伴第 <b>${days}</b> 天</div>
           <div class="tags">${traits.map((t) => `<span class="tag">${t}</span>`).join('')}</div>
           <div>对你：<span class="hearts">${hearts}</span> ${p.affName}</div>
+          ${!p.d.wild && PP.econ ? `<div>等级：<b>Lv${PP.econ.lvOf(p)}</b> <small>${p.d.xp || 0}/${PP.econ.need(PP.econ.lvOf(p))} 经验${PP.econ.listless(p) ? ' · 饿得没精神' : (p.d.nourish || 0) > Date.now() ? ' · 吃得好（经验翻倍）' : ''}${p.d.trip ? ' · 在外面探险' : ''}</small> <button class="small grow">零食 / 探险</button></div>` : ''}
           <div>现在：${p.moodName}${p.action === 'eco' && p.ecoTask ? ` · ${esc(p.ecoTask.label || '')}` : p.action ? ` · ${actName(p.action)}` : ''}</div>`;
+        const gb = box.querySelector('.grow'); if (gb) gb.onclick = () => PP.econ.openPanel('bag', { pet: p.d.id });
         box.querySelector('.rename').onclick = () => {
           const nm = box.querySelector('.nm');
           nm.innerHTML = `<input maxlength="8" value="${esc(p.name)}"> <button class="small ok">好</button>`;

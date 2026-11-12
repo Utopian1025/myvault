@@ -16,6 +16,8 @@
 
   // 宠物从门里出来
   PP.petEmerge = function (p, x, delay = 0) {
+    // 小岛上：不用电脑小门，直接从小屋里推门出来
+    if (G.isle && PP.isle && PP.isle.doorX) { p.interrupt(true); p.held = false; p.airborne = false; p.inDoor = false; p.x = PP.isle.doorX(); p.y = G.ground; p.run('isleOut', PP.ACTIONS.isleOut); return; }
     p.interrupt(true); p.held = false; p.airborne = false;
     p.x = U.clamp(x != null ? x : U.rand(G.W * 0.25, G.W * 0.75), 40, G.W - 40); p.y = G.ground;
     p.inDoor = true;
@@ -23,7 +25,7 @@
     if (delay) setTimeout(go, delay); else go();
   };
   // 宠物走回门里
-  PP.petEnter = function (p, done) { if (p.outing) { p.outing = null; p.interrupt(true); p.inDoor = true; done && done(); return; } p.interrupt(true); p.held = false; p.airborne = false; p.y = G.ground; p.run('enterDoor', PP.ACTIONS.enterDoor, done); };
+  PP.petEnter = function (p, done) { if (G.isle && PP.isle && PP.isle.doorX && !p.outing) { p.interrupt(true); p.held = false; p.airborne = false; p.y = G.ground; p.run('isleIn', function* () { yield this.goto(PP.isle.doorX()); this.inDoor = true; done && done(); }); return; } if (p.outing) { p.outing = null; p.interrupt(true); p.inDoor = true; done && done(); return; } p.interrupt(true); p.held = false; p.airborne = false; p.y = G.ground; p.run('enterDoor', PP.ACTIONS.enterDoor, done); };
 
   // 每种动物出门的样子都不一样
   const STYLE = { cat: 'peek', dog: 'burst', rabbit: 'binky', frog: 'leap', hamster: 'scurry', penguin: 'slide', fox: 'pounce', dragon: 'fly', chick: 'tumble', duck: 'waddle', pig: 'sniff', capybara: 'chill', hedgehog: 'roll' };

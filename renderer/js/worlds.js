@@ -667,4 +667,6 @@
   }
 
   Object.assign(PP.BIOMES, { skyisle, academy, undergrove });
+  // 给小岛视图用的同一套小部件（风格和「我的」三处一致）
+  PP.WORLD_KIT = { cottage, mailbox, sunflower, crate, barrel, beehive, laundry, puffCloud, tallGrass, flowerBush, lampPost, window_, door_, dk, lt };
 })();
