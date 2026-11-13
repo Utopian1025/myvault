@@ -1,17 +1,17 @@
-# ClearTask 0.4.8
+# ClearTask 0.4.9
 
-Windows 安装包，覆盖安装保留现有工作区。
+优先使用工作空间设置 → 软件更新（0.4.8 及以上）。旧版也可覆盖安装，保留原有工作区。
 
-- [免费镜像下载 ZIP](https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.8-Windows.zip)
-- [备用镜像 ZIP](https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.8-Windows.zip)
-- [GitHub 安装包](https://github.com/Utopian1025/myvault/raw/refs/heads/main/cleartask/ClearTask-Setup-0.4.8.exe)
+- [免费镜像 ZIP](https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.9-Windows.zip)
+- [备用镜像 ZIP](https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.9-Windows.zip)
+- [GitHub 安装包](https://github.com/Utopian1025/myvault/raw/refs/heads/main/cleartask/ClearTask-Setup-0.4.9.exe)
 
-0.4.8 修复镜像旧清单阻断更新、多来源失败回退与版本号比较问题。旧版更新器存在发现新版的缺陷，本次可手动覆盖安装更新器。后续通过工作空间设置 → 软件更新检查、下载及安装。
+备忘录中文组词与自动保存、工具栏与标题格式、默认字体、设置自定义配色、小组件直达及节假日倒计时、天气缓存及备用源、Windows 通知图标修复。
 
-SHA-256：`5B8DECBDFD6BD480108218E06188709B6EF616CD82D55F604F1D50363260E676`
+SHA-256：`6654ABCFEF8B09D0F20AD362D335F9905D2F85BBB23FAC66CEC35F4136F1A280`
 
-安装包已通过 468 项云端回归检查及隔离安装/升级/回滚测试。发布后验收已通过：更新器从公开渠道发现签名版本、下载并校验同一安装包、识别已安装版本；Fastly 与 Gcore 两个镜像的更新载荷和 ZIP 安装包均与测试包 SHA-256 一致。
+490 项云端检查通过；已测试旧版升级、图标文件迁移和安装失败回滚。北京朝阳、四川绵阳的真实天气请求及缓存验证通过。输入法测试覆盖组词消息生命周期、保存后的焦点与选区，未操作用户本机的具体输入法。Windows 勿扰与通知权限可能抑制横幅。
 
-[云端构建和安装验收](https://github.com/Utopian1025/cleartask/actions/runs/43275859823) · [发布后下载验收](https://github.com/Utopian1025/cleartask/actions/runs/43276714146)（源码仓库为私有，仅授权账号可查看。）
+发布后的 0.4.8 更新器下载及安装验收正在执行。免费公共镜像在境内各运营商的可用性尚未逐一验证。
 
-免费公共镜像的境内线路可用性不作保证。
+天气：Open-Meteo、MET Norway（CC BY 4.0），模型天气/预报；缓存明确标注。法定节假日数据：NateScarlet/holiday-cn，公告链接随数据保留。
