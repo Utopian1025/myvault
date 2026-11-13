@@ -1,17 +1,19 @@
-# ClearTask 0.4.9
+# OIA 工作台 0.5.0 · One Is All
 
-优先使用工作空间设置 → 软件更新（0.4.8 及以上）。旧版也可覆盖安装，保留原有工作区。
+原 ClearTask。旧版使用 **工作空间设置 → 软件更新** 下载并升级，继续使用原数据和备份。
 
-- [免费镜像 ZIP](https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.9-Windows.zip)
-- [备用镜像 ZIP](https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-0.4.9-Windows.zip)
-- [GitHub 安装包](https://github.com/Utopian1025/myvault/raw/refs/heads/main/cleartask/ClearTask-Setup-0.4.9.exe)
+- [免费镜像下载](https://cdn.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/OIA-Workspace-0.5.0-Windows.zip)
+- [Fastly 备用](https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/OIA-Workspace-0.5.0-Windows.zip)
+- [Gcore 备用](https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/OIA-Workspace-0.5.0-Windows.zip)
+- [GitHub 安装包](https://github.com/Utopian1025/myvault/raw/refs/heads/main/cleartask/OIA-Workspace-Setup-0.5.0.exe)
 
-备忘录中文组词与自动保存、工具栏与标题格式、默认字体、设置自定义配色、小组件直达及节假日倒计时、天气缓存及备用源、Windows 通知图标修复。
+新增首页信息看板、统一全局配色、圆角模块、应用内背板毛玻璃及可配置横向导航。重排备忘录工具栏、目录与文档滚动，减少中文输入和切换时的同步工作。
 
-SHA-256：`6654ABCFEF8B09D0F20AD362D335F9905D2F85BBB23FAC66CEC35F4136F1A280`
+毛玻璃使用应用内背板；不是桌面实时透视，也不声称实现 Apple 系统液态玻璃折射。
 
-490 项云端检查通过；已测试旧版升级、图标文件迁移和安装失败回滚。北京朝阳、四川绵阳的真实天气请求及缓存验证通过。输入法测试覆盖组词消息生命周期、保存后的焦点与选区，未操作用户本机的具体输入法。Windows 勿扰与通知权限可能抑制横幅。
+500 项云端检查及隔离安装升级、数据保留和失败回滚通过。页面切换测量来自云端机器，不能代替用户设备实测。输入法验证覆盖消息生命周期，未操作用户本机具体输入法。
+发布后的旧版更新器下载验收进行中；免费镜像在境内各运营商网络的可用性不能由海外 CI 保证。
 
-发布后验收通过：未修改的 0.4.8 更新器发现签名更新并下载字节一致的 0.4.9 安装包；下载包完成真实升级、启动读取原数据、旧图标迁移、失败回滚及重装保留数据。Fastly / Gcore 两路更新载荷及 ZIP 哈希均通过。免费公共镜像在境内各运营商的可用性尚未逐一验证。
+SHA-256：`DC053E1D8263B852BCC98C275B443086AD25C0AC15AF613351A790B5157EF2D0`
 
-天气：Open-Meteo、MET Norway（CC BY 4.0），模型天气/预报；缓存明确标注。法定节假日数据：NateScarlet/holiday-cn，公告链接随数据保留。
+[本版逐项变更](RELEASE-NOTES.md)
