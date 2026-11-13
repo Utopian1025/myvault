@@ -1,0 +1,33 @@
+name: Check Maas published download routes
+on:
+  push:
+    paths:
+      - '.github/workflows/maas-download-check.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read release and verify official and mirror bytes
+        shell: python
+        run: |
+          import urllib.request,hashlib,json,time
+          api="https://api.github.com/repos/Utopian1025/myvault/releases?per_page=30"
+          req=urllib.request.Request(api,headers={"User-Agent":"Maas-Excel-Updater","Accept":"application/vnd.github+json"})
+          releases=json.load(urllib.request.urlopen(req,timeout=30))
+          release=next(x for x in releases if x["tag_name"]=="maas-excel-v0.8.9.14")
+          asset=next(x for x in release["assets"] if x["name"]=="Maas_Excel_v0.8.9.14.zip")
+          assert asset["digest"]=="sha256:b0ee8b5a9304d6d77322f1605d418275d1cf4ebfc1c0a642970a748c35c9abcf"
+          print("PASS updater feed contains version, size and SHA256")
+          for prefix in ("","https://gh-proxy.org/","https://gh-proxy.com/"):
+            started=time.monotonic()
+            try:
+              request=urllib.request.Request(prefix+asset["browser_download_url"],headers={"User-Agent":"Maas-Excel-Updater","Accept":"application/octet-stream"})
+              with urllib.request.urlopen(request,timeout=45) as response:
+                data=response.read(1812645)
+              assert len(data)==1812644 and hashlib.sha256(data).hexdigest()==asset["digest"][7:]
+              print("PASS",prefix or "official",round(time.monotonic()-started,2),"seconds")
+            except Exception as error:
+              print("UNAVAILABLE",prefix or "official",type(error).__name__,str(error))
+              if not prefix: raise
