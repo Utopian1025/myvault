@@ -1,0 +1,13 @@
+name: Mainland download reachability
+on:
+  push:
+    paths: ['maas/diagnostics/mainland-probe.py']
+permissions:
+  contents: read
+jobs:
+  mainland:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python maas/diagnostics/mainland-probe.py
