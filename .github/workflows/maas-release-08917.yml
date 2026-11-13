@@ -1,0 +1,40 @@
+name: Publish verified Maas Excel 0.8.9.17
+on:
+  push:
+    paths:
+      - 'maas/releases/0.8.9.17/manifest.json'
+permissions:
+  contents: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify public package
+        run: python3 maas/releases/0.8.9.17/verify.py
+      - name: Publish Maas only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create maas-excel-v0.8.9.17 out/Maas_Excel_v0.8.9.17.zip out/Maas_Excel_v0.8.9.17.sha256.txt --title "Maas Excel 0.8.9.17 beta" --notes-file maas/releases/0.8.9.17/notes.md --prerelease --latest=false
+      - name: Verify published official and mirror bytes
+        shell: python
+        run: |
+          import urllib.request,json,hashlib
+          from pathlib import Path
+          manifest=json.loads(Path("maas/releases/0.8.9.17/manifest.json").read_text())
+          asset=manifest["files"][0]
+          url="https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9.17/"+asset["name"]
+          for prefix in ("","https://gh-proxy.org/","https://gh-proxy.com/"):
+            try:
+              request=urllib.request.Request(prefix+url,headers={"User-Agent":"Maas-Excel-Updater","Accept":"application/octet-stream"})
+              with urllib.request.urlopen(request,timeout=45) as response:
+                data=response.read(asset["bytes"]+1)
+              assert len(data)==asset["bytes"] and hashlib.sha256(data).hexdigest()==asset["sha256"]
+              print("PASS download",prefix or "official")
+            except Exception as ex:
+              print("UNAVAILABLE",prefix or "official",str(ex))
+              if not prefix: raise
