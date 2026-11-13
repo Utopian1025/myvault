@@ -1,0 +1,16 @@
+name: Maas released updater probe
+on:
+  push:
+    paths:
+      - 'maas/diagnostics/update-probe.ps1'
+      - '.github/workflows/maas-update-probe.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: ./maas/diagnostics/update-probe.ps1
