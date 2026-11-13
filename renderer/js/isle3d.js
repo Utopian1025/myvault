@@ -79,8 +79,8 @@
       return this;
     }
     // 台阶：沿 axis 从 lo 升到 hi
-    stairs(a0, a1, b0, b1, z0, z1, axis, col = '#b88a5a', n = 6) {
-      for (let i = 0; i < n; i++) { const t0 = a0 + (a1 - a0) * i / n, t1 = a0 + (a1 - a0) * (i + 1) / n, zz = z0 + (z1 - z0) * (i + 1) / n; axis === 'u' ? this.box(Math.min(t0, t1), b0, z0, Math.max(t0, t1), b1, zz, col, 2) : this.box(b0, Math.min(t0, t1), z0, b1, Math.max(t0, t1), zz, col, 2); }
+    stairs(a0, a1, b0, b1, z0, z1, axis, col = '#b88a5a', n = 6, thin) {
+      for (let i = 0; i < n; i++) { const t0 = a0 + (a1 - a0) * i / n, t1 = a0 + (a1 - a0) * (i + 1) / n, zz = z0 + (z1 - z0) * (i + 1) / n, zb = thin ? zz - 1.4 : z0; axis === 'u' ? this.box(Math.min(t0, t1), b0, zb, Math.max(t0, t1), b1, zz, col, 2) : this.box(b0, Math.min(t0, t1), zb, b1, Math.max(t0, t1), zz, col, 2); }
       return this;
     }
     // 竖着的圆片（方向盘、圆窗、向日葵花盘）：face='u' 表示朝 +u

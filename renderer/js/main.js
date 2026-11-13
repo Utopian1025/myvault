@@ -38,14 +38,15 @@
     G.all = (s.pets || []).filter((d) => PP.SPECIES[d.species]).map((d) => new PP.Pet(d));
     for (const p of G.all) { p.y = G.ground; if (p.d.lane != null) p.lane = p.d.lane; p.d.hidden = false; p.d.calm = false; p.d.headOnly = false; }
     G.save.settings.work = false; G.save.settings.headOnly = false;
-    const born = PP.wild.populate(); // 世界里默认住满野生动物
-    PP.eco && PP.eco.init();
+    G.save.settings.allAway = false; // 每次打开大家都在（以前“都回电脑里”会被记住，下次打开就一只都看不见）
+    safe(() => PP.wild.populate(), 'wild');
+    safe(() => PP.eco && PP.eco.init(), 'eco.init');
     PP.syncPets();
     PP.ui.init();
     PP.modes.init();
-    PP.update && PP.update.init();
+    safe(() => PP.update && PP.update.init(), 'update.init');
     PP.bindInput();
-    const away = PP.save.catchUp();
+    let away = 0; safe(() => { away = PP.save.catchUp(); }, 'catchUp');
     PP.started = true;
     // 打开时：极简模式下主角从小门里走出来；场景里大家本来就在各自的地方过日子
     if (s.settings.mode === 'mini') G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
@@ -75,21 +76,33 @@
     acc += Math.min(0.25, (now - last) / 1000); last = now;
     if (acc < STEP) return;
     const dt = Math.min(acc, 0.1); acc = 0;
-    update(dt);
-    render();
+    try { update(dt); } catch (e) { oops(e, 'update'); }
+    try { render(); } catch (e) { oops(e, 'render'); }
   }
+  // 某一处出错不能让整个画面停掉：记下来、提示一次、接着跑
+  const seen = {};
+  function oops(e, where) {
+    const msg = where + ': ' + ((e && e.message) || e), k = msg.slice(0, 80);
+    seen[k] = (seen[k] || 0) + 1;
+    if (seen[k] > 1) return;
+    console.error(where, e);
+    try { const f = G.save.flags; f.errs = (f.errs || []).slice(-9); f.errs.push({ t: Date.now(), m: msg, s: String((e && e.stack) || '').split('\n').slice(1, 4).join(' | ').slice(0, 300) }); } catch (x) {}
+    try { PP.ui.toast('遇到一个小故障，已自动跳过（' + msg.slice(0, 60) + '）'); } catch (x) {}
+  }
+  PP.oops = oops;
+  const safe = (fn, where) => { try { fn(); } catch (e) { oops(e, where); } };
 
   function update(dt) {
     G.t += dt;
-    for (const p of G.pets) p.update(dt);
+    for (const p of G.pets) safe(() => p.update(dt), 'pet');
     if (G.bar && PP.barZone) { const [a, b] = PP.barZone(); for (const p of G.pets) if (!p.held && (p.x < a - 6 || p.x > b + 6)) { p.x = U.clamp(p.x, a, b); p.target = U.clamp(p.target != null ? p.target : p.x, a, b); } }
     separate();
     for (const it of G.items) if (PP.itemHere(it)) it.update(dt);
-    PP.eco && PP.eco.tick(dt);
+    safe(() => PP.eco && PP.eco.tick(dt), 'eco');
     G.items = G.items.filter((i) => !i.dead);
     PP.world.updateParticles(dt);
     PP.doorsUpdate(dt);
-    PP.scene.update(dt);
+    safe(() => PP.scene.update(dt), 'scene');
     PP.world.updateAmbient(dt);
     PP.interactTick(dt);
     PP.F.tick(dt);
@@ -111,20 +124,20 @@
 
   function render() {
     ctx.clearRect(0, 0, G.W, G.H);
-    PP.scene.render(ctx);
+    safe(() => PP.scene.render(ctx), 'scene.render');
     const order = { bed: 0, litter: 1, food: 2, water: 2 };
     const items = G.items.filter((i) => PP.itemShown(i)).sort((a, b) => (order[a.type] ?? 5) - (order[b.type] ?? 5) || a.y - b.y);
     for (const it of items) if ((order[it.type] ?? 5) < 5) it.render(ctx);
     for (const it of items) if ((order[it.type] ?? 5) >= 5 && !it.held) it.render(ctx);
     // 远的先画、近的后画（场景里有前后排）；被拎着的最后画
     const pets = G.pets.slice().sort((a, b) => (a.held ? 1 : 0) - (b.held ? 1 : 0) || (a.airborne ? 0 : a.y) - (b.airborne ? 0 : b.y));
-    if (G.isle && PP.isle) PP.isle.renderBack(ctx);
+    if (G.isle && PP.isle) safe(() => PP.isle.renderBack(ctx), 'isle');
     PP.doorsRenderBack(ctx);
     if (G.bar && PP.barDecor) PP.barDecor(ctx);
     // 任务栏视图：鼠标在任务栏上时动物变淡，不挡你看图标（停在某只身上一会儿它才会亮起来接住点击）
     const fade = G.bar && G.mouse.onScreen && G.mouse.y > G.H - G.bar.h && !G.barDwell;
     if (fade) ctx.globalAlpha = 0.4;
-    for (const p of pets) p.render(ctx);
+    for (const p of pets) safe(() => p.render(ctx), 'pet.render');
     if (fade) ctx.globalAlpha = 1;
     PP.doorsRenderFront(ctx);
     PP.F.render(ctx);
@@ -132,7 +145,7 @@
     PP.world.renderAmbient(ctx);
     PP.world.renderParticles(ctx);
     PP.scene.renderFront(ctx);
-    if (G.isle && PP.isle) PP.isle.renderFront(ctx);
+    if (G.isle && PP.isle) safe(() => PP.isle.renderFront(ctx), 'isle.front');
     for (const p of pets) p.renderOverlay(ctx);
     PP.ui.tick();
   }
