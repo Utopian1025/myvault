@@ -1,0 +1,12 @@
+{
+  "version": "0.8.9.16",
+  "files": [
+    {
+      "name": "Maas_Excel_v0.8.9.16.zip",
+      "prefix": "installer-",
+      "parts": 41,
+      "bytes": 1824942,
+      "sha256": "d7eb6c087015840a47f6526721673df3ba0bf539aa6f6845cc2216c122247a50"
+    }
+  ]
+}
