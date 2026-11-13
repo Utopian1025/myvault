@@ -11,7 +11,12 @@ $url='https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9
 foreach($prefix in @('https://gh-proxy.org/','https://gh-proxy.com/','')){
  $watch=[Diagnostics.Stopwatch]::StartNew()
  try{
-  $bytes=$m.Invoke($null,@($prefix+$url,[long]1818119,[Threading.CancellationToken]::None,$null))
+  $arguments=New-Object object[] 4
+  $arguments[0]=[string]($prefix+$url)
+  $arguments[1]=[long]1818119
+  $arguments[2]=[Threading.CancellationToken]::None
+  $arguments[3]=$null
+  $bytes=$m.Invoke($null,$arguments)
   $hash=([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes))).Replace('-','').ToLowerInvariant()
   if($hash -ne '15c5dcae2a5a4426a5eda67d44d26243bec17e92c8687c571953f8215f5227f1'){throw 'hash mismatch'}
   Write-Host "TRANSPORT PASS $prefix bytes=$($bytes.Length) ms=$($watch.ElapsedMilliseconds)"
