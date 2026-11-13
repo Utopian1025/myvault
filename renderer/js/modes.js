@@ -238,7 +238,7 @@
       <button class="primary flip" data-flip="1">${mini ? `展开成「${MODE_NAME[big]}」` : `收起成「${small}」`}</button>
       <div class="vrow"><span>收起时</span>${B(smallK === '0', 'data-small="0"', '极简', '主角待在屏幕右下角')}${B(smallK === '2', 'data-small="2"', '小岛', '一艘漂着的花园小船：小屋、菜地、钓鱼')}${B(smallK === '1', 'data-small="1"', '任务栏', '主角住进任务栏的空白处')}</div>
       <div class="vrow"><span>展开时</span>${PP.MODES.filter(([k]) => k !== 'mini' && k !== 'bar' && k !== 'isle').map(([k, n, d]) => B(big === k, `data-m="${k}"`, n, d)).join('')}</div>
-      ${s.isle && mini ? `<div class="vrow"><span>小岛大小</span>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B((s.isleSize || 2) === z, `data-isz="${z}"`, n)).join('')}<button class="small" data-ipos="1" title="拖动小岛可以放到任何地方">放回右下角</button></div><div class="hint">按住小岛空白处拖动，可以挪到屏幕任何地方</div>` : ''}
+      ${s.isle && mini ? `<div class="vrow"><span>小岛大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZoom || 2.6) - [0, 1.9, 2.6, 3.6][z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动小岛可以放到任何地方">放回右下角</button></div><div class="hint">在小岛上滚滚轮可以随意缩放；按住空白处拖动，可以挪到屏幕任何地方</div>` : ''}
       ${s.taskbar && mini ? `<div class="vrow"><span>住在</span>${B(s.barSide !== 'right', 'data-side="left"', '左边')}${B(s.barSide === 'right', 'data-side="right"', '右边')}</div>` : ''}</div>`);
     openPop('view');
     pop.addEventListener('click', (e) => {
@@ -248,6 +248,7 @@
       if (d.small != null) { S().taskbar = d.small === '1'; S().isle = d.small === '2'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else PP.setMode('mini', true, true); showPop(); return; }
       if (d.side) { S().barSide = d.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } showPop(); return; }
       if (d.isz) { PP.isle.setSize(+d.isz); showPop(); return; }
+      if (d.izo) { PP.isle.setZoom((S().isleZoom || 2.6) * (d.izo > 0 ? 1.15 : 1 / 1.15), true); showPop(); return; }
       if (d.ipos) { PP.isle.resetPos(); showPop(); return; }
       if (d.m) { if (S().mode === 'mini') { S().lastMode = d.m; PP.save.soon(); } PP.setMode(d.m); hidePop(); }
     });
