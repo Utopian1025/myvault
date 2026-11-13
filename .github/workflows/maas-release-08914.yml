@@ -1,0 +1,23 @@
+name: Publish verified Maas Excel package
+on:
+  push:
+    paths:
+      - 'maas/releases/0.8.9.14/manifest.json'
+permissions:
+  contents: read
+jobs:
+  publish-maas:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify and reconstruct public delivery files
+        run: python3 maas/releases/0.8.9.14/verify.py
+      - name: Publish Maas assets without changing other products
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create maas-excel-v0.8.9.14 out/Maas_Excel_v0.8.9.14.zip out/Maas_0.8.9.14_Promotion.zip out/Maas_Excel_v0.8.9.14.sha256.txt --title "Maas Excel 0.8.9.14 beta" --notes-file maas/releases/0.8.9.14/notes.md --prerelease --latest=false

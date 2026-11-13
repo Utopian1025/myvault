@@ -1,0 +1,19 @@
+{
+  "version": "0.8.9.14",
+  "files": [
+    {
+      "name": "Maas_Excel_v0.8.9.14.zip",
+      "prefix": "installer-",
+      "parts": 41,
+      "bytes": 1812644,
+      "sha256": "b0ee8b5a9304d6d77322f1605d418275d1cf4ebfc1c0a642970a748c35c9abcf"
+    },
+    {
+      "name": "Maas_0.8.9.14_Promotion.zip",
+      "prefix": "promotion-",
+      "parts": 16,
+      "bytes": 678264,
+      "sha256": "7703695c140dd2f9c396ebd9e510001af15585b9d580c05633a35cdc03f614e4"
+    }
+  ]
+}
