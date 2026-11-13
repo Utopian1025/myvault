@@ -56,7 +56,10 @@
       if (a === 'download') api.updateDownload();
       if (a === 'install') api.updateInstall(false);
       if (a === 'later') { api.updateInstall(true); PP.ui.toast('好的，下次打开时自动换成新版'); PP.ui.closePanel(); }
-      if (a === 'page') api.openExternal('https://github.com/Utopian1025/myvault/releases/latest');
+      if (a === 'page') { // 国内打不开 GitHub 发布页：有新版信息时直接用加速镜像下安装包
+        const L = st && st.latest, w = L && L.win, gh = 'https://github.com/Utopian1025/myvault/releases/';
+        api.openExternal(w && (w.asset || w.name) && !/Mac/i.test(navigator.platform) ? 'https://gh-proxy.com/' + gh + 'download/v' + L.version + '/' + encodeURIComponent(w.asset || w.name) : gh + 'latest');
+      }
       if (a === 'auto') { G.save.settings.autoUpdate = b.checked; PP.save.soon(); }
     });
     PP.ui.panel('关于 & 检查更新', box, { wide: true });
