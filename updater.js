@@ -49,75 +49,94 @@ async function check() {
   return state;
 }
 
-// 写文件，同时算 SHA-256、报进度
-async function pull(url, ws, hash, onBytes, ms = 60000) {
-  const r = await fetchT(url, ms);
-  if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
-  const reader = r.body.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    hash.update(value); ws.write(Buffer.from(value)); onBytes(value.length);
-  }
+// 拉一个地址写进文件。不限总时长，只看“卡住”：连续 stallMs 没收到数据才算失败（网速慢不再被掐断）
+async function pullTo(url, file, onBytes, stallMs = 30000) {
+  const ctl = new AbortController(); let timer = null, n = 0;
+  const kick = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), stallMs); };
+  kick();
+  const fd = fs.openSync(file, 'w');
+  try {
+    const r = await net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'MoyuZoo-Updater' } });
+    if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+    const want = Number(r.headers.get('content-length')) || 0, enc = r.headers.get('content-encoding');
+    const reader = r.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      kick(); fs.writeSync(fd, value); n += value.length; onBytes(value.length);
+    }
+    if (want && !enc && n !== want) throw new Error('没下完整');
+    return n;
+  } catch (e) { onBytes(-n); throw e; } finally { clearTimeout(timer); try { fs.closeSync(fd); } catch {} }
 }
 
-async function download() {
+let downloading = null;
+function download() { if (!downloading) downloading = download1().finally(() => { downloading = null; }); return downloading; }
+async function download1() {
   const m = state.latest; if (!m) return state;
   const plat = process.platform === 'darwin' ? m.mac : m.win;
   if (!plat) { state.status = 'error'; state.error = '这个系统暂时没有新版安装包'; notify(state); return state; }
   const ext = process.platform === 'darwin' ? '.dmg' : '.exe';
-  // 公司电脑常见：临时文件夹被杀毒 / 权限策略锁住（EPERM），或者旧安装包还开着。
-  // 所以准备好几个可写的位置，挨个试，哪个能写就用哪个；绝不让它抛出未处理的异常。
+  // 公司电脑常见：临时文件夹被杀毒 / 权限策略锁住（EPERM），或者旧安装包还开着。准备好几个可写的位置，挨个试
   const dirs = [];
   for (const k of ['userData', 'temp', 'downloads', 'documents']) { try { dirs.push(k === 'userData' ? path.join(app.getPath('userData'), 'updates') : app.getPath(k)); } catch {} }
   try { dirs.push(os.tmpdir()); } catch {}
+  const base = `MoyuZoo-${m.version}`;
   // 已经下好了（而且校验通过）就不用再下
   for (const d of dirs) {
-    const f = path.join(d, `MoyuZoo-${m.version}${ext}`);
+    const f = path.join(d, base + ext);
     try { if (fs.existsSync(f) && plat.sha256 && sha256File(f) === plat.sha256) { state.status = 'ready'; state.file = f; state.progress = 1; notify(state); return state; } } catch {}
   }
-  const openOut = () => {
-    for (const d of dirs) {
-      for (const name of [`MoyuZoo-${m.version}${ext}`, `MoyuZoo-${m.version}-${Date.now().toString(36)}${ext}`]) {
-        const f = path.join(d, name);
-        try { fs.mkdirSync(d, { recursive: true }); const fd = fs.openSync(f, 'w'); return { f, fd }; } catch (e) { console.warn('cannot write', f, e && e.code); }
+  let dir = null;
+  for (const d of dirs) { try { fs.mkdirSync(d, { recursive: true }); const t = path.join(d, '.w' + Date.now().toString(36)); fs.writeFileSync(t, ''); fs.rmSync(t, { force: true }); dir = d; break; } catch (e) { console.warn('cannot write', d, e && e.code); } }
+  if (!dir) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
+  // 清掉以前版本留下的安装包和分块
+  try { for (const f of fs.readdirSync(dir)) if (/^MoyuZoo-\d/.test(f) && !f.startsWith(base)) fs.rmSync(path.join(dir, f), { force: true }); } catch {}
+  state.status = 'downloading'; state.progress = 0; state.error = ''; notify(state);
+  const total = plat.size || 1; let got = 0, lastN = 0;
+  const onBytes = (n) => { got += n; const p = Math.max(0, Math.min(0.999, got / total)); if (Math.abs(p - lastN) > 0.005) { lastN = p; state.progress = p; notify(state); } };
+  const finish = (dest, via) => { state.status = 'ready'; state.file = dest; state.progress = 1; state.via = via; notify(state); return state; };
+  const dest = path.join(dir, base + ext);
+
+  // 线路 1：jsDelivr 分块。每块 15MB，三块同时下；每一块在几个节点之间轮着试，下好的块留在硬盘上，
+  // 中途失败 / 关掉程序，下次接着下没完成的块，不用从头来
+  if (plat.parts && plat.parts.length && plat.parts.every((p) => p.ref)) {
+    const N = plat.parts.length, pf = (i) => path.join(dir, `${base}.part${i}`);
+    const todo = [];
+    for (let i = 0; i < N; i++) { try { got += fs.statSync(pf(i)).size; } catch { todo.push(i); } }
+    onBytes(0);
+    let hostAt = 0; const bad = {};
+    const worker = async () => {
+      while (todo.length) {
+        const i = todo.shift(), p = plat.parts[i]; let ok = false;
+        for (let k = 0; k < JSD.length * 3 && !ok; k++) {
+          const hosts = JSD.slice().sort((a, b) => (bad[a] || 0) - (bad[b] || 0)), host = hosts[(k + hostAt++) % (k < 2 ? 2 : hosts.length)];
+          try { await pullTo(`https://${host}/gh/${REPO}@${p.ref}/${p.file}`, pf(i) + '.tmp', onBytes); fs.renameSync(pf(i) + '.tmp', pf(i)); ok = true; }
+          catch (e) { bad[host] = (bad[host] || 0) + 1; console.warn('part failed', i, host, e && e.message); try { fs.rmSync(pf(i) + '.tmp', { force: true }); } catch {} }
+        }
+        if (!ok) throw new Error('part ' + i);
       }
-    }
-    return null;
-  };
-  state.status = 'downloading'; state.progress = 0; notify(state);
-  let got = 0; const total = plat.size || 1;
-  const onBytes = (n) => { got += n; const p = Math.min(0.999, got / total); if (p - state.progress > 0.01) { state.progress = p; notify(state); } };
-  const tries = [];
-  // 线路 1：jsDelivr 分块（国内最稳）
-  // 每一块单独放在一个 dist-N 分支上，用提交号引用（不会被缓存成旧的）
-  if (plat.parts && plat.parts.length && plat.parts.every((p) => p.ref)) for (const host of JSD) tries.push({ name: 'jsDelivr(' + host + ')', parts: plat.parts.map((p) => `https://${host}/gh/${REPO}@${p.ref}/${p.file}`) });
-  // 线路 2：GitHub Releases + 加速镜像
-  const gh = `https://github.com/${REPO}/releases/download/v${m.version}/${plat.asset || plat.name}`;
-  for (const px of PROXIES) tries.push({ name: px || 'GitHub', parts: [px + gh] });
-  for (const t of tries) {
-    got = 0; state.progress = 0;
-    const hash = crypto.createHash('sha256');
-    const out = openOut();
-    if (!out) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
-    const dest = out.f;
-    let wErr = null;
-    const ws = fs.createWriteStream(dest, { fd: out.fd });
-    ws.on('error', (e) => { wErr = e; });
+    };
     try {
-      for (const u of t.parts) { await pull(u, ws, hash, onBytes, t.parts.length > 1 ? 90000 : 600000); if (wErr) throw wErr; }
-      await new Promise((res, rej) => { ws.on('error', rej); ws.end(res); });
-      if (wErr) throw wErr;
-      const h = hash.digest('hex');
-      if (plat.sha256 && h !== plat.sha256) throw new Error('校验不一致');
-      state.status = 'ready'; state.file = dest; state.progress = 1; state.via = t.name; notify(state);
-      return state;
-    } catch (e) {
-      try { ws.destroy(); fs.rmSync(dest, { force: true }); } catch {}
-      console.warn('update source failed', t.name, e && e.message);
-    }
+      await Promise.all([0, 1, 2].map(() => worker()));
+      const hash = crypto.createHash('sha256'), fd = fs.openSync(dest, 'w');
+      try { for (let i = 0; i < N; i++) { const b = fs.readFileSync(pf(i)); hash.update(b); fs.writeSync(fd, b); } } finally { fs.closeSync(fd); }
+      if (plat.sha256 && hash.digest('hex') !== plat.sha256) { for (let i = 0; i < N; i++) fs.rmSync(pf(i), { force: true }); fs.rmSync(dest, { force: true }); throw new Error('校验不一致'); }
+      for (let i = 0; i < N; i++) { try { fs.rmSync(pf(i), { force: true }); } catch {} }
+      return finish(dest, 'jsDelivr');
+    } catch (e) { console.warn('jsDelivr route failed', e && e.message); todo.length = 0; }
   }
-  state.status = 'error'; state.error = '所有下载线路都失败了，稍后再试'; notify(state);
+  // 线路 2：GitHub Releases + 加速镜像（整个文件）
+  const gh = `https://github.com/${REPO}/releases/download/v${m.version}/${plat.asset || plat.name}`;
+  for (const px of PROXIES) {
+    got = 0; onBytes(0);
+    try {
+      await pullTo(px + gh, dest, onBytes, 30000);
+      if (plat.sha256 && sha256File(dest) !== plat.sha256) throw new Error('校验不一致');
+      return finish(dest, px || 'GitHub');
+    } catch (e) { try { fs.rmSync(dest, { force: true }); } catch {} console.warn('update source failed', px || 'GitHub', e && e.message); }
+  }
+  state.status = 'error'; state.error = '网络太慢或线路不通，这次没下完。已经下好的部分留着了，再点一次会接着下'; notify(state);
   return state;
 }
 
