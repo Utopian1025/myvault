@@ -3,9 +3,11 @@
   "Size": 1821184,
   "Sha256": "6654ABCFEF8B09D0F20AD362D335F9905D2F85BBB23FAC66CEC35F4136F1A280",
   "Downloads": [
+    "https://cdn.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.9.bin",
     "https://fastly.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.9.bin",
-    "https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.9.bin"
+    "https://gcore.jsdelivr.net/gh/Utopian1025/myvault@main/cleartask/ClearTask-Setup-0.4.9.bin",
+    "https://raw.githubusercontent.com/Utopian1025/myvault/main/cleartask/ClearTask-Setup-0.4.9.exe"
   ],
   "Notes": "# ClearTask 0.4.9\n\n- 备忘录：中文组词期间暂停富文本读取及自动保存；保存不再重建笔记列表项，保留焦点与选区。\n- 工具栏：分组布局、加粗/斜体/下划线状态、字体字号颜色、段落对齐、清单表格附件、撤销重做。\n- 标题移到工具栏下方，与白色正文纸面用细线分隔；标题格式与对齐单独保存，Tab / Shift+Tab 切换标题正文。\n- 设置新增备忘录默认字体、标题及正文字号、正文默认加粗；设置区支持自定义颜色及恢复跟随全局。\n- 天气：Open-Meteo 主源、MET Norway 备用，最近有效数据缓存、时间标记和手动重试；失败不伪造实时天气。\n- 小组件：随手记可指定备忘录，默认直达最近编辑的一篇；卡片内容向左上收紧；快速切换不再重复捕获半张过渡画面。\n- 新增法定节假日倒计时，包含 2027 放假安排；普通周末和调休工作日不作为节日。\n- 到点提醒始终提交 Windows 通知（系统勿扰或通知权限可能抑制横幅）；通知使用当前品牌图标，升级替换旧图标文件路径。\n- 保留 0.4.8 多源更新、签名及完整性校验。\n\n天气数据：Open-Meteo、MET Norway，模型天气/预报，CC BY 4.0。法定节假日数据整理：NateScarlet/holiday-cn，来源公告见数据内 papers。\n",
-  "Signature": "AQ6LD9m92zT7YtyXozqp4+GGOUuDHLkrwxt3koGNzUHBJCjJ4j8nngLveZ9c9UyEmckGfwEzNAwaDA/zKhSyoj+g2QpGpRU7/iBsGIhFVHNjXW1Z404mYxMreu59f1jdoI9u2AYn0sufGlbgceXsWZ0b5MXQNQxRycY1qFmVQqlLYaa816aMvgg4BdrKMo5JI3tJcSfef+BJctY6cxvZ6XBWSPBgLBDbHNjef5Co4P2gVWf5sApSXSanXNn9VvJPi4ssvZLNmEAOeWhH+cdsVanoPjl9IR9hDj5g7+Kx8SeWQRUe1/txhmLG9sk9tcdbuCP2i7lDZXY+W3KMmjdta02zEkC5JLpj4k1Cn3fLsqWmiTuzoAt66Y8C2c2CbMVkD4DBarkj+MFxNC5Ie3jTM8HX0FTVrFGFr4Heln34P5LPT62pRnEJTGMJJo7qQpcoJHMXoP4niw4k/9mkFzfQZkH4bcoEjXNzbD5oQu6PLc3arjvixVLvJ2DUlnrb5yWK"
+  "Signature": "Py4Q5LTv8jpZkyVZTg+UevSFpt7eGzDptHw97FQkNYv8zdE2Sa18z8bRBgo5rMw712vKdEE8aqN8mtfunrPaQd0+d9CAK9EZSbsoDWk3nt+cJ8xF1t2tX/XCUm3pekKWo8xv5subUQQfIXQewPMyL++NDlAWS80mBXlZXXX23baNDiJcRMipLvPWvJhfxdQM81ut/U23SSR9ozRMeVlCv5T1xLU2uTG5nBJGnMRiv+qq5oW6gZ/iyJ8QEA5QcGRajHWALC6gD1nOKCPLAlpvq4utQpWoN9XekuZuS9r1QyUC3NLV1mSGN+WF6vN8hl8a979xScS/CGLPAYUgnk+mbpt05GfKBhgoh1hjUDXe/gGtv74/11vL5cQrYE9iKOgTyOsLlWxvNyAQHFjpr6/3OlMOEDro3mznDj2LYAAcATqNig0pnKAhCd4vx3lXaxGDdG6iEJxEJ6x3st+RJ2ry/Jmc5x+Ae2rEfjmZbGLAE4f1XZTA+2DjApzIIeQqc773"
 }
