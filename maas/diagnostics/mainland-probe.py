@@ -18,6 +18,6 @@ for host,location in [(h,{"country":"CN"}) for h in ["gh-proxy.org","gh-proxy.co
             result=request("/measurements/"+m["id"])
             if result.get("status")=="finished":break
             time.sleep(3)
-        summary={"id":result["id"],"requested":location,"status":result.get("status"),"results":[{"probe":x.get("probe"),"result":{k:v for k,v in x.get("result",{}).items() if k in ("status","statusCode","error","timings","resolvedAddress")},"contentLength":x.get("result",{}).get("headers",{}).get("content-length"),"zipPrefix":x.get("result",{}).get("rawBody","")[:4]} for x in result.get("results",[])]}
+        summary={"id":result["id"],"requested":location,"status":result.get("status"),"results":[{"probe":x.get("probe"),"result":{k:v for k,v in (x.get("result") or {}).items() if k in ("status","statusCode","error","timings","resolvedAddress")},"contentLength":(x.get("result") or {}).get("headers",{}).get("content-length"),"zipPrefix":((x.get("result") or {}).get("rawBody") or "")[:4]} for x in result.get("results",[])]}
         print("MAINLAND_RESULT",host,json.dumps(summary,ensure_ascii=False),flush=True)
     except urllib.error.HTTPError as e:print("MEASUREMENT_ERROR",host,e.code,e.read().decode()[:3000],flush=True)
