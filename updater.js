@@ -138,7 +138,9 @@ function install(relaunch = true) {
       const ch = spawn(state.file, args, { detached: true, stdio: 'ignore' });
       ch.on('error', (e) => { console.warn('installer failed', e); state.status = 'error'; state.error = '没能启动安装程序（' + (e.code || e.message) + '），可以去网页下载手动安装'; notify(state); });
       ch.unref();
-      setTimeout(() => { if (state.status === 'ready') app.quit(); }, 600);
+      // 尽快把自己完全退掉：安装程序要覆盖 exe，本程序还没退干净它就会报“无法写入”
+      setTimeout(() => { if (state.status === 'ready') app.quit(); }, 200);
+      setTimeout(() => { if (state.status === 'ready') { try { app.exit(0); } catch (e) {} } }, 1500);
     } catch (e) { state.status = 'error'; state.error = '没能启动安装程序，可以去网页下载手动安装'; notify(state); return false; }
   } else {
     shell.openPath(state.file);
