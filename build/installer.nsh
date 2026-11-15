@@ -18,8 +18,10 @@
     CopyFiles /SILENT "$APPDATA\PixelNest\save.json" "$APPDATA\PixelNest-keep\save-before-update.json"
 !macroend
 
-; 改名后：删掉旧名字“像素小窝”留下的快捷方式
+; 改名后：删掉旧名字（像素小窝、摸鱼动物园）留下的快捷方式
 !macro customInstall
   Delete "$DESKTOP\像素小窝.lnk"
   Delete "$SMPROGRAMS\像素小窝.lnk"
+  Delete "$DESKTOP\摸鱼动物园.lnk"
+  Delete "$SMPROGRAMS\摸鱼动物园.lnk"
 !macroend
