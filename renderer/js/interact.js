@@ -18,11 +18,11 @@
     if (v === interactive) return;
     interactive = v;
     if (api) api.setInteractive(v);
-    document.body.style.cursor = v && (G.hoverPet || G.hoverItem || G.hoverHot) ? 'pointer' : 'default';
+    document.body.style.cursor = v && (G.hoverPet || G.hoverItem || G.hoverHot) ? (!G.hoverPet && !G.hoverItem && G.hoverHot.cur) || 'pointer' : 'default';
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover');
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
     if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
@@ -76,7 +76,7 @@
     G.hoverHot = G.hoverPet || G.hoverItem || dragPet || dragItem ? (PP.scene.hot(-9, -9), null) : (G.isle && PP.isle && PP.isle.hot(x, y)) || PP.scene.hot(x, y);
     if (G.editing) PP.scene.editMove(x, y);
     PP.refreshInteractive();
-    if (interactive) document.body.style.cursor = G.hoverPet || G.hoverItem || G.hoverHot ? 'pointer' : 'default';
+    if (interactive) document.body.style.cursor = G.hoverPet || G.hoverItem || G.hoverHot ? (!G.hoverPet && !G.hoverItem && G.hoverHot.cur) || 'pointer' : 'default';
 
     detectEdgeWiggle(x, y);
     if (!press) {

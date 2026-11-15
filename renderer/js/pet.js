@@ -193,6 +193,8 @@
 
     // 走路
     goto(x, run = false, lane) {
+      // 小岛上：在世界里走（匀速、绕开房子、走楼梯），不是在屏幕上横着滑
+      if (G.isle && PP.isle && PP.isle.gotoX && G.pets.includes(this)) { this.running = run; this.hang = false; PP.isle.gotoX(this, x, run); return () => !this.iw; }
       this.target = U.clamp(x, 20, G.W - 20); this.running = run; this.hang = false;
       // 极简模式：只在右下角那一小块走动
       if (G.save && G.save.settings.mode === 'mini' && PP.miniZone) { const [a, b] = PP.miniZone(); this.target = U.clamp(this.target, a, b); }
@@ -238,11 +240,13 @@
       if (this._resume != null) { if (this.waitFn && this.target == null) this.target = this._resume; this._resume = null; }
       if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
       // 换排
+      if (G.isle) this.tLane = null;
       if (this.tLane != null) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else { let rate = 0.9; if (G.isle && this.target != null) { const left = Math.abs(this.target - this.x), sp0 = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * 1.8; rate = Math.max(0.9, Math.abs(d) * sp0 / Math.max(6, left)); } this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * rate); } }
       const floor = this.floor;
 
       // 走路
-      if (this.target != null) {
+      if (G.isle && this.iw && PP.isle) { PP.isle.step(this, dt); }
+      else if (this.target != null) {
         const dx = this.target - this.x;
         const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1) * (G.isle ? 1.8 : 1);
         const sp = this.sp;
@@ -270,7 +274,7 @@
           if (this.dizzy > 0) this.x += Math.sin(this.t * 9) * 0.8;
         }
       } else if (this.hopY) { this.hopY = 0; }
-      if (!this.transit && !this.hopY && !this.airborne) this.y = this.target != null && this.sp.gait === 'hop' ? this.y : floor;
+      if (!this.transit && !this.hopY && !this.airborne && !(G.isle && this.iw)) this.y = this.target != null && this.sp.gait === 'hop' ? this.y : floor;
 
       // 行为生成器
       if (this.gen) {
@@ -428,8 +432,9 @@
       if (this.doorBusy()) { this.inDoor = false; this.doorClip = null; this.y = G.ground; }
       this.surf = null; this.wade = 0; this.sinkOut = 0; this.transit = false;
       // 把躲着的小家伙拖出来：它就不再躲了（之前没清掉，放手后又缩回去）
+      this.grabPeek = this.edgePeek ? this.edgePeek.side : null; // 是不是从躲着的地方被拖出来的
       this.edgePeek = null; this.peek = false;
-      this.grabAt = [G.mouse.x, G.mouse.y];
+      this.grabAt = [G.mouse.x, G.mouse.y]; this.liftBox = [G.mouse.x, G.mouse.x, G.mouse.y];
       this.interrupt(true);
       this.held = true; this.airborne = false; this.anim = 'held';
       this.heldT = 0; this.shake = 0; this.lastVx = 0;
@@ -443,6 +448,7 @@
       this.heldT += dt;
       // 头被鼠标拎着，身体像麻薯一样往下垂
       this.x = M.x; this.y = M.y + 21 * S;
+      if (this.liftBox) { const b = this.liftBox; b[0] = Math.min(b[0], M.x); b[1] = Math.max(b[1], M.x); b[2] = Math.min(b[2], M.y); }
       const vy = M.vy;
       this.stretch = U.clamp(this.stretch + (U.clamp(-vy / 900, -0.4, 0.6) + 0.35 - this.stretch) * dt * 6, 0, 1);
       // 晃动检测
@@ -465,8 +471,10 @@
     drop(vx, vy) {
       // 拖到屏幕最下面 / 最边上放手：它就躲在那儿只露个头（探索玩法）
       // 只有真的把它从别处拖到边上才算（从边上把它拖出来、在边上附近放手，不会又缩回去）
-      const M = G.mouse, g = this.grabAt || [M.x, 0];
-      const edge = M.y >= G.H - 8 && g[1] < G.H - 60 ? 'bottom' : M.x <= 8 && g[0] > 60 ? 'left' : M.x >= G.W - 8 && g[0] < G.W - 60 ? 'right' : null;
+      // 以前要求“抓起来的位置离底边 60 像素以上”：极简模式里它本来就站在任务栏上，抓它下半身就永远躲不进去。
+      // 现在只排除一种情况：它本来就躲在这条边，被拖出来又在原地附近放手
+      const M = G.mouse, b = this.liftBox || [M.x, M.x, 0], gp = this.grabPeek;
+      const edge = M.y >= G.H - 8 && !(gp === 'bottom' && b[2] > G.H - 60) ? 'bottom' : M.x <= 8 && !(gp === 'left' && b[1] < 60) ? 'left' : M.x >= G.W - 8 && !(gp === 'right' && b[0] > G.W - 60) ? 'right' : null;
       if (edge && !(G.save && G.save.settings.mode === 'full')) { this.held = false; this.airborne = false; this.vx = this.vy = 0; this.y = this.floor; this.edgePeek = { side: edge, since: G.t }; if (edge !== 'bottom') this.x = edge === 'left' ? 4 * G.S : G.W - 4 * G.S; this.interrupt(true); return; }
       this.held = false; this.airborne = true;
       this.vx = U.clamp(vx, -1400, 1400) * 0.6; this.vy = U.clamp(vy, -1200, 1200) * 0.6;
