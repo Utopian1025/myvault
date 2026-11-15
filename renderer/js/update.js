@@ -32,7 +32,7 @@
     if (!panelBody || !panelBody.isConnected) { panelBody = null; return; }
     const s = G.save.settings;
     const latestNotes = st.latest && cmp(st.latest.version, ver) > 0 ? notesHTML(newerThan(ver, st.latest)) : '';
-    panelBody.innerHTML = `<p class="lead">摸鱼动物园 <b>v${esc(ver || '?')}</b></p>
+    panelBody.innerHTML = `<p class="lead">Desktopia 桌面乌托邦 <b>v${esc(ver || '?')}</b></p>
       <p class="upd-status">${statusLine()}</p>
       ${st.status === 'downloading' ? `<div class="upd-bar"><i style="width:${Math.round((st.progress || 0) * 100)}%"></i></div>` : ''}
       ${latestNotes ? `<div class="upd-notes">${latestNotes}</div>` : ''}
