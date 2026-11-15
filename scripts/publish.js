@@ -22,17 +22,17 @@ if (cmd === 'prepare') {
   const exe = files.find((f) => f.endsWith('.exe')), dmg = files.find((f) => f.endsWith('.dmg'));
   const info = { version: V };
   if (exe) {
-    const buf = fs.readFileSync(exe), name = `MoyuZoo-Setup-${V}.exe`;
+    const buf = fs.readFileSync(exe), name = `Desktopia-Setup-${V}.exe`;
     fs.writeFileSync(path.join(REL, name), buf);
-    fs.writeFileSync(path.join(REL, 'MoyuZoo-Setup.exe'), buf); // 固定名字：README 里的“最新版”链接一直有效
+    fs.writeFileSync(path.join(REL, 'Desktopia-Setup.exe'), buf); // 固定名字：README 里的“最新版”链接一直有效
     const parts = [];
     for (let i = 0, k = 0; i < buf.length; i += PART, k++) { const p = `${name}.${String(k).padStart(3, '0')}`; fs.writeFileSync(path.join(REL, 'parts', p), buf.subarray(i, i + PART)); parts.push(p); }
     info.win = { name, asset: name, size: buf.length, sha256: sha(buf), parts };
   }
   if (dmg) {
-    const buf = fs.readFileSync(dmg), name = `MoyuZoo-${V}.dmg`;
+    const buf = fs.readFileSync(dmg), name = `Desktopia-${V}.dmg`;
     fs.writeFileSync(path.join(REL, name), buf);
-    fs.writeFileSync(path.join(REL, 'MoyuZoo.dmg'), buf);
+    fs.writeFileSync(path.join(REL, 'Desktopia.dmg'), buf);
     info.mac = { name, asset: name, size: buf.length, sha256: sha(buf) };
   }
   fs.writeFileSync(path.join(REL, 'info.json'), JSON.stringify(info, null, 2));
@@ -40,18 +40,18 @@ if (cmd === 'prepare') {
   const repo = process.env.GITHUB_REPOSITORY || 'Utopian1025/myvault';
   const gh = (f) => `https://github.com/${repo}/releases/download/v${V}/${f}`;
   fs.writeFileSync(path.join(REL, 'notes.md'), [
-    `## ${cur.title || '摸鱼动物园 v' + V}`, '', ...(cur.notes || []).map((n) => `- ${n}`), '',
+    `## ${cur.title || 'Desktopia 桌面乌托邦 v' + V}`, '', ...(cur.notes || []).map((n) => `- ${n}`), '',
     '### 下载', '',
     '| | Windows |', '|---|---|',
-    `| GitHub | [安装包](${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
-    `| 国内加速 1 | [安装包](https://gh-proxy.com/${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
-    `| 国内加速 2 | [安装包](https://ghfast.top/${gh('MoyuZoo-Setup-' + V + '.exe')}) |`,
+    `| GitHub | [安装包](${gh('Desktopia-Setup-' + V + '.exe')}) |`,
+    `| 国内加速 1 | [安装包](https://gh-proxy.com/${gh('Desktopia-Setup-' + V + '.exe')}) |`,
+    `| 国内加速 2 | [安装包](https://ghfast.top/${gh('Desktopia-Setup-' + V + '.exe')}) |`,
     '', '已经装过的话不用重新下载：程序会自动更新。',
   ].join('\n'));
   console.log(JSON.stringify(info));
 } else if (cmd === 'manifest') {
   const info = JSON.parse(fs.readFileSync(path.join(REL, 'info.json'), 'utf8'));
-  const refs = JSON.parse(arg || '{}'); // { "MoyuZoo-Setup-x.exe.000": "<sha>", ... }
+  const refs = JSON.parse(arg || '{}'); // { "Desktopia-Setup-x.exe.000": "<sha>", ... }
   if (info.win) info.win.parts = info.win.parts.map((p) => ({ file: p, ref: refs[p] })).filter((p) => p.ref);
   const cur = changelog.find((c) => c.version === V) || {};
   const out = {
