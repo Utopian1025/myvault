@@ -178,7 +178,7 @@ function makeIco(img) {
   return Buffer.concat([head, ...sizes]);
 }
 function shortcutPaths() {
-  return [path.join(app.getPath('desktop'), '摸鱼动物园.lnk'), path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', '摸鱼动物园.lnk')].filter((f) => fs.existsSync(f));
+  return ['Desktopia 桌面乌托邦', '摸鱼动物园'].flatMap((n) => [path.join(app.getPath('desktop'), n + '.lnk'), path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', n + '.lnk')]).filter((f) => fs.existsSync(f));
 }
 function applyIcon() {
   try {
@@ -207,7 +207,7 @@ ipcMain.handle('set-app-icon', (_e, o) => {
 function buildTray() {
   const icon = trayImage();
   tray = new Tray(icon.isEmpty() ? nativeImage.createEmpty() : icon);
-  tray.setToolTip('摸鱼动物园（Ctrl+Alt+Shift+P 召唤/送回）');
+  tray.setToolTip('Desktopia 桌面乌托邦（Ctrl+Alt+Shift+P 召唤/送回）');
   if (process.platform === 'win32') tray.on('click', () => tray.popUpContextMenu());
   rebuildTray();
 }

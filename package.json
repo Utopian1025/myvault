@@ -1,8 +1,8 @@
 {
   "name": "pixel-nest",
-  "productName": "摸鱼动物园",
-  "version": "0.9.4",
-  "description": "住在你电脑里的一群小动物，陪你一起摸鱼。",
+  "productName": "Desktopia",
+  "version": "0.9.5",
+  "description": "Desktopia 桌面乌托邦：住在你桌面上的一群小动物和一座漂浮的小城堡。",
   "author": "Pixel Nest",
   "main": "main.js",
   "scripts": {
@@ -50,11 +50,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "摸鱼动物园",
-      "uninstallDisplayName": "摸鱼动物园",
+      "shortcutName": "Desktopia 桌面乌托邦",
+      "uninstallDisplayName": "Desktopia 桌面乌托邦",
       "deleteAppDataOnUninstall": true,
       "include": "build/installer.nsh",
-      "artifactName": "摸鱼动物园-安装包-${version}.exe",
+      "artifactName": "Desktopia-Setup-${version}.exe",
       "installerLanguages": [
         "zh_CN"
       ],
@@ -71,8 +71,8 @@
       "identity": null
     },
     "dmg": {
-      "artifactName": "摸鱼动物园-${version}.dmg",
-      "title": "摸鱼动物园"
+      "artifactName": "Desktopia-${version}.dmg",
+      "title": "Desktopia"
     }
   },
   "dependencies": {

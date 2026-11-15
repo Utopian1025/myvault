@@ -1,6 +1,6 @@
-# 摸鱼动物园
+# Desktopia 桌面乌托邦
 
-> 一群住在你电脑里的小动物，平时各过各的小日子，顺便陪你一起摸鱼。
+> 一群住在你电脑里的小动物，平时各过各的小日子，还有一座漂在桌面上的小城堡。
 
 桌面底部的一整个像素动物园：按真实的生态分成七个主场景（极地、山地、森林、草原、荒漠、农场、水域），每个主场景下面有自己的次场景，住着 44 种动物。
 它们默认是**野生的**，各自在自己的家附近过日子：吃饭、喝水、睡觉、串门、躲雨。看中哪只，就**认养**它、给它取名字；它会跟着你的鼠标转眼珠、陪你打字、提醒你喝水伸懒腰。
@@ -9,9 +9,9 @@
 
 | | Windows | macOS |
 |---|---|---|
-| GitHub | [MoyuZoo-Setup.exe](https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
-| 国内加速 1 | [MoyuZoo-Setup.exe](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
-| 国内加速 2 | [MoyuZoo-Setup.exe](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo-Setup.exe) | [MoyuZoo.dmg](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/MoyuZoo.dmg) |
+| GitHub | [Desktopia-Setup.exe](https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia-Setup.exe) | [Desktopia.dmg](https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia.dmg) |
+| 国内加速 1 | [Desktopia-Setup.exe](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia-Setup.exe) | [Desktopia.dmg](https://gh-proxy.com/https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia.dmg) |
+| 国内加速 2 | [Desktopia-Setup.exe](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia-Setup.exe) | [Desktopia.dmg](https://ghfast.top/https://github.com/Utopian1025/myvault/releases/latest/download/Desktopia.dmg) |
 
 所有版本和更新内容：[Releases](https://github.com/Utopian1025/myvault/releases)。
 **装过一次以后就不用再手动下载了**：程序会自动检查新版（国内走 jsDelivr 线路），下载好会告诉你更新了什么，点一下就换成新版，宠物和存档都保留。也可以在菜单 →「关于 & 检查更新」里手动检查。
@@ -21,7 +21,7 @@
 Windows：双击安装包 → 选择安装位置 → 完成。桌面和开始菜单会有图标。
 第一次运行如果 Windows 弹出“已保护你的电脑”，点「更多信息 → 仍要运行」（程序没有付费签名）。
 
-卸载：「设置 → 应用 → 摸鱼动物园 → 卸载」。会一并删除存档、缓存和开机自启项，不留残留。
+卸载：「设置 → 应用 → Desktopia 桌面乌托邦 → 卸载」。会一并删除存档、缓存和开机自启项，不留残留。
 
 macOS：打开 dmg，把图标拖进「应用程序」。第一次打开请右键 →「打开」。
 想让猫陪你打字、扒卷纸，需要在「系统设置 → 隐私与安全性 → 辅助功能」里允许它（只知道“按了键”，不会记录按了什么）。

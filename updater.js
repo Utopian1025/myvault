@@ -30,7 +30,7 @@ const cmp = (a, b) => { const x = String(a).split('.').map(Number), y = String(b
 
 function fetchT(url, ms = 9000) {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), ms);
-  return net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'MoyuZoo-Updater' } }).finally(() => clearTimeout(t));
+  return net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'Desktopia-Updater' } }).finally(() => clearTimeout(t));
 }
 
 let state = { status: 'idle', latest: null, progress: 0, file: null, error: '' };
@@ -56,7 +56,7 @@ async function pullTo(url, file, onBytes, stallMs = 30000) {
   kick();
   const fd = fs.openSync(file, 'w');
   try {
-    const r = await net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'MoyuZoo-Updater' } });
+    const r = await net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'Desktopia-Updater' } });
     if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
     const want = Number(r.headers.get('content-length')) || 0, enc = r.headers.get('content-encoding');
     const reader = r.body.getReader();
@@ -81,7 +81,7 @@ async function download1() {
   const dirs = [];
   for (const k of ['userData', 'temp', 'downloads', 'documents']) { try { dirs.push(k === 'userData' ? path.join(app.getPath('userData'), 'updates') : app.getPath(k)); } catch {} }
   try { dirs.push(os.tmpdir()); } catch {}
-  const base = `MoyuZoo-${m.version}`;
+  const base = `Desktopia-${m.version}`;
   // 已经下好了（而且校验通过）就不用再下
   for (const d of dirs) {
     const f = path.join(d, base + ext);
@@ -91,7 +91,7 @@ async function download1() {
   for (const d of dirs) { try { fs.mkdirSync(d, { recursive: true }); const t = path.join(d, '.w' + Date.now().toString(36)); fs.writeFileSync(t, ''); fs.rmSync(t, { force: true }); dir = d; break; } catch (e) { console.warn('cannot write', d, e && e.code); } }
   if (!dir) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
   // 清掉以前版本留下的安装包和分块
-  try { for (const f of fs.readdirSync(dir)) if (/^MoyuZoo-\d/.test(f) && !f.startsWith(base)) fs.rmSync(path.join(dir, f), { force: true }); } catch {}
+  try { for (const f of fs.readdirSync(dir)) if (/^(MoyuZoo|Desktopia)-\d/.test(f) && !f.startsWith(base)) fs.rmSync(path.join(dir, f), { force: true }); } catch {}
   state.status = 'downloading'; state.progress = 0; state.error = ''; notify(state);
   const total = plat.size || 1; let got = 0, lastN = 0;
   const onBytes = (n) => { got += n; const p = Math.max(0, Math.min(0.999, got / total)); if (Math.abs(p - lastN) > 0.005) { lastN = p; state.progress = p; notify(state); } };
