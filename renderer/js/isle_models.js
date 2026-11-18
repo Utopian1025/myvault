@@ -13,7 +13,7 @@
   const GH = { u0: 27, u1: 36, v0: 7.5, v1: 14.5, z: 4.4, h: 7, roof: 4, door: 0.5, nv: 5, nu: 4 };
   const iu = (S, t) => R0 + t * (S.u1 - S.u0) * SC, iv = (S, t) => R0 + t * (S.v1 - S.v0) * SC;
   const HU1 = iu(HOUSE, 1), HV1 = iv(HOUSE, 1), GU1 = iu(GH, 1), GV1 = iv(GH, 1);
-  const PICK = { door: 1, green: 2, mail: 3, barrel: 4, balloon: 6, fish: 8, tree: 9, lamp: 10, plot: 20, deco: 30, exit: 40, kitchen: 51, bed: 57, chair: 58, piano: 64, gbarrel: 71, bench: 74 };
+  const PICK = { door: 1, green: 2, mail: 3, barrel: 4, balloon: 6, fish: 8, tree: 9, lamp: 10, coop: 11, hive: 12, tank: 13, plot: 20, deco: 30, exit: 40, kitchen: 51, bed: 57, chair: 58, piano: 64, gbarrel: 71, bench: 74 };
 
   // ---------- 地形：一块长满草的浮岛，有两座小山丘、山上的泉眼、弯弯的小河、天然的水塘，水从岛边落下去 ----------
   const CEN = [24, 23];
@@ -55,7 +55,7 @@
   const K = {
     IW: 150, IH: 124, ORG: { deck: [72, 30], house: [70, 45], gh: [67, 45] }, SC, R0, HOUSE, GH, PICK, HU1, HV1, GU1, GV1, LOFT: 28, WALLH: 52, T,
     Z: { yard: 0 },
-    DOOR: { u: 12 + 0.42 * 13, v: 20 }, GDOOR: { u: 31.5, v: 14.5 }, TREE: { u: 40.5, v: 23 }, TANK: { u: 28.5, v: 21.5 }, MAILB: { u: 20.8, v: 22.8 }, BALLOON: { u: 41, v: 13.5 },
+    DOOR: { u: 12 + 0.42 * 13, v: 20 }, GDOOR: { u: 31.5, v: 14.5 }, TREE: { u: 40.5, v: 23 }, COOP: { u: 6.6, v: 33.2 }, HIVE: { u: 43, v: 29.6 }, TANK: { u: 28.5, v: 21.5 }, MAILB: { u: 20.8, v: 22.8 }, BALLOON: { u: 41, v: 13.5 },
     POND, FISH: { u: 19, v: 33.4 }, BOB: { u: 19.4, v: 38.8 },
     PLOTS: [[27, 27], [31.2, 27], [35.4, 27], [27, 31.6], [31.2, 31.6], [35.4, 31.6]], PS: 3.6, PH: [1.1, 1.4, 1.0, 1.2, 0.9, 1.3],
     SLOTS: [[15, 24.8], [4.8, 26.6], [23.4, 31.4], [34.4, 23.4], [41, 18.6], [11.6, 31]], LAMPS: [[21.6, 31.6, 0], [12.6, 22.8, 0], [36.6, 17.2, 0]],
@@ -277,6 +277,43 @@
     }
     // 野餐垫（桥那边的小草坪上）
     { const pu = 3.6, pv = 27.6, z = tz(pu, pv) + 0.05; for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) m.quad([pu + a * 0.7, pv + b * 0.7, z], [pu + a * 0.7 + 0.7, pv + b * 0.7, z], [pu + a * 0.7 + 0.7, pv + b * 0.7 + 0.7, z], [pu + a * 0.7, pv + b * 0.7 + 0.7, z], (a + b) % 2 ? '#e0504a' : '#fff4ec', M.cloth); m.box(pu + 1.8, pv + 0.4, z, pu + 2.8, pv + 1.2, z + 1, '#b88a4a', M.cloth); }
+    // —— 鸡舍：高脚小木屋 + 斜梯 + 围栏小院（鸡在 2D 层里跑） ——
+    { const c = K.COOP, z = tz(c.u, c.v);
+      m.pk(PICK.coop);
+      posts(m, [[c.u - 1.6, c.v - 1.3], [c.u + 1.6, c.v - 1.3], [c.u - 1.6, c.v + 1.3], [c.u + 1.6, c.v + 1.3]], z, 2.2, DARK, 0.18);
+      m.box(c.u - 1.9, c.v - 1.6, z + 2.2, c.u + 1.9, c.v + 1.6, z + 5.6, '#c8603e', M.plank); m.box(c.u - 2, c.v - 1.7, z + 2, c.u + 2, c.v + 1.7, z + 2.3, WOOD2, M.plank);
+      for (let i = 0; i < 4; i++) m.box(c.u - 1.95 + i * 1.3, c.v + 1.6, z + 2.2, c.u - 1.75 + i * 1.3, c.v + 1.7, z + 5.6, '#f4ead8', 0);
+      m.gable(c.u - 2.3, c.v - 2, c.u + 2.3, c.v + 2, z + 5.6, 2.4, 'u', '#7a3a2e', M.tile, 0.4, '#c8603e', M.plank);
+      m.box(c.u - 0.6, c.v + 1.62, z + 2.4, c.u + 0.6, c.v + 1.75, z + 4.2, '#3a2420', 0); // 小门洞
+      m.quad([c.u - 0.5, c.v + 1.7, z + 2.3], [c.u + 0.5, c.v + 1.7, z + 2.3], [c.u + 0.5, c.v + 4.2, z + 0.05], [c.u - 0.5, c.v + 4.2, z + 0.05], WOOD, M.plank); // 斜梯
+      for (let i = 1; i < 5; i++) m.box(c.u - 0.5, c.v + 1.7 + i * 0.5, z + 2.3 - i * 0.46, c.u + 0.5, c.v + 1.8 + i * 0.5, z + 2.4 - i * 0.46, DARK, 0);
+      m.cyl(c.u + 2.6, c.v + 2.4, z, z + 0.6, 0.8, 0.9, '#8a6a4a', M.plank, 9); m.cyl(c.u + 2.6, c.v + 2.4, z + 0.6, z + 0.65, 0.7, 0.7, '#e8c86a', 0, 9); // 食槽
+      m.pk(0);
+      for (let i = 0; i <= 10; i++) { const a = i / 10 * 3.6 + 1.2, u = c.u + 0.5 + Math.cos(a) * 4.2, v = c.v + 2.6 + Math.sin(a) * 3.0; if (!Tt.inIsle(u, v, 0.8)) continue; m.box(u - 0.1, v - 0.1, tz(u, v), u + 0.1, v + 0.1, tz(u, v) + 1.6, WOOD2, 2); if (i) { const b = (i - 1) / 10 * 3.6 + 1.2, u2 = c.u + 0.5 + Math.cos(b) * 4.2, v2 = c.v + 2.6 + Math.sin(b) * 3.0; m.quad([u, v, tz(u, v) + 1.1], [u2, v2, tz(u2, v2) + 1.1], [u2, v2, tz(u2, v2) + 1.3], [u, v, tz(u, v) + 1.3], WOOD, 2); } }
+      if (!snow) for (let i = 0; i < 9; i++) m.blob(c.u - 1 + (i % 3) * 1.1, c.v + 2.4 + ((i / 3) | 0) * 0.9, tz(c.u, c.v + 3) + 0.05, 0.4, 0.12, '#e8c86a', 0, i, 2, 4); }
+    // —— 蜂箱：两层白木箱 + 小屋顶，旁边一丛薰衣草（蜜蜂在 2D 层里飞） ——
+    { const h = K.HIVE, z = tz(h.u, h.v);
+      m.pk(PICK.hive);
+      m.box(h.u - 1.1, h.v - 1, z, h.u + 1.1, h.v + 1, z + 0.6, DARK, 2);
+      for (let k = 0; k < 2; k++) { m.box(h.u - 1, h.v - 0.9, z + 0.6 + k * 1.5, h.u + 1, h.v + 0.9, z + 2 + k * 1.5, k ? '#f4ead0' : '#e8dcb8', M.plank); m.box(h.u - 1.05, h.v - 0.95, z + 2 + k * 1.5, h.u + 1.05, h.v + 0.95, z + 2.1 + k * 1.5, '#c8a060', 0); }
+      m.gable(h.u - 1.3, h.v - 1.2, h.u + 1.3, h.v + 1.2, z + 3.7, 1, 'u', '#5a8ac8', 2, 0.2);
+      m.box(h.u - 0.5, h.v + 0.9, z + 0.8, h.u + 0.5, h.v + 1.0, z + 1.0, '#2a1a14', 0); // 出入口
+      m.pk(0);
+      if (!snow) for (let i = 0; i < 7; i++) { const a = i * 0.9, u = h.u - 2.2 + Math.cos(a) * 0.7, v = h.v + 1.4 + Math.sin(a) * 0.7; m.tuft(u, v, tz(u, v), 1.6, 3, '#6a9a5a', i + 300); m.blob(u, v, tz(u, v) + 1.7, 0.18, 0.4, '#a888d8', 0, i, 2, 4); } }
+    // —— 菜地边：稻草人、手推车、种子袋、每块地一块小木牌、竹架子 ——
+    { const sc = [40.9, 36.2], z = tz(sc[0], sc[1]);
+      m.box(sc[0] - 0.12, sc[1] - 0.12, z, sc[0] + 0.12, sc[1] + 0.12, z + 7, DARK, 2); m.box(sc[0] - 2, sc[1] - 0.1, z + 5, sc[0] + 2, sc[1] + 0.1, z + 5.25, DARK, 2);
+      m.box(sc[0] - 1, sc[1] - 0.5, z + 3.2, sc[0] + 1, sc[1] + 0.5, z + 5.6, '#5a8ac8', M.cloth); m.box(sc[0] - 1.8, sc[1] - 0.25, z + 4.7, sc[0] - 1, sc[1] + 0.25, z + 5.5, '#5a8ac8', M.cloth); m.box(sc[0] + 1, sc[1] - 0.25, z + 4.7, sc[0] + 1.8, sc[1] + 0.25, z + 5.5, '#5a8ac8', M.cloth);
+      for (const d of [-0.5, 0, 0.5]) m.box(sc[0] + d - 0.15, sc[1] - 0.3, z + 2.6, sc[0] + d + 0.15, sc[1] + 0.3, z + 3.3, '#e8c86a', 0);
+      m.ball(sc[0], sc[1], z + 6.4, 0.75, 0.8, '#f0dca8', 0, 4, 8); m.cyl(sc[0], sc[1], z + 7, z + 7.25, 1.3, 1.3, '#d8b04a', 0, 10); m.cyl(sc[0], sc[1], z + 7.25, z + 8.2, 0.7, 0.5, '#d8b04a', 0, 10); m.box(sc[0] - 0.3, sc[1] + 0.65, z + 6.5, sc[0] - 0.12, sc[1] + 0.75, z + 6.7, '#2a1a20', 0); m.box(sc[0] + 0.12, sc[1] + 0.65, z + 6.5, sc[0] + 0.3, sc[1] + 0.75, z + 6.7, '#2a1a20', 0); }
+    { const w = [37.6, 38.6], z = tz(w[0], w[1]); // 手推车（装着刚摘的菜）
+      m.box(w[0] - 1.4, w[1] - 0.9, z + 0.9, w[0] + 1.2, w[1] + 0.9, z + 2.2, '#8a5e3c', M.plank); m.box(w[0] - 1.2, w[1] - 0.7, z + 1.4, w[0] + 1, w[1] + 0.7, z + 2.25, '#4a3426', M.soil);
+      for (let i = 0; i < 6; i++) m.ball(w[0] - 0.8 + (i % 3) * 0.7, w[1] - 0.3 + ((i / 3) | 0) * 0.6, z + 2.4, 0.35, 0.35, ['#f08a3a', '#e0402a', '#9ad070'][i % 3], 0, 3, 6);
+      m.cyl(w[0] + 1.6, w[1], z + 0.6, z + 0.6, 0.6, 0.6, '#3a3448', M.metal, 8); m.disc(w[0] + 1.5, w[1], z + 0.6, 0.6, 'u', '#3a3448', M.metal, 10);
+      m.box(w[0] - 2.6, w[1] - 0.8, z + 1.6, w[0] - 1.4, w[1] - 0.6, z + 1.8, DARK, 0); m.box(w[0] - 2.6, w[1] + 0.6, z + 1.6, w[0] - 1.4, w[1] + 0.8, z + 1.8, DARK, 0); }
+    for (const [u, v, c] of [[25.1, 27.6, '#c8b088'], [25.4, 29.4, '#b8a078'], [25.1, 31.2, '#d8c098']]) { const z = tz(u, v); m.cyl(u, v, z, z + 1.5, 0.55, 0.7, c, M.cloth, 8); m.cyl(u, v, z + 1.5, z + 1.9, 0.35, 0.2, c, M.cloth, 6); m.box(u - 0.3, v + 0.6, z + 0.5, u + 0.3, v + 0.72, z + 1, ['#e8705a', '#f6c43a', '#9ad070'][Math.round(u * 3) % 3], 0); }
+    K.PLOTS.forEach(([pu, pv], i) => { const u = pu + 0.3, v = pv + K.PS + 0.25, z = tz(u, v); m.box(u - 0.06, v - 0.06, z, u + 0.06, v + 0.06, z + 1.6, DARK, 0); m.box(u - 0.55, v - 0.05, z + 1.2, u + 0.55, v + 0.07, z + 1.9, '#d8b888', M.plank); const f = o.farm && o.farm[i]; if (f) m.box(u - 0.25, v + 0.08, z + 1.4, u + 0.25, v + 0.12, z + 1.7, ({ carrot: '#f08a3a', berry: '#e8405a', corn: '#ffd36a', sunflower: '#f6c43a', pumpkin: '#f2832a', tomato: '#e0402a', cabbage: '#9ad070', melon: '#3f8a44', tulip: '#f2a6c2' })[f.crop] || '#888', 0);
+      if (f && (f.crop === 'tomato' || f.crop === 'berry') && f.stage >= 1) { const z2 = K.PLOTZ[i] + K.PH[i] * 0.6; for (const a of [0.4, K.PS - 0.4]) for (const b of [0.4, K.PS - 0.4]) m.box(pu + a - 0.05, pv + b - 0.05, z2, pu + a + 0.05, pv + b + 0.05, z2 + 3.4, '#c8b07a', 0); m.box(pu + 0.3, pv + 0.35, z2 + 3.3, pu + K.PS - 0.3, pv + 0.45, z2 + 3.4, '#c8b07a', 0); m.box(pu + 0.3, pv + K.PS - 0.45, z2 + 3.3, pu + K.PS - 0.3, pv + K.PS - 0.35, z2 + 3.4, '#c8b07a', 0); } });
     K.LAMPS.forEach(([u, v], i) => lamp(m, u, v, tz(u, v), PICK.lamp + i));
     // 屋子到大树之间挂一串小灯
     { const a = [S.u1 + 0.4, S.v1 - 1, z1 + 1], b = [TR.u - 0.6, TR.v - 0.4, trz + 11]; for (let i = 0; i <= 14; i++) { const t = i / 14, p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t - Math.sin(t * Math.PI) * 2.4]; if (i < 14) { const t2 = (i + 1) / 14, q = [a[0] + (b[0] - a[0]) * t2, a[1] + (b[1] - a[1]) * t2, a[2] + (b[2] - a[2]) * t2 - Math.sin(t2 * Math.PI) * 2.4]; m.quad([p[0], p[1], p[2]], [q[0], q[1], q[2]], [q[0], q[1], q[2] - 0.08], [p[0], p[1], p[2] - 0.08], '#3a3040', 0); } if (i % 2) m.blob(p[0], p[1], p[2] - 0.4, 0.22, 0.4, ['#ffd36a', '#ff9a6a', '#a8e0ff'][i % 3], M.glow, i, 3, 5); } }
@@ -326,6 +363,17 @@
     m.pk(PICK.desk); m.box(5, 4.6, LZ + 5.4, 10, 7.6, LZ + 6.2, '#b88a5a', M.plank); posts(m, [[5.3, 7.3], [9.7, 7.3]], LZ, 5.4, '#8a5a3a', 0.2); m.box(6, 5, LZ + 6.2, 8, 6.6, LZ + 6.5, '#f8f4ec', 0); m.cyl(9.2, 5.4, LZ + 6.2, LZ + 9, 0.3, 0.6, '#7fc8a8', M.glow, 7); m.pk(0);
     m.pk(PICK.trunk); m.box(17.4, 14, LZ, 20.8, 16.4, LZ + 2.8, '#8a5a3a', M.plank); m.box(17.3, 13.9, LZ + 2.8, 20.9, 16.5, LZ + 3.4, COPPER, M.metal); m.pk(0);
     m.pk(PICK.pot); m.pot(5.6, 15.6, LZ, 0.8, '#c8705a'); m.foliage(5.6, 15.6, LZ + 6, 1.3, 3, ['#4c9a48', '#6fbf5a', '#86cc6a'], 34, 9, 0.8); m.pk(0);
+    // 鱼缸：碗柜顶上，养着钓到的小鱼（鱼在 2D 层里游）
+    { const u0 = 34, u1 = HU1 - 0.6, v0 = 17.3, v1 = 21.7, z0 = 16;
+      m.pk(PICK.tank); m.box(u0 - 0.2, v0 - 0.2, z0, u1 + 0.2, v1 + 0.2, z0 + 0.5, '#5a3a28', M.plank); m.box(u0, v0, z0 + 0.5, u1, v1, z0 + 5, '#bfe6f4', M.glass); m.box(u0, v0, z0 + 0.5, u1, v1, z0 + 1.1, '#e8d8a8', 0);
+      for (let i = 0; i < 3; i++) m.box(u0 + 0.6 + i * 1, v0 + 0.5 + i * 1.4, z0 + 1.1, u0 + 0.8 + i * 1, v0 + 0.7 + i * 1.4, z0 + 2.4 + (i % 2) * 1.2, '#5aa64e', 0);
+      m.box(u0 - 0.1, v0 - 0.1, z0 + 5, u1 + 0.1, v1 + 0.1, z0 + 5.3, '#3a3448', M.metal); m.pk(0); K.TANKIN = [u1 - 0.2, v0 + 0.5, v1 - 0.5, z0 + 1.6, z0 + 4.4]; }
+    // 墙上挂的画、地上的猫爬架、一筐毛线、几个靠垫、挂在梁上的干花
+    m.box(R0 + 0.25, 25.6, 9, R0 + 0.45, 29.6, 13, '#c8935e', 0); m.box(R0 + 0.4, 26, 9.4, R0 + 0.55, 29.2, 12.6, '#8ac0e0', M.cloth); m.box(R0 + 0.45, 26, 9.4, R0 + 0.6, 29.2, 10.4, '#6aa848', 0);
+    { const cu = 7.6, cv = 29.2; m.cyl(cu, cv, 0, 9, 0.5, 0.5, '#d8c4a0', M.cloth, 8); m.box(cu - 1.8, cv - 1.8, 0, cu + 1.8, cv + 1.8, 0.6, '#c86a5a', M.cloth); m.box(cu - 1.6, cv - 1.6, 5, cu + 1.6, cv + 1.6, 5.6, '#c86a5a', M.cloth); m.box(cu - 1.4, cv - 1.4, 9, cu + 1.4, cv + 1.4, 9.6, '#c86a5a', M.cloth); m.ball(cu + 1.2, cv, 4.4, 0.4, 0.4, '#f0c040', 0, 4, 6); m.box(cu + 1.15, cv - 0.04, 4.8, cu + 1.25, cv + 0.04, 5.6, '#3a3448', 0); }
+    { const bu = 11.8, bv = 30.4; m.cyl(bu, bv, 0, 2, 1.4, 1.6, '#b4884a', M.plank, 12); for (let i = 0; i < 4; i++) m.ball(bu + Math.cos(i * 1.6) * 0.7, bv + Math.sin(i * 1.6) * 0.7, 2.3, 0.6, 0.6, ['#e86a6a', '#7ab0d8', '#f0c040', '#9ad070'][i], M.cloth, 4, 6); }
+    for (const [u, v, c] of [[25.6, 27.4, '#f2c6d2'], [27.6, 28.6, '#a8c8e8'], [23.6, 29, '#f6e0a0']]) m.box(u - 1, v - 1, 0.3, u + 1, v + 1, 1.3, c, M.cloth);
+    for (let i = 0; i < 5; i++) { const v = 19.6 + i * 1.6; m.box(R0 + 0.5, v - 0.04, LZ - 4, R0 + 0.6, v + 0.04, LZ - 1, '#6a5a3a', 0); m.ball(R0 + 0.6, v, LZ - 4.4, 0.5, 0.7, ['#e8a0b0', '#c8a0f0', '#f6c43a'][i % 3], 0, 3, 6); }
     // 阁楼底下：储物角
     m.box(R0 + 0.2, R0 + 0.2, 0, 10, 6.6, 12, '#a8784a', M.plank); for (let i = 0; i < 3; i++) m.box(R0 + 0.6, 6.6, 1 + i * 3.8, 9.6, 6.75, 4 + i * 3.8, ['#c85a4a', '#5a8ad8', '#e8c860'][i], M.cloth);
     m.cyl(18, 6.4, 0, 4.4, 1.5, 1.5, '#8a5e3c', M.plank, 10);

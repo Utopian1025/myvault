@@ -14,6 +14,9 @@
     biscuit: { kind: 'snack', name: '小饼干', price: 3, icon: 'bread', xp: 20, aff: 1, hunger: 30, desc: '香香脆脆，+20 经验' },
     jerky: { kind: 'snack', name: '肉干', price: 5, icon: 'meat', xp: 35, aff: 1.5, hunger: 40, desc: '嚼劲十足，+35 经验' },
     tuna: { kind: 'snack', name: '鱼罐头', price: 8, icon: 'fish', xp: 60, aff: 2, hunger: 60, desc: '大餐！+60 经验' },
+    henegg: { kind: 'snack', name: '鸡蛋', icon: 'egg', xp: 15, aff: 1, hunger: 25, desc: '鸡舍里捡的，热乎乎，+15 经验' },
+    honeyjar: { kind: 'snack', name: '一罐蜂蜜', icon: 'drop', xp: 45, aff: 2, hunger: 20, thirst: 40, desc: '自己岛上的蜂蜜，+45 经验' },
+    apple: { kind: 'snack', name: '苹果', icon: 'apple', xp: 12, aff: 1, hunger: 20, thirst: 10, desc: '老橡树上摇下来的（？），+12 经验' },
     honey: { kind: 'snack', name: '蜂蜜水', price: 4, icon: 'drop', xp: 25, aff: 1, thirst: 60, desc: '甜甜的，解渴，+25 经验' },
     cake: { kind: 'snack', name: '小蛋糕', price: 20, icon: 'cake', xp: 150, aff: 5, hunger: 50, desc: '特别的日子吃，+150 经验，好感大涨' },
 
@@ -340,11 +343,11 @@
   function harvest(i) {
     const e = E(), inf = plotInfo(i); if (!inf || inf.stage < 3) return false;
     const c = CROPS[inf.crop], n = Math.round(U.rand(c.n[0], c.n[1]));
-    give(c.item, n); e.farm[i] = null;
+    give(c.item, n); e.farm[i] = null; if (PP.quest) PP.quest.on('harvest');
     PP.ui.toast(`收获了 ${n} 个${ITEMS[c.item].name}！（在背包里：可以喂它，也可以卖成小鱼干）`, 'gift');
     save(); refreshOpen(); return true;
   }
-  function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; pl.water = (pl.water || 0) + 1; save(); return true; }
+  function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; pl.water = (pl.water || 0) + 1; if (PP.quest) PP.quest.on('water'); save(); return true; }
 
   // ---------- 每分钟：认真干活攒小鱼干、吃饱喝足长经验、检查探险和孵蛋 ----------
   let lastMin = Date.now();
@@ -402,7 +405,7 @@
   function render() {
     if (!open || !open.el.isConnected) { open = null; return; }
     const e = E(), tab = open.tab, body = open.el.querySelector('.body');
-    const tabs = [['bag', '背包'], ['shop', '商店'], ['trip', '探险'], ['book', '图鉴'], ['mail', `信箱${unread() ? '·' + unread() : ''}`], ['home', '小窝']];
+    const tabs = [['bag', '背包'], ['shop', '商店'], ['trip', '探险'], ['book', '图鉴'], ['fish', '钓鱼'], ['quest', `委托${PP.quest && PP.quest.todo() ? '·' + PP.quest.todo() : ''}`], ['mail', `信箱${unread() ? '·' + unread() : ''}`], ['home', '小窝']];
     let h = `<div class="ecohead"><span class="fishc">${'<i class="fishico"></i>'} ${e.fish} 小鱼干</span><small class="muted">认真干活每 10 分钟 +1（今天 ${e.today.fish}/36）· 番茄钟 +6 · 探险带回</small></div>
       <div class="ecotabs">${tabs.map(([k, n]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('')}</div><div class="ecobody">`;
     const p = curPet();
@@ -436,6 +439,10 @@
       const total = Object.values(SOUV).reduce((a, l) => a + l.length, 0), got = Object.keys(e.book).length;
       h += `<div class="sec">特产图鉴 ${got}/${total}</div><div class="book">${Object.entries(SOUV).filter(([k]) => PP.SCENES[k]).map(([k, l]) => `<div class="bk"><b>${esc(sceneName(k))}</b>${l.map(([id, n, ic, r]) => e.book[id] ? `<span class="sv r${r}" title="${esc(n)} ×${e.book[id]}"><i data-ico="${ic}"></i>${esc(n)}</span>` : `<span class="sv no" title="还没找到">？？？</span>`).join('')}</div>`).join('')}</div>`;
       h += `<div class="sec">明信片 ${e.cards.length}</div><div class="cards">${e.cards.slice(0, 24).map((c) => `<canvas class="card" data-card="${c.id}" width="156" height="72" title="${esc(c.name)} 在${esc(sceneName(c.scene))} · ${new Date(c.t).toLocaleDateString()}"></canvas>`).join('') || '<p class="muted">派伙伴去探险，会寄明信片回来。</p>'}</div>`;
+    } else if (tab === 'fish' && PP.FISHDEX) {
+      h += PP.FISHDEX.html();
+    } else if (tab === 'quest' && PP.quest) {
+      h += PP.quest.html();
     } else if (tab === 'mail') {
       h += e.mail.length ? e.mail.map((m) => `<div class="mailrow ${m.read ? '' : 'new'}"><b>${esc(m.from)}</b><small>${new Date(m.t).toLocaleString()}</small><p>${esc(m.text)}</p>${m.card ? `<canvas class="card" data-card="${m.card}" width="156" height="72"></canvas>` : ''}</div>`).join('') : '<p class="muted">信箱是空的。</p>';
       e.mail.forEach((m) => (m.read = true)); setTimeout(badge, 50); save();
@@ -450,6 +457,7 @@
     h += '</div>';
     body.innerHTML = h;
     body.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icoCanvas(el.dataset.ico)));
+    if (PP.FISHDEX) PP.FISHDEX.bind(body); if (PP.quest && tab === 'quest') PP.quest.bind(body, render);
     const fi = body.querySelector('.fishico'); if (fi) fi.replaceWith(icoCanvas('fish', 16));
     body.querySelectorAll('canvas.card').forEach((cv) => drawCard(cv, e.cards.find((c) => c.id === cv.dataset.card)));
   }
