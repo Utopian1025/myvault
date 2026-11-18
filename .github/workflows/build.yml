@@ -38,7 +38,7 @@ jobs:
         run: npx electron-builder --mac --universal --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: 摸鱼动物园-${{ runner.os }}
+          name: Desktopia-${{ runner.os }}
           path: |
             dist/*.exe
             dist/*.dmg
@@ -77,11 +77,18 @@ jobs:
             gh release upload "v$V" $ASSETS --clobber
             gh release edit "v$V" --notes-file notes.md
           else
-            gh release create "v$V" $ASSETS --title "摸鱼动物园 v$V" --notes-file notes.md --latest
+            gh release create "v$V" $ASSETS --title "Desktopia v$V" --notes-file notes.md --latest
           fi
+      - name: 以前发布的版本标题统一改成 Desktopia
+        continue-on-error: true
+        run: |
+          for t in $(gh release list --limit 200 --json tagName -q '.[].tagName'); do
+            cur=$(gh release view "$t" --json name -q .name)
+            case "$cur" in Desktopia*) ;; *) gh release edit "$t" --title "Desktopia $t" >/dev/null || true ;; esac
+          done
       - name: 国内线路：每一块放进单独的 dist-N 分支（jsDelivr 加速）
         run: |
-          git config --global user.name "moyu-zoo-bot"
+          git config --global user.name "desktopia-bot"
           git config --global user.email "actions@users.noreply.github.com"
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           echo "{" > refs.json; FIRST=1
