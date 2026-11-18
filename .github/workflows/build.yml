@@ -79,13 +79,6 @@ jobs:
           else
             gh release create "v$V" $ASSETS --title "Desktopia v$V" --notes-file notes.md --latest
           fi
-      - name: 以前发布的版本标题统一改成 Desktopia
-        continue-on-error: true
-        run: |
-          for t in $(gh release list --limit 200 --json tagName -q '.[].tagName'); do
-            cur=$(gh release view "$t" --json name -q .name)
-            case "$cur" in Desktopia*) ;; *) gh release edit "$t" --title "Desktopia $t" >/dev/null || true ;; esac
-          done
       - name: 国内线路：每一块放进单独的 dist-N 分支（jsDelivr 加速）
         run: |
           git config --global user.name "desktopia-bot"
