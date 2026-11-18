@@ -458,3 +458,7 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .furnbar button { font-size: 11px; padding: 2px 7px; }
 .furnbar button.primary { background: var(--accent); }
 .furnbar .add { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; width: 100%; color: var(--muted); }
+
+/* 小岛模式下，场景弹窗随场景大小等比例缩放 */
+body.isle .fishcard { zoom: var(--isk, 1); right: calc(var(--isR, 18px) / var(--isk, 1)); bottom: calc(var(--isB, 120px) / var(--isk, 1)); }
+body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
