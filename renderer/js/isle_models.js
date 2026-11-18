@@ -351,18 +351,12 @@
     m.box(ku - 5.4, R0, 23.4, U1 - 0.4, R0 + 1.4, 24.2, TIMBER, 2); for (let i = 0; i < 4; i++) m.cyl(ku - 4.4 + i * 2.4, R0 + 0.9, 24.2, 26.2, 0.6, 0.6, [COPPER, '#e8dcc8', '#7fc8a8', '#e0604a'][i], 0, 7); m.pk(0);
     // 挂钟、落地灯
     m.pk(PICK.clock); m.disc(uu(0.48), R0 + 0.3, 21, 1.5, 'v', '#f8f0dc', 0, 12); m.disc(uu(0.48), R0 + 0.2, 21, 1.8, 'v', TIMBER, 0, 12); m.box(uu(0.48) - 0.1, R0 + 0.32, 21, uu(0.48) + 0.1, R0 + 0.4, 24, '#2a2026', 0); m.pk(0);
-    m.pk(PICK.flamp); m.cyl(14, 27.6, 0, 13, 0.2, 0.14, '#5a5466', M.metal, 5); m.cyl(14, 27.6, 12.4, 16, 1.4, 0.8, '#ffe9a8', M.glow, 9); m.pk(0);
-    // 扶手椅（壁炉前）
-    m.pk(PICK.chair); m.box(27, 11, 0, 31.4, 15, 3.6, '#c86a5a', M.cloth); m.box(27, 11, 3.6, 31.4, 12, 9.4, '#b85a4c', M.cloth); m.box(27, 11, 3.6, 27.8, 15, 6, '#b85a4c', M.cloth); m.box(30.6, 11, 3.6, 31.4, 15, 6, '#b85a4c', M.cloth); m.pk(0);
     // 阁楼（只盖住左后角，= 二层的一部分）+ 沿左墙的楼梯
     m.box(R0, R0, LZ - 1.6, 22, 18, LZ, '#a8784a', M.plank, '#c8a070', M.plank); posts(m, [[21.6, 17.6]], 0, LZ - 1.6, TIMBER, 0.3);
     m.rail(22, R0 + 0.3, 22, 18, LZ, 4.6); m.rail(8, 18, 22, 18, LZ, 4.6);
     m.stairs(30, 18, R0 + 0.4, 7.6, 0, LZ, 'v', WOOD, 12, true); m.quad([7.6, 30, 4], [7.6, 30, 4.6], [7.6, 18, LZ + 4.6], [7.6, 18, LZ + 4], WOOD2, 2);
-    // 阁楼上：床、书桌、箱子、盆栽
-    m.pk(PICK.bed); m.box(11, 5, LZ, 20.5, 10.6, LZ + 2.6, '#a8784a', M.plank); m.box(11.3, 5.3, LZ + 2.6, 20.2, 10.3, LZ + 4.2, rm.bed ? '#f2c6d2' : '#e8dcc8', M.cloth); m.box(11.3, 5.3, LZ + 4.2, 14, 10.3, LZ + 5.2, '#fff6ea', M.cloth); m.box(10.6, 5, LZ, 11, 10.6, LZ + 8, '#8a5a3a', M.plank); if (rm.bed) m.box(15, 5.3, LZ + 4.2, 20.2, 10.3, LZ + 4.8, '#e88aa0', M.cloth); m.pk(0);
-    m.pk(PICK.desk); m.box(5, 4.6, LZ + 5.4, 10, 7.6, LZ + 6.2, '#b88a5a', M.plank); posts(m, [[5.3, 7.3], [9.7, 7.3]], LZ, 5.4, '#8a5a3a', 0.2); m.box(6, 5, LZ + 6.2, 8, 6.6, LZ + 6.5, '#f8f4ec', 0); m.cyl(9.2, 5.4, LZ + 6.2, LZ + 9, 0.3, 0.6, '#7fc8a8', M.glow, 7); m.pk(0);
-    m.pk(PICK.trunk); m.box(17.4, 14, LZ, 20.8, 16.4, LZ + 2.8, '#8a5a3a', M.plank); m.box(17.3, 13.9, LZ + 2.8, 20.9, 16.5, LZ + 3.4, COPPER, M.metal); m.pk(0);
-    m.pk(PICK.pot); m.pot(5.6, 15.6, LZ, 0.8, '#c8705a'); m.foliage(5.6, 15.6, LZ + 6, 1.3, 3, ['#4c9a48', '#6fbf5a', '#86cc6a'], 34, 9, 0.8); m.pk(0);
+    // 阁楼上的床、书桌、箱子、盆栽，还有楼下能挪的家具：都在 furn.js 里（可以自由摆放）
+    PP.FURN.build(m, o.layout || [], { skip: o.skip, LOFT: LZ, pinkBed: !!rm.bed });
     // 鱼缸：碗柜顶上，养着钓到的小鱼（鱼在 2D 层里游）
     { const u0 = 34, u1 = HU1 - 0.6, v0 = 17.3, v1 = 21.7, z0 = 16;
       m.pk(PICK.tank); m.box(u0 - 0.2, v0 - 0.2, z0, u1 + 0.2, v1 + 0.2, z0 + 0.5, '#5a3a28', M.plank); m.box(u0, v0, z0 + 0.5, u1, v1, z0 + 5, '#bfe6f4', M.glass); m.box(u0, v0, z0 + 0.5, u1, v1, z0 + 1.1, '#e8d8a8', 0);
@@ -370,26 +364,9 @@
       m.box(u0 - 0.1, v0 - 0.1, z0 + 5, u1 + 0.1, v1 + 0.1, z0 + 5.3, '#3a3448', M.metal); m.pk(0); K.TANKIN = [u1 - 0.2, v0 + 0.5, v1 - 0.5, z0 + 1.6, z0 + 4.4]; }
     // 墙上挂的画、地上的猫爬架、一筐毛线、几个靠垫、挂在梁上的干花
     m.box(R0 + 0.25, 25.6, 9, R0 + 0.45, 29.6, 13, '#c8935e', 0); m.box(R0 + 0.4, 26, 9.4, R0 + 0.55, 29.2, 12.6, '#8ac0e0', M.cloth); m.box(R0 + 0.45, 26, 9.4, R0 + 0.6, 29.2, 10.4, '#6aa848', 0);
-    { const cu = 7.6, cv = 29.2; m.cyl(cu, cv, 0, 9, 0.5, 0.5, '#d8c4a0', M.cloth, 8); m.box(cu - 1.8, cv - 1.8, 0, cu + 1.8, cv + 1.8, 0.6, '#c86a5a', M.cloth); m.box(cu - 1.6, cv - 1.6, 5, cu + 1.6, cv + 1.6, 5.6, '#c86a5a', M.cloth); m.box(cu - 1.4, cv - 1.4, 9, cu + 1.4, cv + 1.4, 9.6, '#c86a5a', M.cloth); m.ball(cu + 1.2, cv, 4.4, 0.4, 0.4, '#f0c040', 0, 4, 6); m.box(cu + 1.15, cv - 0.04, 4.8, cu + 1.25, cv + 0.04, 5.6, '#3a3448', 0); }
-    { const bu = 11.8, bv = 30.4; m.cyl(bu, bv, 0, 2, 1.4, 1.6, '#b4884a', M.plank, 12); for (let i = 0; i < 4; i++) m.ball(bu + Math.cos(i * 1.6) * 0.7, bv + Math.sin(i * 1.6) * 0.7, 2.3, 0.6, 0.6, ['#e86a6a', '#7ab0d8', '#f0c040', '#9ad070'][i], M.cloth, 4, 6); }
-    for (const [u, v, c] of [[25.6, 27.4, '#f2c6d2'], [27.6, 28.6, '#a8c8e8'], [23.6, 29, '#f6e0a0']]) m.box(u - 1, v - 1, 0.3, u + 1, v + 1, 1.3, c, M.cloth);
     for (let i = 0; i < 5; i++) { const v = 19.6 + i * 1.6; m.box(R0 + 0.5, v - 0.04, LZ - 4, R0 + 0.6, v + 0.04, LZ - 1, '#6a5a3a', 0); m.ball(R0 + 0.6, v, LZ - 4.4, 0.5, 0.7, ['#e8a0b0', '#c8a0f0', '#f6c43a'][i % 3], 0, 3, 6); }
     // 阁楼底下：储物角
     m.box(R0 + 0.2, R0 + 0.2, 0, 10, 6.6, 12, '#a8784a', M.plank); for (let i = 0; i < 3; i++) m.box(R0 + 0.6, 6.6, 1 + i * 3.8, 9.6, 6.75, 4 + i * 3.8, ['#c85a4a', '#5a8ad8', '#e8c860'][i], M.cloth);
-    m.cyl(18, 6.4, 0, 4.4, 1.5, 1.5, '#8a5e3c', M.plank, 10);
-    // 买来的家具
-    if (rm.rug) { m.cyl(24, 21, 0, 0.25, 5.4, 5.4, '#e8a0b0', M.cloth, 16); m.cyl(24, 21, 0.25, 0.3, 3.6, 3.6, '#f8e0c8', M.cloth, 14); }
-    else { m.cyl(22, 21, 0, 0.2, 5, 5, '#c8a0d8', M.cloth, 18); m.cyl(22, 21, 0.2, 0.24, 3.8, 3.8, '#f2dcae', M.cloth, 16); m.cyl(22, 21, 0.24, 0.28, 2.2, 2.2, '#a8c8e8', M.cloth, 14); }
-    m.pk(PICK.c1);
-    if (rm.c1 === 'table') { m.box(9.6, 21, 5.4, 15.6, 25.6, 6.2, '#c8935e', M.plank); posts(m, [[10, 21.4], [15.2, 21.4], [10, 25.2], [15.2, 25.2]], 0, 5.4, '#8a5a3a', 0.2); m.cyl(12.6, 23.2, 6.2, 7.6, 0.5, 0.5, '#f8f4ec', 0, 7); }
-    else if (rm.c1 === 'lamp') { m.cyl(11, 23, 0, 12, 0.2, 0.14, '#5a5466', M.metal, 5); m.cyl(11, 23, 11.4, 15, 1.3, 0.8, '#ffe9a8', M.glow, 9); }
-    m.pk(PICK.c2);
-    if (rm.c2 === 'plant') { m.pot(34.4, 15.4, 0, 1, '#5a7ab0'); m.foliage(34.4, 15.4, 7.4, 1.6, 3.6, ['#3f8a44', '#5aa64e', '#86cc6a'], 40, 8, 0.9); }
-    else if (rm.c2 === 'shelf') { m.box(32.6, R0 + 3.2, 0, 37, R0 + 5.4, 15, '#a8784a', M.plank); for (let i = 0; i < 3; i++) for (let j = 0; j < 5; j++) m.box(33 + j * 0.76, R0 + 5.4, 1.4 + i * 4.6, 33.6 + j * 0.76, R0 + 5.56, 4.6 + i * 4.6, ['#c85a4a', '#5a8ad8', '#e8c860', '#7fc8a8', '#c8a0f0'][(i + j) % 5], 0); }
-    m.pk(!rm.c3 || rm.c3 === 'piano' ? PICK.piano : PICK.chair);
-    if (!rm.c3 || rm.c3 === 'piano') { m.box(27, 24, 0, 35, 26.8, 10.4, '#5a3428', M.plank); m.box(27.4, 26.8, 5.6, 34.6, 28.2, 6.4, '#f8f4ec', M.cloth); m.box(29.6, 28.8, 0, 32.4, 30.4, 3.4, '#7a4a38', M.plank); }
-    else if (rm.c3 === 'rocker') { m.box(29, 25, 2.8, 32.6, 28.2, 3.6, '#c8935e', M.plank); m.box(29, 25, 3.6, 29.8, 28.2, 10, WOOD2, M.plank); for (const v of [25.2, 28]) m.quad([28.4, v, 0.8], [33.4, v, 0.8], [33, v, 0], [28.8, v, 0], '#7a4e30', 2); posts(m, [[29.3, 25.3], [32.3, 25.3], [29.3, 27.9], [32.3, 27.9]], 0.5, 2.4, '#8a5a3a', 0.14); }
-    m.pk(0);
     if (true) { m.box(R0 + 0.25, 21, 13, R0 + 0.5, 27, 20, '#c8935e', 0); m.box(R0 + 0.45, 21.6, 13.6, R0 + 0.6, 26.4, 19.4, '#a8d8f6', M.cloth); m.box(R0 + 0.55, 21.6, 13.6, R0 + 0.66, 26.4, 15.8, '#7cbc62', M.grass); }
     // —— 更多的家当（照着住了很久的小屋摆）——
     // 烤箱：灶台下面一个亮着的小炉门；墙上挂着锅铲和小锅
@@ -398,8 +375,6 @@
     m.box(ku - 5.4, R0 + 0.1, 17.6, U1 - 0.4, R0 + 0.3, 17.8, TIMBER, 2);
     // 碗柜：右墙（远处）旁边，玻璃门里一摞摞盘子
     { const cu0 = 33.6, cv0 = 17; m.box(cu0, cv0, 0, U1 - 0.2, cv0 + 5, 16, '#a8784a', M.plank); m.box(cu0 - 0.1, cv0 + 0.3, 7, cu0, cv0 + 4.7, 15, '#cfeaf6', M.glass); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m.disc(cu0 - 0.15, cv0 + 1 + j * 1.5, 8.6 + i * 2.4, 0.5, 'u', ['#f8f4ec', '#a8c8e8', '#f2c6d2'][(i + j) % 3], 0, 8); m.box(cu0 - 0.1, cv0 + 0.3, 1, cu0, cv0 + 4.7, 6, '#8a5a3a', M.plank); }
-    // 摇椅：壁炉边上
-    if (rm.c3 !== 'rocker') { m.pk(PICK.chair); const ru = 19.4, rv = 11.6; m.box(ru, rv, 2.8, ru + 3.4, rv + 3, 3.4, '#c8935e', M.plank); m.box(ru, rv, 3.4, ru + 0.7, rv + 3, 9.4, WOOD2, M.plank); m.box(ru + 0.7, rv + 0.4, 3.4, ru + 3, rv + 2.6, 4, '#e8a0b0', M.cloth); for (const v of [rv + 0.2, rv + 2.8]) m.quad([ru - 0.6, v, 0.8], [ru + 4, v, 0.8], [ru + 3.6, v, 0], [ru - 0.2, v, 0], '#7a4e30', 2); m.pk(0); }
     // 镜子：左墙上一面椭圆的镜子
     m.disc(R0 + 0.32, 9.6, 16, 1.5, 'u', '#c8a050', M.metal, 14); m.disc(R0 + 0.4, 9.6, 16, 1.2, 'u', '#dcecf6', M.glass, 14);
     // 墙上的搁板：书、小盆栽、罐子
@@ -447,6 +422,7 @@
         m.quad([cu + du * 0.7, cv + dv * 0.7, P.z + 0.03], [cu - dv * 0.22, cv + du * 0.22, P.z + 0.03], [cu - du * 0.5, cv - dv * 0.5, P.z + 0.03], [cu + dv * 0.22, cv - du * 0.22, P.z + 0.03], col, 0);
         m.tri([cu - du * 0.5, cv - dv * 0.5, P.z + 0.03], [cu - du * 0.95 - dv * (0.25 + wg), cv - dv * 0.95 + du * (0.25 + wg), P.z + 0.03], [cu - du * 0.95 + dv * (0.25 - wg), cv - dv * 0.95 - du * (0.25 - wg), P.z + 0.03], col, 0); }
     } else if (o.scene === 'house') {
+      if (o.drag) PP.FURN.build(m, [o.drag], { LOFT: K.LOFT, pinkBed: o.pinkBed });
       const fu = iu(HOUSE, HOUSE.fire);
       for (let i = 0; i < 6; i++) { const h = 2.2 + Math.sin(t * 9 + i * 2.1) + (o.cooking ? 1.2 : 0); m.cyl(fu - 1.6 + i * 0.64, R0 + 3.3, 1, 1 + h * 1.9, 0.5, 0.02, i % 2 ? '#ffb040' : '#ff7a30', M.glow, 5); }
     }

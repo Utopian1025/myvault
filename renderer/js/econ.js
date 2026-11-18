@@ -49,6 +49,10 @@
     table: { kind: 'furn', name: '小书桌', price: 18, icon: 'bowl', slot: 'c1', desc: '小屋里：桌上一杯热可可' },
     piano: { kind: 'furn', name: '小钢琴', price: 45, icon: 'note', slot: 'c3', desc: '小屋里：会坐上去弹一曲' },
     rocker: { kind: 'furn', name: '摇椅', price: 16, icon: 'moon', slot: 'c3', desc: '小屋里：摇啊摇，打个盹' },
+    sofa: { kind: 'furn', name: '双人沙发', price: 30, icon: 'heart', slot: 'free', desc: '小屋里：软软的，能挤下两只' },
+    petbed: { kind: 'furn', name: '宠物窝', price: 15, icon: 'moon', slot: 'free', desc: '小屋里：困了会窝进去打盹' },
+    beanbag: { kind: 'furn', name: '懒人沙发', price: 18, icon: 'heart', slot: 'free', desc: '小屋里：一坐就陷进去' },
+    gramophone: { kind: 'furn', name: '留声机', price: 28, icon: 'note', slot: 'free', desc: '小屋里：放唱片，会跟着跳舞' },
 
     bench: { kind: 'deco', name: '木长椅', price: 15, icon: 'friend', desc: '小岛上：会坐上去发呆' },
     swing: { kind: 'deco', name: '木秋千', price: 30, icon: 'heart', desc: '小岛上：会去荡秋千' },
@@ -227,7 +231,7 @@
     e.fish -= it.price;
     if (it.kind === 'furn' || it.kind === 'deco' || it.kind === 'hat') {
       e.owned[id] = 1;
-      if (it.kind === 'furn') e.room[it.slot] = id; // 买了直接摆上
+      if (it.kind === 'furn') { if (it.slot === 'bed' || it.slot === 'wall') e.room[it.slot] = id; else if (PP.isle && PP.isle.furnAdd) PP.isle.furnAdd(id); } // 买了直接摆进小屋（之后可以在小屋里点「布置」随便挪）
       if (it.kind === 'deco') { const k = e.isleDeco.indexOf(null); if (k >= 0) e.isleDeco[k] = id; }
       PP.isle && PP.isle.dirty();
     } else give(id, 1);
@@ -450,7 +454,7 @@
       const furn = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'furn'), deco = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'deco');
       const SLOT = [['bed', '床位'], ['rug', '地上'], ['wall', '墙上'], ['c1', '窗边'], ['c2', '右墙边'], ['c3', '钢琴 / 摇椅']];
       h += `<p class="muted">小屋和小岛都在「小岛」视图里（视图按钮停留 → 收起时 → 小岛）。买来的家具会自动摆上，这里可以换着摆。</p>`;
-      h += `<div class="sec">小屋里</div>${SLOT.map(([sl, n]) => { const opts = furn.filter((k) => ITEMS[k].slot === sl); return `<div class="row"><span class="lab">${n}</span>${['', ...opts].map((k) => `<button class="chip ${(e.room[sl] || '') === k ? 'on' : ''}" data-room="${sl}" data-f="${k}">${k ? esc(ITEMS[k].name) : '空着'}</button>`).join('')}</div>`; }).join('')}`;
+      h += `<div class="sec">小屋里</div><p class="muted">家具可以随便摆：进小屋后点右边的「布置」按钮，按住家具拖动，选中后能转向、收起、搬上阁楼。</p><div class="row"><button class="chip" data-furnedit="1">去小屋布置</button></div>${SLOT.filter(([sl]) => sl === 'bed' || sl === 'wall').map(([sl, n]) => { const opts = furn.filter((k) => ITEMS[k].slot === sl); return opts.length ? `<div class="row"><span class="lab">${sl === 'bed' ? '床上用品' : n}</span>${['', ...opts].map((k) => `<button class="chip ${(e.room[sl] || '') === k ? 'on' : ''}" data-room="${sl}" data-f="${k}">${k ? esc(ITEMS[k].name) : '原来的'}</button>`).join('')}</div>` : ''; }).join('')}`;
       h += `<div class="sec">岛上的六个位置</div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="row"><span class="lab">${(PP.isle && PP.isle.SLOT_NAME || [])[i] || '位置' + (i + 1)}</span>${['', ...deco].map((k) => `<button class="chip ${(e.isleDeco[i] || '') === k ? 'on' : ''}" data-deco="${i}" data-f="${k}">${k ? esc(ITEMS[k].name) : '空着'}</button>`).join('')}</div>`).join('')}`;
       if (!furn.length && !deco.length) h += '<p class="muted">还没有家具：去商店的「家具」「摆设」看看。</p>';
     }
@@ -494,6 +498,7 @@
       else if (d.to) open.to = d.to;
       else if (d.dur) open.dur = +d.dur;
       else if (d.go) { if (startTrip(p, d.go, open.dur || 30)) open.tab = 'trip'; }
+      else if (d.furnedit) { PP.ui.closePanel(); PP.setView && PP.setView('house'); setTimeout(() => PP.isle && PP.isle.furnEdit(true), 300); }
       else if (d.room) { E().room[d.room] = d.f || null; PP.isle && PP.isle.dirty(); save(); }
       else if (d.deco != null) { E().isleDeco[+d.deco] = d.f || null; PP.isle && PP.isle.dirty(); save(); }
       else if (d.goisle) { PP.ui.closePanel(); PP.setMode('isle'); return; }

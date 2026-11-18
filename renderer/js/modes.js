@@ -149,6 +149,7 @@
     expand: ['kkkk..kkkk', 'kyy....yyk', 'ky......yk', 'k...kk...k', '...kyyk...', '...kyyk...', 'k...kk...k', 'ky......yk', 'kyy....yyk', 'kkkk..kkkk'],
     menu: ['..........', '.kk....kk.', 'kook..kook', 'kook..kook', '.kk.kk.kk.', '...kook...', '..kooook..', '..kooook..', '...kkkk...', '..........'],
   };
+  HICON.furn = ['..........', '.kkkkkkk..', '.kOOOOOk..', '.kOOOOOk..', '.kkkkkkkkk', '.koooooook', '.kkkkkkkkk', '.kO.....Ok', '.kO.....Ok', '.kk.....kk'];
   HICON.call = ['..........', '.k......k.', '.kk....kk.', '.kwkkkkwk.', '.kwwwwwwk.', 'kwkwwwwkwk', 'kwwwrrwwwk', '.kwwwwwwk.', '..kkkkkk..', '..........'];
   const HCOL = { k: '#231c20', y: '#ffcf33', g: '#7cc35a', o: '#e8a060', O: '#b8703a', r: '#e0604a', w: '#fff6e0', b: '#8ac8f0' };
   function hIcon(cv, name) {
@@ -193,6 +194,7 @@
     if (k === 'view' || k === 'map') { if (popKind === k) { hidePop(); return; } PP.ui.closeMenu(); k === 'view' ? showPop() : showScenePop(); return; }
     hidePop();
     if (k === 'bag') { PP.econ.openPanel('bag'); return; }
+    if (k === 'furn') { PP.isle.furnEdit(!PP.isle.furnEditing()); return; }
     if (k === 'home' || k === 'out') { PP.isle.click({ k: k === 'home' ? 'door' : 'exit', isle: true }); setTimeout(buildHud, 50); return; }
     if (k === 'menu') { const r = b.getBoundingClientRect(); PP.ui.menu(PP.menuModel(null), r.left, r.top - 4); }
   }
@@ -245,6 +247,7 @@
       ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
       ...(isle ? [[inside ? 'out' : 'home', inside ? '出门' : '进小屋']] : []),
       ...(isle && !inside ? [['cam', '回到默认视角（按住右键拖动可以转视角）']] : []),
+      ...(isle && inside === 'house' ? [['furn', '布置小屋：拖动家具、转向、收起、添加']] : []),
       ...(p && !anchorPet() && !p.held ? [['call', `叫${p.name}出来`]] : []),
     ];
   }

@@ -9,6 +9,8 @@
   const SLOT_NAME = ['门口', '桥那边的草坪', '塘边', '水井旁', '大树下', '小河边'];
   const S = () => G.save.settings, E = () => PP.econ.E();
   let chickT = 0, beeBoost = 0;
+  const FURN = PP.FURN;
+  let fedit = false, fsel = -1, fdrag = null, fbar = null;
   let L = null, inside = false, hover = null, dirtyK = 0, smoke = [], cooking = false, mark = null, drops = [], flash = 0, press = null, rips = [];
   let meshes = {}, dynMesh = null, glOK = true, lastScenes = null, lastLO = null;
   const mir = () => !!(G.save && S().isleMirror), org = () => (inside ? ORG[inside] : (bnd() || { org: ORG.deck }).org);
@@ -50,9 +52,8 @@
     house: {
       z: [0, LOFT], floors: [[0, R0, R0, HU1, HV1], [1, R0, R0, 22, 18]],
       ramps: [{ u0: 4.4, u1: 7.6, v0: 18, v1: 30, axis: 'v', lo: 30, hi: 18, a: 0, b: 1 }],
-      obst: () => { const r = E().room || {}; return [[0, fu - 5, R0, fu + 5, R0 + 3.6], [0, ku - 5.4, R0, HU1, R0 + 3], [0, 27, 11, 31.4, 15], [0, R0, R0, 10, 7], [0, 'c', 18, 6.4, 1.6], [0, 'c', 21.6, 17.6, 0.5], [0, 18.8, 11.2, 23.2, 15], [0, 33.4, 16.8, HU1, 22.2], [0, RDOOR.u + 3.8, HV1 - 2.8, RDOOR.u + 8.2, HV1],
-        ...(r.c1 === 'table' ? [[0, 9.6, 21, 15.6, 25.6]] : r.c1 === 'lamp' ? [[0, 'c', 11, 23, 0.5]] : []), ...(r.c2 === 'plant' ? [[0, 'c', 34.4, 15.4, 1.1]] : r.c2 === 'shelf' ? [[0, 32.6, R0 + 3, 37, R0 + 5.6]] : []), ...(!r.c3 || r.c3 === 'piano' ? [[0, 27, 24, 35, 30.4]] : r.c3 === 'rocker' ? [[0, 28.4, 25, 33.4, 28.2]] : []),
-        [1, 10.6, 5, 20.5, 10.6], [1, 5, 4.6, 10, 7.6], [1, 17.4, 14, 20.8, 16.4], [1, 'c', 5.6, 15.6, 1]]; },
+      obst: () => { return [[0, fu - 5, R0, fu + 5, R0 + 3.6], [0, ku - 5.4, R0, HU1, R0 + 3], [0, R0, R0, 10, 7], [0, 'c', 21.6, 17.6, 0.5], [0, 33.4, 16.8, HU1, 22.2], [0, RDOOR.u + 3.8, HV1 - 2.8, RDOOR.u + 8.2, HV1],
+        ...FURN.layout(E()).filter((it) => !FURN.D[it.f].walk && (fdrag ? it !== fdrag.it : true)).map((it) => [it.lv || 0, ...FURN.rect(it, 0.3)])]; },
     },
     gh: { z: [0], floors: [[0, R0, R0, GU1, GV1]], ramps: [], obst: () => [[0, R0 + 3.4, R0, GU1, R0 + 2.8], [0, R0, R0 + 3, R0 + 2.8, GV1 - 1.8], [0, 'c', 20.4, 12, 2], [0, 'c', 24.6, 18.6, 1.5], [0, 'c', 9.2, 20, 1.5]] },
   };
@@ -247,12 +248,12 @@
   function farmKey() { return PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? inf.crop + inf.stage + ((E().farm[i].water || 0) > 0 ? 'w' : '') : '-'; }).join(','); }
   function scene() {
     const name = inside || 'deck', e = E();
-    const key = name === 'deck' ? [season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + dirtyK : name + dirtyK;
+    const key = name === 'deck' ? [season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK;
     const s = meshes[name];
     if (s && s.key === key) return s;
     let m;
     if (name === 'deck') m = MD.deck({ season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), busy: null, farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }) });
-    else if (name === 'house') m = MD.room({ room: e.room }); else m = MD.green({});
+    else if (name === 'house') m = MD.room({ room: e.room, layout: FURN.layout(e), skip: fdrag ? fdrag.i : undefined }); else m = MD.green({});
     const pos = name === 'deck' ? m.p.filter((_, i) => i % 9 < 3) : null; // 留一部分顶点，用来算画框
     const r = (meshes[name] = { key, gpu: g3.upload(m, s && s.gpu), pos });
     if (name === 'deck') { bndC = null; setTimeout(() => { if (G.isle && !inside) { const ox = L && L.x1, oy = L && L.y1; fit(false); } }, 0); }
@@ -281,12 +282,12 @@
   function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = MD.dyn({ scene: inside || 'deck', t, cooking });
+    const dm = MD.dyn({ scene: inside || 'deck', t, cooking, drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
     if (!inside && Math.floor(t * 1.2) !== Math.floor((t - 1 / 60) * 1.2)) rips.push([16.6 + Math.random() * 0.4, 36 + Math.random() * 0.4, t]); // 小河流进塘的地方一直有涟漪
-    const vo = viewOpts(), cv = g3.draw(lastScenes, Object.assign({}, vo, { pets: petCuts(), rips: rips.slice(-4) }));
+    const vo = viewOpts(), cv = g3.draw(lastScenes, Object.assign({}, vo, { pets: [], rips: rips.slice(-4) }));
     if (!cv || !pixOn()) return cv;
     const out = outline(cv), em = edges(s, vo);
     if (em) out.getContext('2d').drawImage(em, 0, 0);
@@ -351,7 +352,7 @@
     else { glOK = false; ctx.fillStyle = 'rgba(40,30,50,.8)'; ctx.fillRect(L.x0 + L.w * 0.1, L.y0 + L.h * 0.45, L.w * 0.8, 40); ctx.fillStyle = '#fff'; ctx.font = PP.FONT(12); ctx.fillText('这台电脑没法开启 3D 渲染（WebGL2），小岛画不出来', L.x0 + L.w * 0.12, L.y0 + L.h * 0.45 + 24); }
     if (inside === 'house') {
       glow(ctx, scrU(fu, R0 + 4), scrV(fu, R0 + 4, 5), (cooking ? 40 : nt ? 36 : 22) * u, 'rgba(255,170,90,', 0.38 + Math.sin(now / 130) * 0.05);
-      if (nt || phase() === 'dusk') glow(ctx, scrU(14, 27.6), scrV(14, 27.6, 14), 26 * u);
+      if (nt || phase() === 'dusk') for (const it of FURN.layout(E())) { const d = FURN.D[it.f]; if (d.light) glow(ctx, scrU(it.u, it.v), scrV(it.u, it.v, (it.lv ? LOFT : 0) + d.light[2]), 26 * u); }
       if (cooking && Math.random() < 0.2) smoke.push({ x: cx(ku + 2.8, R0 + 1.5) + U.rand(-1, 1), y: cy(ku + 2.8, R0 + 1.5, 10), t: 0 });
     } else if (!inside) {
       const e = E();
@@ -444,8 +445,102 @@
     for (let j = 0; j < 3; j++) for (let i = 0; i < 6; i++) { ctx.fillStyle = (i + j) % 2 ? '#f2c6d2' : '#fbe4ec'; ctx.fillRect(Math.round(x + i * w / 6), Math.round(y + j * h / 3), Math.ceil(w / 6), Math.ceil(h / 3)); }
     ctx.fillStyle = '#fffaf2'; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(2 * S2));
   }
+  // ---------- 布置小屋：拖动家具 / 转向 / 收起 / 添加 ----------
+  const FLOORS = [[R0 + 0.2, R0 + 0.2, HU1 - 0.2, HV1 - 0.2], [R0 + 0.2, R0 + 0.2, 22 - 0.2, 18 - 0.2]];
+  const ovl = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+  // 这件家具摆在这儿行不行：在地板里、不压墙边固定的东西、不跟别的家具（地毯 / 靠垫除外）叠在一起、不堵门和楼梯
+  function fOK(it, i) {
+    const d = FURN.D[it.f], lv = it.lv || 0, r = FURN.rect(it), F = FLOORS[lv];
+    if (!d.lv.includes(lv) || r[0] < F[0] || r[1] < F[1] || r[2] > F[2] || r[3] > F[3]) return false;
+    if (d.walk) return true;
+    const fixed = AREAS.house.obst().slice(0, 6).map((o) => (o[1] === 'c' ? [o[0], o[2] - o[4], o[3] - o[4], o[2] + o[4], o[3] + o[4]] : o));
+    if (lv === 0) fixed.push([0, 4.2, 17.6, 7.8, HV1], [0, RDOOR.u - 3.2, HV1 - 4, RDOOR.u + 3.2, HV1]); // 楼梯、门口
+    for (const o of fixed) if (o[0] === lv && ovl(r, o.slice(1))) return false;
+    const L0 = FURN.layout(E());
+    for (let j = 0; j < L0.length; j++) { if (j === i) continue; const o = L0[j]; if ((o.lv || 0) !== lv || FURN.D[o.f].walk) continue; if (ovl(r, FURN.rect(o, -0.05))) return false; }
+    return true;
+  }
+  // 找一个能放的空地（添加 / 换楼层时用）
+  function fFree(it, i) {
+    const lv = it.lv || 0, F = FLOORS[lv], cu = (F[0] + F[2]) / 2, cv = (F[1] + F[3]) / 2, c = Object.assign({}, it);
+    for (let rad = 0; rad < 30; rad += 0.5) for (let a = 0; a < 16; a++) { c.u = Math.round((cu + Math.cos(a / 8 * Math.PI) * rad) * 2) / 2; c.v = Math.round((cv + Math.sin(a / 8 * Math.PI) * rad) * 2) / 2; for (const r of [it.r, (it.r + 1) % 4]) { c.r = r; if (fOK(c, i)) return Object.assign({}, c); } }
+    return null;
+  }
+  function fChanged() { dirty(); houseKey = ''; PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.ip.sc = 'house'; p.y = p.floor; } } }
+  function fStart(i, x, y) {
+    const L0 = FURN.layout(E()), it = L0[i]; if (!it) return;
+    fsel = i; const z = it.lv ? LOFT : 0, [gu, gv] = toUV(x, y, z);
+    fdrag = { i, it: Object.assign({}, it), orig: Object.assign({}, it), du: it.u - gu, dv: it.v - gv, ok: true };
+    G.uiDrag = true; PP.refreshInteractive(); fBar();
+    const mv = (ev) => { if (!fdrag) return; const [u, v] = toUV(ev.clientX, ev.clientY, z); fdrag.it.u = Math.round((u + fdrag.du) * 2) / 2; fdrag.it.v = Math.round((v + fdrag.dv) * 2) / 2; fdrag.ok = fOK(fdrag.it, i); document.body.style.cursor = 'grabbing'; };
+    const up = () => {
+      window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
+      const d = fdrag; fdrag = null; G.uiDrag = false; document.body.style.cursor = 'default';
+      if (d && d.ok) Object.assign(FURN.layout(E())[i], { u: d.it.u, v: d.it.v }); else if (d) PP.ui.toast('这儿放不下（压到墙边的东西 / 别的家具 / 门口了）');
+      fChanged(); fBar(); PP.refreshInteractive();
+    };
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  }
+  function fAct(a, arg) {
+    const e = E(), L0 = FURN.layout(e), it = L0[fsel];
+    if (a === 'rot' && it) { const c = Object.assign({}, it, { r: (it.r + 1) % 4 }); if (fOK(c, fsel)) it.r = c.r; else { const f = fFree(c, fsel); if (f) Object.assign(it, f); else PP.ui.toast('转不过来，旁边太挤了'); } }
+    if (a === 'stash' && it) { L0.splice(fsel, 1); fsel = -1; }
+    if (a === 'lv' && it) { const d = FURN.D[it.f], to = (it.lv || 0) ? 0 : 1; if (!d.lv.includes(to)) { PP.ui.toast('这个只能放在' + (d.lv[0] ? '阁楼' : '楼下')); } else { const f = fFree(Object.assign({}, it, { lv: to }), fsel); if (f) Object.assign(it, f); else PP.ui.toast((to ? '阁楼' : '楼下') + '没地方了'); } }
+    if (a === 'add') { const d = FURN.D[arg], it2 = { f: arg, u: 0, v: 0, r: 0, lv: d.lv[0] }; const f = fFree(it2, -1); if (f) { L0.push(f); fsel = L0.length - 1; } else PP.ui.toast('屋里没地方了，先收起一件吧'); }
+    if (a === 'reset') { e.layout = FURN.defaultLayout(e); fsel = -1; }
+    fChanged(); fBar();
+  }
+  // 布置条：放在小岛框的上面
+  function fBar() {
+    if (!fedit || inside !== 'house') { if (fbar) { fbar.remove(); fbar = null; PP.refreshInteractive(); } return; }
+    const e = E(), L0 = FURN.layout(e), it = L0[fsel], placed = new Set(L0.map((q) => q.f)), spare = FURN.owned(e).filter((k) => !placed.has(k));
+    if (!fbar) {
+      fbar = document.createElement('div'); fbar.className = 'furnbar'; document.getElementById('ui').appendChild(fbar);
+      fbar.addEventListener('mousedown', (ev) => ev.stopPropagation());
+      fbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; if (b.dataset.a === 'done') { furnEdit(false); return; } fAct(b.dataset.a, b.dataset.f); });
+    }
+    const d = it && FURN.D[it.f];
+    fbar.innerHTML = `<b>布置小屋</b><span class="muted">${it ? esc(d.name) : '按住家具拖到想放的地方'}</span>`
+      + (it ? `<button data-a="rot" title="转 90°">转向</button>${d.lv.length > 1 ? `<button data-a="lv">${it.lv ? '搬到楼下' : '搬上阁楼'}</button>` : ''}<button data-a="stash">收起</button>` : '')
+      + (spare.length ? `<span class="add">添加：${spare.map((k) => `<button data-a="add" data-f="${k}">${esc(FURN.D[k].name)}</button>`).join('')}</span>` : '')
+      + `<button data-a="reset" title="回到最开始的摆法">恢复默认</button><button data-a="done" class="primary">完成</button>`;
+    fbPlace(); PP.refreshInteractive();
+  }
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function fbPlace() { if (!fbar || !L) return; fbar.style.left = Math.max(4, L.x0) + 'px'; fbar.style.top = Math.max(4, L.y0 - fbar.offsetHeight - 6) + 'px'; fbar.style.maxWidth = Math.max(260, L.w) + 'px'; }
+  function furnEdit(on) {
+    if (on && !G.isle) return;
+    if (on && inside !== 'house') setInside('house');
+    fedit = !!on; fsel = -1; fdrag = null; fBar();
+    if (on) PP.ui.toast('布置小屋：按住家具拖动；选中后可以转向、收起、搬上阁楼'); else PP.save.soon();
+  }
+  // 布置时在地上画出每件家具的占地框（选中的高亮；拖着的放不下就变红）
+  function fOverlay(ctx) {
+    if (!fedit || inside !== 'house') return;
+    fbPlace();
+    const L0 = FURN.layout(E()), u = L.u;
+    const draw = (it, col, w) => { const r = FURN.rect(it), z = it.lv ? LOFT : 0; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].forEach(([a, b], k) => { const X = scrU(a, b), Y = scrV(a, b, z + 0.1); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); };
+    ctx.save();
+    L0.forEach((it, i) => { if (fdrag && fdrag.i === i) return; draw(it, i === fsel ? 'rgba(255,230,120,.95)' : 'rgba(255,255,255,.35)', i === fsel ? u * 0.5 : u * 0.25); });
+    if (fdrag) draw(fdrag.it, fdrag.ok ? 'rgba(120,230,120,.95)' : 'rgba(255,90,90,.95)', u * 0.6);
+    ctx.restore();
+  }
+  // 遮挡：宠物画完以后，把挡在它前面的房子 / 树 / 家具再画一遍盖上去（只画宠物周围那一小块，很快）
+  let occCv = null;
+  function occlude(ctx) {
+    if (!glOK || !lastScenes || !g3.ok()) return;
+    const cuts = petCuts(); if (!cuts.length) return;
+    const vo = viewOpts(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const q of cuts) { x0 = Math.min(x0, q[0] - q[2] * 0.7); x1 = Math.max(x1, q[0] + q[2] * 0.7); y0 = Math.min(y0, q[1] - q[2] * 1.25); y1 = Math.max(y1, q[1] + q[2] * 0.2); }
+    x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0)); x1 = Math.min(vo.w, Math.ceil(x1)); y1 = Math.min(vo.h, Math.ceil(y1)); if (x1 <= x0 || y1 <= y0) return;
+    const cv = g3.draw(lastScenes, Object.assign({}, vo, { pets: cuts, occ: true, cutPass: true, rips: [], scissor: [x0, y0, x1 - x0, y1 - y0] })); if (!cv) return;
+    const q = pixK(), d = DPR(); ctx.save(); ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(cv, x0, y0, x1 - x0, y1 - y0, Math.round(L.x0 * d) / d + x0 * q, Math.round(L.y0 * d) / d + y0 * q, (x1 - x0) * q, (y1 - y0) * q); ctx.restore();
+  }
   function renderFront(ctx) {
     if (!G.isle || !L) return;
+    try { occlude(ctx); } catch (e) { PP.oops && PP.oops(e, 'isle.occ'); }
+    try { fOverlay(ctx); } catch (e) { PP.oops && PP.oops(e, 'isle.furn'); }
     const u = L.u, now = performance.now();
     ctx.save();
     for (const p of G.pets) { if (p.fishing) drawFishing(ctx, p, now); if (p.tool) drawTool(ctx, p, now); if (p.inBed) { if (p.action !== 'isleUse') p.inBed = null; else quilt(ctx, p); } }
@@ -487,14 +582,24 @@
     deck: [],
     house: [
       P(PICK.kitchen, { at: [ku - 0.6, R0 + 4.6, 0], do: 'kitchen', label: '厨房：做点吃的', cur: 'cook' }),
-      P(PICK.chair, { at: [24.2, 16.6, 0], spot: { u: 21.4, v: 13, z: 3.4 }, do: 'sit', label: '摇椅：坐一会儿（回体力）', cur: 'rest' }),
-      P(PICK.bed, { at: [15.5, 12.2, 1], spot: { u: 15.6, v: 7.8, z: LOFT + 4.4 }, do: 'sleep', label: '上阁楼睡一觉', cur: 'rest' }),
-      P(PICK.piano, { at: [31, 31.2, 0], do: 'piano', label: '钢琴：弹一曲（心情变好）', cur: 'use' }),
     ],
     gh: [
       P(PICK.gbarrel, { at: [22.4, 19.8, 0], do: 'drink', label: '水桶：喝口水', cur: 'water' }), P(PICK.bench, { at: [14, R0 + 4.4, 0], do: 'tend', label: '花架：照看花草', cur: 'water' }),
     ],
   };
+  // 小屋里能用的东西 = 厨房（固定）+ 摆着的每一件家具（位置跟着你摆的走）
+  const KITCHEN = PROPS.house[0];
+  const USE_LABEL = { sit: '坐一会儿（回体力）', rock: '摇一摇，打个盹', lamp: '摸一摸', climb: '爬上去看看', play: '玩毛线', warm: '窝一会儿', rug: '在上面打滚', sleep: '睡一觉（回体力）', write: '写日记', rummage: '翻一翻（说不定有小鱼干）', sniff: '闻一闻', table: '坐一坐，喝口热可可', book: '看书', piano: '弹一曲（心情变好）', nap: '窝进去打个盹', music: '放一张唱片，跳个舞', look: '看一看' };
+  let houseKey = '', houseProps = null;
+  Object.defineProperty(PROPS, 'house', { get() {
+    const L0 = FURN.layout(E()), k = JSON.stringify(L0) + dirtyK; if (k === houseKey && houseProps) return houseProps;
+    houseKey = k;
+    houseProps = [KITCHEN].concat(L0.map((it, i) => {
+      const d = FURN.D[it.f], lv = it.lv || 0, z0 = lv ? LOFT : 0, fr = FURN.front(it), st = FURN.seat(it);
+      return { id: FURN.PICK0 + i, f: it.f, it, at: [fr[0], fr[1], lv], spot: st ? { u: st.u, v: st.v, z: z0 + st.z } : undefined, do: d.use, label: d.name + '：' + (USE_LABEL[d.use] || '看一看'), cur: ['sit', 'rock', 'warm', 'sleep', 'nap', 'rug'].includes(d.use) ? 'rest' : 'use' };
+    }));
+    return houseProps;
+  } });
   const FURN_LABEL = { table: '小书桌：坐一坐', lamp: '台灯：摸一摸', plant: '大盆栽：看一看', shelf: '书架：看书', piano: '钢琴：弹一曲', rocker: '摇椅：摇一摇' };
   const FIX = { // 固定的东西：拾取号 → 是什么、什么手
     [PICK.door]: { k: 'door', label: '进小屋', cur: 'enter' }, [PICK.green]: { k: 'green', label: '进玻璃花房', cur: 'enter' }, [PICK.exit]: { k: 'exit', label: '出门', cur: 'enter' },
@@ -518,6 +623,12 @@
     hover = null;
     if (!G.isle || !L || G.editing || !want()) return null;
     if (x < L.x0 || x > L.x1 || y < L.y0 || y > L.y1) return null;
+    if (fedit && inside === 'house') { // 布置模式：只认家具
+      if (fdrag) { hover = { k: 'furn', i: fdrag.i, cur: 'grabbing', isle: true }; return hover; }
+      const id = pickAt(x, y), i = id - FURN.PICK0, it = FURN.layout(E())[i];
+      hover = it ? { k: 'furn', i, label: FURN.D[it.f].name + '：按住拖动', cur: 'grab', isle: true, lx: x, ly: y - 12 * Math.min(2.5, L.u) } : { k: 'hull', cur: 'default', isle: true };
+      return hover;
+    }
     let h = null; const p = mainP();
     if (!inside && p && p.fishing && p.fishing.ph === 'bite' && Math.hypot(x - scrU(BOB.u, BOB.v), y - scrV(BOB.u, BOB.v, POND.z)) < 16 * L.u) h = { k: 'fish', label: '快点！收竿', cur: 'fish' };
     if (!h) {
@@ -526,7 +637,7 @@
       if (FIX[id]) h = Object.assign({}, FIX[id]);
       else if (id >= PICK.plot && id < PICK.plot + 6) { const i = id - PICK.plot, inf = PP.econ.plotInfo(i); h = { k: 'plot', i, cur: !inf ? 'sow' : inf.stage === 3 ? 'harvest' : 'water' }; }
       else if (id >= PICK.deco && id < PICK.deco + 6) { const i = id - PICK.deco, d = (E().isleDeco || [])[i]; if (['bench', 'swing', 'hay'].includes(d)) h = { k: 'deco', i, id: d, label: { bench: '长椅：坐一会儿', swing: '秋千：荡一荡', hay: '干草垛：趴一会儿' }[d], cur: 'rest' }; }
-      else { const pr = (PROPS[inside || 'deck'] || []).find((q) => q.id === id); if (pr) { const f = pr.f && (E().room || {})[pr.f]; h = { k: 'prop', pr, label: pr.f && pr.f !== 'rug' ? FURN_LABEL[f] || '' : pr.label, cur: pr.cur }; } }
+      else { const pr = (PROPS[inside || 'deck'] || []).find((q) => q.id === id); if (pr) h = { k: 'prop', pr, label: pr.label, cur: pr.cur }; }
       if (!h) h = groundAt(x, y) || { k: 'hull' };
     }
     h.isle = true; h.lx = x; h.ly = y - 12 * Math.min(2.5, L.u);
@@ -535,6 +646,7 @@
   }
   function mainP() { const p = PP.F.main(); return p && G.pets.includes(p) && !p.held ? p : null; }
   function down(h, x, y) {
+    if (fedit && inside === 'house') { if (h && h.k === 'furn') fStart(h.i, x, y); else { fsel = -1; fBar(); } return; }
     press = { h, x, y, moved: false, ox: L.x1, oy: L.y1 };
     G.uiDrag = true; PP.refreshInteractive();
     const mv = (ev) => {
@@ -602,6 +714,7 @@
     v = v === true ? 'house' : v || false;
     if (inside === v) return;
     const from = inside; inside = v; hover = null; smoke = []; drops = []; rips = [];
+    if (v !== 'house' && fedit) { fedit = false; fsel = -1; fdrag = null; fBar(); }
     if (v && G.save.flags) G.save.flags.isleIn = 1;
     layout(); G.ground = groundY();
     const at = v ? start() : from === 'gh' ? { u: GDOOR.u, v: GDOOR.v + 2.8, lv: 0 } : { u: DOOR.u, v: HOUSE.v1 + 1.8, lv: 0 };
@@ -716,8 +829,9 @@
     gain(p, '体力满了'); yield 1; p.eyes = 'open';
   };
   const prop = (sc, id) => PROPS[sc].find((q) => q.id === id);
-  A.isleBed = function* () { yield* A.isleUse.call(this, prop('house', PICK.bed)); };
-  A.isleChair = function* () { yield* A.isleUse.call(this, prop('house', PICK.chair)); };
+  const propUse = (uses) => U.pick(PROPS.house.filter((q) => uses.includes(q.do))) || null;
+  A.isleBed = function* () { const pr = propUse(['sleep']) || propUse(['nap', 'warm']); if (pr) yield* A.isleUse.call(this, pr); };
+  A.isleChair = function* () { const pr = propUse(['sit', 'rock']); if (pr) yield* A.isleUse.call(this, pr); };
   A.isleGarden = function* () { yield* A.isleUse.call(this, prop('gh', PICK.bench)); };
   A.isleSit = function* (sl) {
     const p = this, lv = 0, z = T.zAt(sl.u, sl.v), at = [sl.u + 0.4, sl.v + 2, lv];
@@ -734,7 +848,7 @@
     else if (go === 'gh') { yield* walkTo(p, GDOOR.u, GDOOR.v + 2.6, null, 0); face(p, GDOOR.u, 0); yield 0.2; setInside('gh'); }
     else { const s = start(); yield* walkTo(p, s.u, s.v + 1, null, 0); yield 0.2; setInside(false); }
   };
-  A.isleFurn = function* (k) { const pr = PROPS.house.find((q) => q.f === k); if (pr && (E().room || {})[k]) yield* A.isleUse.call(this, pr); };
+  A.isleFurn = function* (k) { const pr = PROPS.house.find((q) => q.f === k); if (pr) yield* A.isleUse.call(this, pr); };
   A.isleUse = function* (pr) {
     const p = this, d = day(), S2 = () => G.S, k = pr.do, a = area();
     const spark = (ic, n = 4, up = 20) => { for (let i = 0; i < n; i++) PP.fx({ x: p.x + U.rand(-12, 12) * S2(), y: p.y - up * S2(), vy: -30, icon: ic, life: 0.9, s: 1 }); };
@@ -756,6 +870,14 @@
     else if (k === 'pick') { p.anim = 'jump'; p.jolt(0, -4); yield 0.45; p.anim = 'eat'; yield 1.2; p.n.thirst = Math.min(100, p.n.thirst + 30); say(p, ['柠檬好酸！', '酸得眼睛都眯起来了']); p.eyes = 'closed'; p.anim = 'idle'; yield 1.5; p.eyes = 'open'; }
     else if (k === 'drink') { p.anim = 'eat'; yield 2; p.n.thirst = 100; gain(p, '不渴了'); spark('heart', 1); p.anim = 'idle'; yield 0.8; }
     else if (k === 'sniff') { p.look = [0, -1]; p.think('flower', 2); yield 2.4; p.eyes = 'happy'; yield 1; p.eyes = 'open'; }
+    else if (k === 'rock') { p.anim = 'sit'; p.eyes = 'sleepy'; for (let t = 0; t < 7; t += 0.2) { p.jolt(Math.sin(t * 3) * 1.5, 0); yield 0.2; } p.n.energy = Math.min(100, p.n.energy + 12); gain(p, '+体力'); p.eyes = 'open'; }
+    else if (k === 'book') { p.anim = 'sit'; p.think('book', 3); yield 4; p.n.fun = Math.min(100, p.n.fun + 8); }
+    else if (k === 'table') { p.anim = 'sit'; p.think('cake', 2.5); yield 3; p.n.thirst = Math.min(100, p.n.thirst + 10); }
+    else if (k === 'rug') { p.anim = Math.random() < 0.5 ? 'knead' : 'roll'; yield U.rand(3, 6); p.n.fun = Math.min(100, p.n.fun + 6); }
+    else if (k === 'play') { for (let i = 0; i < 4; i++) { p.anim = i % 2 ? 'roll' : 'crouch'; p.jolt(i % 2 ? 2 : -2, 0); yield 0.6; } p.eyes = 'happy'; spark('heart', 2); p.n.fun = Math.min(100, p.n.fun + 12); gain(p, '+心情'); yield 0.8; p.eyes = 'open'; }
+    else if (k === 'climb') { p.look = [0, -1]; p.anim = 'sit'; say(p, ['好高！', '这里看得好远', '我是山大王']); yield 3; p.n.fun = Math.min(100, p.n.fun + 8); }
+    else if (k === 'nap') { p.anim = 'sleep'; p.eyes = 'closed'; p.think('zzz', 2.5); yield U.rand(6, 10); p.n.energy = Math.min(100, p.n.energy + 20); gain(p, '+体力'); p.eyes = 'open'; }
+    else if (k === 'music') { p.anim = 'dance'; for (let i = 0; i < 12; i++) { PP.fx({ x: p.x + U.rand(-14, 14), y: p.y - 26 * S2(), vy: -24, icon: 'note', life: 1, s: 1 }); yield 0.35; } p.n.fun = Math.min(100, p.n.fun + 15); gain(p, '+心情'); }
     else if (k === 'furn') {
       const id = (E().room || {})[pr.f];
       if (pr.f === 'rug') { p.anim = Math.random() < 0.5 ? 'knead' : 'roll'; yield U.rand(3, 6); }
@@ -775,7 +897,7 @@
     if (G.isle && this.isleSpot && !this.sleeping && !this.fishing) { const s = this.isleSpot, a = area(), q = ipOf(this); this.isleSpot = null; if (Math.hypot(s.u - q.u, s.v - q.v) > 6) { const c = nearFree(a, s.u, s.v, q.lv); setIp(this, c[0], c[1], q.lv); this.ip.sc = inside || 'deck'; } }
     if (G.isle && this.tool && !this.gen) this.tool = null;
     if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {
-      const e = E(), p = this, PR = (PROPS[inside || 'deck'] || []).filter((q) => !q.f || (e.room || {})[q.f]), useAny = (ch) => (PR.length && Math.random() < ch ? (p.run('isleUse', A.isleUse, U.pick(PR)), true) : false), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; };
+      const e = E(), p = this, PR = (PROPS[inside || 'deck'] || []).slice(), useAny = (ch) => (PR.length && Math.random() < ch ? (p.run('isleUse', A.isleUse, U.pick(PR)), true) : false), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; };
       const roam = () => { const cs = cellList(); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
       if (inside === 'house') {
         roomT++;
@@ -810,5 +932,6 @@
   function dirty() { dirtyK++; }
   setInterval(() => { if (PP.started && G.save) sync(); }, 1500);
   const doorX = () => { if (!L) layout(); const s = start(); return scrU(s.u, s.v); };
-  PP.isle = { resetCam, props: () => PROPS, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: () => inside, setInside, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: AREAS, free: (u, v, lv) => free(area(), u, v, lv) };
+  function furnAdd(f) { const e = E(), L0 = FURN.layout(e); if (!FURN.D[f] || L0.some((q) => q.f === f)) return false; const d = FURN.D[f], q = fFree({ f, u: 0, v: 0, r: 0, lv: d.lv[0] }, -1); if (!q) return false; L0.push(q); fChanged(); return true; }
+  PP.isle = { furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props: () => PROPS, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: () => inside, setInside, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: AREAS, free: (u, v, lv) => free(area(), u, v, lv) };
 })();
