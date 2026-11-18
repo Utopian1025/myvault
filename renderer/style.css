@@ -462,3 +462,24 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 /* 小岛模式下，场景弹窗随场景大小等比例缩放 */
 body.isle .fishcard { zoom: var(--isk, 1); right: calc(var(--isR, 18px) / var(--isk, 1)); bottom: calc(var(--isB, 120px) / var(--isk, 1)); }
 body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
+
+.seedpick .sp-list { max-height: 340px; overflow-y: auto; }
+/* 植物图鉴 / 厨房 / 工作间 / 花房 */
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 4px; }
+.pcell { display: flex; flex-direction: column; align-items: center; padding: 3px 2px; box-shadow: none; border-width: 2px; }
+.pcell canvas, .pst canvas, .pot canvas { image-rendering: pixelated; }
+.pcell.rare { border-color: #c8a0f0; }
+.pcell small { font-size: 10px; }
+.pdetail { border: 2px dashed var(--ink); border-radius: 8px; padding: 6px; margin-bottom: 6px; }
+.pstages { display: flex; gap: 6px; justify-content: center; }
+.pst { display: flex; flex-direction: column; align-items: center; }
+.pst.no canvas { opacity: .18; filter: brightness(0); }
+.tagr { background: #c8a0f0; color: #fff; border-radius: 4px; padding: 0 4px; font-size: 11px; }
+.recipes { display: flex; flex-direction: column; gap: 4px; }
+.rcp { display: flex; gap: 6px; align-items: center; border: 2px solid rgba(0,0,0,.12); border-radius: 8px; padding: 4px 6px; }
+.rcp.dim { opacity: .62; }
+.rcp > div { flex: 1; display: flex; flex-direction: column; }
+.rcp small { font-size: 11px; }
+.pots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.pot { border: 2px solid rgba(0,0,0,.12); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.pot canvas { align-self: center; }
