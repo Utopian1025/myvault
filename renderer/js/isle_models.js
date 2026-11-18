@@ -148,7 +148,7 @@
     TOWERS: [[2.6, 19.4, 1.5, 22, '#4a6a9a'], [25.4, 6.4, 1.6, 30, '#b8503c'], [8.2, 5.6, 1.3, 33, '#5a8a6a']],
     BOILER: { u: 21.4, v: 20.9 },
     // 平台上的小房子（让城堡看起来是一栋栋房子拼起来的，不是光秃秃的木台）：[层, u0, v0, u1, v1, 墙高, 墙色, 屋顶色, 屋顶方向]
-    BLOCKS: [[1, 3.8, 7.3, 11.6, 11.4, 8.4, '#e8d6b4', '#5a7a8a', 'u'], [2, 9.2, 6.8, 16.9, 10.7, 8, '#f0e2c4', '#b8503c', 'u'], [2, 20.7, 6.8, 24.5, 10.7, 7.4, '#cfe0e8', '#4a6a9a', 'v'], [3, 20.8, 13.2, 23.7, 16.6, 5.6, '#e8d6b4', '#5a8a6a', 'v']],
+    BLOCKS: [[1, 3.8, 7.3, 11.6, 11.4, 8.4, '#e8d6b4', '#5a7a8a', 'u'], [2, 9.2, 6.8, 16.9, 10.7, 8, '#f0e2c4', '#b8503c', 'u'], [2, 20.7, 6.8, 24.5, 10.7, 7.4, '#cfe0e8', '#4a6a9a', 'v'], [3, 20.8, 13.2, 23.7, 16.6, 5.6, '#e8d6b4', '#5a8a6a', 'v'], [1, 3.8, 13.4, 6.6, 16.6, 6.4, '', '', 'v'], [2, 9.4, 11.2, 11.6, 13.2, 4.6, '', '', 'u']],
     // 小窝：[层, u0, v0, u1, v1, 门朝哪边]（'v' = 门朝前，'u' = 门朝右）
     DENS: [[2, 9.3, 6.9, 12.9, 10.6, 'v'], [1, 7.8, 7.4, 11.4, 11.4, 'v'], [2, 13.2, 6.9, 16.8, 10.6, 'v'], [1, 3.8, 7.4, 7.4, 11.4, 'v'], [2, 20.8, 6.9, 24.4, 10.6, 'v'],
       [1, 3.6, 14.2, 7.6, 17.8, 'u'], [3, 20.8, 13.2, 23.6, 16.6, 'u'], [0, 37.2, 16.6, 40.8, 20.2, 'v'], [0, 41.6, 15.2, 45, 18.8, 'v'], [0, 36.8, 9.4, 40.4, 13, 'v']],
@@ -213,28 +213,139 @@
     else if (st === 'octopus') { t.cyl(0, 0, 0, 5.6, W * 0.47, W * 0.47, '#8a5e3c', M.plank, 12); for (const hh of [1, 4]) t.cyl(0, 0, hh, hh + 0.3, W * 0.49, W * 0.49, '#4a4652', M.metal, 12); t.cyl(0, 0, 5.6, 5.7, W * 0.45, W * 0.45, '#7fc0dc', M.water, 12); door('#b0704a', { round: false }); t.disc(0, Y + 0.2, 3.1, 0.5, 'v', '#9fd4f2', M.glass, 10); }
     else { t.box(-X, -Y, 0, X, Y, 5, '#d8b888', M.plank); t.gable(-X, -Y, X, Y, 5, 2.4, 'u', '#7a5a8a', M.tile, 0.35, '#d8b888', M.plank); door('#8a5a3a'); }
   }
-  function slab(m, P, z, top, edge) { m.box(P[0], P[1], z - 0.6, P[2], P[3], z, top, M.plank); m.box(P[0] - 0.2, P[1] - 0.2, z - 1.2, P[2] + 0.2, P[3] + 0.2, z - 0.6, edge || TIMBER, 2); }
+  function slab(m, P, z, top, edge) { m.box(P[0], P[1], z - 0.6, P[2], P[3], z, top, M.plank); m.box(P[0] - 0.2, P[1] - 0.2, z - 1.6, P[2] + 0.2, P[3] + 0.2, z - 0.6, edge || '#7c4632', M.metal); for (let u = P[0] + 0.4; u < P[2]; u += 0.9) m.box(u - 0.06, P[3] + 0.18, z - 1.25, u + 0.06, P[3] + 0.26, z - 1.0, '#e0b070', M.metal); for (let v = P[1] + 0.4; v < P[3]; v += 0.9) m.box(P[2] + 0.18, v - 0.06, z - 1.25, P[2] + 0.26, v + 0.06, z - 1.0, '#e0b070', M.metal); }
+  // ---------- 拼凑的移动城堡：把任意一组形状绕一个点转一转、歪一歪 ----------
+  const ZS = 1.155 / 2.83;
+  function warp(m, P, yaw, tu, tv, fn) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cu = Math.cos(tu), su = Math.sin(tu), cv = Math.cos(tv), sv = Math.sin(tv);
+    const T = (q) => { const x = q[0] - P[0], y = q[1] - P[1], z = (q[2] - P[2]) * ZS; const x1 = x * cy - y * sy, y1 = x * sy + y * cy; const x2 = x1 * cu + z * su, z2 = -x1 * su + z * cu; const y3 = y1 * cv + z2 * sv, z3 = -y1 * sv + z2 * cv; return [x2 + P[0], y3 + P[1], z3 / ZS + P[2]]; };
+    const own = Object.prototype.hasOwnProperty.call(m, 'tri'), o = m.tri; m.tri = function (a, b, c, col, mat) { return o.call(this, T(a), T(b), T(c), col, mat); };
+    try { fn(); } finally { if (own) m.tri = o; else delete m.tri; }
+  }
+  const HW = { IRON: '#6a6470', IRON2: '#565060', RUST: '#9a5a3a', RUST2: '#7c4632', COP: '#b06a42', COP2: '#8a5034', CREAM: '#e8d4b0', CREAM2: '#d8c098', TILE: '#c0543a', TILE2: '#a8442e', SHING: '#b8683e', GOLD: '#c8a050', STONEW: '#8a7e70', WING: '#9a2e2a', WING2: '#5a2a2e' };
+  // 横着伸出去的管子 / 炮管：从 (u,v,z) 朝 yaw 方向伸 len 格
+  function pipeOut(m, u, v, z, yaw, len, r, col, up = 0) { warp(m, [u, v, z], yaw, Math.PI / 2 - up, 0, () => { m.cyl(u, v, z, z + len / ZS, r, r * 0.92, col, M.metal, 8); m.cyl(u, v, z + len / ZS - 0.3, z + len / ZS + 0.4, r * 1.35, r * 1.35, shade(col, 0.8), M.metal, 8, true, '#1e1a22'); }); }
+  // 一圈城垛（石头矮墙，上面一个个垛口）
+  function crenel(m, u, v, z, r, col, n = 14) { m.cyl(u, v, z - 1.4, z, r, r, col, M.stone, 16); m.cyl(u, v, z - 1.9, z - 1.4, r * 0.9, r, shade(col, 0.8), M.stone, 16); for (let i = 0; i < n; i++) { const a = (i / n) * 6.2832, x = u + Math.cos(a) * (r - 0.2), y = v + Math.sin(a) * (r - 0.2); warp(m, [x, y, z], a, 0, 0, () => m.box(x - 0.22, y - 0.35, z, x + 0.22, y + 0.35, z + 0.9, col, M.stone)); } }
+  // 灰铁圆顶：城垛箍一圈，顶上铆钉缝，伸出几根炮管和舷窗
+  function dome(m, u, v, z, r, seed, cannons) {
+    crenel(m, u, v, z + 0.6, r + 0.35, HW.STONEW, Math.round(r * 5));
+    m.ball(u, v, z, r, r * 3.6, HW.IRON, M.metal, 8, 18, 0.05, seed);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.2832 + seed; for (let k = 1; k < 6; k++) { const t = (k / 6) * Math.PI / 2, x = u + Math.cos(a) * Math.sin(t) * r * 1.01, y = v + Math.sin(a) * Math.sin(t) * r * 1.01, zz = z + Math.cos(t) * r * 3.6; m.box(x - 0.07, y - 0.07, zz - 0.15, x + 0.07, y + 0.07, zz + 0.15, '#3e3844', M.metal); } }
+    (cannons || []).forEach(([a, h, len, rr], i) => { const t = Math.acos(Math.min(1, h)), x = u + Math.cos(a) * Math.sin(t) * r * 0.9, y = v + Math.sin(a) * Math.sin(t) * r * 0.9, zz = z + h * r * 3.6; pipeOut(m, x, y, zz, a, len, rr, i % 2 ? HW.IRON2 : '#4a4450', 0.15); });
+  }
+  // 歪歪的小房子：奶白墙、红瓦、小方窗；roof: 'g' 人字顶 / 'c' 尖锥木瓦顶 / 'h' 四坡
+  function hut(m, u, v, z, w, d, h, o = {}) {
+    const wall = o.wall || HW.CREAM, roof = o.snow ? '#e4ecf4' : o.roof || HW.TILE, yaw = o.yaw || 0;
+    warp(m, [u, v, z], yaw, o.tu || 0, o.tv || 0, () => {
+      const u0 = u - w / 2, u1 = u + w / 2, v0 = v - d / 2, v1 = v + d / 2;
+      m.box(u0, v0, z, u1, v1, z + h, wall, M.plaster);
+      m.box(u0 - 0.05, v0 - 0.05, z, u1 + 0.05, v1 + 0.05, z + 0.5, shade(wall, 0.78), M.stone);
+      const nw = Math.max(1, Math.floor(w / 1.3)), nf = Math.max(1, Math.floor(h / 3.2));
+      for (let f = 0; f < nf; f++) for (let k = 0; k < nw; k++) { const a = u0 + (w * (k + 0.5)) / nw, zz = z + 1.4 + f * 3.2; if ((k * 7 + f * 3 + (o.seed || 0)) % 5 === 4) continue; m.box(a - 0.28, v1, zz, a + 0.28, v1 + 0.08, zz + 1.2, (k + f) % 3 ? '#2e3a5a' : '#ffe9a8', (k + f) % 3 ? 0 : M.glow); m.box(a - 0.36, v1 + 0.04, zz - 0.15, a + 0.36, v1 + 0.16, zz, '#f4ead8', 0); m.box(a - 0.03, v1 + 0.08, zz, a + 0.03, v1 + 0.12, zz + 1.2, '#f4ead8', 0); if ((k + f + (o.seed || 0)) % 2) for (const sx of [-1, 1]) m.box(a + sx * 0.3, v1 + 0.02, zz - 0.05, a + sx * 0.55, v1 + 0.14, zz + 1.25, o.shut || '#4a7a6a', M.plank); }
+      for (let f = 0; f < nf; f++) { const zz = z + 1.4 + f * 3.2, b = v0 + d / 2; m.box(u1, b - 0.28, zz, u1 + 0.08, b + 0.28, zz + 1.2, '#2e3a5a', 0); }
+      if (o.awn) for (let i = 0; i < 6; i++) m.quad([u0 + 0.3 + (i * (w - 0.6)) / 6, v1 + 0.05, z + 3], [u0 + 0.3 + ((i + 1) * (w - 0.6)) / 6, v1 + 0.05, z + 3], [u0 + 0.3 + ((i + 1) * (w - 0.6)) / 6, v1 + 1.1, z + 2.1], [u0 + 0.3 + (i * (w - 0.6)) / 6, v1 + 1.1, z + 2.1], i % 2 ? '#f4ead8' : '#d83a32', M.cloth);
+      if (o.bal) { m.box(u0 + 0.2, v1, z + 0.2, u1 - 0.2, v1 + 1.1, z + 0.45, HW.GOLD, M.metal); for (let i = 0; i <= 6; i++) m.box(u0 + 0.2 + (i * (w - 0.4)) / 6 - 0.04, v1 + 1, z + 0.45, u0 + 0.2 + (i * (w - 0.4)) / 6 + 0.04, v1 + 1.1, z + 1.6, HW.GOLD, M.metal); m.box(u0 + 0.2, v1 + 1, z + 1.5, u1 - 0.2, v1 + 1.1, z + 1.65, HW.GOLD, M.metal); }
+      const rt = o.rt || 'g';
+      if (rt === 'c') { m.cyl(u, v, z + h, z + h + Math.max(w, d) * 2.1, Math.max(w, d) * 0.72, 0.04, roof, M.tile, 8); if (o.cross) { m.box(u - 0.05, v - 0.05, z + h + Math.max(w, d) * 2.1, u + 0.05, v + 0.05, z + h + Math.max(w, d) * 2.1 + 2.2, TIMBER, 0); m.box(u - 0.4, v - 0.05, z + h + Math.max(w, d) * 2.1 + 1.3, u + 0.4, v + 0.05, z + h + Math.max(w, d) * 2.1 + 1.5, TIMBER, 0); } }
+      else if (rt === 'h') { m.cyl(u, v, z + h, z + h + 1.6, Math.hypot(w, d) * 0.62, Math.max(0.3, w * 0.12), roof, M.tile, 4); }
+      else m.gable(u0, v0, u1, v1, z + h, (o.ax === 'v' ? w : d) * 0.85, o.ax || 'u', roof, M.tile, 0.35, wall, M.plaster);
+      if (o.chim) { m.box(u1 - 0.8, v0 + 0.3, z + h, u1 - 0.3, v0 + 0.8, z + h + 3, BRICK, M.stone); }
+      // 精细一点：墙角石、木门、瓦片一排排、墙上的裂纹补丁
+      for (const [a, b] of [[u0, v1], [u1, v1], [u1, v0]]) for (let k = 0; k < h - 0.8; k += 1.1) m.box(a - 0.12, b - 0.12, z + 0.6 + k, a + 0.12, b + 0.12, z + 1.1 + k, shade(wall, 0.86), M.stone);
+      if (o.door) { const a = u0 + w * 0.5; m.box(a - 0.5, v1, z + 0.5, a + 0.5, v1 + 0.12, z + 2.6, '#6a3a26', M.plank); m.box(a - 0.62, v1 + 0.02, z + 2.6, a + 0.62, v1 + 0.16, z + 2.85, shade(wall, 0.7), M.stone); m.box(a - 0.7, v1, z + 0.3, a + 0.7, v1 + 0.6, z + 0.5, '#9a9080', M.stone); }
+      for (let k = 0; k < 3; k++) { const a = u0 + 0.3 + H(k, o.seed || 3) * (w - 1.2), zz = z + 0.8 + H(o.seed || 3, k) * (h - 1.5); m.box(a, v1 + 0.01, zz, a + 0.5 + H(k, 5) * 0.6, v1 + 0.04, zz + 0.3 + H(5, k) * 0.4, shade(wall, 0.9), 0); }
+      if ((o.rt || 'g') === 'g' && !o.snow) { const ax2 = o.ax || 'u', hh = (ax2 === 'v' ? w : d) * 0.85, dk = shade(roof, 0.72);
+        for (let t = 0.18; t < 0.95; t += 0.2) { if (ax2 === 'u') { const vm = (v0 + v1) / 2; for (const [ve, s2] of [[v0 - 0.35, 1], [v1 + 0.35, -1]]) { const vv = ve + (vm - ve) * t, zz = z + h - 0.35 * hh / (d / 2) + (hh + 0.35 * hh / (d / 2)) * t + 0.06; m.quad([u0 - 0.35, vv, zz], [u1 + 0.35, vv, zz], [u1 + 0.35, vv + s2 * 0.14, zz + 0.1], [u0 - 0.35, vv + s2 * 0.14, zz + 0.1], dk, M.tile); } }
+          else { const um = (u0 + u1) / 2; for (const [ue, s2] of [[u0 - 0.35, 1], [u1 + 0.35, -1]]) { const uu = ue + (um - ue) * t, zz = z + h - 0.35 * hh / (w / 2) + (hh + 0.35 * hh / (w / 2)) * t + 0.06; m.quad([uu, v0 - 0.35, zz], [uu, v1 + 0.35, zz], [uu + s2 * 0.14, v1 + 0.35, zz + 0.1], [uu + s2 * 0.14, v0 - 0.35, zz + 0.1], dk, M.tile); } } } }
+    });
+  }
+  // 一根竖着的铜管烟囱：几节，接口粗一圈，顶上喇叭口
+  function stack(m, u, v, z0, z1, r, col, seed) { m.cyl(u, v, z0, z1, r, r * 0.9, col, M.metal, 8); for (let zz = z0 + 2 + H(seed, 1) * 2; zz < z1 - 1; zz += 3.5 + H(seed, zz) * 2) m.cyl(u, v, zz, zz + 0.6, r * 1.25, r * 1.25, shade(col, 0.82), M.metal, 8); m.cyl(u, v, z1, z1 + 1.2, r * 0.9, r * 1.5, shade(col, 1.1), M.metal, 8, true, '#1e1a22'); }
+  // 金色小轮子（竖着），面朝 yaw
+  function wheel(m, u, v, z, r, yaw) { warp(m, [u, v, z], yaw, 0, Math.PI / 2, () => { m.cyl(u, v, z - 0.15, z + 0.15, r, r, HW.GOLD, M.metal, 14, false); m.cyl(u, v, z - 0.16, z + 0.16, r * 0.84, r * 0.84, '#3a2a20', 0, 14); m.cyl(u, v, z - 0.25, z + 0.25, r * 0.2, r * 0.2, HW.GOLD, M.metal, 8); for (let i = 0; i < 6; i++) { const a = (i / 6) * 3.1416; warp(m, [u, v, z], a, 0, 0, () => m.box(u - r * 0.85, v - 0.07, z - 0.1, u + r * 0.85, v + 0.07, z + 0.1, HW.GOLD, M.metal)); } }); }
+  // 伸出去的桁架臂，头上一个小螺旋桨
+  function truss(m, u, v, z, yaw, len) { warp(m, [u, v, z], yaw, 0, 0, () => { for (const dz of [0, 1.6]) m.box(u, v - 0.12, z + dz, u + len, v + 0.12, z + dz + 0.22, HW.GOLD, M.metal); for (let i = 0; i <= len; i += 0.9) { m.box(u + i, v - 0.1, z, u + i + 0.1, v + 0.1, z + 1.8, HW.GOLD, M.metal); m.quad([u + i, v, z + 0.2], [u + i + 0.1, v, z + 0.2], [u + i + 0.55, v, z + 1.6], [u + i + 0.45, v, z + 1.6], '#a8803a', M.metal); } m.cyl(u + len + 0.2, v, z - 0.6, z + 2.2, 0.2, 0.2, '#4a4450', M.metal, 6); for (const a of [0, 3.1416]) m.quad([u + len + 0.2, v, z + 2.2], [u + len + 0.2, v + 0.1, z + 2.2], [u + len + 0.2 + Math.cos(a) * 1.4, v + Math.sin(a) * 1.4 + 0.15, z + 2.4], [u + len + 0.2 + Math.cos(a) * 1.4, v + Math.sin(a) * 1.4 - 0.15, z + 2.4], '#d8d0c0', M.cloth); }); }
+  // 红色鳞片翼：一片片往下垂的尖叶，从 (u,v,z) 沿 yaw 排开
+  function fin(m, u, v, z, yaw, len, n, out) { warp(m, [u, v, z], yaw, 0, 0, () => { for (let i = 0; i < n; i++) { const a = u + (i * len) / n, b = a + len / n, hh = 5 + Math.sin((i / n) * Math.PI) * 4; m.quad([a, v, z], [b, v, z], [b - 0.2, v + out, z - hh + 1], [a + 0.1, v + out * 0.9, z - hh], i % 3 ? HW.WING : HW.WING2, M.cloth); m.tri([a, v, z + 0.1], [a + 0.15, v + out * 0.9, z - hh], [a + 0.1, v + out + 0.2, z - hh - 0.8], '#c8a050', M.metal); } }); }
+  // 铆钉铜铁的大身子（一段一段圆台叠起来，接缝处一圈铆钉带）
+  function hull(m, u, v, z0, segs, col) { let z = z0; segs.forEach(([r0, r1, h, du, dv], i) => { const cu = u + (du || 0), cv = v + (dv || 0); m.cyl(cu, cv, z, z + h, r0, r1, i % 2 ? col : shade(col, 0.9), M.metal, 16); m.cyl(cu, cv, z + h - 0.4, z + h, r1 + 0.12, r1 + 0.12, shade(col, 0.7), M.metal, 16); for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.2832; m.box(cu + Math.cos(a) * (r1 + 0.13) - 0.06, cv + Math.sin(a) * (r1 + 0.13) - 0.06, z + h - 0.3, cu + Math.cos(a) * (r1 + 0.13) + 0.06, cv + Math.sin(a) * (r1 + 0.13) + 0.06, z + h - 0.1, '#e0b070', M.metal); } z += h; }); return z; }
+  // 城堡后背的「身子」：三坨铆钉铜铁叠起来，后面挤满歪房子、铜管、圆顶（只在平台后面，不挡宠物走路）
+  CA.HULLS = [[9, 3.4, 3], [16.6, 3, 3.3], [23.9, 3.7, 2.7]];
+  function heap(m, o, c) {
+    const { snow } = c, Z1 = CA.Z[1], Z2 = CA.Z[2], Z3 = CA.Z[3], tz = K.T.terrain, S = (u, v, z, w, d, h, x) => hut(m, u, v, z, w, d, h, Object.assign({ snow, seed: Math.round(u * 7 + v) }, x));
+    const [A, B, Cc] = CA.HULLS;
+    // —— 三坨身子 ——
+    const zA = hull(m, A[0], A[1], tz(A[0], A[1]) - 2, [[A[2] * 0.8, A[2], 4], [A[2], A[2] * 1.06, 6], [A[2] * 1.06, A[2] * 1.04, 7, 0.1], [A[2] * 1.04, A[2], 7, -0.1], [A[2], A[2] * 0.95, 6, 0.1, -0.1], [A[2] * 0.95, A[2] * 0.92, 5]], HW.RUST);
+    const zB = hull(m, B[0], B[1], tz(B[0], B[1]) - 2, [[B[2] * 0.85, B[2], 5], [B[2], B[2] * 1.05, 7], [B[2] * 1.05, B[2], 8, 0.1], [B[2], B[2] * 0.96, 7, -0.15, 0.1], [B[2] * 0.96, B[2] * 0.98, 7], [B[2] * 0.98, B[2] * 0.9, 5, 0.1]], HW.COP2);
+    const zC = hull(m, Cc[0], Cc[1], tz(Cc[0], Cc[1]) - 2, [[Cc[2] * 0.8, Cc[2], 4], [Cc[2], Cc[2] * 1.08, 7], [Cc[2] * 1.08, Cc[2], 7, -0.1], [Cc[2], Cc[2] * 0.96, 6, 0.1]], HW.RUST2);
+    // 身子上的砖块补丁、铆钉铁板、舷窗
+    [[A, zA], [B, zB], [Cc, zC]].forEach(([h, zt], j) => { for (let i = 0; i < 22; i++) { const a = (i / 22) * 6.2832 + H(i, j) * 0.3, zz = tz(h[0], h[1]) + 3 + H(j, i) * (zt - tz(h[0], h[1]) - 6), x = h[0] + Math.cos(a) * h[2] * 1.02, y = h[1] + Math.sin(a) * h[2] * 1.02; warp(m, [x, y, zz], a - Math.PI / 2, 0, 0, () => { if (i % 3 === 0) { m.box(x - 0.5, y, zz, x + 0.5, y + 0.12, zz + 1.6, HW.IRON2, M.metal); m.cyl(x, y + 0.1, zz + 0.4, zz + 1.2, 0.32, 0.32, '#2e2830', 0, 8); } else m.box(x - 0.7 - H(i, 3) * 0.5, y, zz, x + 0.6, y + 0.1, zz + 0.9 + H(3, i), i % 2 ? '#a8583e' : HW.IRON, i % 2 ? M.stone : M.metal); }); } });
+    // —— 灰铁圆顶 ——
+    dome(m, A[0] - 0.3, A[1], zA + 0.4, A[2] * 0.95, 1, [[1.2, 0.35, 2.2, 0.38], [2.4, 0.5, 1.6, 0.32], [0.3, 0.7, 1.4, 0.28]]);
+    dome(m, Cc[0], Cc[1], zC + 0.4, Cc[2] * 0.95, 3, [[0.6, 0.4, 1.8, 0.34], [1.6, 0.55, 1.3, 0.3]]);
+    // 左前角的小圆塔：铁身子 + 城垛 + 小圆顶
+    { const [u, v, r] = [2.6, 19.4, 1.5], zt = hull(m, u, v, tz(u, v) - 1.5, [[r * 1.15, r * 1.05, 3], [r * 1.05, r, 6], [r, r * 1.1, 5]], HW.RUST); dome(m, u, v, zt + 0.3, r * 1.05, 5, [[0.9, 0.45, 1.3, 0.25]]); }
+    // —— 中间那坨顶上：一圈城垛平台，上面挤满小房子 ——
+    const zt = zB + 0.6; crenel(m, B[0], B[1], zt, B[2] + 0.6, HW.STONEW, 18);
+    m.cyl(B[0], B[1], zt - 0.6, zt, B[2] + 0.4, B[2] + 0.4, '#9a8e7e', M.stone, 16);
+    S(15.3, 2.4, zt, 3.4, 2.6, 6.2, { ax: 'u', yaw: 0.06, door: true });
+    S(18.4, 2.2, zt, 2.2, 2.2, 11.5, { ax: 'v', yaw: -0.04, tu: 0.03, wall: HW.CREAM2 });
+    S(14.4, 4.6, zt + 0.2, 2.6, 1.8, 4.2, { ax: 'u', yaw: -0.12, tv: 0.05, shut: '#b8503c' });
+    S(17.9, 4.8, zt, 1.6, 1.6, 6.8, { rt: 'c', wall: '#b8683e', roof: HW.SHING, cross: true, yaw: 0.2 });
+    S(15.6, 2.6, zt + 8.6, 2.2, 1.8, 4, { ax: 'v', yaw: 0.25, tu: -0.06, roof: HW.TILE2 });
+    S(18.4, 2.4, zt + 15.6, 1.6, 1.6, 3, { rt: 'h', wall: HW.CREAM });
+    S(13.2, 2.8, zt + 0.1, 1.4, 1.6, 7.5, { rt: 'c', wall: HW.CREAM2, roof: HW.TILE, yaw: -0.3 });
+    // 左边那坨身子的侧面：几栋悬挑出去的小房子，底下撑着斜木头
+    for (const [u, v, z, w, d, h, x] of [[5.4, 3.6, Z2 - 3, 2.4, 2.8, 5, { ax: 'v', yaw: 0.18, tu: -0.05 }], [5.6, 5.2, Z1 + 1, 2, 2.2, 4.2, { ax: 'u', yaw: -0.1, shut: '#b8503c' }], [6.4, 1.6, zA - 4, 1.8, 2, 4.4, { ax: 'v', yaw: 0.3, roof: HW.SHING }]]) { S(u, v, z, w, d, h, x); m.quad([u - 0.3, v, z], [u + 0.3, v, z], [u + 1.6, v - 0.2, z - 3], [u + 1.2, v - 0.2, z - 3], TIMBER, 2); }
+    // 背面也挤满：屋子背朝外悬挑着，配铁皮补丁和小烟囱
+    for (const [u, v, z, w, d, h, x] of [[9.4, 0.2, Z1 + 1, 2.6, 2, 4.6, { ax: 'u', yaw: Math.PI + 0.1 }], [16, -0.2, Z2 - 1, 3, 2.2, 5.4, { ax: 'u', yaw: Math.PI - 0.12, shut: '#b8503c' }], [22.8, 1, Z1 + 5, 2.2, 2, 4.4, { ax: 'v', yaw: Math.PI + 0.2, roof: HW.SHING }], [12.6, 0.8, Z2 + 7, 2, 1.8, 4, { ax: 'u', yaw: Math.PI - 0.25, tv: 0.05 }], [19.6, 0.4, Z2 + 9, 1.8, 1.8, 6, { rt: 'c', wall: '#b8683e', roof: HW.SHING, yaw: Math.PI }], [5.6, 1.6, Z1 - 2, 1.8, 2, 4, { ax: 'v', yaw: Math.PI * 0.75, roof: HW.TILE2 }], [26.2, 3, Z2 + 2, 1.8, 2, 4.2, { ax: 'u', yaw: -Math.PI * 0.6 }]]) { S(u, v, z, w, d, h, x); m.quad([u - 0.3, v, z], [u + 0.3, v, z], [u + 0.2, v + 1.4, z - 3], [u - 0.2, v + 1.4, z - 3], TIMBER, 2); }
+    for (const [u, v, z0, z1, r, col] of [[8, -0.4, Z1 + 3, Z2 + 6, 0.5, HW.COP], [14.4, -0.6, Z1 + 6, zB - 1, 0.6, HW.RUST], [24.6, 0.6, Z1 + 2, Z2 + 8, 0.45, HW.COP2]]) stack(m, u, v, z0, z1, r, col, u * 3 + v);
+    fin(m, 18.6, -0.6, Z1 + 2, Math.PI, 6, 6, 1.1);
+    // 右边那坨的侧面：带条纹遮阳棚和金色栏杆小阳台的房子
+    S(26.6, 4.6, Z1 + 3.5, 2.2, 2.6, 4.6, { ax: 'v', yaw: -0.08, awn: true, bal: true, roof: HW.TILE2 });
+    S(25.8, 1.6, zC - 2, 2, 2.2, 4.4, { ax: 'u', yaw: 0.2, tv: -0.04 });
+    // —— 铜管烟囱一丛一丛（贴着身子后背往上冲）——
+    for (const [u, v, z0, z1, r, col] of [[11.6, 1.2, Z1, zA + 6, 0.55, HW.COP], [12.4, 2.4, Z2, zA + 9, 0.7, HW.COP2], [21, 1.4, Z2, zt + 9, 0.6, HW.COP], [21.6, 2.6, Z2 + 3, zt + 4, 0.45, HW.RUST], [20.4, 0.6, Z3, zt + 13, 0.5, HW.COP2], [26.6, 2.6, Z2, zC + 7, 0.55, HW.COP], [7.4, 0.8, Z2, zA + 3, 0.42, HW.RUST]]) stack(m, u, v, z0, z1, r, col, u + v);
+    // 歪着伸出去的几根粗管子
+    pipeOut(m, A[0] - A[2], A[1] + 0.6, Z1 + 4, Math.PI * 0.95, 2.6, 0.55, HW.COP, 0.25);
+    pipeOut(m, Cc[0] + Cc[2], Cc[1] + 0.4, Z1 + 6, 0.15, 2.2, 0.5, HW.RUST, 0.1);
+    pipeOut(m, B[0] + 1.4, B[1] - B[2], Z2 + 2, -Math.PI / 2, 1.8, 0.45, HW.COP2, -0.2);
+    // —— 金色桁架臂 + 小螺旋桨、金轮子 ——
+    truss(m, A[0] - A[2] + 0.2, A[1] + 1, Z2 + 1, Math.PI, 5.5);
+    truss(m, Cc[0] + Cc[2] - 0.2, Cc[1] + 0.5, zC - 3, -0.1, 4.5);
+    truss(m, 3.4, 12.6, Z1 - 1.4, Math.PI * 1.02, 4);
+    wheel(m, A[0] - A[2] - 0.3, A[1] + 1.4, Z2 - 1, 1.5, Math.PI / 2);
+    wheel(m, 4.6, 18.9, Z1 - 3.2, 1.2, 0);
+    wheel(m, Cc[0] + 1, Cc[1] + Cc[2] + 0.1, Z2 + 3, 1.3, 0);
+    // —— 红色鳞片翼：左边窝楼底下一排，右边瞭望台底下一排 ——
+    fin(m, 3.2, 8.2, Z1 - 0.8, Math.PI / 2, 10, 10, 1.3);
+    fin(m, 25.9, 21.2, Z3 - 1.2, -Math.PI / 2, 6.5, 6, 1.4);
+    fin(m, A[0] - 2.4, A[1] - A[2], Z2 - 1, Math.PI, 4, 4, 1);
+    // 窝楼前沿底下吊着两栋小房子（悬在小河上空），像挂在城堡肚子上
+    { const W1 = CA.WING1; hut(m, W1[0] + 2, W1[3] - 1.2, Z1 - 6.4, 2.4, 2, 4.4, { ax: 'u', snow, seed: 21, yaw: 0.08, tv: 0.04 }); hut(m, W1[0] + 6, W1[3] - 1, Z1 - 5.6, 2, 1.8, 3.8, { ax: 'v', snow, seed: 22, yaw: -0.1, roof: HW.TILE2 }); for (const u of [W1[0] + 2, W1[0] + 6]) m.box(u - 0.08, W1[3] - 1.1, Z1 - 3, u + 0.08, W1[3] - 0.9, Z1 - 1.5, '#3a3448', M.metal); }
+    // 屋顶之间拉的晾衣绳和小旗
+    for (let k = 0; k < 7; k++) { const t = k / 6, u = 13.4 + t * 5, v = 4.4 - t * 0.4, zz = zt + 5.2 - Math.sin(t * Math.PI) * 0.9; m.tri([u - 0.3, v, zz], [u + 0.3, v, zz], [u, v, zz - 0.9], ['#e0604a', '#ffd36a', '#5aa6d8', '#f4ead8'][k % 4], M.cloth); }
+  }
   function castle(m, o, c) {
     const { LEAF, IVY, HED, bloom, snow } = c, Z1 = CA.Z[1], Z2 = CA.Z[2], Z3 = CA.Z[3], TK = CA.TRUNK, tz = K.T.terrain;
+    // 平台边上的栏杆换成矮矮的石头城垛（楼梯扶手不动）
+    const rail0 = m.rail; m.rail = function (u0, v0, u1, v1, z, h, col) { if (h !== 3 && h !== 2.8) return rail0.call(this, u0, v0, u1, v1, z, h, col); const L = Math.hypot(u1 - u0, v1 - v0), n = Math.max(1, Math.round(L / 1.3)), du = (u1 - u0) / L, dv = (v1 - v0) / L, tw = 0.22;
+      this.box(Math.min(u0, u1) - tw, Math.min(v0, v1) - tw, z, Math.max(u0, u1) + tw, Math.max(v0, v1) + tw, z + 1.1, HW.STONEW, M.stone);
+      for (let i = 0; i < n; i += 2) { const a = u0 + du * (i * L / n), b = v0 + dv * (i * L / n), e = u0 + du * Math.min(L, (i + 1) * L / n), f = v0 + dv * Math.min(L, (i + 1) * L / n); this.box(Math.min(a, e) - tw, Math.min(b, f) - tw, z + 1.1, Math.max(a, e) + tw, Math.max(b, f) + tw, z + 1.9, shade(HW.STONEW, 1.08), M.stone); } return this; };
     const BARK = o.season === 'winter' ? '#6a4a36' : '#7a5236', RAIL = '#8a5e3c';
-    // —— 老树干：从地下一直穿到最顶上 ——
-    m.pk(PICK.tree);
-    m.cyl(TK.u, TK.v, -3, Z1, TK.r * 1.25, TK.r * 1.1, BARK, M.plank, 12); m.cyl(TK.u, TK.v, Z1, Z3 + 8, TK.r * 1.1, TK.r * 0.7, BARK, M.plank, 12);
-    for (const zz of [Z1, Z2]) for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3; m.quad([TK.u + Math.cos(a) * TK.r * 0.9 - 0.3, TK.v + Math.sin(a) * TK.r * 0.9, zz + 1.8], [TK.u + Math.cos(a) * TK.r * 0.9 + 0.3, TK.v + Math.sin(a) * TK.r * 0.9, zz + 1.8], [TK.u + Math.cos(a) * TK.r * 1.9 + 0.15, TK.v + Math.sin(a) * TK.r * 1.9, zz], [TK.u + Math.cos(a) * TK.r * 1.9 - 0.15, TK.v + Math.sin(a) * TK.r * 1.9, zz], BARK, M.plank); }
-    for (const [a, len, zz] of [[0.4, 6.5, Z3 + 4], [2.2, 5.8, Z3 + 6], [3.6, 6.2, Z3 + 3], [5.2, 5.4, Z3 + 7]]) { const eu = TK.u + Math.cos(a) * len, ev = TK.v + Math.sin(a) * len * 0.8; m.quad([TK.u - 0.4, TK.v, zz - 2], [TK.u + 0.4, TK.v, zz - 2], [eu + 0.14, ev, zz + 4], [eu - 0.14, ev, zz + 4], BARK, M.plank); }
-    if (o.season !== 'winter') { for (const [a, b, zz, r, n] of [[0, -1.8, Z3 + 14, 5.8, 300], [-5, 0, Z3 + 11, 3.8, 170], [5, -1, Z3 + 11.5, 3.9, 170], [-1.6, -5.2, Z3 + 12, 3.8, 160], [2.4, 3, Z3 + 10.5, 3.2, 130], [0.6, -1, Z3 + 18.5, 3.2, 130]]) m.foliage(TK.u + a, TK.v + b, zz, r, r * 1.45, LEAF, n, a * 7 + b, 0.9); }
-    else { for (let i = 0; i < 12; i++) m.quad([TK.u, TK.v, Z3 + 8], [TK.u + 0.15, TK.v, Z3 + 8], [TK.u + Math.cos(i * 0.52) * 5.5, TK.v + Math.sin(i * 0.52) * 4.4, Z3 + 13 + (i % 3) * 2], [TK.u + Math.cos(i * 0.52) * 5.5 - 0.1, TK.v + Math.sin(i * 0.52) * 4.4, Z3 + 13 + (i % 3) * 2], BARK, M.plank); }
-    // 树顶上的风向标
-    { const u = TK.u, v = TK.v, zz = Z3 + 8; m.box(u - 0.08, v - 0.08, zz, u + 0.08, v + 0.08, zz + 12.5, '#4a4652', M.metal); m.box(u - 0.08, v - 1.2, zz + 12, u + 0.08, v + 1.2, zz + 12.2, '#4a4652', M.metal); m.tri([u, v + 1.2, zz + 12.5], [u, v + 1.2, zz + 11.7], [u, v + 1.9, zz + 12.1], '#e8b84a', M.metal); m.tri([u, v - 1.2, zz + 12.6], [u, v - 1.2, zz + 11.6], [u, v - 1.7, zz + 12.1], '#e8b84a', M.metal); }
-    m.pk(0);
+    // —— 中间那根老树干换成一束铜管：从一层露台一直冲到最顶上，冒烟 ——
+    for (const [du, dv, r, top, col] of [[-0.6, -0.5, 0.75, Z3 + 15, HW.COP], [0.7, -0.4, 0.6, Z3 + 11, HW.COP2], [0.1, 0.75, 0.55, Z3 + 8, HW.RUST], [-0.8, 0.6, 0.45, Z3 + 13, HW.COP2]]) stack(m, TK.u + du, TK.v + dv, Z1 - 0.6, top, r, col, du * 9 + dv);
+    for (const zz of [Z1 + 4, Z2 + 3, Z3 + 3]) m.cyl(TK.u, TK.v, zz, zz + 0.6, TK.r * 1.05, TK.r * 1.05, HW.IRON2, M.metal, 12);
+    heap(m, o, c);
     // —— 一层屋顶 = 露台（lv1）——
-    const T1 = CA.T1; slab(m, T1, Z1, '#a8784a'); for (let u = T1[0] + 1; u < T1[2]; u += 1.8) m.box(u, T1[1], Z1 + 0.01, u + 0.06, T1[3], Z1 + 0.03, '#8a5e3c', 0);
+    const T1 = CA.T1; slab(m, T1, Z1, '#8a6448'); for (let u = T1[0] + 1; u < T1[2]; u += 1.8) m.box(u, T1[1], Z1 + 0.01, u + 0.06, T1[3], Z1 + 0.03, '#8a5e3c', 0);
     m.rail(T1[0] + 0.2, T1[3], 15.2, T1[3], Z1, 3, RAIL); m.rail(24.6, T1[3], T1[2], T1[3], Z1, 3, RAIL); hedge(m, 15.6, T1[3] - 0.5, 24.2, T1[3] - 0.5, Z1, HED, 61, 0.6);
     const L1 = CA.LAND1; slab(m, L1, Z1, '#a8784a'); posts(m, [[L1[2] - 0.2, L1[1] + 0.2]], 0, Z1 - 0.6, TIMBER, 0.2); m.rail(L1[2], L1[1], L1[2], L1[3], Z1, 3, RAIL); m.rail(L1[0], L1[1], L1[2], L1[1], Z1, 3, RAIL);
     { const R = CA.R01; m.stairs(R.lo, R.hi, R.u0, R.u1, 0, Z1, 'v', '#9a6a44', 16, true); m.rail(R.u1 + 0.1, R.lo, R.u1 + 0.1, R.hi, 0, 3.2, RAIL); for (const v of [R.lo - 2.5, (R.lo + R.hi) / 2]) posts(m, [[R.u1 - 0.1, v]], 0, (Z1 * (R.lo - v)) / (R.lo - R.hi) - 1.2, TIMBER, 0.15); }
     // —— 左边的「窝楼」：架在小河上的高脚木台，两层，和露台、二层连成一片 ——
     const W1 = CA.WING1;
-    slab(m, W1, Z1, '#b08058');
+    slab(m, W1, Z1, '#8e6a4c');
     for (const [u, v] of [[W1[0] + 0.3, W1[1] + 0.3], [W1[0] + 0.3, W1[3] - 0.3], [W1[0] + 4.2, W1[3] - 0.3], [W1[2] - 0.6, W1[3] - 0.3], [W1[0] + 4.2, W1[1] + 0.3], [W1[2] - 0.6, W1[1] + 0.3]]) { const gz = tz(u, v) - 1; m.box(u - 0.26, v - 0.26, gz, u + 0.26, v + 0.26, Z1 - 0.6, TIMBER, 2); m.cyl(u, v, gz, gz + 1.2, 0.5, 0.3, STONE2, M.stone, 6); }
     for (const [a, b] of [[W1[0] + 0.3, W1[1] + 0.3], [W1[0] + 0.3, W1[3] - 0.3]]) m.quad([a, b, tz(a, b) + 1.5], [a, b + 0.2, tz(a, b) + 1.5], [a + 4, b + 0.2, Z1 - 1.2], [a + 4, b, Z1 - 1.2], TIMBER, 2);
     m.rail(W1[0], W1[1], W1[0], W1[3], Z1, 3, RAIL); m.rail(W1[0], W1[3], W1[2], W1[3], Z1, 3, RAIL); m.rail(W1[0], W1[1], W1[2], W1[1], Z1, 3, RAIL);
@@ -254,15 +365,15 @@
     m.disc(BA.u1 + 0.05, (BA.v0 + BA.v1) / 2, Z1 + 5.4, 0.7, 'u', '#b0704a', M.metal, 10); m.disc(BA.u1 + 0.1, (BA.v0 + BA.v1) / 2, Z1 + 5.4, 0.52, 'u', '#cfeaf8', M.glass, 10);
     m.cyl(BA.u1 - 0.5, BA.v1 - 0.3, Z1, Z3 - 0.6, 0.2, 0.2, COPPER, M.metal, 6);
     // —— 二层（lv2）——
-    const P2 = CA.P2, L2 = CA.LAND2; slab(m, P2, Z2, '#b88a5a'); slab(m, L2, Z2, '#b88a5a');
+    const P2 = CA.P2, L2 = CA.LAND2; slab(m, P2, Z2, '#94704e'); slab(m, L2, Z2, '#94704e');
     for (let u = P2[0] + 0.9; u < P2[2]; u += 1.5) m.box(u, P2[1], Z2 + 0.01, u + 0.05, P2[3], Z2 + 0.03, '#9a6a44', 0);
-    for (const [u, v] of [[P2[2] - 0.3, P2[3] - 0.3], [L2[0] + 0.3, L2[3] - 0.3], [L2[2] - 0.3, L2[3] - 0.3], [P2[2] - 0.3, P2[1] + 0.3]]) m.box(u - 0.22, v - 0.22, Z1 - 0.6, u + 0.22, v + 0.22, Z2 - 0.6, TIMBER, 2);
+    for (const [u, v] of [[P2[2] - 0.3, P2[3] - 0.3], [L2[0] + 0.3, L2[3] - 0.3], [L2[2] - 0.3, L2[3] - 0.3], [P2[2] - 0.3, P2[1] + 0.3]]) { m.cyl(u, v, Z1 - 0.6, Z2 - 0.6, 0.3, 0.3, HW.COP2, M.metal, 8); m.cyl(u, v, Z1 + 3, Z1 + 3.5, 0.4, 0.4, HW.IRON2, M.metal, 8); }
     m.rail(L2[0], L2[3], L2[0], P2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[3], L2[0], P2[3], Z2, 2.8, RAIL); m.rail(L2[2], P2[3], P2[2], P2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[1], P2[0], P2[3], Z2, 2.8, RAIL); m.rail(P2[2], P2[1], P2[2], P2[3], Z2, 2.8, RAIL); m.rail(L2[2], L2[1], L2[2], L2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[1], P2[2], P2[1], Z2, 2.8, RAIL);
     if (!snow) for (let i = 0; i < 6; i++) m.vine([[P2[0] + 6 + i * 1.6, P2[3] + 0.1, Z2 - 0.9], [P2[0] + 6.3 + i * 1.6, P2[3] + 0.2, Z2 - 1.4]], { cols: IVY, seed: i + 500, gap: 0.6, ls: 0.6, drop: 3 + (i % 3) * 1.5, bloom: i % 2 ? bloom : null });
     { const R = CA.R12; m.stairs(R.lo, R.hi, R.v0, R.v1, Z1, Z2, 'u', '#9a6a44', 14, true); m.rail(R.lo, R.v0 - 0.1, R.hi, R.v0 - 0.1, Z1, 2.6, RAIL); }
     // —— 瞭望台（lv3）：在前面右边高高架起来；楼梯从二层的前平台斜着上去 ——
-    const P3 = CA.P3; slab(m, P3, Z3, '#c49a6a');
-    for (const [u, v] of [[P3[0] + 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[1] + 0.3], [P3[0] + 0.3, P3[1] + 0.3]]) { m.box(u - 0.24, v - 0.24, Z1 - 0.6, u + 0.24, v + 0.24, Z3 - 0.6, TIMBER, 2); } m.quad([P3[0] + 0.3, P3[1] + 0.3, Z1 + 1], [P3[0] + 0.3, P3[1] + 0.6, Z1 + 1], [P3[2] - 0.3, P3[3] - 0.6, Z3 - 1], [P3[2] - 0.3, P3[3] - 0.3, Z3 - 1], TIMBER, 2);
+    const P3 = CA.P3; slab(m, P3, Z3, '#9a7452');
+    for (const [u, v] of [[P3[0] + 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[1] + 0.3], [P3[0] + 0.3, P3[1] + 0.3]]) { m.cyl(u, v, Z1 - 0.6, Z3 - 0.6, 0.32, 0.32, HW.COP2, M.metal, 8); for (const zz of [Z1 + 4, Z2 + 2]) m.cyl(u, v, zz, zz + 0.5, 0.42, 0.42, HW.IRON2, M.metal, 8); } m.quad([P3[0] + 0.3, P3[1] + 0.3, Z1 + 1], [P3[0] + 0.3, P3[1] + 0.6, Z1 + 1], [P3[2] - 0.3, P3[3] - 0.6, Z3 - 1], [P3[2] - 0.3, P3[3] - 0.3, Z3 - 1], TIMBER, 2);
     m.box(P3[2] - 0.55, P3[3] - 0.55, -0.4, P3[2] - 0.05, P3[3] - 0.05, Z1 - 0.6, TIMBER, 2);
     { const R = CA.R23; m.stairs(R.lo, R.hi, R.v0, R.v1, Z2, Z3, 'u', '#9a6a44', 14, true); m.rail(R.lo, R.v1 + 0.1, R.hi, R.v1 + 0.1, Z2, 2.6, RAIL); }
     m.rail(P3[0], P3[1], P3[2], P3[1], Z3, 3, RAIL); m.rail(P3[0], P3[3], P3[2], P3[3], Z3, 3, RAIL); m.rail(P3[2], P3[1], P3[2], 13.2, Z3, 3, RAIL); m.rail(P3[2], 15.2, P3[2], P3[3], Z3, 3, RAIL); m.rail(P3[0], P3[1], P3[0], 18.2, Z3, 3, RAIL);
@@ -272,33 +383,25 @@
     m.pk(PICK.balloon); m.box(BL.u - 0.9, BL.v - 0.9, Z3, BL.u + 0.9, BL.v + 0.9, Z3 + 2.2, '#c89a5a', M.cloth); m.box(BL.u - 1, BL.v - 1, Z3 + 2.2, BL.u + 1, BL.v + 1, Z3 + 2.6, DARK, 2);
     if (!o.tripping) { for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.quad([BL.u + a * 0.9 - 0.04, BL.v + b * 0.9, Z3 + 2.6], [BL.u + a * 0.9 + 0.04, BL.v + b * 0.9, Z3 + 2.6], [BL.u + a * 1.5 + 0.04, BL.v + b * 1.5, Z3 + 8], [BL.u + a * 1.5 - 0.04, BL.v + b * 1.5, Z3 + 8], '#d8c8a0', 0); m.blob(BL.u, BL.v, Z3 + 13, 3, 7, '#e8705a', M.cloth, 4, 6, 10); m.blob(BL.u, BL.v, Z3 + 13.4, 3.05, 2.6, '#ffd36a', M.cloth, 4, 4, 10); }
     m.pk(0);
-    // —— 几座圆塔：石头底座、灰泥塔身、一圈木头腰线、小窗，尖尖的瓦顶上插一面小旗 ——
-    CA.TOWERS.forEach(([u, v, r, top, rc], i) => { const gz = tz(u, v) - 1.5; m.cyl(u, v, gz, gz + 4, r * 1.12, r * 1.05, STONE, M.stone, 12); m.cyl(u, v, gz + 4, top, r, r, i === 1 ? '#f0e2c4' : '#e8d6b4', M.plaster, 12);
-      for (const hh of [gz + 4, top - 0.4]) m.cyl(u, v, hh, hh + 0.5, r + 0.08, r + 0.08, TIMBER, 2, 12);
-      for (let k = 0; k < 3; k++) { const zz = gz + 7 + k * ((top - gz - 9) / 2.5), a = 0.6 + k * 0.5; m.disc(u + Math.cos(a) * (r + 0.02), v + Math.sin(a) * (r + 0.02), zz, 0.42, Math.abs(Math.cos(a)) > Math.abs(Math.sin(a)) ? 'u' : 'v', '#ffe9a8', M.glow, 8); }
-      m.cyl(u, v, top, top + 0.3, r + 0.6, r + 0.6, shade(rc, 0.7), M.tile, 12); m.cyl(u, v, top + 0.3, top + r * 3.6, r + 0.5, 0.05, rc, M.tile, 12);
-      const fz = top + r * 3.6; m.box(u - 0.05, v - 0.05, fz - 0.4, u + 0.05, v + 0.05, fz + 2.4, '#4a4652', M.metal); m.tri([u, v, fz + 2.4], [u, v, fz + 1.5], [u + 1.3, v + 0.1, fz + 2.0], ['#e0604a', '#ffd36a', '#f2a6c2'][i % 3], M.cloth);
-      if (!snow) m.vine([[u + r * 0.7, v + r * 0.7, gz + 4], [u + r * 0.75, v + r * 0.7, gz + 9], [u + r * 0.6, v + r * 0.8, top - 2]], { cols: IVY, seed: 600 + i, gap: 0.5, ls: 0.6, bloom }); });
     // 窝楼通到圆塔的一小段吊桥
     { const [u, v] = CA.TOWERS[0]; for (let k = 0; k < 6; k++) { const a = CA.WING1[0] + 0.2, t0 = k / 6, t1 = (k + 0.85) / 6, sag = Math.sin(((t0 + t1) / 2) * Math.PI) * 0.6; m.box(a - 0.8 + (u + 1 - a) * 0, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t0, Z1 - 0.7 - sag, a + 0.4, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t1, Z1 - 0.5 - sag, '#a8784a', M.plank); } }
     // 二层前沿挂一串小灯笼、几面三角小旗
     { const P2 = CA.P2; for (let k = 0; k < 9; k++) { const u = P2[0] + 1 + k * 1.8, v = P2[3] + 0.15, sag = Math.sin((k / 8) * Math.PI) * 0.8; if (k % 2) m.box(u - 0.22, v - 0.22, Z2 - 2.4 - sag, u + 0.22, v + 0.22, Z2 - 1.8 - sag, '#ffe9a8', M.glow); else m.tri([u - 0.5, v, Z2 - 1.3 - sag], [u + 0.5, v, Z2 - 1.3 - sag], [u, v, Z2 - 2.4 - sag], ['#e0604a', '#ffd36a', '#5aa6d8', '#f2a6c2'][k % 4], M.cloth); } }
     // —— 平台上的小房子：木筋灰泥墙、窗、门、陡屋顶，屋顶上长苔藓 ——
     CA.BLOCKS.forEach(([lv, u0, v0, u1, v1, h, wc, rc, ax], i) => { const z = lv ? CA.Z[lv] : 0;
-      m.box(u0, v0, z, u1, v1, z + h, wc, M.plaster); m.box(u0 - 0.1, v0 - 0.1, z, u1 + 0.1, v1 + 0.1, z + 1.2, STONE2, M.stone);
-      for (const uu of [u0, u1]) m.box(uu - 0.16, v1, z, uu + 0.16, v1 + 0.2, z + h, TIMBER, 2); m.box(u0, v1, z + h - 0.4, u1, v1 + 0.2, z + h, TIMBER, 2); m.quad([u0 + 0.2, v1 + 0.15, z + 1.2], [u0 + 0.5, v1 + 0.15, z + 1.2], [u1 - 0.2, v1 + 0.15, z + h - 0.4], [u1 - 0.5, v1 + 0.15, z + h - 0.4], TIMBER, 2);
-      const dc = (u0 + u1) / 2; m.box(dc - 0.8, v1, z, dc + 0.8, v1 + 0.2, z + 4.4, ['#5a8a6a', '#8a5a3a', '#4a8ac8', '#a8603a'][i % 4], M.plank); m.box(dc - 1, v1, z + 4.4, dc + 1, v1 + 0.3, z + 4.8, TIMBER, 2);
-      if (u1 - u0 > 5) { m.win('v', u0 + 0.9, u0 + 2, z + 3, z + 5.6, v1, { shut: '#5a7a8a', box: FLOW[i % 5] }); m.win('v', u1 - 2, u1 - 0.9, z + 3, z + 5.6, v1, {}); }
-      m.win('u', (v0 + v1) / 2 - 0.7, (v0 + v1) / 2 + 0.7, z + 3, z + 5.6, u1, {});
-      m.gable(u0 - 0.3, v0 - 0.3, u1 + 0.3, v1 + 0.3, z + h, ax === 'u' ? 3.4 : 2.8, ax, rc, M.tile, 0.4, wc, M.plaster);
-      if (!snow) for (let k = 0; k < 8; k++) m.leaf([u0 + H(k, i) * (u1 - u0), v0 + 0.5 + H(i, k) * (v1 - v0 - 1), z + h + 1 + H(k + 3, i)], H(k, 9) * 6, 0.15, 0.6, k % 3 ? '#6a9a50' : '#8ab860', 0.2);
-      if (i === 1) { m.box(u1 - 2.2, v0 + 0.6, z + h, u1 - 1.2, v0 + 1.6, z + h + 5, BRICK, M.stone); m.cyl(u1 - 1.7, v0 + 1.1, z + h + 5, z + h + 6.2, 0.35, 0.3, '#3a3448', M.metal, 6); }
-      if (i === 3) { m.cyl((u0 + u1) / 2, (v0 + v1) / 2, z + h, z + h + 0.4, 2.2, 2.2, rc, M.tile, 10); } });
+      hut(m, (u0 + u1) / 2, (v0 + v1) / 2, z, u1 - u0, v1 - v0, h, { wall: [HW.CREAM, '#d8b890', HW.CREAM2, '#c8a078'][i % 4], roof: [HW.TILE, HW.SHING, HW.TILE2, HW.TILE][i % 4], ax, snow, seed: i, awn: i === 2, door: true, chim: i === 1, yaw: [0.02, -0.03, 0.04, -0.05, 0.08, -0.1][i], tv: [0, 0.03, -0.02, 0.04, -0.03, 0.05][i], tu: [0, 0, 0, 0, 0.04, -0.04][i] });
+      if (i === 4) hut(m, u0 + 1.4, v0 + 1.6, z + h + 2.2, 1.6, 1.8, 3.6, { ax: 'v', yaw: -0.25, snow, seed: 14, roof: HW.TILE2, wall: HW.CREAM2 });
+      const top = z + h + ((ax === 'u' ? v1 - v0 : u1 - u0) * 0.85) * 0.55;
+      if (i === 0) hut(m, u0 + 1.6, v0 + 1.1, top - 1.2, 2, 1.8, 3.6, { ax: 'v', yaw: 0.22, tu: 0.06, snow, seed: 11, roof: HW.TILE2 });
+      if (i === 1) { hut(m, u0 + 1.8, v0 + 1, top - 1.5, 2.4, 1.6, 4.4, { ax: 'u', yaw: -0.15, tv: -0.05, snow, seed: 12, wall: '#d8b890' }); hut(m, u1 - 1.4, v0 + 1.2, top - 1, 1.3, 1.3, 5, { rt: 'c', roof: HW.SHING, wall: '#b8683e', snow, cross: true, yaw: 0.3 }); }
+      if (i === 2) hut(m, u0 + 1.2, v0 + 1, top - 1, 1.6, 1.4, 3.2, { rt: 'h', snow, seed: 13, yaw: 0.12 });
+      if (!snow) for (let k = 0; k < 6; k++) m.leaf([u0 + H(k, i) * (u1 - u0), v0 + 0.5 + H(i, k) * (v1 - v0 - 1), z + h + 1 + H(k + 3, i)], H(k, 9) * 6, 0.15, 0.6, k % 3 ? '#6a9a50' : '#8ab860', 0.2); });
     // 花房右边的空地：接雨水的木水塔、堆肥箱、一小片花圃
     { const u = 39, v = 18.2, z = tz(u, v); posts(m, [[u - 1.2, v - 1.2], [u + 1.2, v - 1.2], [u - 1.2, v + 1.2], [u + 1.2, v + 1.2]], z, 6, TIMBER, 0.2); m.cyl(u, v, z + 6, z + 10, 1.8, 1.8, '#a8784a', M.plank, 12); for (const hh of [6.6, 9.2]) m.cyl(u, v, z + hh, z + hh + 0.3, 1.85, 1.85, '#4a4652', M.metal, 12); m.cyl(u, v, z + 10, z + 11.4, 2, 0.3, '#5a7a8a', M.tile, 12); m.cyl(u + 1.6, v, z + 1, z + 7, 0.14, 0.14, COPPER, M.metal, 6); }
     { const u = 43, v = 16.6, z = tz(u, v); m.box(u - 1.4, v - 1, z, u + 1.4, v + 1, z + 1.8, '#8a5e3c', M.plank, '#5a4030', M.soil); for (let i = 0; i < 4; i++) m.box(u - 1.4 + i * 0.9, v + 0.95, z + 0.2, u - 1.1 + i * 0.9, v + 1.05, z + 1.6, '#6a4a34', 0); }
     for (let i = 0; i < 7; i++) { const u = 37.4 + (i % 4) * 1.6, v = 10.4 + Math.floor(i / 4) * 1.6, z = tz(u, v); if (!snow) bush(m, u, v, z, 0.45, HED, 700 + i, true); }
     // —— 每只动物自己的窝 ——
+    m.rail = rail0;
     (o.dens || []).forEach((sp, i) => { const d = CA.DENS[i]; if (!d || !sp) return; m.pk(CA.PICK_DEN + i); den(m, sp, d, CA.denZ(d), snow); m.pk(0); });
   }
   const sea2col = (s) => (s === 'winter' ? '#6a4a36' : '#7a5236');
@@ -389,7 +492,7 @@
     // —— 小屋：坐落在坡上，石头地基埋进地里；灰泥一层 + 外挑的木筋二层 + 陡屋顶 ——
     const S = HOUSE, uL = S.u1 - S.u0, vL = S.v1 - S.v0, z0 = 0.25, z1 = z0 + S.h1, z2 = z1 + S.h2;
     m.box(S.u0 - 0.2, S.v0 - 0.2, -1.6, S.u1 + 0.2, S.v1 + 0.2, z0 + 1.6, STONE, M.stone);
-    m.box(S.u0, S.v0, z0, S.u1, S.v1, z1, PLAS, M.plaster);
+    m.box(S.u0, S.v0, z0, S.u1, S.v1, z1, '#b07a5a', M.stone); for (let zz = z0 + 2.4; zz < z1 - 0.5; zz += 2.6) { m.box(S.u0 - 0.06, S.v1, zz, S.u1 + 0.06, S.v1 + 0.1, zz + 0.3, '#7c4632', M.metal); m.box(S.u1, S.v0, zz, S.u1 + 0.1, S.v1 + 0.06, zz + 0.3, '#7c4632', M.metal); }
     castle(m, o, { LEAF, IVY, HED, ROOF, RM, bloom, snow, sea });
     const du = K.DOOR.u;
     m.pk(PICK.door); m.box(du - 1.1, S.v1, z0, du + 1.1, S.v1 + 0.22, z0 + 7.6, '#8a5a3a', M.plank); m.box(du - 1.35, S.v1 + 0.05, z0, du - 1.1, S.v1 + 0.34, z0 + 8, TIMBER, 2); m.box(du + 1.1, S.v1 + 0.05, z0, du + 1.35, S.v1 + 0.34, z0 + 8, TIMBER, 2); m.box(du - 1.5, S.v1 + 0.05, z0 + 7.6, du + 1.5, S.v1 + 0.4, z0 + 8.4, TIMBER, 2); m.disc(du, S.v1 + 0.26, z0 + 5.6, 0.36, 'v', '#ffe9a8', M.glass, 8); m.box(du + 0.6, S.v1 + 0.22, z0 + 3.4, du + 0.78, S.v1 + 0.36, z0 + 3.8, '#c8a050', M.metal); m.pk(0);

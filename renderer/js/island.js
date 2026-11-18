@@ -51,7 +51,7 @@
       obst: () => [[0, HOUSE.u0 - 0.4, HOUSE.v0 - 0.4, HOUSE.u1 + 0.4, HOUSE.v1 + 0.4], [0, GH.u0 - 0.4, GH.v0 - 0.4, GH.u1 + 0.4, GH.v1 + 0.3], [0, 'c', 11.2, 18.6, 0.8], [0, 'c', 10.6, 17.1, 0.8],
         [0, 'c', TANK.u, TANK.v, 1.8], [0, 'c', MAILB.u, MAILB.v, 0.6], [0, 'c', TREE.u, TREE.v, 1.7], [0, 3.4, 27.4, 6.4, 30.4],
         ...PLOTS.map(([u, v]) => [0, u, v, u + PS, v + PS]), ...LAMPS.map(([u, v]) => [0, 'c', u, v, 0.35]), [0, 26, 26, 39.8, 26.4], [0, 39.4, 26, 39.8, 35.8],
-        ...CA.TOWERS.map(([u, v, r]) => [0, 'c', u, v, r + 0.3]),
+        ...CA.HULLS.map(([u, v, r]) => [0, 'c', u, v, r * 1.12 + 0.3]), [0, 'c', 2.6, 19.4, 2],
         [1, CA.KIT.u0, CA.KIT.v0, CA.KIT.u1, CA.KIT.v1], [1, CA.BATH.u0, CA.BATH.v0, CA.BATH.u1, CA.BATH.v1], [1, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r + 0.3], [1, 'c', CA.CHIM.u, CA.CHIM.v, 0.9],
         [2, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [2, 'c', CA.CHIM.u, CA.CHIM.v, 0.9], [3, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [3, 'c', CA.BOILER.u, CA.BOILER.v, 1],
         ...CA.BLOCKS.map((d) => [d[0], d[1] - 0.2, d[2] - 0.2, d[3] + 0.2, d[4] + 0.25]), [0, 'c', 39, 18.2, 2], [0, 'c', 43, 16.6, 1.6],
