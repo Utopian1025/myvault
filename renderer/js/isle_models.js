@@ -13,7 +13,7 @@
   const GH = { u0: 27, u1: 36, v0: 7.5, v1: 14.5, z: 4.4, h: 7, roof: 4, door: 0.5, nv: 5, nu: 4 };
   const iu = (S, t) => R0 + t * (S.u1 - S.u0) * SC, iv = (S, t) => R0 + t * (S.v1 - S.v0) * SC;
   const HU1 = iu(HOUSE, 1), HV1 = iv(HOUSE, 1), GU1 = iu(GH, 1), GV1 = iv(GH, 1);
-  const PICK = { door: 1, green: 2, mail: 3, barrel: 4, balloon: 6, fish: 8, tree: 9, lamp: 10, coop: 11, hive: 12, tank: 13, plot: 20, deco: 30, exit: 40, kitchen: 51, bed: 57, chair: 58, piano: 64, gbarrel: 71, bench: 74 };
+  const PICK = { door: 1, green: 2, mail: 3, barrel: 4, balloon: 6, fish: 8, river: 15, tree: 9, lamp: 10, coop: 11, hive: 12, tank: 13, plot: 20, deco: 30, exit: 40, kitchen: 51, kdoor: 16, bdoor: 17, bed: 57, chair: 58, piano: 64, gbarrel: 71, bench: 74 };
 
   // ---------- 地形：一块长满草的浮岛，有两座小山丘、山上的泉眼、弯弯的小河、天然的水塘，水从岛边落下去 ----------
   const CEN = [24, 23];
@@ -55,7 +55,7 @@
   const K = {
     IW: 150, IH: 124, ORG: { deck: [72, 30], house: [70, 45], gh: [67, 45] }, SC, R0, HOUSE, GH, PICK, HU1, HV1, GU1, GV1, LOFT: 28, WALLH: 52, T,
     Z: { yard: 0 },
-    DOOR: { u: 12 + 0.42 * 13, v: 20 }, GDOOR: { u: 31.5, v: 14.5 }, TREE: { u: 40.5, v: 23 }, COOP: { u: 6.6, v: 33.2 }, HIVE: { u: 43, v: 29.6 }, TANK: { u: 28.5, v: 21.5 }, MAILB: { u: 20.8, v: 22.8 }, BALLOON: { u: 41, v: 13.5 },
+    DOOR: { u: 12 + 0.42 * 13, v: 20 }, GDOOR: { u: 31.5, v: 14.5 }, TREE: { u: 40.5, v: 23 }, COOP: { u: 6.6, v: 33.2 }, HIVE: { u: 43, v: 29.6 }, TANK: { u: 28.5, v: 21.5 }, MAILB: { u: 20.8, v: 22.8 }, BALLOON: { u: 28.4, v: 14.2 },
     POND, FISH: { u: 19, v: 33.4 }, BOB: { u: 19.4, v: 38.8 },
     PLOTS: [[27, 27], [31.2, 27], [35.4, 27], [27, 31.6], [31.2, 31.6], [35.4, 31.6]], PS: 3.6, PH: [1.1, 1.4, 1.0, 1.2, 0.9, 1.3],
     SLOTS: [[15, 24.8], [4.8, 26.6], [23.4, 31.4], [34.4, 23.4], [41, 18.6], [11.6, 31]], LAMPS: [[21.6, 31.6, 0], [12.6, 22.8, 0], [36.6, 17.2, 0]],
@@ -100,6 +100,165 @@
     else if (id === 'swing') { for (const s of [-1.6, 1.6]) m.quad([u + s - 0.5, v, z], [u + s - 0.2, v, z], [u + s + 0.15, v, z + 12], [u + s - 0.15, v, z + 12], '#8a6040', 2); m.box(u - 1.9, v - 0.15, z + 11.6, u + 1.9, v + 0.15, z + 12.5, WOOD2, 2); for (const s of [-0.8, 0.8]) m.box(u + s - 0.05, v - 0.05, z + 3.4, u + s + 0.05, v + 0.05, z + 11.6, '#d8c8a0', 0); m.box(u - 1, v - 0.4, z + 2.8, u + 1, v + 0.4, z + 3.4, '#c8935e', M.plank); }
     m.pk(0);
   }
+
+
+  // ---------- 城堡：老树是骨架，各种房子块东一块西一块钉在树干周围 ----------
+  // 一层 = 原来的石头小屋（门厅）；屋顶是露台（lv1）；露台上是厨房、浴室，中间穿过老树干；
+  // 左边架在小河上的高脚「窝楼」和露台、二层连成一片；再往上是木平台（lv2）；最上面是前面的瞭望台（lv3）：锅炉、热气球码头。
+  // 每只动物一间自己的窝，分散在窝楼、二层和瞭望台上。树冠盖在最顶上。动物大约 8 格高，层高都按这个来。
+  const CA = {
+    Z: [0, 11.25, 21.75, 33],
+    KIT: { u0: 12.3, u1: 17.4, v0: 9.2, v1: 13.2, h: 9.3, door: 15.2 },
+    BATH: { u0: 20.6, u1: 23.4, v0: 9.2, v1: 12.6, h: 9.3, door: 22 },
+    TRUNK: { u: 19, v: 10.6, r: 1.45 },
+    T1: [12, 9, 25.6, 20], LAND1: [24.2, 9.4, 26.8, 12.4], WING1: [3.4, 7, 12.2, 18.6],
+    P2: [9, 6.6, 24.6, 13.4], LAND2: [11.4, 13, 15.6, 20.4],
+    P3: [20.6, 12.8, 25.2, 21.4],
+    R01: { u0: 25.2, u1: 26.5, v0: 12.4, v1: 20, axis: 'v', lo: 20, hi: 12.4, a: 0, b: 1 },
+    R12: { u0: 15.4, u1: 23.6, v0: 16.6, v1: 18.4, axis: 'u', lo: 23.6, hi: 15.4, a: 1, b: 2 },
+    R23: { u0: 15.4, u1: 23.6, v0: 18.6, v1: 20.4, axis: 'u', lo: 15.4, hi: 23.6, a: 2, b: 3 },
+    CHIM: { u: 12.0, v: 14.9 },
+    // 装饰用的圆塔（城堡的轮廓）：[u, v, 半径, 塔身顶高, 屋顶颜色]
+    TOWERS: [[2.6, 19.4, 1.5, 22, '#4a6a9a'], [25.4, 6.4, 1.6, 30, '#b8503c'], [8.2, 5.6, 1.3, 33, '#5a8a6a']],
+    BOILER: { u: 21.4, v: 20.9 },
+    // 小窝：[层, u0, v0, u1, v1, 门朝哪边]（'v' = 门朝前，'u' = 门朝右）
+    DENS: [[2, 9.3, 6.9, 12.9, 10.6, 'v'], [1, 7.8, 7.4, 11.4, 11.4, 'v'], [2, 13.2, 6.9, 16.8, 10.6, 'v'], [1, 3.8, 7.4, 7.4, 11.4, 'v'], [2, 20.8, 6.9, 24.4, 10.6, 'v'],
+      [1, 3.6, 14.2, 7.6, 17.8, 'u'], [3, 20.8, 13.2, 23.6, 16.6, 'u'], [0, 37.2, 16.6, 40.8, 20.2, 'v'], [0, 41.6, 15.2, 45, 18.8, 'v'], [0, 36.8, 9.4, 40.4, 13, 'v']],
+    PICK_DEN: 80,
+  };
+  // 门口站的位置
+  CA.denZ = (d) => (d[0] ? CA.Z[d[0]] : K.T.terrain((d[1] + d[3]) / 2, (d[2] + d[4]) / 2));
+  CA.denFront = (d) => (d[5] === 'u' ? { u: d[3] + 0.9, v: (d[2] + d[4]) / 2 } : { u: (d[1] + d[3]) / 2, v: d[4] + 0.9 });
+  K.CA = CA;
+  const DEN_STYLE = { cat: 'cat', dog: 'dog', rabbit: 'rabbit', hamster: 'hamster', penguin: 'penguin', fox: 'fox', frog: 'frog', chick: 'chick', duck: 'duck', pig: 'pig', capybara: 'capybara', hedgehog: 'hedgehog', turtle: 'turtle', crab: 'crab', octopus: 'octopus' };
+  const DEN_NAME = { cat: '猫猫木箱屋', dog: '红顶狗屋', rabbit: '胡萝卜门的土丘屋', hamster: '圆滚滚的谷仓罐', penguin: '小冰屋', fox: '树根下的狐狸洞', frog: '蘑菇屋', chick: '小鸡舍', duck: '蓝顶鸭屋', pig: '稻草顶小泥屋', capybara: '芦苇屋（带小温泉）', hedgehog: '落叶堆里的刺猬屋', turtle: '龟壳屋', crab: '大海螺屋', octopus: '水桶屋（带舷窗）' };
+  K.DEN_NAME = DEN_NAME;
+  function shade(hex, k) { const n = parseInt(hex.slice(1), 16), r = Math.round(((n >> 16) & 255) * k), g = Math.round(((n >> 8) & 255) * k), b = Math.round((n & 255) * k); return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1); }
+  // 局部坐标：原点在窝的中心，门朝 +y；r = 0 门朝 +v，r = 3 门朝 +u
+  class LT {
+    constructor(m, u, v, r, z) { this.m = m; this.u = u; this.v = v; this.r = r; this.z = z; }
+    p(x, y) { const r = this.r; const [a, b] = r === 0 ? [x, y] : r === 1 ? [-y, x] : r === 2 ? [-x, -y] : [y, -x]; return [this.u + a, this.v + b]; }
+    q(pt) { const [a, b] = this.p(pt[0], pt[1]); return [a, b, this.z + pt[2]]; }
+    ang(a) { return a + (this.r === 3 ? -Math.PI / 2 : this.r === 1 ? Math.PI / 2 : this.r === 2 ? Math.PI : 0); }
+    box(x0, y0, z0, x1, y1, z1, ...a) { const A = this.p(x0, y0), B = this.p(x1, y1); this.m.box(Math.min(A[0], B[0]), Math.min(A[1], B[1]), this.z + z0, Math.max(A[0], B[0]), Math.max(A[1], B[1]), this.z + z1, ...a); return this; }
+    cyl(x, y, z0, z1, ...a) { const P = this.p(x, y); this.m.cyl(P[0], P[1], this.z + z0, this.z + z1, ...a); return this; }
+    ball(x, y, z, ...a) { const P = this.p(x, y); this.m.ball(P[0], P[1], this.z + z, ...a); return this; }
+    blob(x, y, z, ...a) { const P = this.p(x, y); this.m.blob(P[0], P[1], this.z + z, ...a); return this; }
+    quad(a, b, c, d, ...x) { this.m.quad(this.q(a), this.q(b), this.q(c), this.q(d), ...x); return this; }
+    tri(a, b, c, ...x) { this.m.tri(this.q(a), this.q(b), this.q(c), ...x); return this; }
+    disc(x, y, z, rad, face, ...a) { const P = this.p(x, y), f = this.r % 2 ? (face === 'u' ? 'v' : 'u') : face; this.m.disc(P[0], P[1], this.z + z, rad, f, ...a); return this; }
+    leaf(c, a, ...x) { this.m.leaf(this.q(c), this.ang(a), ...x); return this; }
+    gable(x0, y0, x1, y1, z, h, axis, ...a) { const A = this.p(x0, y0), B = this.p(x1, y1), ax = this.r % 2 ? (axis === 'u' ? 'v' : 'u') : axis; this.m.gable(Math.min(A[0], B[0]), Math.min(A[1], B[1]), Math.max(A[0], B[0]), Math.max(A[1], B[1]), this.z + z, h, ax, ...a); return this; }
+    vine(pts, o) { this.m.vine(pts.map((p) => this.q(p)), o); return this; }
+  }
+  // 一扇真的门（局部坐标里朝 +y，在 y = Y 的墙上）：门框、竖木板、圆窗、门把手、门口踏板、门边小灯
+  function denDoor(t, Y, w, h, col, o = {}) {
+    const hw = w / 2, fr = o.frame || TIMBER;
+    t.box(-hw - 0.24, Y - 0.05, 0, -hw, Y + 0.24, h + 0.22, fr, 2); t.box(hw, Y - 0.05, 0, hw + 0.24, Y + 0.24, h + 0.22, fr, 2); t.box(-hw - 0.24, Y - 0.05, h, hw + 0.24, Y + 0.26, h + 0.42, fr, 2);
+    t.box(-hw, Y, 0, hw, Y + 0.14, h, col, M.plank);
+    for (let k = 1; k < 3; k++) t.box(-hw + (w * k) / 3 - 0.04, Y + 0.14, 0.1, -hw + (w * k) / 3 + 0.04, Y + 0.19, h - 0.1, shade(col, 0.72), 0);
+    if (o.round !== false) t.disc(0, Y + 0.18, h * 0.72, w * 0.17, 'v', '#ffe9a8', M.glass, 8);
+    t.box(hw - 0.42, Y + 0.14, h * 0.45, hw - 0.22, Y + 0.32, h * 0.45 + 0.3, '#e8b84a', M.metal);
+    t.box(-hw - 0.15, Y, -0.15, hw + 0.15, Y + 0.8, 0.05, '#c8b8a0', M.stone);
+    if (o.lamp !== false) t.box(hw + 0.34, Y + 0.1, h - 0.5, hw + 0.7, Y + 0.46, h + 0.05, '#ffe9a8', M.glow);
+  }
+  // 每种动物一间自己的窝
+  function den(m, sp, d, z, snow) {
+    const [, u0, v0, u1, v1, face] = d, r = face === 'u' ? 3 : 0, t = new LT(m, (u0 + u1) / 2, (v0 + v1) / 2, r, z);
+    const W = r ? v1 - v0 : u1 - u0, D = r ? u1 - u0 : v1 - v0, X = W / 2, Y = D / 2, st = DEN_STYLE[sp] || 'cabin';
+    const door = (col, o) => denDoor(t, Y, Math.min(1.9, W * 0.5), 4.2, col, o);
+    t.box(-X - 0.1, -Y - 0.1, d[0] ? -0.15 : -2.4, X + 0.1, Y + 0.7, 0, d[0] ? '#8a6a4a' : STONE2, d[0] ? M.plank : M.stone); // 窝底下的小木台（地上的是石头台）
+    if (st === 'cat') { t.box(-X, -Y, 0, X, Y, 5.4, '#d8a868', M.plank); t.box(-X - 0.15, -Y - 0.15, 5.4, X + 0.15, Y + 0.15, 5.8, '#a8704a', M.plank); for (let i = 0; i < 4; i++) t.quad([-X + (i * W) / 4, Y + 0.02, 5.3], [-X + ((i + 1) * W) / 4, Y + 0.02, 5.3], [-X + ((i + 1) * W) / 4, Y + 1.1, 4.5], [-X + (i * W) / 4, Y + 1.1, 4.5], i % 2 ? '#f4ead8' : '#e0604a', M.cloth); door('#c8603e'); t.blob(X - 0.6, -Y + 0.7, 6.2, 0.7, 0.5, '#f4ead8', M.cloth, 3, 3, 6); for (const k of [-1, 1]) t.tri([k * 1.2, -Y + 0.4, 5.8], [k * 1.2 + 0.6 * k, -Y + 0.4, 5.8], [k * 1.4, -Y + 0.4, 7], '#d8a868', M.plank); t.box(-X + 0.3, Y + 0.15, 2.4, -X + 0.9, Y + 0.32, 3.1, '#7fb8d8', 0); }
+    else if (st === 'dog') { t.box(-X, -Y, 0, X, Y, 5, '#c89a5a', M.plank); t.gable(-X, -Y, X, Y, 5, 2.6, 'v', '#b8403a', M.tile, 0.4, '#c89a5a', M.plank); door('#7a4a2e', { round: false }); t.box(-0.9, Y + 0.05, 5.2, 0.9, Y + 0.22, 5.9, '#f4e6c8', 0); t.box(X + 0.2, Y - 0.3, 0, X + 1.2, Y + 0.6, 0.35, '#f4ead8', 0); t.cyl(X + 0.4, Y + 1.2, 0, 0.5, 0.5, 0.55, '#5a8ac8', 0, 8); }
+    else if (st === 'rabbit') { t.blob(0, 0, -0.2, W * 0.58, 5.6, snow ? '#eef4fa' : '#6aac52', snow ? M.snow : M.grass, u0 * 3, 4, 10); door('#f08a3a'); for (const k of [-0.6, 0.6]) t.blob(k, -0.3, 5.2, 0.35, 1.6, '#f4ead8', 0, k * 9, 3, 5); t.cyl(X - 0.3, Y + 0.6, 0, 1.1, 0.28, 0.07, '#f08a3a', 0, 5); t.leaf([X - 0.3, Y + 0.6, 1.1], 1, 1.2, 0.6, '#5aa64e', 0.5); }
+    else if (st === 'hamster') { t.cyl(0, 0, 0, 5, W * 0.46, W * 0.46, '#f0d8a0', M.plaster, 12); t.cyl(0, 0, 5, 6.4, W * 0.5, W * 0.18, '#d8a050', M.plank, 12); t.cyl(0, 0, 6.4, 6.9, 0.35, 0.35, '#a8704a', 0, 6); door('#d8803a'); t.cyl(-X + 0.4, Y + 0.4, 0, 1.2, 0.55, 0.45, '#e8d0a0', M.cloth, 8); t.cyl(X - 0.2, Y + 0.6, 0.4, 0.45, 0.6, 0.6, '#c8c0b0', M.metal, 10); }
+    else if (st === 'penguin') { t.blob(0, -0.2, -0.3, W * 0.56, 5.4, '#eef4fa', M.snow, u0, 5, 10); t.box(-1.3, Y - 0.9, 0, 1.3, Y + 0.1, 4.6, '#e2ecf6', M.snow); door('#5ea8bc'); for (let k = 1; k < 4; k++) t.box(-X * 0.9, -Y * 0.9, k * 1.4, X * 0.9, Y - 1, k * 1.4 + 0.1, '#b4cce0', 0); }
+    else if (st === 'fox') { t.blob(0, -0.2, -0.2, W * 0.6, 5.2, snow ? '#eef4fa' : '#7a5a3e', snow ? M.snow : M.soil, u0 * 2, 4, 10); t.blob(-0.6, -0.8, 3.8, W * 0.4, 2, snow ? '#f4f8fc' : '#5aa64e', snow ? M.snow : M.grass, u0, 3, 8); for (let i = 0; i < 4; i++) t.vine([[-X + (i * W) / 3, -Y, 4.4], [-X + (i * W) / 3 + 0.2, Y, 0.2]], { cols: ['#6a4a30', '#5a4026'], seed: i + 400, gap: 1, ls: 0.3 }); door('#c8402e'); t.box(-X + 0.2, Y + 0.3, 0, -X + 0.36, Y + 0.46, 4.6, TIMBER, 0); t.box(-X + 0.02, Y + 0.12, 4.6, -X + 0.54, Y + 0.64, 5.2, '#ffe9a8', M.glow); }
+    else if (st === 'frog') { t.cyl(0, 0, 0, 4.4, W * 0.36, W * 0.4, '#f4ead8', M.plaster, 10); t.blob(0, 0, 4.4, W * 0.64, 2.6, '#e0503a', M.cloth, 7, 3, 10); for (let i = 0; i < 6; i++) t.disc(Math.cos(i) * W * 0.4, Math.sin(i) * W * 0.4 + 0.3, 5.8, 0.24, 'v', '#fff6e0', 0, 6); door('#5aa64e'); t.cyl(0, Y + 1.1, 0.02, 0.06, 0.9, 0.9, '#5aa64e', M.leaf, 10); }
+    else if (st === 'chick') { t.box(-X, -Y, 0, X, Y, 4.8, '#f6d860', M.plank); t.gable(-X, -Y, X, Y, 4.8, 2.4, 'u', '#e0604a', M.tile, 0.35, '#f6d860', M.plank); door('#a8603a', { round: false }); t.cyl(X - 0.6, -Y + 0.6, 6.2, 7.6, 0.06, 0.06, TIMBER, 0, 4); t.box(X - 0.6, -Y + 0.55, 7.4, X + 0.1, -Y + 0.65, 7.8, '#ffd36a', 0); for (let i = 0; i < 5; i++) t.box(-X - 0.1, Y + 0.3 + i * 0.1, 0.02, -X + 1.4, Y + 0.35 + i * 0.1, 0.06, '#e8c86a', 0); }
+    else if (st === 'duck') { t.box(-X, -Y, 0, X, Y, 4.8, '#f4ead8', M.plank); t.gable(-X, -Y, X, Y, 4.8, 2.4, 'v', '#4a8ac8', M.tile, 0.35, '#f4ead8', M.plank); door('#5ea8bc'); t.cyl(-X + 0.6, Y + 0.8, 0.02, 0.1, 0.8, 0.8, '#7fc0dc', M.water, 10); }
+    else if (st === 'pig') { t.box(-X, -Y, 0, X, Y, 4.8, '#c8906a', M.plaster); t.gable(-X - 0.2, -Y - 0.2, X + 0.2, Y + 0.2, 4.8, 2.8, 'u', '#e0c070', M.cloth, 0.5, '#c8906a', M.plaster); door('#8a5a3a', { round: false }); t.cyl(X - 0.1, Y + 0.7, 0.02, 0.12, 0.9, 0.9, '#7a5a3e', M.soil, 9); }
+    else if (st === 'capybara') { t.cyl(0, 0, 0, 6.6, W * 0.5, W * 0.12, '#c8a85a', M.cloth, 10); door('#8a5a3a', { round: false }); t.cyl(X + 0.1, Y + 0.3, 0, 0.9, 1.1, 1.1, '#a8784a', M.plank, 10); t.cyl(X + 0.1, Y + 0.3, 0.7, 0.75, 0.95, 0.95, '#9fd4f2', M.water, 10); }
+    else if (st === 'hedgehog') { const lc = ['#d8702a', '#e0a040', '#c85a2a', '#b8a040']; t.blob(0, 0, -0.2, W * 0.58, 5, '#a86a3a', M.soil, u0 * 5, 4, 10); for (let i = 0; i < 34; i++) { const a = H(i, u0) * 6.28, rr = H(u0, i) * W * 0.52; t.leaf([Math.cos(a) * rr * 0.9, Math.sin(a) * rr * 0.8 - 0.3, 3.6 + Math.sqrt(Math.max(0, 1 - (rr / (W * 0.58)) ** 2)) * 1.9], a, 0.25, 0.85, lc[i % 4], 0.3); } door('#8a5a3a'); t.ball(-X + 0.5, Y + 0.5, 0.45, 0.45, 0.45, '#e0402a', 0, 3, 6); t.cyl(-X + 0.5, Y + 0.5, 0.9, 1.15, 0.05, 0.05, TIMBER, 0, 3); t.leaf([-X + 0.6, Y + 0.5, 1.1], 0.6, 0.8, 0.4, '#5aa64e', 0.3); }
+    else if (st === 'turtle') { t.blob(0, 0, -0.1, W * 0.58, 4.8, '#5a9a5a', M.tile, 5, 4, 8); for (let i = 0; i < 6; i++) t.disc(Math.cos(i) * W * 0.3, Math.sin(i) * W * 0.3 - 0.2, 3.8, 0.55, 'v', '#86c26a', 0, 6); door('#a8784a'); }
+    else if (st === 'crab') { for (let i = 0; i < 4; i++) t.cyl(0, 0, i * 1.5, i * 1.5 + 1.6, W * (0.5 - i * 0.1), W * (0.45 - i * 0.1), i % 2 ? '#f2b8a0' : '#f8d4c4', 0, 10); door('#e07050'); t.blob(X - 0.3, Y + 0.4, 0, 0.4, 0.3, '#f4ead8', 0, 2, 3, 5); }
+    else if (st === 'octopus') { t.cyl(0, 0, 0, 5.6, W * 0.47, W * 0.47, '#8a5e3c', M.plank, 12); for (const hh of [1, 4]) t.cyl(0, 0, hh, hh + 0.3, W * 0.49, W * 0.49, '#4a4652', M.metal, 12); t.cyl(0, 0, 5.6, 5.7, W * 0.45, W * 0.45, '#7fc0dc', M.water, 12); door('#b0704a', { round: false }); t.disc(0, Y + 0.2, 3.1, 0.5, 'v', '#9fd4f2', M.glass, 10); }
+    else { t.box(-X, -Y, 0, X, Y, 5, '#d8b888', M.plank); t.gable(-X, -Y, X, Y, 5, 2.4, 'u', '#7a5a8a', M.tile, 0.35, '#d8b888', M.plank); door('#8a5a3a'); }
+  }
+  function slab(m, P, z, top, edge) { m.box(P[0], P[1], z - 0.6, P[2], P[3], z, top, M.plank); m.box(P[0] - 0.2, P[1] - 0.2, z - 1.2, P[2] + 0.2, P[3] + 0.2, z - 0.6, edge || TIMBER, 2); }
+  function castle(m, o, c) {
+    const { LEAF, IVY, HED, bloom, snow } = c, Z1 = CA.Z[1], Z2 = CA.Z[2], Z3 = CA.Z[3], TK = CA.TRUNK, tz = K.T.terrain;
+    const BARK = o.season === 'winter' ? '#6a4a36' : '#7a5236', RAIL = '#8a5e3c';
+    // —— 老树干：从地下一直穿到最顶上 ——
+    m.pk(PICK.tree);
+    m.cyl(TK.u, TK.v, -3, Z1, TK.r * 1.25, TK.r * 1.1, BARK, M.plank, 12); m.cyl(TK.u, TK.v, Z1, Z3 + 8, TK.r * 1.1, TK.r * 0.7, BARK, M.plank, 12);
+    for (const zz of [Z1, Z2]) for (let i = 0; i < 6; i++) { const a = i * 1.05 + 0.3; m.quad([TK.u + Math.cos(a) * TK.r * 0.9 - 0.3, TK.v + Math.sin(a) * TK.r * 0.9, zz + 1.8], [TK.u + Math.cos(a) * TK.r * 0.9 + 0.3, TK.v + Math.sin(a) * TK.r * 0.9, zz + 1.8], [TK.u + Math.cos(a) * TK.r * 1.9 + 0.15, TK.v + Math.sin(a) * TK.r * 1.9, zz], [TK.u + Math.cos(a) * TK.r * 1.9 - 0.15, TK.v + Math.sin(a) * TK.r * 1.9, zz], BARK, M.plank); }
+    for (const [a, len, zz] of [[0.4, 6.5, Z3 + 4], [2.2, 5.8, Z3 + 6], [3.6, 6.2, Z3 + 3], [5.2, 5.4, Z3 + 7]]) { const eu = TK.u + Math.cos(a) * len, ev = TK.v + Math.sin(a) * len * 0.8; m.quad([TK.u - 0.4, TK.v, zz - 2], [TK.u + 0.4, TK.v, zz - 2], [eu + 0.14, ev, zz + 4], [eu - 0.14, ev, zz + 4], BARK, M.plank); }
+    if (o.season !== 'winter') { for (const [a, b, zz, r, n] of [[0, -1.8, Z3 + 14, 5.8, 300], [-5, 0, Z3 + 11, 3.8, 170], [5, -1, Z3 + 11.5, 3.9, 170], [-1.6, -5.2, Z3 + 12, 3.8, 160], [2.4, 3, Z3 + 10.5, 3.2, 130], [0.6, -1, Z3 + 18.5, 3.2, 130]]) m.foliage(TK.u + a, TK.v + b, zz, r, r * 1.45, LEAF, n, a * 7 + b, 0.9); }
+    else { for (let i = 0; i < 12; i++) m.quad([TK.u, TK.v, Z3 + 8], [TK.u + 0.15, TK.v, Z3 + 8], [TK.u + Math.cos(i * 0.52) * 5.5, TK.v + Math.sin(i * 0.52) * 4.4, Z3 + 13 + (i % 3) * 2], [TK.u + Math.cos(i * 0.52) * 5.5 - 0.1, TK.v + Math.sin(i * 0.52) * 4.4, Z3 + 13 + (i % 3) * 2], BARK, M.plank); }
+    // 树顶上的风向标
+    { const u = TK.u, v = TK.v, zz = Z3 + 8; m.box(u - 0.08, v - 0.08, zz, u + 0.08, v + 0.08, zz + 12.5, '#4a4652', M.metal); m.box(u - 0.08, v - 1.2, zz + 12, u + 0.08, v + 1.2, zz + 12.2, '#4a4652', M.metal); m.tri([u, v + 1.2, zz + 12.5], [u, v + 1.2, zz + 11.7], [u, v + 1.9, zz + 12.1], '#e8b84a', M.metal); m.tri([u, v - 1.2, zz + 12.6], [u, v - 1.2, zz + 11.6], [u, v - 1.7, zz + 12.1], '#e8b84a', M.metal); }
+    m.pk(0);
+    // —— 一层屋顶 = 露台（lv1）——
+    const T1 = CA.T1; slab(m, T1, Z1, '#a8784a'); for (let u = T1[0] + 1; u < T1[2]; u += 1.8) m.box(u, T1[1], Z1 + 0.01, u + 0.06, T1[3], Z1 + 0.03, '#8a5e3c', 0);
+    m.rail(T1[0] + 0.2, T1[3], 15.2, T1[3], Z1, 3, RAIL); m.rail(24.6, T1[3], T1[2], T1[3], Z1, 3, RAIL); hedge(m, 15.6, T1[3] - 0.5, 24.2, T1[3] - 0.5, Z1, HED, 61, 0.6);
+    const L1 = CA.LAND1; slab(m, L1, Z1, '#a8784a'); posts(m, [[L1[2] - 0.2, L1[1] + 0.2]], 0, Z1 - 0.6, TIMBER, 0.2); m.rail(L1[2], L1[1], L1[2], L1[3], Z1, 3, RAIL); m.rail(L1[0], L1[1], L1[2], L1[1], Z1, 3, RAIL);
+    { const R = CA.R01; m.stairs(R.lo, R.hi, R.u0, R.u1, 0, Z1, 'v', '#9a6a44', 16, true); m.rail(R.u1 + 0.1, R.lo, R.u1 + 0.1, R.hi, 0, 3.2, RAIL); for (const v of [R.lo - 2.5, (R.lo + R.hi) / 2]) posts(m, [[R.u1 - 0.1, v]], 0, (Z1 * (R.lo - v)) / (R.lo - R.hi) - 1.2, TIMBER, 0.15); }
+    // —— 左边的「窝楼」：架在小河上的高脚木台，两层，和露台、二层连成一片 ——
+    const W1 = CA.WING1;
+    slab(m, W1, Z1, '#b08058');
+    for (const [u, v] of [[W1[0] + 0.3, W1[1] + 0.3], [W1[0] + 0.3, W1[3] - 0.3], [W1[0] + 4.2, W1[3] - 0.3], [W1[2] - 0.6, W1[3] - 0.3], [W1[0] + 4.2, W1[1] + 0.3], [W1[2] - 0.6, W1[1] + 0.3]]) { const gz = tz(u, v) - 1; m.box(u - 0.26, v - 0.26, gz, u + 0.26, v + 0.26, Z1 - 0.6, TIMBER, 2); m.cyl(u, v, gz, gz + 1.2, 0.5, 0.3, STONE2, M.stone, 6); }
+    for (const [a, b] of [[W1[0] + 0.3, W1[1] + 0.3], [W1[0] + 0.3, W1[3] - 0.3]]) m.quad([a, b, tz(a, b) + 1.5], [a, b + 0.2, tz(a, b) + 1.5], [a + 4, b + 0.2, Z1 - 1.2], [a + 4, b, Z1 - 1.2], TIMBER, 2);
+    m.rail(W1[0], W1[1], W1[0], W1[3], Z1, 3, RAIL); m.rail(W1[0], W1[3], W1[2], W1[3], Z1, 3, RAIL); m.rail(W1[0], W1[1], W1[2], W1[1], Z1, 3, RAIL);
+    if (!snow) for (let i = 0; i < 5; i++) m.vine([[W1[0] + 1 + i * 1.9, W1[3] + 0.1, Z1 - 0.9], [W1[0] + 1.3 + i * 1.9, W1[3] + 0.2, Z1 - 1.4]], { cols: IVY, seed: i + 520, gap: 0.6, ls: 0.6, drop: 3 + (i % 3) * 2, bloom: i % 2 ? bloom : null });
+    m.box(10.1, 17.1, Z1, 11.2, 18.2, Z1 + 1.2, '#8a5e3c', M.plank); m.foliage(10.65, 17.65, Z1 + 1.8, 0.7, 1.2, ['#f2a6c2', '#5aa64e', '#86cc6a'], 14, 7, 0.5); // 花盆
+    // —— 厨房 ——
+    const KI = CA.KIT; m.box(KI.u0, KI.v0, Z1, KI.u1, KI.v1, Z1 + KI.h, '#f0d8b8', M.plaster); m.box(KI.u0 - 0.1, KI.v0 - 0.1, Z1, KI.u1 + 0.1, KI.v1 + 0.1, Z1 + 1.6, '#b8705a', M.stone);
+    for (const t of [0, 1]) m.box(KI.u0 + t * (KI.u1 - KI.u0) - 0.2, KI.v1, Z1, KI.u0 + t * (KI.u1 - KI.u0) + 0.2, KI.v1 + 0.22, Z1 + KI.h, TIMBER, 2);
+    m.pk(PICK.kdoor); denDoor(new LT(m, KI.door, KI.v1 - 0.01, 0, Z1), 0, 2, 5, '#5a8a6a'); m.pk(0);
+    m.win('v', 12.9, 13.9, Z1 + 3.4, Z1 + 6.6, KI.v1, { shut: '#5a8a6a', box: FLOW[1] });
+    m.win('u', 10.4, 12.6, Z1 + 3.4, Z1 + 6.6, KI.u1, {});
+    m.quad([KI.u0 - 0.2, KI.v1 + 1.5, Z1 + KI.h - 2], [KI.u1 + 0.2, KI.v1 + 1.5, Z1 + KI.h - 2], [KI.u1 + 0.2, KI.v1, Z1 + KI.h - 0.8], [KI.u0 - 0.2, KI.v1, Z1 + KI.h - 0.8], '#d8a040', M.cloth);
+    { const C = CA.CHIM; m.box(C.u - 0.8, C.v - 0.8, Z1, C.u + 0.8, C.v + 0.8, Z2 + 8, '#b8705a', M.stone); m.box(C.u - 1, C.v - 1, Z2 + 8, C.u + 1, C.v + 1, Z2 + 8.8, STONE2, M.stone); m.cyl(C.u, C.v, Z2 + 8.8, Z2 + 10.4, 0.45, 0.35, '#3a3448', M.metal, 7); K.CHIMNEY = [C.u, C.v, Z2 + 10.4]; }
+    // —— 浴室：小木屋，舷窗、铜管 ——
+    const BA = CA.BATH; m.box(BA.u0, BA.v0, Z1, BA.u1, BA.v1, Z1 + BA.h, '#cfe0e8', M.plaster); for (let i = 0; i < 6; i++) m.box(BA.u0, BA.v1, Z1 + 0.6 + i * 1.4, BA.u1, BA.v1 + 0.12, Z1 + 0.7 + i * 1.4, '#a8c0cc', 0);
+    m.pk(PICK.bdoor); denDoor(new LT(m, BA.door, BA.v1 - 0.01, 0, Z1), 0, 1.7, 4.8, '#4a8ac8', { lamp: false }); m.pk(0);
+    m.disc(BA.u1 + 0.05, (BA.v0 + BA.v1) / 2, Z1 + 5.4, 0.7, 'u', '#b0704a', M.metal, 10); m.disc(BA.u1 + 0.1, (BA.v0 + BA.v1) / 2, Z1 + 5.4, 0.52, 'u', '#cfeaf8', M.glass, 10);
+    m.cyl(BA.u1 - 0.5, BA.v1 - 0.3, Z1, Z3 - 0.6, 0.2, 0.2, COPPER, M.metal, 6);
+    // —— 二层（lv2）——
+    const P2 = CA.P2, L2 = CA.LAND2; slab(m, P2, Z2, '#b88a5a'); slab(m, L2, Z2, '#b88a5a');
+    for (let u = P2[0] + 0.9; u < P2[2]; u += 1.5) m.box(u, P2[1], Z2 + 0.01, u + 0.05, P2[3], Z2 + 0.03, '#9a6a44', 0);
+    for (const [u, v] of [[P2[2] - 0.3, P2[3] - 0.3], [L2[0] + 0.3, L2[3] - 0.3], [L2[2] - 0.3, L2[3] - 0.3], [P2[2] - 0.3, P2[1] + 0.3]]) m.box(u - 0.22, v - 0.22, Z1 - 0.6, u + 0.22, v + 0.22, Z2 - 0.6, TIMBER, 2);
+    m.rail(L2[0], L2[3], L2[0], P2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[3], L2[0], P2[3], Z2, 2.8, RAIL); m.rail(L2[2], P2[3], P2[2], P2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[1], P2[0], P2[3], Z2, 2.8, RAIL); m.rail(P2[2], P2[1], P2[2], P2[3], Z2, 2.8, RAIL); m.rail(L2[2], L2[1], L2[2], L2[3], Z2, 2.8, RAIL); m.rail(P2[0], P2[1], P2[2], P2[1], Z2, 2.8, RAIL);
+    if (!snow) for (let i = 0; i < 6; i++) m.vine([[P2[0] + 6 + i * 1.6, P2[3] + 0.1, Z2 - 0.9], [P2[0] + 6.3 + i * 1.6, P2[3] + 0.2, Z2 - 1.4]], { cols: IVY, seed: i + 500, gap: 0.6, ls: 0.6, drop: 3 + (i % 3) * 1.5, bloom: i % 2 ? bloom : null });
+    { const R = CA.R12; m.stairs(R.lo, R.hi, R.v0, R.v1, Z1, Z2, 'u', '#9a6a44', 14, true); m.rail(R.lo, R.v0 - 0.1, R.hi, R.v0 - 0.1, Z1, 2.6, RAIL); }
+    // —— 瞭望台（lv3）：在前面右边高高架起来；楼梯从二层的前平台斜着上去 ——
+    const P3 = CA.P3; slab(m, P3, Z3, '#c49a6a');
+    for (const [u, v] of [[P3[0] + 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[3] - 0.3], [P3[2] - 0.3, P3[1] + 0.3], [P3[0] + 0.3, P3[1] + 0.3]]) { m.box(u - 0.24, v - 0.24, Z1 - 0.6, u + 0.24, v + 0.24, Z3 - 0.6, TIMBER, 2); } m.quad([P3[0] + 0.3, P3[1] + 0.3, Z1 + 1], [P3[0] + 0.3, P3[1] + 0.6, Z1 + 1], [P3[2] - 0.3, P3[3] - 0.6, Z3 - 1], [P3[2] - 0.3, P3[3] - 0.3, Z3 - 1], TIMBER, 2);
+    m.box(P3[2] - 0.55, P3[3] - 0.55, -0.4, P3[2] - 0.05, P3[3] - 0.05, Z1 - 0.6, TIMBER, 2);
+    { const R = CA.R23; m.stairs(R.lo, R.hi, R.v0, R.v1, Z2, Z3, 'u', '#9a6a44', 14, true); m.rail(R.lo, R.v1 + 0.1, R.hi, R.v1 + 0.1, Z2, 2.6, RAIL); }
+    m.rail(P3[0], P3[1], P3[2], P3[1], Z3, 3, RAIL); m.rail(P3[0], P3[3], P3[2], P3[3], Z3, 3, RAIL); m.rail(P3[2], P3[1], P3[2], 13.2, Z3, 3, RAIL); m.rail(P3[2], 15.2, P3[2], P3[3], Z3, 3, RAIL); m.rail(P3[0], P3[1], P3[0], 18.2, Z3, 3, RAIL);
+    { const B = CA.BOILER; m.cyl(B.u, B.v, Z3, Z3 + 4.2, 0.85, 0.85, COPPER, M.metal, 12); m.cyl(B.u, B.v, Z3 + 4.2, Z3 + 4.9, 0.85, 0.4, '#8a5a3a', M.metal, 12); for (const hh of [1, 3]) m.cyl(B.u, B.v, Z3 + hh, Z3 + hh + 0.25, 0.9, 0.9, '#4a4652', M.metal, 12); m.disc(B.u, B.v + 0.85, Z3 + 1.8, 0.32, 'v', '#ff9a4a', M.glow, 8); m.cyl(B.u - 0.3, B.v, Z3 + 4.9, Z3 + 8, 0.26, 0.26, '#4a4652', M.metal, 6); K.STEAM = [B.u - 0.3, B.v, Z3 + 8]; }
+    // 热气球码头：从瞭望台右边伸出去的木栈桥，气球拴在桥头（在玻璃花房上空）
+    const BL = K.BALLOON; m.box(P3[2], BL.v - 0.9, Z3 - 0.5, BL.u + 1.4, BL.v + 0.9, Z3, '#b88a5a', M.plank); m.box(BL.u + 1.2, BL.v - 0.9, Z3 - 2.6, BL.u + 1.5, BL.v - 0.6, Z3 + 2.6, TIMBER, 2);
+    m.pk(PICK.balloon); m.box(BL.u - 0.9, BL.v - 0.9, Z3, BL.u + 0.9, BL.v + 0.9, Z3 + 2.2, '#c89a5a', M.cloth); m.box(BL.u - 1, BL.v - 1, Z3 + 2.2, BL.u + 1, BL.v + 1, Z3 + 2.6, DARK, 2);
+    if (!o.tripping) { for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.quad([BL.u + a * 0.9 - 0.04, BL.v + b * 0.9, Z3 + 2.6], [BL.u + a * 0.9 + 0.04, BL.v + b * 0.9, Z3 + 2.6], [BL.u + a * 1.5 + 0.04, BL.v + b * 1.5, Z3 + 8], [BL.u + a * 1.5 - 0.04, BL.v + b * 1.5, Z3 + 8], '#d8c8a0', 0); m.blob(BL.u, BL.v, Z3 + 13, 3, 7, '#e8705a', M.cloth, 4, 6, 10); m.blob(BL.u, BL.v, Z3 + 13.4, 3.05, 2.6, '#ffd36a', M.cloth, 4, 4, 10); }
+    m.pk(0);
+    // —— 几座圆塔：石头底座、灰泥塔身、一圈木头腰线、小窗，尖尖的瓦顶上插一面小旗 ——
+    CA.TOWERS.forEach(([u, v, r, top, rc], i) => { const gz = tz(u, v) - 1.5; m.cyl(u, v, gz, gz + 4, r * 1.12, r * 1.05, STONE, M.stone, 12); m.cyl(u, v, gz + 4, top, r, r, i === 1 ? '#f0e2c4' : '#e8d6b4', M.plaster, 12);
+      for (const hh of [gz + 4, top - 0.4]) m.cyl(u, v, hh, hh + 0.5, r + 0.08, r + 0.08, TIMBER, 2, 12);
+      for (let k = 0; k < 3; k++) { const zz = gz + 7 + k * ((top - gz - 9) / 2.5), a = 0.6 + k * 0.5; m.disc(u + Math.cos(a) * (r + 0.02), v + Math.sin(a) * (r + 0.02), zz, 0.42, Math.abs(Math.cos(a)) > Math.abs(Math.sin(a)) ? 'u' : 'v', '#ffe9a8', M.glow, 8); }
+      m.cyl(u, v, top, top + 0.3, r + 0.6, r + 0.6, shade(rc, 0.7), M.tile, 12); m.cyl(u, v, top + 0.3, top + r * 3.6, r + 0.5, 0.05, rc, M.tile, 12);
+      const fz = top + r * 3.6; m.box(u - 0.05, v - 0.05, fz - 0.4, u + 0.05, v + 0.05, fz + 2.4, '#4a4652', M.metal); m.tri([u, v, fz + 2.4], [u, v, fz + 1.5], [u + 1.3, v + 0.1, fz + 2.0], ['#e0604a', '#ffd36a', '#f2a6c2'][i % 3], M.cloth);
+      if (!snow) m.vine([[u + r * 0.7, v + r * 0.7, gz + 4], [u + r * 0.75, v + r * 0.7, gz + 9], [u + r * 0.6, v + r * 0.8, top - 2]], { cols: IVY, seed: 600 + i, gap: 0.5, ls: 0.6, bloom }); });
+    // 窝楼通到圆塔的一小段吊桥
+    { const [u, v] = CA.TOWERS[0]; for (let k = 0; k < 6; k++) { const a = CA.WING1[0] + 0.2, t0 = k / 6, t1 = (k + 0.85) / 6, sag = Math.sin(((t0 + t1) / 2) * Math.PI) * 0.6; m.box(a - 0.8 + (u + 1 - a) * 0, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t0, Z1 - 0.7 - sag, a + 0.4, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t1, Z1 - 0.5 - sag, '#a8784a', M.plank); } }
+    // 二层前沿挂一串小灯笼、几面三角小旗
+    { const P2 = CA.P2; for (let k = 0; k < 9; k++) { const u = P2[0] + 1 + k * 1.8, v = P2[3] + 0.15, sag = Math.sin((k / 8) * Math.PI) * 0.8; if (k % 2) m.box(u - 0.22, v - 0.22, Z2 - 2.4 - sag, u + 0.22, v + 0.22, Z2 - 1.8 - sag, '#ffe9a8', M.glow); else m.tri([u - 0.5, v, Z2 - 1.3 - sag], [u + 0.5, v, Z2 - 1.3 - sag], [u, v, Z2 - 2.4 - sag], ['#e0604a', '#ffd36a', '#5aa6d8', '#f2a6c2'][k % 4], M.cloth); } }
+    // —— 每只动物自己的窝 ——
+    (o.dens || []).forEach((sp, i) => { const d = CA.DENS[i]; if (!d || !sp) return; m.pk(CA.PICK_DEN + i); den(m, sp, d, CA.denZ(d), snow); m.pk(0); });
+  }
+  const sea2col = (s) => (s === 'winter' ? '#6a4a36' : '#7a5236');
 
   // ---------- 室外：长满草的浮岛 ----------
   function deck(o) {
@@ -153,8 +312,9 @@
       for (let s2 = 0; s2 <= N2; s2++) { const t = s2 / N2, [u, v] = P(t), [u2, v2] = P(Math.min(1, t + 0.02)), [u1, v1] = P(Math.max(0, t - 0.02)), du = u2 - u1, dv = v2 - v1, l = Math.hypot(du, dv) || 1, w = w0 + (w1 - w0) * t, nu = -dv / l * w, nv = du / l * w, z = Math.max(K.POND.z, tz(u, v) + lift);
         const Lp = [u + nu, v + nv, z], Rp = [u - nu, v - nv, z]; if (L0) m.quad(L0, R0_, Rp, Lp, WC, WM); L0 = Lp; R0_ = Rp; }
     };
-    m.pk(PICK.fish);
+    m.pk(PICK.river);
     ribbon(Tt.RIVER, 0.7, 0.95, 0.55);
+    m.pk(PICK.fish);
     { // 水塘：不规则的一汪水
       const n = 40, P = K.POND, pts = []; for (let i = 0; i <= n; i++) { const a = (i / n) * 6.2832, k = 1 + 0.12 * Math.sin(3 * a + 1) + 0.08 * Math.sin(5 * a); pts.push([P.cu + Math.cos(a) * P.ru * k, P.cv + Math.sin(a) * P.rv * k, P.z]); }
       for (let i = 0; i < n; i++) m.tri([P.cu, P.cv, P.z], pts[i], pts[i + 1], WC, WM);
@@ -187,29 +347,19 @@
     const S = HOUSE, uL = S.u1 - S.u0, vL = S.v1 - S.v0, z0 = 0.25, z1 = z0 + S.h1, z2 = z1 + S.h2;
     m.box(S.u0 - 0.2, S.v0 - 0.2, -1.6, S.u1 + 0.2, S.v1 + 0.2, z0 + 1.6, STONE, M.stone);
     m.box(S.u0, S.v0, z0, S.u1, S.v1, z1, PLAS, M.plaster);
-    m.box(S.u0 - 0.4, S.v0 - 0.4, z1, S.u1 + 0.4, S.v1 + 0.4, z2, PLAS2, M.plaster); m.box(S.u0 - 0.5, S.v0 - 0.5, z1 - 0.5, S.u1 + 0.5, S.v1 + 0.5, z1 + 0.5, TIMBER, 2);
-    for (const t of [0, 0.33, 0.66, 1]) { const u = S.u0 - 0.3 + t * (uL + 0.6); m.box(u - 0.18, S.v1 + 0.4, z1, u + 0.18, S.v1 + 0.52, z2, TIMBER, 2); } for (const t of [0, 0.5, 1]) { const v = S.v0 - 0.3 + t * (vL + 0.6); m.box(S.u1 + 0.4, v - 0.18, z1, S.u1 + 0.52, v + 0.18, z2, TIMBER, 2); }
-    m.quad([S.u0 + 0.3, S.v1 + 0.46, z1 + 0.6], [S.u0 + 0.7, S.v1 + 0.46, z1 + 0.6], [S.u0 + 4.4, S.v1 + 0.46, z2], [S.u0 + 4, S.v1 + 0.46, z2], TIMBER, 2);
-    m.gable(S.u0 - 0.4, S.v0 - 0.4, S.u1 + 0.4, S.v1 + 0.4, z2, 9, 'u', ROOF, RM, 0.9, PLAS2, M.plaster);
-    { const mid = (S.v0 + S.v1) / 2; m.win('u', mid - 0.7, mid + 0.7, z2 + 2, z2 + 5, S.u1 + 0.4, { arch: 1 }); }
-    m.box(16.2, 17.4, z2 + 1.5, 19, 20.6, z2 + 4.6, PLAS2, M.plaster); m.gable(16.2, 17.4, 19, 20.6, z2 + 4.6, 1.8, 'v', ROOF, RM, 0.3, PLAS2, M.plaster); m.win('v', 17, 18.2, z2 + 2.2, z2 + 4, 20.6, {});
-    m.box(19.3, 9.4, z2 + 2, 21, 11, z2 + 14, BRICK, M.stone); m.box(19.1, 9.2, z2 + 14, 21.2, 11.2, z2 + 15, STONE2, M.stone); m.cyl(20.15, 10.2, z2 + 15, z2 + 17, 0.5, 0.4, '#3a3448', M.metal, 7); K.CHIMNEY = [20.15, 10.2, z2 + 17];
+    castle(m, o, { LEAF, IVY, HED, ROOF, RM, bloom, snow, sea });
     const du = K.DOOR.u;
     m.pk(PICK.door); m.box(du - 1.1, S.v1, z0, du + 1.1, S.v1 + 0.22, z0 + 7.6, '#8a5a3a', M.plank); m.box(du - 1.35, S.v1 + 0.05, z0, du - 1.1, S.v1 + 0.34, z0 + 8, TIMBER, 2); m.box(du + 1.1, S.v1 + 0.05, z0, du + 1.35, S.v1 + 0.34, z0 + 8, TIMBER, 2); m.box(du - 1.5, S.v1 + 0.05, z0 + 7.6, du + 1.5, S.v1 + 0.4, z0 + 8.4, TIMBER, 2); m.disc(du, S.v1 + 0.26, z0 + 5.6, 0.36, 'v', '#ffe9a8', M.glass, 8); m.box(du + 0.6, S.v1 + 0.22, z0 + 3.4, du + 0.78, S.v1 + 0.36, z0 + 3.8, '#c8a050', M.metal); m.pk(0);
     m.box(du - 1.6, S.v1, -0.2, du + 1.6, S.v1 + 1.5, z0 + 0.3, STONE, M.stone); m.box(du + 1.6, S.v1 + 0.3, z0 + 6.4, du + 2, S.v1 + 0.7, z0 + 7.6, '#ffe9a8', M.glow);
     m.quad([du - 2, S.v1, z0 + 8.6], [du + 2, S.v1, z0 + 8.6], [du + 2, S.v1 + 1.7, z0 + 7.8], [du - 2, S.v1 + 1.7, z0 + 7.8], ROOF2, RM);
     S.fv.forEach((t) => { const c = S.u0 + t * uL; m.win('v', c - 0.9, c + 0.9, z0 + 4, z0 + 8, S.v1, { shut: '#5a7a8a', box: FLOW[2] }); });
-    S.fv2.forEach((t, i) => { const c = S.u0 + t * uL; m.win('v', c - 0.8, c + 0.8, z1 + 2.6, z1 + 6.4, S.v1 + 0.4, { box: i === 1 ? FLOW[0] : null }); });
     S.fu.forEach((t) => { const c = S.v0 + t * vL; m.win('u', c - 0.9, c + 0.9, z0 + 4, z0 + 8, S.u1, { shut: '#5a7a8a' }); });
-    S.fu2.forEach((t) => { const c = S.v0 + t * vL; m.win('u', c - 0.8, c + 0.8, z1 + 2.6, z1 + 6.4, S.u1 + 0.4, {}); });
     // 木桶、木箱、柴堆（靠着屋子侧面）
-    for (const [u, v, h] of [[25.9, 17.2, 2.4], [26.4, 18.8, 2]]) { m.cyl(u, v, 0, h, 0.7, 0.75, '#8a5e3c', M.plank, 9); m.cyl(u, v, h * 0.3, h * 0.3 + 0.2, 0.78, 0.78, '#4a4652', M.metal, 9); }
-    m.box(25.6, 14, 0, 27.2, 15.6, 1.6, '#a8784a', M.plank); for (let i = 0; i < 4; i++) m.box(25.8, 10.4 + i * 0.75, 0, 26.9, 11.05 + i * 0.75, 2.2 - (i % 2) * 0.4, i % 2 ? '#a8784a' : '#8a5e3c', M.plank);
+    for (const [u, v, h] of [[11.2, 18.6, 2.4], [10.6, 17.1, 2]]) { m.cyl(u, v, 0, h, 0.7, 0.75, '#8a5e3c', M.plank, 9); m.cyl(u, v, h * 0.3, h * 0.3 + 0.2, 0.78, 0.78, '#4a4652', M.metal, 9); }
     // 爬藤、屋顶的苔藓
-    m.vine([[S.u0 + 0.4, S.v1 + 0.3, z0], [S.u0 + 0.6, S.v1 + 0.5, z0 + 8], [S.u0 + 2.4, S.v1 + 0.6, z0 + 13], [S.u0 + 1.4, S.v1 + 0.6, z2], [S.u0 + 3, S.v1 + 1, z2 + 3]], { cols: IVY, seed: 2, gap: 0.5, ls: 0.6 });
-    m.vine([[S.u1 + 0.2, S.v1 - 0.5, z0], [S.u1 + 0.3, S.v1 - 1, z0 + 10], [S.u1 + 0.5, S.v1 - 3, z2 - 2], [S.u1 + 0.5, S.v1 - 1.6, z2 + 1]], { cols: IVY, seed: 5, gap: 0.5, ls: 0.6 });
-    m.vine([[S.u0, S.v1 + 0.9, z2 - 0.6], [S.u1, S.v1 + 0.9, z2 - 0.6]], { cols: IVY, seed: 7, gap: 1.1, ls: 0.5, drop: 4, bloom });
-    if (!snow) for (let i = 0; i < 26; i++) { const u = S.u0 + H(i, 1) * uL, t = H(1, i), v = S.v1 + 0.9 - t * 5; m.leaf([u, v, z2 - 0.9 + t * 5 * 9 / 6.4 + 0.25], H(i, 2) * 6, 0.15, 0.7, i % 3 ? '#6a9a50' : '#8ab860', 0.2); }
+    m.vine([[S.u0 + 0.4, S.v1 + 0.3, z0], [S.u0 + 0.6, S.v1 + 0.5, z0 + 6], [S.u0 + 2.4, S.v1 + 0.6, z1 - 0.5]], { cols: IVY, seed: 2, gap: 0.5, ls: 0.6 });
+    m.vine([[S.u1 + 0.2, S.v1 - 0.5, z0], [S.u1 + 0.3, S.v1 - 1, z0 + 7], [S.u1 + 0.4, S.v1 - 3, z1 - 0.5]], { cols: IVY, seed: 5, gap: 0.5, ls: 0.6 });
+    m.vine([[S.u0, S.v1 + 0.5, z1 - 0.2], [S.u1, S.v1 + 0.5, z1 - 0.2]], { cols: IVY, seed: 7, gap: 1.1, ls: 0.5, drop: 4, bloom });
 
     // —— 玻璃花房：坐在右后方的小山顶上 ——
     const Gh = GH, gz = GH.z;
@@ -233,9 +383,6 @@
     posts(m, [[Tk.u - 1.3, Tk.v], [Tk.u + 1.3, Tk.v]], wz + 2.4, 4.6, DARK, 0.14); m.gable(Tk.u - 1.8, Tk.v - 1, Tk.u + 1.8, Tk.v + 1, wz + 7, 1.8, 'u', ROOF, RM, 0.3);
     m.box(Tk.u - 1.2, Tk.v - 0.08, wz + 5.6, Tk.u + 1.2, Tk.v + 0.08, wz + 5.8, DARK, 2); m.cyl(Tk.u, Tk.v, wz + 3.4, wz + 4.4, 0.45, 0.5, '#8a5e3c', M.plank, 7); m.pk(0);
     const B = K.MAILB, bz = tz(B.u, B.v); m.pk(PICK.mail); m.box(B.u - 0.14, B.v - 0.14, bz, B.u + 0.14, B.v + 0.14, bz + 5, DARK, 2); m.box(B.u - 0.9, B.v - 0.55, bz + 5, B.u + 0.9, B.v + 0.55, bz + 6.9, '#e0604a', 0); m.box(B.u - 0.9, B.v + 0.55, bz + 5.1, B.u + 0.9, B.v + 0.62, bz + 6.6, '#f4e6c8', 0); m.box(B.u + 0.9, B.v - 0.1, bz + 6, B.u + 1, B.v + 0.1, bz + 8.4, '#ffd36a', 0); m.pk(0);
-    const BL = K.BALLOON, lz = tz(BL.u, BL.v); m.pk(PICK.balloon); m.box(BL.u - 1, BL.v - 1, lz, BL.u + 1, BL.v + 1, lz + 2.4, '#c89a5a', M.cloth); m.box(BL.u - 1.1, BL.v - 1.1, lz + 2.4, BL.u + 1.1, BL.v + 1.1, lz + 2.8, DARK, 2);
-    if (!o.tripping) { for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.quad([BL.u + a - 0.04, BL.v + b, lz + 2.8], [BL.u + a + 0.04, BL.v + b, lz + 2.8], [BL.u + a * 1.6 + 0.04, BL.v + b * 1.6, lz + 9], [BL.u + a * 1.6 - 0.04, BL.v + b * 1.6, lz + 9], '#d8c8a0', 0); m.blob(BL.u, BL.v, lz + 15, 3.2, 8, '#e8705a', M.cloth, 4, 6, 10); m.blob(BL.u, BL.v, lz + 15.4, 3.25, 3, '#ffd36a', M.cloth, 4, 4, 10); }
-    m.pk(0);
     K.PLOTZ = K.PLOTS.map(([pu, pv]) => tz(pu + K.PS / 2, pv + K.PS / 2));
     // —— 菜地：一块块围着木框的地 ——
     K.PLOTS.forEach(([pu, pv], i) => {
@@ -256,7 +403,7 @@
     for (let i = 0; i < 5; i++) { const a = i * 1.3 + 0.6, u = TR.u + Math.cos(a) * 2, v = TR.v + Math.sin(a) * 2, z = tz(u, v); m.cyl(u, v, z, z + 0.7 + (i % 2) * 0.4, 0.09, 0.09, '#f4ead8', 0, 4); m.cyl(u, v, z + 0.7 + (i % 2) * 0.4, z + 1.2 + (i % 2) * 0.4, 0.34, 0.06, i % 2 ? '#e0604a' : '#d8a060', 0, 7); }
     // 山上的小树林（泉眼那座山、花房那座山）
     const smallTree = (u, v, s, kind, seed) => { const z = tz(u, v); m.cyl(u, v, z - 0.3, z + 6 * s, 0.38 * s, 0.24 * s, kind === 'birch' ? '#e8e2d6' : '#7a5236', 2, 6); if (kind === 'pine') { for (let i = 0; i < 4; i++) m.cyl(u, v, z + (3 + i * 2.6) * s, z + (7 + i * 2.6) * s, (2.3 - i * 0.45) * s, 0.05, snow ? '#e8f0f6' : ['#2f6a3e', '#3a7a48', '#2a5e38', '#447e50'][i], M.leaf, 9); } else if (sea === 'winter') m.foliage(u, v, z + 9 * s, 1.8 * s, 3 * s, ['#eef4fa', '#dce8f2'], 26, seed, 0.7); else m.foliage(u, v, z + 9 * s, 2 * s, 4 * s, kind === 'blossom' && sea === 'spring' ? ['#f2b6d0', '#f8cce0', '#e8a0c0'] : LEAF, 60, seed, 0.62); };
-    for (const [u, v, s, k] of [[3.4, 11, 0.9, 'pine'], [5, 5, 1, 'pine'], [10.4, 4.4, 0.8, 'birch'], [11, 12.8, 0.7, 'blossom'], [2.8, 16, 0.75, 'pine'], [38.2, 4.2, 0.85, 'pine'], [42.4, 8, 0.7, 'birch'], [23.4, 2.6, 0.75, 'blossom'], [4.6, 33, 0.8, 'blossom'], [44, 27.6, 0.65, 'pine']]) if (Tt.inIsle(u, v, 0.8)) smallTree(u, v, s, k, u * 7 + v);
+    for (const [u, v, s, k] of [[5, 5, 1, 'pine'], [10.4, 4.4, 0.8, 'birch'], [2.8, 16, 0.75, 'pine'], [38.2, 4.2, 0.85, 'pine'], [42.4, 8, 0.7, 'birch'], [23.4, 2.6, 0.75, 'blossom'], [4.6, 33, 0.8, 'blossom'], [44, 27.6, 0.65, 'pine']]) if (Tt.inIsle(u, v, 0.8)) smallTree(u, v, s, k, u * 7 + v);
     // 灌木、花丛、草、小石头
     for (const [u, v, r, fl] of [[11.4, 20.4, 0.75, 1], [25.6, 21.4, 0.7, 0], [9.2, 15.4, 0.8, 1], [36.6, 20, 0.7, 1], [42.6, 20.4, 0.6, 0], [26, 38, 0.7, 1], [30.4, 37.4, 0.65, 0], [13.8, 29.4, 0.6, 1], [2.6, 22.4, 0.6, 0], [41, 31.4, 0.7, 1]]) if (Tt.inIsle(u, v, 0.6)) bush(m, u, v, tz(u, v), r, HED, Math.round(u * 3 + v), !snow && fl);
     if (!snow) for (let i = 0; i < 170; i++) { const a = H(i, 11) * 6.283, r = Math.sqrt(H(11, i)) * (rimR(a) - 1.4), u = CEN[0] + Math.cos(a) * r, v = CEN[1] + Math.sin(a) * r; if (!Tt.walkable(u, v) || Tt.pathD(u, v) < 0.9 || (o.busy && o.busy(u, v))) continue; const z = tz(u, v); if (i % 4 === 0) m.flower(u, v, z, 1.3 + H(i, 3) * 1.4, FLOW[i % 5], i); else if (i % 9 === 1) m.blob(u, v, z, 0.3, 0.35, ROCK[i % 3], M.stone, i, 2, 5); else m.tuft(u, v, z, 1.2 + H(i, 5) * 1.4, 4, sea === 'autumn' ? '#a8a050' : '#5aa64e', i); }
@@ -416,6 +563,9 @@
   function dyn(o) {
     const m = new Mesh(), t = o.t;
     if (o.scene === 'deck') {
+      // 开着的窝门：门洞是黑的，门板转开贴在一边
+      for (const i of o.dens || []) { const d = CA.DENS[i]; if (!d) continue; const r = d[5] === 'u' ? 3 : 0, t = new LT(m, (d[1] + d[3]) / 2, (d[2] + d[4]) / 2, r, CA.denZ(d)), W = r ? d[4] - d[2] : d[3] - d[1], Dp = r ? d[3] - d[1] : d[4] - d[2], hw = Math.min(1.9, W * 0.5) / 2, Y = Dp / 2;
+        t.box(-hw, Y + 0.15, 0, hw, Y + 0.21, 4.2, '#1e1418', 0); t.box(-hw - 0.12, Y + 0.21, 0, -hw + 0.04, Y + 0.21 + hw * 2, 4.2, '#8a5a3a', M.plank); t.box(-hw * 0.7, Y + 0.21, 0.02, hw * 0.7, Y + 1.5, 0.05, '#ffe9a8', M.glow); }
       const P = K.POND;
       // 塘里的鱼：水面下游来游去的影子
       for (let i = 0; i < 4; i++) { const a = t * (0.35 + i * 0.08) + i * 1.7, cu = P.cu + Math.cos(a) * (P.ru * 0.6 - i * 0.3), cv = P.cv + Math.sin(a * 1.3) * P.rv * 0.55, d = [-Math.sin(a) * (P.ru * 0.6 - i * 0.3), Math.cos(a * 1.3) * 1.3 * P.rv * 0.55], l = Math.hypot(d[0], d[1]) || 1, du = d[0] / l, dv = d[1] / l, wg = Math.sin(t * 7 + i) * 0.18, col = i === 1 ? '#f08a5a' : i === 3 ? '#f8f0e0' : '#2a5a78';

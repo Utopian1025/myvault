@@ -5,9 +5,12 @@
 (function () {
   const PP = (window.PP = window.PP || {});
   const U = PP.U, G = PP.G, A = PP.ACTIONS, g3 = PP.g3, MD = PP.isleModels, K = MD.K;
+  const CA = K.CA;
   const { ORG, R0, HOUSE, GH, PICK, HU1, HV1, GU1, GV1, LOFT, Z, DOOR, GDOOR, TREE, TANK, MAILB, BALLOON, POND, FISH, BOB, PLOTS, PS, PH, SLOTS, LAMPS, RDOOR, GRDOOR, COOP, HIVE } = K, T = K.T;
   const SLOT_NAME = ['门口', '桥那边的草坪', '塘边', '水井旁', '大树下', '小河边'];
   const S = () => G.save.settings, E = () => PP.econ.E();
+  const denList = () => { const m = PP.F && PP.F.main && PP.F.main(), l = (G.all || []).filter((q) => !q.d.wild && q !== m); return (m ? [m, ...l] : l).slice(0, 6); }; // 城堡里每只动物一间窝（按家里的顺序）
+  const denOpen = {}; // 第 i 间窝的门开着（有人进出）
   let chickT = 0, beeBoost = 0;
   const FURN = PP.FURN;
   let fedit = false, fsel = -1, fdrag = null, fbar = null;
@@ -42,11 +45,15 @@
   const rc = (o, r) => [o.lv || 0, 'c', o.u, o.v, r];
   const AREAS = {
     deck: {
-      z: [0], zf: (u, v) => T.zAt(u, v), ok: (u, v) => T.walkable(u, v),
-      floors: [[0, 0, 0, 50, 50]], ramps: [],
-      obst: () => [[0, HOUSE.u0 - 0.4, HOUSE.v0 - 0.4, HOUSE.u1 + 0.4, HOUSE.v1 + 0.4], [0, GH.u0 - 0.4, GH.v0 - 0.4, GH.u1 + 0.4, GH.v1 + 0.3], [0, 25.4, 10, 27.4, 19.6],
-        [0, 'c', TANK.u, TANK.v, 1.8], [0, 'c', MAILB.u, MAILB.v, 0.6], [0, 'c', TREE.u, TREE.v, 1.7], [0, 'c', BALLOON.u, BALLOON.v, 1.4], [0, 3.4, 27.4, 6.4, 30.4],
+      z: CA.Z, zf: (u, v) => T.zAt(u, v), ok: (u, v) => T.walkable(u, v),
+      floors: [[1, ...CA.T1], [1, ...CA.LAND1], [1, ...CA.WING1], [2, ...CA.P2], [2, ...CA.LAND2], [3, ...CA.P3]], ramps: [CA.R01, CA.R12, CA.R23],
+      obst: () => [[0, HOUSE.u0 - 0.4, HOUSE.v0 - 0.4, HOUSE.u1 + 0.4, HOUSE.v1 + 0.4], [0, GH.u0 - 0.4, GH.v0 - 0.4, GH.u1 + 0.4, GH.v1 + 0.3], [0, 'c', 11.2, 18.6, 0.8], [0, 'c', 10.6, 17.1, 0.8],
+        [0, 'c', TANK.u, TANK.v, 1.8], [0, 'c', MAILB.u, MAILB.v, 0.6], [0, 'c', TREE.u, TREE.v, 1.7], [0, 3.4, 27.4, 6.4, 30.4],
         ...PLOTS.map(([u, v]) => [0, u, v, u + PS, v + PS]), ...LAMPS.map(([u, v]) => [0, 'c', u, v, 0.35]), [0, 26, 26, 39.8, 26.4], [0, 39.4, 26, 39.8, 35.8],
+        ...CA.TOWERS.map(([u, v, r]) => [0, 'c', u, v, r + 0.3]),
+        [1, CA.KIT.u0, CA.KIT.v0, CA.KIT.u1, CA.KIT.v1], [1, CA.BATH.u0, CA.BATH.v0, CA.BATH.u1, CA.BATH.v1], [1, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r + 0.3], [1, 'c', CA.CHIM.u, CA.CHIM.v, 0.9],
+        [2, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [2, 'c', CA.CHIM.u, CA.CHIM.v, 0.9], [3, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [3, 'c', CA.BOILER.u, CA.BOILER.v, 1],
+        ...denList().map((_, i) => CA.DENS[i]).filter(Boolean).map((d) => [d[0], d[1] - 0.1, d[2] - 0.1, d[3] + 0.1, d[4] + 0.1]), [1, 'c', 10.65, 17.65, 0.8],
         ...(E().isleDeco || []).map((id, i) => (id && SLOTS[i] ? [0, 'c', SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 0.4 : 1.5] : null)).filter(Boolean)],
     },
     house: {
@@ -58,7 +65,7 @@
     gh: { z: [0], floors: [[0, R0, R0, GU1, GV1]], ramps: [], obst: () => [[0, R0 + 3.4, R0, GU1, R0 + 2.8], [0, R0, R0 + 3, R0 + 2.8, GV1 - 1.8], [0, 'c', 20.4, 12, 2], [0, 'c', 24.6, 18.6, 1.5], [0, 'c', 9.2, 20, 1.5]] },
   };
   const area = () => AREAS[inside || 'deck'];
-  const Zf = (a, lv, u, v) => (a.zf ? a.zf(u, v) : a.z[lv]);
+  const Zf = (a, lv, u, v) => (a.zf && !lv ? a.zf(u, v) : a.z[lv]);
   const inRamp = (r, u, v) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1;
   const rampT = (r, u, v) => U.clamp(((r.axis === 'u' ? u : v) - r.lo) / (r.hi - r.lo), 0, 1);
   // 寻路用的格子（半格一个点）：某一层的这个点能不能站
@@ -69,7 +76,7 @@
     if (grids.key !== key) { grids = { key }; cells = {}; }
     if (grids.g) return grids.g;
     const ob = a.obst(), g = a.z.map(() => new Uint8Array(GN * GN));
-    const inF = a.ok ? (lv, u, v) => a.ok(u, v) : (lv, u, v) => a.floors.some((f) => f[0] === lv && u >= f[1] && u <= f[3] && v >= f[2] && v <= f[4]);
+    const inF = (lv, u, v) => (a.ok && !lv ? a.ok(u, v) : a.floors.some((f) => f[0] === lv && u >= f[1] && u <= f[3] && v >= f[2] && v <= f[4]));
     for (let lv = 0; lv < a.z.length; lv++) for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) {
       const u = i * GS, v = j * GS; let ok = inF(lv, u, v) && inF(lv, u + 0.45, v) && inF(lv, u - 0.45, v) && inF(lv, u, v + 0.45) && inF(lv, u, v - 0.45);
       if (ok) for (const r of a.ramps) if (u > r.u0 - 0.3 && u < r.u1 + 0.3 && v > r.v0 - 0.3 && v < r.v1 + 0.3) { ok = false; break; }
@@ -134,7 +141,10 @@
     const u = zoomOf(), w = Math.round(IWf() * u), h = Math.round(IHf() * u), pos = G.save && S().islePos, sb = safeB();
     let x1 = pos ? pos.x * G.W : G.W - 4, y1 = pos ? pos.y * sb : sb - 2;
     x1 = U.clamp(x1, w + 2, G.W - 2); y1 = U.clamp(y1, h + 2, sb - 2);
-    return (L = { u, x0: Math.round(x1 - w), y0: Math.round(y1 - h), x1: Math.round(x1), y1: Math.round(y1), w, h });
+    L = { u, x0: Math.round(x1 - w), y0: Math.round(y1 - h), x1: Math.round(x1), y1: Math.round(y1), w, h };
+    // 岛上的弹窗（钓鱼卡片、种子、布置栏）跟着场景一起缩放，并贴着场景摆放
+    const rs = document.documentElement.style; rs.setProperty('--isk', U.clamp(u / Z0, 0.55, 1.5).toFixed(3)); rs.setProperty('--isR', Math.max(4, G.W - L.x1) + 'px'); rs.setProperty('--isB', Math.max(4, G.H - L.y0 + 6) + 'px');
+    return L;
   }
   const sx = (x) => L.x0 + x * L.u, sy = (y) => L.y0 + y * L.u;
   const scrU = (u, v) => sx(cx(u, v)), scrV = (u, v, z = 0) => sy(cy(u, v, z));
@@ -207,6 +217,7 @@
   }
   function sync() {
     const w = want();
+    document.body.classList.toggle('isle', !!w);
     if (w && !G.isle) { G.isle = {}; inside = false; layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); } // 窗口铺满以后再按记住的大小摆一次
     else if (!w && G.isle) { G.isle = null; inside = false; for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
   }
@@ -248,11 +259,11 @@
   function farmKey() { return PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? inf.crop + inf.stage + ((E().farm[i].water || 0) > 0 ? 'w' : '') : '-'; }).join(','); }
   function scene() {
     const name = inside || 'deck', e = E();
-    const key = name === 'deck' ? [season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK;
+    const key = name === 'deck' ? [denList().map((q) => q.d.species).join(','), season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK;
     const s = meshes[name];
     if (s && s.key === key) return s;
     let m;
-    if (name === 'deck') m = MD.deck({ season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), busy: null, farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }) });
+    if (name === 'deck') m = MD.deck({ dens: denList().map((q) => q.d.species), season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), busy: null, farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }) });
     else if (name === 'house') m = MD.room({ room: e.room, layout: FURN.layout(e), skip: fdrag ? fdrag.i : undefined }); else m = MD.green({});
     const pos = name === 'deck' ? m.p.filter((_, i) => i % 9 < 3) : null; // 留一部分顶点，用来算画框
     const r = (meshes[name] = { key, gpu: g3.upload(m, s && s.gpu), pos });
@@ -272,7 +283,7 @@
   // 宠物被挡住时要挖开的位置（坐着 / 躺着 / 被拎着的不挖）
   function petCuts() {
     const out = [];
-    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, inside ? q.u + q.v : depth(q.u, q.v), q.z]); }
+    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, inside ? q.u + q.v : depth(q.u, q.v), q.z]); }
     return out;
   }
   // 像素化：3D 画在一张小一号的画布上，再按整数倍放大（不平滑）——真光照 + 像素画的颗粒感
@@ -282,7 +293,7 @@
   function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = MD.dyn({ scene: inside || 'deck', t, cooking, drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
+    const dm = MD.dyn({ scene: inside || 'deck', t, cooking, dens: Object.keys(denOpen).filter((i) => denOpen[i]).map(Number), drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
@@ -342,6 +353,7 @@
 
   // ---------- 画 ----------
   function renderBack(ctx) {
+    for (const p of G.all) if (p.inDen && (!['isleDen', 'isleBath'].includes(p.action) || !G.isle || inside)) p.inDen = false; // 被打断了就从窝里出来
     if (!G.isle) return;
     if (!L) layout();
     const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0;
@@ -604,7 +616,7 @@
   const FIX = { // 固定的东西：拾取号 → 是什么、什么手
     [PICK.door]: { k: 'door', label: '进小屋', cur: 'enter' }, [PICK.green]: { k: 'green', label: '进玻璃花房', cur: 'enter' }, [PICK.exit]: { k: 'exit', label: '出门', cur: 'enter' },
     [PICK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PICK.barrel]: { k: 'barrel', label: '水井：打水喝（解渴）', cur: 'water' },
-    [PICK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PICK.fish]: { k: 'fish', label: '水塘：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' },
+    [PICK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PICK.fish]: { k: 'fish', label: '水塘：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PICK.river]: { k: 'river', label: '小河：走到河边看看', cur: 'look' }, [PICK.kdoor]: { k: 'door', label: '厨房（进屋，厨房在屋里的角落）', cur: 'enter' }, [PICK.bdoor]: { k: 'bath', label: '浴室：洗个澡', cur: 'use' },
     [PICK.tree]: { k: 'tree', label: '老橡树：摇一摇（会掉果子）', cur: 'use' }, [PICK.coop]: { k: 'coop', label: '鸡舍：捡鸡蛋', cur: 'use' }, [PICK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' },
   };
   let pickC = { x: -1, y: -1, t: 0, id: 0 };
@@ -615,8 +627,8 @@
   }
   function groundAt(x, y) { // 鼠标底下是哪块能走的地（先看高的）
     const a = area(), order = a.z.map((z, i) => i).sort((m, n) => a.z[n] - a.z[m]);
-    if (a.zf) { let z = 0, gu = 0, gv = 0; for (let it = 0; it < 4; it++) { [gu, gv] = toUV(x, y, z); z = a.zf(gu, gv); } return free(a, gu, gv, 0) ? { k: 'ground', u: gu, v: gv, z, lv: 0 } : null; }
-    for (const lv of order) { const [gu, gv] = toUV(x, y, a.z[lv]); if (free(a, gu, gv, lv)) return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
+    for (const lv of order) {
+      if (a.zf && !lv) { let z = 0, gu = 0, gv = 0; for (let it = 0; it < 4; it++) { [gu, gv] = toUV(x, y, z); z = a.zf(gu, gv); } if (free(a, gu, gv, 0)) return { k: 'ground', u: gu, v: gv, z, lv: 0 }; continue; } const [gu, gv] = toUV(x, y, a.z[lv]); if (free(a, gu, gv, lv)) return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
     return null;
   }
   function hot(x, y) {
@@ -635,6 +647,7 @@
       const id = pickAt(x, y);
       if (id < 0) return null; // 这一点上什么都没有：鼠标穿过去
       if (FIX[id]) h = Object.assign({}, FIX[id]);
+      else if (id >= CA.PICK_DEN && id < CA.PICK_DEN + 6) { const i = id - CA.PICK_DEN, q = denList()[i]; if (q) h = { k: 'den', i, label: `${q.name}的${K.DEN_NAME[q.d.species] || '小窝'}：${q === mainP() || G.pets.includes(q) ? '回窝里睡一觉' : '它不在家'}`, cur: 'rest' }; }
       else if (id >= PICK.plot && id < PICK.plot + 6) { const i = id - PICK.plot, inf = PP.econ.plotInfo(i); h = { k: 'plot', i, cur: !inf ? 'sow' : inf.stage === 3 ? 'harvest' : 'water' }; }
       else if (id >= PICK.deco && id < PICK.deco + 6) { const i = id - PICK.deco, d = (E().isleDeco || [])[i]; if (['bench', 'swing', 'hay'].includes(d)) h = { k: 'deco', i, id: d, label: { bench: '长椅：坐一会儿', swing: '秋千：荡一荡', hay: '干草垛：趴一会儿' }[d], cur: 'rest' }; }
       else { const pr = (PROPS[inside || 'deck'] || []).find((q) => q.id === id); if (pr) h = { k: 'prop', pr, label: pr.label, cur: pr.cur }; }
@@ -672,6 +685,10 @@
     if (h.k === 'door' || h.k === 'green') { const w = h.k === 'door' ? 'house' : 'gh'; if (p) go('isleHouse', A.isleHouse, w); else setInside(w); return; }
     if (h.k === 'exit') { if (p) go('isleHouse', A.isleHouse, false); else setInside(false); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }
+    if (h.k === 'den') { const q = denList()[h.i]; if (!q || !G.pets.includes(q) || q.held) { PP.ui.toast(q ? `${q.name}现在不在家` : '空着的窝'); return; } q.interrupt(true); q.fishing = null; q.tool = null; q.run('isleDen', A.isleDen, h.i); return; }
+    if (h.k === 'bath') { go('isleBath', A.isleBath); return; }
+    if (h.k === 'river') { // 点小河：就近走到点的那段河岸，蹲下看水，不会跑去水塘钓鱼
+      const a = area(); let [gu, gv] = toUV(x, y, 0); const c = nearFree(a, gu, gv, 0); mark = { u: c[0], v: c[1], z: 0, t: performance.now() }; go('isleRiver', A.isleRiver, c[0], c[1], gu, gv); return; }
     if (h.k === 'fish') { if (p && p.fishing) { if (p.fishing.ph === 'bite') p.fishing.helped = true; return; } go('isleFish', A.isleFish); return; }
     if (h.k === 'balloon') { PP.econ.openPanel('trip'); return; }
     if (h.k === 'tree') { go('isleUse', A.isleUse, { do: 'shake', at: [TREE.u - 2.6, TREE.v + 3.4, 0] }); return; }
@@ -726,6 +743,8 @@
   let roomT = 0;
   const day = () => { const e = E(); const d = new Date().toDateString(); if (!e.isleDay || e.isleDay.d !== d) e.isleDay = { d, fish: 0, cook: 0 }; return e.isleDay; };
   const say = (p, t, d = 2.6) => { p._forceSay = true; p.say(Array.isArray(t) ? U.pick(t) : t, d); p._forceSay = false; };
+  const zzAt = (u, v, z) => PP.fx({ x: scrU(u, v) + U.rand(-4, 4), y: scrV(u, v, z), vx: 8, vy: -14, icon: 'zzz', life: 2.2, s: Math.max(1, G.S - 1) });
+  const bubble = (u, v, z) => PP.fx({ kind: 'dot', x: scrU(u, v), y: scrV(u, v, z), vx: U.rand(-8, 8), vy: U.rand(-30, -16), life: 1.4, col: U.pick(['#ffffff', '#cfeaf8', '#e8f6ff']), size: Math.max(2, L.u * 0.8) });
   const face = (p, u, v) => { const [a, b] = uvOf(p), d = ((u - a) - (v - b)) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
   const gain = (p, txt) => PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } });
   const fxAt = (u, v, z, o) => PP.fx(Object.assign({ x: scrU(u, v), y: scrV(u, v, z), s: 1 }, o));
@@ -768,6 +787,29 @@
   };
   A.isleMail = function* () { const p = this; yield* walkTo(p, MAILB.u, MAILB.v + 1.5); face(p, MAILB.u, MAILB.v - 2); p.anim = 'jump'; p.jolt(0, -3); yield 0.35; p.anim = 'idle'; p.think('excl', 1.5); yield 1; if (PP.econ.unread()) say(p, '信箱里有信哦～', 3); yield 1.5; };
   A.isleDrink = function* () { const p = this, wz = T.zAt(TANK.u, TANK.v); yield* walkTo(p, TANK.u, TANK.v + 2.4); face(p, TANK.u, TANK.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TANK.u, TANK.v + 1, wz + 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
+  // 回自己的窝：走到门口 → 门开 → 钻进去（看不见了）→ 门关上，窝里冒 zZ → 睡够了开门出来，伸个懒腰
+  A.isleDen = function* (i) {
+    const p = this, d = CA.DENS[i]; if (!d || inside) return;
+    const lv = d[0], f = CA.denFront(d), du = f.u, dv = f.v, cu = (d[1] + d[3]) / 2, cv = (d[2] + d[4]) / 2;
+    yield* walkTo(p, du, dv, null, lv); if (!p.ip || p.ip.lv !== lv || Math.hypot(p.ip.u - du, p.ip.v - dv) > 1.6) { say(p, '走不过去……'); return; }
+    face(p, cu, cv); p.anim = 'idle'; yield 0.3;
+    denOpen[i] = true; yield 0.5; p.inDen = true; yield 0.4; denOpen[i] = false;
+    const t0 = performance.now(), dur = U.rand(8, 14);
+    while ((performance.now() - t0) / 1000 < dur) { yield 1.6; if (!p.inDen) return; p.n.energy = Math.min(100, (p.n.energy || 0) + 3); if (Math.random() < 0.7) zzAt(cu, cv, CA.denZ(d) + 6); }
+    denOpen[i] = true; yield 0.4; p.inDen = false; p.anim = 'stretch'; yield 0.5; denOpen[i] = false; p.anim = 'idle'; p.think('heart', 1.2); say(p, ['睡得好香', '还是自己的窝最舒服', '伸个懒腰～']); yield 1;
+  };
+  // 洗澡：走到浴室门口 → 进去 → 里面冒泡泡 → 出来甩甩水
+  A.isleBath = function* () {
+    const p = this, B = CA.BATH; if (inside) return; const du = B.door, dv = B.v1 + 0.9;
+    yield* walkTo(p, du, dv, null, 1); if (!p.ip || p.ip.lv !== 1 || Math.hypot(p.ip.u - du, p.ip.v - dv) > 1.6) { say(p, '走不过去……'); return; }
+    p.inDen = true; const t0 = performance.now(); while (performance.now() - t0 < 6000) { yield 0.5; if (!p.inDen) return; bubble(du + U.rand(-1, 1), B.v0 + 1.5, CA.Z[1] + B.h + 0.5); }
+    p.inDen = false; p.anim = 'idle'; p.jolt(1.5, 0); yield 0.3; p.jolt(-1.5, 0); yield 0.3; p.anim = 'idle'; say(p, ['洗得香喷喷', '甩甩水～', '好舒服！']); yield 1.2;
+  };
+  A.isleRiver = function* (u, v, wu, wv) {
+    const p = this; yield* walkTo(p, u, v); face(p, wu, wv); p.anim = 'sit'; ripple(wu, wv); yield 0.8;
+    const r = Math.random(); if (r < 0.4) { p.think('heart', 1.2); say(p, ['河水好凉', '有小鱼游过去了', '水里有片叶子']); } else if (r < 0.7) { p.anim = 'drink'; yield 1.2; } else { p.jolt(0, -2); ripple(wu, wv); say(p, ['啪嗒～', '溅了自己一脸水']); }
+    yield 1.4; p.anim = 'idle';
+  };
   A.isleFish = function* () {
     const p = this;
     yield* walkTo(p, FISH.u, FISH.v, null, 3); face(p, BOB.u, BOB.v + 6); p.anim = 'sit';
