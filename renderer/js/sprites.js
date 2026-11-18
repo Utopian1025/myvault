@@ -982,7 +982,6 @@
       p.__geo = { kind: 'hedgehog', curl: true, cx, cy };
       return;
     }
-    if (!lie && anim !== 'held' && !p.portrait) { drawHedgehog34(b, p, g); return; }
     let [cy, ry, rx] = blobFit(g, p, lie ? 23.6 : 22.4, lie ? 5.6 : 6.4, lie ? 10.4 : 9.4);
     const cx = 16 - f * 0.8 + (g.jsk || 0) * 0.4;
     let hx = 16 + f * 1.4 + (g.jsk || 0) * 0.7, hy = lie ? 21 : g.anim === 'held' ? 12 : 17.4;
