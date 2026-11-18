@@ -69,10 +69,11 @@
     const feet = [];
     if (c < 0.6) {
       const L = P.leg || 0, st = [0, 0, 0, 0], fw = [0, 0, 0, 0];
-      if (L === 1) { st[0] = st[3] = 0.9; fw[0] = fw[3] = 1; } else if (L === 2) { fw[0] = fw[3] = 1; fw[1] = fw[2] = -1; }
-      else if (L === 3) { st[1] = st[2] = 0.9; fw[1] = fw[2] = 1; } else if (L === 4) { fw[1] = fw[2] = 1; fw[0] = fw[3] = -1; }
+      // 走路：对角两只脚一起抬起来往前迈，另外两只往后蹬（步子要大，小岛上看得出来）
+      if (L === 1) { st[0] = st[3] = 1.1; fw[0] = fw[3] = 2.2; fw[1] = fw[2] = -1.3; } else if (L === 2) { fw[0] = fw[3] = 1.7; fw[1] = fw[2] = -1.7; }
+      else if (L === 3) { st[1] = st[2] = 1.1; fw[1] = fw[2] = 2.2; fw[0] = fw[3] = -1.3; } else if (L === 4) { fw[1] = fw[2] = 1.7; fw[0] = fw[3] = -1.7; }
       else if (L === 5) { st[2] = 2.4; fw[2] = 2; }
-      [[B.cx + B.rx * 0.52, -B.rz * 0.48], [B.cx + B.rx * 0.52, B.rz * 0.48], [B.cx - B.rx * 0.5, -B.rz * 0.52], [B.cx - B.rx * 0.5, B.rz * 0.52]].forEach(([x, z], i) => feet.push(E(x + fw[i], 1.0 + st[i] - lie * 0.6, z, 2.0, 1.15, 1.5)));
+      [[B.cx + B.rx * 0.52, -B.rz * 0.48], [B.cx + B.rx * 0.52, B.rz * 0.48], [B.cx - B.rx * 0.5, -B.rz * 0.52], [B.cx - B.rx * 0.5, B.rz * 0.52]].forEach(([x, z], i) => feet.push(E(x + fw[i], 0.75 + st[i] - lie * 0.6, z, 2.2, 1.35, 1.6)));
     }
     // 刺帽纹理：整齐的一排排小刺尖（深色细缝 + 浅色短刺），从额头往后梳
     const capTex = (x, y, z) => {
@@ -272,8 +273,8 @@
         else if (ph === 5 && lt < 1.4) lean = Math.sin(lt * 4) * 1.2;
         break;
       }
-      case 'walk': { const s = Math.floor(t * 8) % 4; P.leg = s + 1; bob = s % 2 ? 1 : 0; F.sniff = s === 1; break; }
-      case 'run': { const s = Math.floor(t * 13) % 4; P.leg = s + 1; bob = s % 2 ? 1 : 0; sq *= s % 2 ? 0.95 : 1.04; lean = 1.6; break; }
+      case 'walk': { const s = Math.floor(t * 9) % 4; P.leg = s + 1; bob = s % 2 ? 0 : 1; lean = s === 0 ? 0.6 : s === 2 ? -0.3 : 0.15; sq *= s % 2 ? 1.03 : 0.97; F.sniff = s === 1; break; }
+      case 'run': { const s = Math.floor(t * 14) % 4; P.leg = s + 1; bob = s % 2 ? 0 : 2; sq *= s % 2 ? 0.95 : 1.04; lean = 1.6; break; }
       case 'sleep': P.curl = 0.65; F.eyes = 'closed'; sq *= breathe ? 1.03 : 0.98; break;
       case 'lie': P.lie = 1; sq *= breathe ? 1.02 : 1; break;
       case 'eat': { const s = Math.sin(t * 11) > 0; P.dip = s ? 2 : 1; F.mouth = s ? 'open' : 'w'; break; }
