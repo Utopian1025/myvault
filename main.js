@@ -348,3 +348,13 @@ function cleanupOldHooks() {
   } catch (e) { console.warn('cleanup hooks', e); }
 }
 app.whenReady().then(() => setTimeout(cleanupOldHooks, 3000));
+// 改名后安装目录变了：开机自启的注册表项还指着旧路径，启动时把它改成现在的路径
+app.whenReady().then(() => setTimeout(() => {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+  try {
+    require('child_process').execFile('reg', ['query', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'PixelNest'], { windowsHide: true }, (err, out) => {
+      if (err || !out) return;
+      if (!String(out).toLowerCase().includes(process.execPath.toLowerCase())) app.setLoginItemSettings({ openAtLogin: true, name: 'PixelNest' });
+    });
+  } catch (e) {}
+}, 5000));
