@@ -46,7 +46,7 @@
     const T = (v) => (forTray ? null : v); // 托盘菜单不显示右侧小字
     const items = [];
     if (focus) items.push({ label: `${focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
-    const curMode = s.mode === 'mini' && s.taskbar ? 'bar' : s.mode === 'mini' && s.isle ? 'isle' : s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
+    const curMode = ({ top: 'mini', in: 'bar', house: 'house', isle: 'isle', band: 'band' })[PP.curView ? PP.curView() : 'band'] || s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
     const mineList = G.all.filter((p) => !p.d.wild);
     const pets = mineList.map((p) => ({ label: p.name + `（${p.sp.name}）` + (G.save.settings.mainId === p.d.id ? ' ★' : ''), sub: petSub(p) }));
     const petsMenu = { label: '我认养的', hint: T(`${mineList.length} 只`), sub: [
@@ -142,7 +142,7 @@
     if (a === 'pet') { petCmd(G.all.find((p) => p.d.id === b), c); PP.save.soon(); syncTray(true); return; }
     if (a === 'rem') { s.rem[b] = +c; if (b === 'water') PP.F.lastWater = Date.now(); else PP.F.lastStretch = Date.now(); ui.toast(+c ? `${b === 'water' ? '喝水' : '站立'}提醒：每 ${c} 分钟` : `${b === 'water' ? '喝水' : '站立'}提醒已关闭`); PP.save.soon(); syncTray(true); return; }
     if (a === 'size') { s.size = +b; G.pets.forEach((p) => { p.y = G.ground; }); PP.save.soon(); syncTray(true); return; }
-    if (a === 'mode') { if (b === 'mini') { const was = s.isle || s.taskbar; s.taskbar = false; s.isle = false; if (s.mode === 'mini') { PP.applyBar(); was && PP.setMode('mini', false, true); return; } } PP.setMode(b); return; }
+    if (a === 'mode') { if (PP.setView) { PP.setView({ mini: 'top', bar: 'in', house: 'house', isle: 'isle', band: 'band', full: 'band' }[b] || 'band'); return; } PP.setMode(b); return; }
     if (a === 'econ') { PP.econ.openPanel(b); return; }
     if (a === 'isle') { PP.isle && PP.isle.cmd(b, c, id.split(':')[3]); return; }
     if (a === 'scene') { PP.scene.go(b); return; }

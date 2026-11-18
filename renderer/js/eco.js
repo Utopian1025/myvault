@@ -370,12 +370,18 @@
     const home = (why, label, dur) => (h.open && why !== 'hibernate'
       ? { scene: h.home, spot: sp + '_home', kind: sp === 'hippo' ? 'soak' : sp === 'gardeneel' ? 'watch' : 'nap', why, rest: true, label: label.replace('在家里睡觉', '在家门口睡觉').replace('回家睡个午觉', '在老地方打个盹').replace('躲在家里', '找个地方躲着'), dur }
       : { home: true, scene: h.home, spot: sp + '_home', why, label, dur });
+    // 主角陪着你：不会自己回窝 / 冬眠 / 躲起来消失，困了就在原地打个盹
+    if (PP.mainPet && PP.mainPet() === p) {
+      const nap = (why, label, dur) => ({ scene: p.d.scene || h.home, kind: 'nap', why, rest: true, label, dur });
+      if (hibernating(p, e)) return nap('sleep', '天冷，缩成一团打盹', U.rand(60, 120));
+      if ((PP.sleepTime && PP.sleepTime()) || p.sleepiness() > 0.62 || n.energy < 18) return nap('sleep', '在你旁边打个盹', U.rand(60, 150));
+    } else
     if (hibernating(p, e)) return home('hibernate', '在冬眠，要睡到春天', 300);
     if (PP.sleepTime && PP.sleepTime()) return home('sleep', '睡眠时间，在家里睡觉', U.rand(120, 240));
     const sleepy = p.sleepiness();
     if (sleepy > 0.62 || n.energy < 18) return home('sleep', e.time.phase === 'night' ? '在家里睡觉' : '回家睡个午觉', U.rand(90, 200));
     const bad = weatherBad(p, e);
-    if (bad && !(h.rainLover && wet(e) && bad !== '太冷了' && e.weather.kind !== 'storm')) return home('shelter', `${bad}，躲在家里`, U.rand(60, 120));
+    if (bad && !(PP.mainPet && PP.mainPet() === p) && !(h.rainLover && wet(e) && bad !== '太冷了' && e.weather.kind !== 'storm')) return home('shelter', `${bad}，躲在家里`, U.rand(60, 120));
     const here = p.d.scene || h.home;
     const cands = [];
     const ok = (o) => canBe(sp, o.scene, e, h) && (!o.season || o.season.includes(season)) && (!o.when || COND[o.when](e)) && !(o.noIce && iceNow(e));

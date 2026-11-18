@@ -116,6 +116,7 @@
     // 只露个头：沉到屏幕底边以下的像素数
     sinkPx() { if (!this.peek) return 0; return (this.anim === 'sleep' || this.anim === 'lie' ? 8 : 15) * G.S; }
 
+    bodyH() { const S = G.S * (this.scaleMul || 1); return (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx(); }
     hit(mx, my) {
       if (this.inDoor || this.outing) return false;
       const S = G.S * (this.scaleMul || 1);

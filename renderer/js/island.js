@@ -274,7 +274,9 @@
     return out;
   }
   // 像素化：3D 画在一张小一号的画布上，再按整数倍放大（不平滑）——真光照 + 像素画的颗粒感
-  const pixOn = () => !(G.save && S().islePix === false), pixK = () => (pixOn() ? Math.max(1, Math.floor(L.u * 0.4)) : 1);
+  // 按屏幕的真实像素来算：每个像素画格子正好是整数个物理像素（Windows 缩放 125% / 150% 时不再糊、不再一格大一格小）
+  const DPR = () => window.devicePixelRatio || 1;
+  const pixOn = () => !(G.save && S().islePix === false), pixD = () => (pixOn() ? Math.max(1, Math.round(L.u * DPR() * 0.3)) : 1), pixK = () => pixD() / DPR();
   function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
@@ -343,7 +345,7 @@
     const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0;
     ctx.save();
     const cv = glOK && g3.ok() && render3d();
-    if (cv) { ctx.imageSmoothingEnabled = false; const q = pixK(); ctx.drawImage(cv, L.x0, L.y0, cv.width * q, cv.height * q); }
+    if (cv) { ctx.imageSmoothingEnabled = false; const q = pixK(), d = DPR(); ctx.drawImage(cv, Math.round(L.x0 * d) / d, Math.round(L.y0 * d) / d, cv.width * q, cv.height * q); }
     else { glOK = false; ctx.fillStyle = 'rgba(40,30,50,.8)'; ctx.fillRect(L.x0 + L.w * 0.1, L.y0 + L.h * 0.45, L.w * 0.8, 40); ctx.fillStyle = '#fff'; ctx.font = PP.FONT(12); ctx.fillText('这台电脑没法开启 3D 渲染（WebGL2），小岛画不出来', L.x0 + L.w * 0.12, L.y0 + L.h * 0.45 + 24); }
     if (inside === 'house') {
       glow(ctx, scrU(fu, R0 + 4), scrV(fu, R0 + 4, 5), (cooking ? 40 : nt ? 36 : 22) * u, 'rgba(255,170,90,', 0.38 + Math.sin(now / 130) * 0.05);

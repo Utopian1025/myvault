@@ -33,7 +33,8 @@
   PP.SCENES = SCENES; PP.EXITS = EXITS;
   // 每种动物的家在哪个场景
   PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
-  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['isle', '小岛', '右下角一座漂浮的小岛：小屋、菜地、信箱，主角在上面过小日子'], ['band', '小场景', '右下角一块竖着的像素小天地，大家在里面过日子']];
+  // 两大类：极简（只留主角）= 任务栏上 / 任务栏中；场景 = 小屋 / 小岛 / 风景
+  PP.MODES = [['mini', '任务栏上', '极简：主角在任务栏上面溜达'], ['bar', '任务栏中', '极简：主角住进任务栏里，不挡图标'], ['house', '小屋', '场景：小岛上那栋小屋的屋里'], ['isle', '小岛', '场景：一座漂浮的小岛，小屋、菜地、鱼塘'], ['band', '风景', '场景：各地的风景（森林、海边、雪原……），用地图换地方']];
 
   // 装饰：k → [名字, 室内?]
   const DECOR = {
@@ -74,7 +75,7 @@
   // 小场景：右下角一块竖着的矩形（宽 M 格、高 N 格，1 格 = 宠物的 1 个像素），贴着任务栏
   function vrect(u) {
     // 框在屏幕上的大小（像素）固定，和宠物大小无关；格子数 = 屏幕像素 / 场景像素
-    const k = [0, 0.82, 1, 1.2][(G.save && settings().bgH) || 2] || 1, wpx = Math.round(320 * k * U.clamp((G.save && settings().size || 2) / 2, 0.8, 1.3));
+    const k = [0, 0.82, 1, 1.2][(G.save && settings().bgH) || 2] || 1, wpx = Math.round(320 * k * U.clamp((G.save && settings().size || 2) / 2, 0.8, 1.3) * U.clamp((G.save && settings().sceneZ) || 1, 0.6, 2.2));
     let M = Math.round((wpx * 1.18) / u), N = Math.round(M * 0.92); // 近似方形（和小岛一样）
     const maxN = Math.floor((G.H - 40) / u); if (N > maxN) { N = maxN; M = Math.min(M, Math.round(N / 0.92)); }
     M = Math.min(M, Math.floor((G.W - 40) / u));
@@ -180,6 +181,15 @@
   }
   // 家里面
   function buildInside(sp, scene, g, env) {
+    // 新画风：小窝也是一块微缩模型（和小场景一样的光影和描边）
+    if (PP.DHOMES && PP.DMAPS && PP.VSCENE) {
+      try {
+        const key = 'home:' + sp; PP.DMAPS[key] = PP.DHOMES.make(sp);
+        const r = PP.VSCENE.build(key, { u: g.u, H: g.H, ox: g.ox, cols: g.cols }, env, { homes: [], hots: [{ tip: '← 出去', leave: true }], spots: { bed: {}, eat: {}, play: {} }, dims: { cols: 400, rows: 85, base: 58 }, decor: [] });
+        r.lay.inside = sp; r.lay.scene = scene;
+        return r;
+      } catch (e) { console.error(e); }
+    }
     const A = PP.ART, u = g.u, cols = Math.ceil(G.W / u), rows = Math.ceil(g.H / u), full = false;
     // 屋子像一个剖开的小房子：摆在小场景那块地方的下面，上面盖个屋顶
     const rw = g.cols, ox = g.ox;
@@ -287,7 +297,7 @@
   function ensure() {
     const g = geo(); if (!g) return null;
     const s = settings(), scene = SCENES[s.scene] ? s.scene : 'forest', e = PP.env.at(scene);
-    if (inside && !(PP.INTERIOR && PP.INTERIOR[inside])) inside = null;
+    if (inside && !PP.DHOMES && !(PP.INTERIOR && PP.INTERIOR[inside])) inside = null;
     const k = [scene, inside || '', g.m, G.W, g.H, g.u, g.ox, g.cols, PP.KT && PP.KT.ready ? 'kt' : '', e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName, PP.ownSpecies ? PP.ownSpecies(scene).join(',') : ''].join('|');
     if (k !== key) { const r = inside ? buildInside(inside, scene, g, e) : vbuild(scene, g, e); cache = r.cv; L = r.lay; key = k; lampsOff = {}; PP.VSCENE.reset(); if (L.chimneyIn) L.chimney = L.chimneyIn; }
     return { g, e, scene };
@@ -481,7 +491,7 @@
       const n = PP.eco && h.go ? PP.eco.countAt(h.go) : 0;
       if (n) { const bx = (h.sign.x + (h.sign.side < 0 ? 0 : 13)) * u, by = y0 + (h.sign.y - 1) * u; ctx.fillStyle = '#ff6b5a'; ctx.fillRect(bx - 7, by - 7, 14, 13); ctx.fillStyle = '#fff'; ctx.font = '10px monospace'; ctx.fillText(String(n), bx, by); ctx.font = `${fs}px "Zpix","Fusion Pixel 12px Proportional SC","PingFang SC","Microsoft YaHei",monospace`; }
     }
-    if (hover) {
+    if (hover && hover.tip) {
       const x = ((hover.x0 + hover.x1) / 2) * u, y = y0 + hover.y0 * u - 10;
       const w = ctx.measureText(hover.tip).width + 12;
       const xx = U.clamp(x, w / 2 + 4, G.W - w / 2 - 4), yy = Math.max(14, y);
@@ -597,10 +607,32 @@
     // 动物的家：看看谁在里面，点一下叫它出来
     const hm = L.homes.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1 && PP.eco && PP.eco.homeKnown(h.species));
     if (hm) { hover = { x0: hm.x0, x1: hm.x1, y0: hm.y0, y1: hm.y1, tip: PP.eco.homeTip(hm.species), home: hm.species }; return hover; }
+    // 鼠标在小场景的画上（不是透明的地方）：接住鼠标，这样滚轮能缩放；点了什么都不做
+    if (x >= g.x0 && x <= g.x0 + g.W && y >= g.y0 && y <= g.y0 + g.H && opaqueAt(x, y)) return { pad: true, cur: 'default' };
     return null;
   }
+  let opq = null, opqKey = null;
+  function opaqueAt(x, y) {
+    const g = geo(); if (!g || !cache) return false;
+    if (opqKey !== cache) { opqKey = cache; try { const c = document.createElement('canvas'); c.width = cache.width; c.height = cache.height; const cx = c.getContext('2d'); cx.drawImage(cache, 0, 0); opq = { d: cx.getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height }; } catch (e) { opq = null; } }
+    if (!opq) return true;
+    const sc = cache.px || g.u, ox = cache.ox || 0, cx = Math.floor((x - ox) / sc), cy = Math.floor((y - g.y0) / sc);
+    if (cx < 0 || cy < 0 || cx >= opq.w || cy >= opq.h) return false;
+    return opq.d[(cy * opq.w + cx) * 4 + 3] > 20;
+  }
+  // 滚轮缩放小场景（停下来才重画，滚的时候先把框按比例放大缩小）
+  let zT = 0, zPend = 0, zTip = false;
+  window.addEventListener('wheel', (e) => {
+    if (G.isle || mode() !== 'band' || !G.save || G.editing) return;
+    if (e.target && e.target.closest && e.target.closest('.panel,.menu,.orb-pop,.hud,.sdock,.petring')) return;
+    const g = geo(); if (!g || e.clientX < g.x0 || e.clientX > g.x0 + g.W || e.clientY < g.y0 || e.clientY > g.y0 + g.H) return;
+    e.preventDefault();
+    const s = settings(); zPend = U.clamp((zPend || s.sceneZ || 1) * (e.deltaY < 0 ? 1.08 : 1 / 1.08), 0.6, 2.2);
+    if (!zTip) { zTip = true; PP.ui.toast('滚轮缩放风景（停一下就按新大小重画）'); }
+    clearTimeout(zT); zT = setTimeout(() => { s.sceneZ = zPend; zPend = 0; key = ''; PP.save.soon(); PP.eco && PP.eco.onView && PP.eco.onView(view()); PP.placeOrb && PP.placeOrb(); }, 160);
+  }, { passive: false });
   function click(h) {
-    if (!h) return;
+    if (!h || h.pad) return;
     if (h.go) { go(h.go); return; }
     if (h.leave) { leave(); return; }
     if (h.home) { homeMenu(h); return; }
@@ -653,7 +685,7 @@
     if (popEl) popEl.remove();
     const sp = h.home, g = geo(), who = PP.eco ? PP.eco.residentsOf(sp) : [];
     popEl = document.createElement('div'); popEl.className = 'homepop'; popEl.dataset.sp = sp;
-    popEl.innerHTML = `<div class="t">${PP.eco.homeTip(sp).replace(/ · 点一下叫出来$/, '')}</div><div class="row">${PP.INTERIOR && PP.INTERIOR[sp] ? '<button class="small" data-a="in">进去看看</button>' : ''}<button class="small" data-a="out" ${who.length ? '' : 'disabled'}>叫出来</button></div>`;
+    popEl.innerHTML = `<div class="t">${PP.eco.homeTip(sp).replace(/ · 点一下叫出来$/, '')}</div><div class="row">${PP.DHOMES || (PP.INTERIOR && PP.INTERIOR[sp]) ? '<button class="small" data-a="in">进去看看</button>' : ''}<button class="small" data-a="out" ${who.length ? '' : 'disabled'}>叫出来</button></div>`;
     document.getElementById('ui').appendChild(popEl);
     const x = ((h.x0 + h.x1) / 2) * g.u, y = g.y0 + h.y0 * g.u, r = popEl.getBoundingClientRect();
     popEl.style.left = U.clamp(x - r.width / 2, 4, G.W - r.width - 4) + 'px'; popEl.style.top = Math.max(4, y - r.height - 6) + 'px';

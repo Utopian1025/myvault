@@ -23,7 +23,8 @@
       case 'checking': return '正在检查…';
       case 'latest': return `已经是最新版 v${esc(ver)}`;
       case 'available': return `发现新版本 v${esc(st.latest.version)}`;
-      case 'downloading': return `正在下载 v${esc(st.latest.version)}… ${Math.round((st.progress || 0) * 100)}%`;
+      case 'downloading': return `正在下载 v${esc(st.latest.version)}… ${Math.round((st.progress || 0) * 100)}%${st.route > 1 ? `（第一条线路不通，换线路 ${st.route} 重新下）` : ''}`;
+      case 'verifying': return `下载完了，正在检查安装包是否完整…`;
       case 'ready': return `v${esc(st.latest.version)} 已经下载好了${st.via ? `（线路：${esc(st.via)}）` : ''}`;
       case 'error': return esc(st.error || '出错了');
       default: return '';
@@ -35,19 +36,19 @@
     const latestNotes = st.latest && cmp(st.latest.version, ver) > 0 ? notesHTML(newerThan(ver, st.latest)) : '';
     panelBody.innerHTML = `<p class="lead">Desktopia 桌面乌托邦 <b>v${esc(ver || '?')}</b></p>
       <p class="upd-status">${statusLine()}</p>
-      ${st.status === 'downloading' ? `<div class="upd-bar"><i style="width:${Math.round((st.progress || 0) * 100)}%"></i></div>` : ''}
+      ${st.status === 'downloading' || st.status === 'verifying' ? `<div class="upd-bar"><i style="width:${Math.round((st.progress || 0) * 100)}%"></i></div>` : ''}
       ${latestNotes ? `<div class="upd-notes">${latestNotes}</div>` : ''}
       <div class="row">
         ${st.status === 'ready' ? '<button class="primary" data-a="install">马上更新</button><button class="small" data-a="later">下次启动时更新</button>'
           : st.status === 'available' ? '<button class="primary" data-a="download">下载新版</button>'
-          : `<button class="small" data-a="check" ${st.status === 'checking' || st.status === 'downloading' ? 'disabled' : ''}>检查更新</button>`}
-        ${st.status === 'checking' || st.status === 'downloading' ? '<button class="small" data-a="bg">收起，在后台继续</button>' : ''}<button class="small" data-a="page">发布页面</button>
+          : `<button class="small" data-a="check" ${st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying' ? 'disabled' : ''}>检查更新</button>`}
+        ${st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying' ? '<button class="small" data-a="bg">收起，在后台继续</button>' : ''}<button class="small" data-a="page">发布页面</button>
       </div>
       <label class="row"><input type="checkbox" data-a="auto" ${s.autoUpdate !== false ? 'checked' : ''}> 自动检查并下载新版（下载好了会问你要不要装）</label>`;
   }
   // 收起以后：右下角一个小条显示进度，下好了变成“点这里更新”
   let bg = false, manual = false; // manual：这次检查 / 下载是你自己点的（不是开机自动的）
-  function bgChip() { bg = true; showChip(st.status === 'downloading' ? `正在后台下载新版 ${Math.round((st.progress || 0) * 100)}%` : '正在后台检查更新…', about); }
+  function bgChip() { bg = true; showChip(st.status === 'downloading' ? `正在后台下载新版 ${Math.round((st.progress || 0) * 100)}%` : st.status === 'verifying' ? '新版下好了，正在检查…' : '正在后台检查更新…', about); }
   function about() {
     bg = false; hideChip();
     if (!api || !api.updateCheck) { PP.ui.toast('试玩版没有检查更新'); return; }
@@ -70,7 +71,7 @@
     PP.ui.panel('关于 & 检查更新', box, { wide: true });
     // 标题栏上的“－”：收到右下角的小条，检查 / 下载在后台继续
     const bar = box.closest('.panel') && box.closest('.panel').querySelector('.bar');
-    if (bar) { const mn = $('<button class="x" title="收到右下角，在后台继续" style="margin-left:auto;margin-right:2px">－</button>'); mn.onclick = () => { PP.ui.closePanel(); if (st.status === 'checking' || st.status === 'downloading') bgChip(); else if (st.status === 'ready') { asked = ''; askInstall(); } else if (st.status === 'available') showChip(`发现新版 v${st.latest.version} · 点这里`, about, 60000); }; bar.insertBefore(mn, bar.querySelector('.x')); }
+    if (bar) { const mn = $('<button class="x" title="收到右下角，在后台继续" style="margin-left:auto;margin-right:2px">－</button>'); mn.onclick = () => { PP.ui.closePanel(); if (st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying') bgChip(); else if (st.status === 'ready') { asked = ''; askInstall(); } else if (st.status === 'available') showChip(`发现新版 v${st.latest.version} · 点这里`, about, 60000); }; bar.insertBefore(mn, bar.querySelector('.x')); }
     manual = true;
     renderAbout();
     if (st.status === 'idle' || st.status === 'error' || st.status === 'latest') api.updateCheck();
@@ -127,9 +128,9 @@
       st = x; renderAbout();
       const open = panelBody && panelBody.isConnected;
       // 面板被关掉了（点了 ×、或者开了别的面板）但还在检查 / 下载：自动转到后台小条，不用专门去点“收起”
-      if (!open && !bg && manual && (x.status === 'checking' || x.status === 'downloading')) bgChip();
+      if (!open && !bg && manual && (x.status === 'checking' || x.status === 'downloading' || x.status === 'verifying')) bgChip();
       if (x.status === 'latest' || x.status === 'ready' || x.status === 'error') manual = manual && open;
-      if (bg && !open) { if (x.status === 'downloading') { const g = chip && chip.querySelector('.go'); if (g) g.textContent = `正在后台下载新版 ${Math.round((x.progress || 0) * 100)}%`; else bgChip(); } else if (x.status === 'ready') { bg = false; asked = ''; askInstall(); } else if (x.status === 'error') { bg = false; showChip('更新没下完（点这里再试）', about); } else if (x.status === 'latest') { bg = false; showChip('已经是最新版', () => {}, 6000); } else if (x.status === 'available') { bg = false; showChip(`发现新版 v${x.latest.version} · 点这里下载`, about); } }
+      if (bg && !open) { if (x.status === 'verifying') { const g = chip && chip.querySelector('.go'); if (g) g.textContent = '新版下好了，正在检查…'; } else if (x.status === 'downloading') { const g = chip && chip.querySelector('.go'); if (g) g.textContent = `正在后台下载新版 ${Math.round((x.progress || 0) * 100)}%`; else bgChip(); } else if (x.status === 'ready') { bg = false; asked = ''; askInstall(); } else if (x.status === 'error') { bg = false; showChip('更新没下完（点这里再试）', about); } else if (x.status === 'latest') { bg = false; showChip('已经是最新版', () => {}, 6000); } else if (x.status === 'available') { bg = false; showChip(`发现新版 v${x.latest.version} · 点这里下载`, about); } }
       else if (x.status === 'ready' && G.save.settings.autoUpdate !== false && !open) askInstall();
     });
     setTimeout(auto, 25000);

@@ -229,8 +229,8 @@
       lay.spots[id] = Object.assign({}, s, { c, r }, extra);
     }
     // 去别的地方的入口（洞口、路牌）：位置由设计图给（caveAt / signAt）
-    for (const ht of ext.hots || []) { const at = ht.door ? def.caveAt : def.signAt; if (at) W.hots.push({ u: at[0], v: at[1], z: at[2] || 0, r: at[3] || 3, hgt: at[4] || 10, tip: ht.tip, go: ht.go, door: ht.door }); }
-    for (const h of W.hots) { const a = P(h.u - h.r, h.v + h.r, h.z || 0), b = P(h.u + h.r, h.v - h.r, (h.z || 0) + (h.hgt || 8)); lay.hots.push({ x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), y0: Math.min(a[1], b[1]), y1: Math.max(a[1], b[1]), tip: h.tip, go: h.go, door: h.door }); }
+    for (const ht of ext.hots || []) { const at = ht.door ? def.caveAt : def.signAt; if (at) W.hots.push({ u: at[0], v: at[1], z: at[2] || 0, r: at[3] || 3, hgt: at[4] || 10, tip: ht.tip, go: ht.go, door: ht.door, leave: ht.leave }); }
+    for (const h of W.hots) { const a = P(h.u - h.r, h.v + h.r, h.z || 0), b = P(h.u + h.r, h.v - h.r, (h.z || 0) + (h.hgt || 8)); lay.hots.push({ x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]), y0: Math.min(a[1], b[1]), y1: Math.max(a[1], b[1]), tip: h.tip, go: h.go, door: h.door, leave: h.leave }); }
     // 你摆的装饰：贴在能走的那片地上
     const ctx = cv.getContext('2d'), ctxN = cvN && cvN.getContext('2d'); ctx.imageSmoothingEnabled = false; if (ctxN) ctxN.imageSmoothingEnabled = false;
     (ext.decor || []).slice().sort((a, b) => (a.fv || 0) - (b.fv || 0)).forEach((it) => {
@@ -339,6 +339,6 @@
   const qh = new Map();
   // 把一个颜色对齐到场景调色板（给动物用：和场景同一套颜色）
   function qhex(h) { if (!h || h[0] !== '#') return h; let o = qh.get(h); if (o) return o; const [r, g, b] = hexn(h.length === 4 ? '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3] : h.slice(0, 7)); const q = nearest(r, g, b); o = '#' + q.map((v) => v.toString(16).padStart(2, '0')).join(''); qh.set(h, o); return o; }
-  PP.DIO = { D, CUBE, World, build, anim, mixh, shade, NZ, H2, rng, PAL, qhex };
+  PP.DIO = { D, CUBE, World, build, anim, mixh, shade, NZ, H2, rng, PAL, qhex, HOMEKIND };
   PP.VSCENE = { build, anim, reset() { fx.parts = []; fx.rip = []; fx.lt = null; } };
 })();

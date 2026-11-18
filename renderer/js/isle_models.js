@@ -160,8 +160,18 @@
       for (let i = 0; i < n; i++) m.tri([P.cu, P.cv, P.z], pts[i], pts[i + 1], WC, WM);
     }
     m.pk(0);
-    ribbon(Tt.OUTLET, 0.6, 0.7, 0.4);
-    { const [u, v] = Tt.OUTLET[Tt.OUTLET.length - 1], z0 = tz(u, v) + 0.3; m.quad([u - 0.7, v, z0], [u + 0.7, v, z0], [u + 0.7, v + 0.3, -16], [u - 0.7, v + 0.3, -16], snow ? '#dcecf6' : '#9adcf6', WM); K.FALL = [u, v + 0.3, -16]; }
+    // 出水口只铺到岛边为止（以前会伸出岛外一截再直角折下去）
+    const OUTC = (() => { const O = Tt.OUTLET, out = [O[0]]; for (let i = 1; i < O.length; i++) { const [au, av] = out[out.length - 1], [bu, bv] = O[i]; let k = 0; for (; k <= 1.0001; k += 0.02) { const u = au + (bu - au) * k, v = av + (bv - av) * k; if (!Tt.inIsle(u, v, 0.05)) break; } if (k <= 1) { out.push([au + (bu - au) * Math.max(0, k - 0.02), av + (bv - av) * Math.max(0, k - 0.02)]); return out; } out.push(O[i]); } return out; })();
+    ribbon(OUTC, 0.6, 0.7, 0.4);
+    { // 瀑布：水从出水口顺着抛物线翻过岛边落下去（起点和小河水面相切，不再是直角折下去）
+      const O = OUTC, [u, v] = O[O.length - 1], [pu, pv] = O[O.length - 2], dl = Math.hypot(u - pu, v - pv) || 1, du = (u - pu) / dl, dv = (v - pv) / dl, nu = -dv, nv = du;
+      const z0 = tz(u, v) + 0.3, N = 14, C1 = snow ? '#dcecf6' : '#9adcf6', C2 = snow ? '#e8f2fa' : '#c4ecfb';
+      // 顺着小河流出去的方向往前抛：水平走得越来越慢、往下掉得越来越快
+      const at = (t) => { const f = 1.2 * Math.sqrt(t); return [u + du * f, v + dv * f, z0 - (z0 + 16) * t * t, 0.62 + 0.35 * t]; };
+      for (let i = 0; i < N; i++) { const [ua, va, za, wa] = at(i / N), [ub, vb, zb, wb] = at((i + 1) / N); m.quad([ua + nu * wa, va + nv * wa, za], [ua - nu * wa, va - nv * wa, za], [ub - nu * wb, vb - nv * wb, zb], [ub + nu * wb, vb + nv * wb, zb], i % 3 === 1 ? C2 : C1, WM); }
+      // 翻过岛边那一下的白色水花
+      if (!snow) for (const [a, b, r] of [[-0.5, 0.25, 0.32], [0.45, 0.35, 0.28], [0, 0.55, 0.26]]) m.blob(u + nu * a + du * b, v + nv * a + dv * b, z0 - 0.15, r, 0.7, '#f4fbff', WM);
+      const e = at(1); K.FALL = [e[0], e[1], -16]; }
     // 岸边：石头、芦苇、荷叶；塘边的小木栈台（钓鱼的地方）
     for (let i = 0; i < 22; i++) { const a = i * 0.29 + 0.1, P = K.POND, k = 1.1 + 0.12 * Math.sin(3 * a + 1), u = P.cu + Math.cos(a) * P.ru * k, v = P.cv + Math.sin(a) * P.rv * k; if (Math.abs(u - 19) < 2 && v < 36) continue; if (i % 3 === 0) m.blob(u, v, tz(u, v) + 0.1, 0.5 + (i % 4) * 0.12, 0.7, ROCK[i % 3], M.stone, i, 3, 6); else if (!snow) m.tuft(u, v, tz(u, v), 3.2 + (i % 3), 5, sea === 'autumn' ? '#a89a48' : '#5a9a48', i); }
     if (!snow) for (const [u, v, r] of [[16.4, 39.4, 0.7], [21.6, 40.8, 0.8], [18, 41.6, 0.55], [22.4, 37.6, 0.5], [15.6, 37, 0.6]]) { m.cyl(u, v, K.POND.z + 0.02, K.POND.z + 0.06, r, r, '#5aa64e', 0, 8); if (r > 0.6) m.leaf([u, v, K.POND.z + 0.3], 1, 1.2, 0.4, '#f2a6c2', 0.3); }
@@ -250,6 +260,21 @@
     // 灌木、花丛、草、小石头
     for (const [u, v, r, fl] of [[11.4, 20.4, 0.75, 1], [25.6, 21.4, 0.7, 0], [9.2, 15.4, 0.8, 1], [36.6, 20, 0.7, 1], [42.6, 20.4, 0.6, 0], [26, 38, 0.7, 1], [30.4, 37.4, 0.65, 0], [13.8, 29.4, 0.6, 1], [2.6, 22.4, 0.6, 0], [41, 31.4, 0.7, 1]]) if (Tt.inIsle(u, v, 0.6)) bush(m, u, v, tz(u, v), r, HED, Math.round(u * 3 + v), !snow && fl);
     if (!snow) for (let i = 0; i < 170; i++) { const a = H(i, 11) * 6.283, r = Math.sqrt(H(11, i)) * (rimR(a) - 1.4), u = CEN[0] + Math.cos(a) * r, v = CEN[1] + Math.sin(a) * r; if (!Tt.walkable(u, v) || Tt.pathD(u, v) < 0.9 || (o.busy && o.busy(u, v))) continue; const z = tz(u, v); if (i % 4 === 0) m.flower(u, v, z, 1.3 + H(i, 3) * 1.4, FLOW[i % 5], i); else if (i % 9 === 1) m.blob(u, v, z, 0.3, 0.35, ROCK[i % 3], M.stone, i, 2, 5); else m.tuft(u, v, z, 1.2 + H(i, 5) * 1.4, 4, sea === 'autumn' ? '#a8a050' : '#5aa64e', i); }
+    // 草地上的小细节（贴着地，不挡路）：深浅草叶、小野花、三叶草、碎石子、秋天的落叶
+    { const GD = sea === 'autumn' ? ['#8a9a40', '#b0a048', '#c8903a'] : ['#4a9440', '#7cc35a', '#3f8238'], FLW = ['#fff6e0', '#ffd36a', '#f2a6c2', '#a8c8ff', '#e0604a'];
+      for (let i = 0; i < 520 && !snow; i++) {
+        const a = H(i, 31) * 6.283, r = Math.sqrt(H(31, i)) * (rimR(a) - 1.2), u = CEN[0] + Math.cos(a) * r, v = CEN[1] + Math.sin(a) * r;
+        if (Tt.waterAt(u, v) || Tt.pathD(u, v) < 0.8 || Tt.onBridge(u, v) || (u > HOUSE.u0 - 0.6 && u < HOUSE.u1 + 0.6 && v > HOUSE.v0 - 0.6 && v < HOUSE.v1 + 1.6)) continue;
+        const z = tz(u, v) + 0.04, k = H(i, 37);
+        if (k < 0.5) { const l = 0.35 + H(i, 41) * 0.4, an = H(i, 43) * 3.14; m.quad([u, v, z], [u + Math.cos(an) * l, v + Math.sin(an) * l, z], [u + Math.cos(an) * l, v + Math.sin(an) * l + 0.14, z], [u, v + 0.14, z], GD[i % 3], 0); }
+        else if (k < 0.72) { m.cyl(u, v, z, z + 0.16, 0.13, 0.13, FLW[i % 5], 0, 5); m.cyl(u, v, z + 0.16, z + 0.2, 0.05, 0.05, '#ffd36a', 0, 4); }
+        else if (k < 0.86) { for (let j = 0; j < 3; j++) m.cyl(u + Math.cos(j * 2.1) * 0.18, v + Math.sin(j * 2.1) * 0.18, z, z + 0.06, 0.16, 0.16, '#3f8a3a', 0, 5); }
+        else if (sea === 'autumn' && k < 0.95) m.quad([u, v, z], [u + 0.3, v + 0.1, z], [u + 0.25, v + 0.35, z], [u - 0.05, v + 0.25, z], ['#d86a3a', '#e8a040', '#b4483a'][i % 3], 0);
+        else m.blob(u, v, z, 0.16, 0.12, ROCK[i % 3], M.stone, i, 2, 4);
+      }
+      // 岛边一圈小石头和蒲公英
+      for (let i = 0; i < 46 && !snow; i++) { const a = i * 0.1366 * 6.283 / 0.8585 % 6.283, rr = rimR(a) - 0.9 - H(i, 51) * 0.5, u = CEN[0] + Math.cos(a) * rr, v = CEN[1] + Math.sin(a) * rr; if (Tt.waterAt(u, v) || Tt.pathD(u, v) < 0.8) continue; const z = tz(u, v); if (i % 3) m.blob(u, v, z, 0.28 + H(i, 53) * 0.2, 0.22, ROCK[i % 3], M.stone, i, 2, 5); else { m.cyl(u, v, z, z + 1.1, 0.04, 0.04, '#6aa848', 0, 3); m.blob(u, v, z + 1.2, 0.22, 0.22, '#f8f4ec', 0, i, 2, 5); } }
+    }
     // 野餐垫（桥那边的小草坪上）
     { const pu = 3.6, pv = 27.6, z = tz(pu, pv) + 0.05; for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) m.quad([pu + a * 0.7, pv + b * 0.7, z], [pu + a * 0.7 + 0.7, pv + b * 0.7, z], [pu + a * 0.7 + 0.7, pv + b * 0.7 + 0.7, z], [pu + a * 0.7, pv + b * 0.7 + 0.7, z], (a + b) % 2 ? '#e0504a' : '#fff4ec', M.cloth); m.box(pu + 1.8, pv + 0.4, z, pu + 2.8, pv + 1.2, z + 1, '#b88a4a', M.cloth); }
     K.LAMPS.forEach(([u, v], i) => lamp(m, u, v, tz(u, v), PICK.lamp + i));

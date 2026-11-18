@@ -22,7 +22,8 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover');
+    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover')
+      || !!(PP.ringZone && G.mouse.onScreen !== false && PP.ringZone(G.mouse.x, G.mouse.y));
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
     if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
@@ -303,6 +304,14 @@
     window.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('contextmenu', (e) => e.preventDefault());
+    // 极简模式：在主角身上滚滚轮，主角（和它头顶那条按钮）一起变大变小
+    window.addEventListener('wheel', (e) => {
+      const s = G.save && G.save.settings; if (!s || s.mode !== 'mini' || G.isle || !G.hoverPet || !PP.mainPet || G.hoverPet !== PP.mainPet()) return;
+      e.preventDefault();
+      s.size = U.clamp(Math.round(((s.size || 2) + (e.deltaY < 0 ? 0.25 : -0.25)) * 4) / 4, 1, 4);
+      for (const p of G.pets) p.y = G.ground;
+      PP.save.soon(); PP.placeOrb && PP.placeOrb();
+    }, { passive: false });
     window.addEventListener('wheel', (e) => { markActive(); if (!api && PP.F && !e.target.closest('.panel,.menu')) PP.F.onWheel(e.deltaY); }, { passive: true });
     document.addEventListener('mouseleave', () => { G.mouse.onScreen = false; G.hoverPet = null; });
     window.addEventListener('blur', () => { if (dragPet) { dragPet.drop(0, 0); dragPet = null; } press = null; });
