@@ -407,10 +407,12 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .petring button.sys:hover { background: var(--accent); }
 .petring button.sys.new::before { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); border-radius: 50%; }
 
-.updchip { position: fixed; right: 10px; bottom: 54px; z-index: 40; display: flex; align-items: center; background: var(--paper); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); border-radius: 14px; overflow: hidden; }
-.updchip button { border: 0; box-shadow: none; background: transparent; font-size: 11px; padding: 4px 8px; }
-.updchip button.go:hover { background: var(--accent); }
-.updchip button.x { border-left: 1px solid var(--ink); padding: 4px 7px; color: var(--muted); }
+.updchip { position: fixed; right: 8px; top: 8px; z-index: 40; display: flex; align-items: center; background: rgba(255, 253, 243, .82); border: 1px solid rgba(60, 50, 60, .35); border-radius: 10px; overflow: hidden; opacity: .55; transition: opacity .2s; position: fixed; }
+.updchip:hover { opacity: 1; }
+.updchip button { border: 0; box-shadow: none; background: transparent; font-size: 10px; padding: 2px 7px; color: var(--muted); }
+.updchip button.go:hover { background: var(--accent); color: var(--ink); }
+.updchip .pg { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); pointer-events: none; }
+.updchip button.x { border-left: 1px solid rgba(60, 50, 60, .25); padding: 2px 6px; color: var(--muted); }
 
 /* 小场景 / 小岛旁边的按钮条 */
 .sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: calc(4px * var(--zs, 1)); transition: opacity .18s, transform .18s; }
