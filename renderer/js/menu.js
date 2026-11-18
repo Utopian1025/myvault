@@ -125,14 +125,16 @@
         pets: petsMenu, quiet: { id: 'quiet', label: '工作模式（安静）', type: 'checkbox', checked: !!s.quiet },
         pomo: { id: 'pomo', label: pomoOn ? '停止番茄钟' : `番茄钟 ${s.pomo.focus} 分钟` },
         remind: remind, weather: weatherMenu, sound: { id: 'ambient', label: '环境声音', type: 'checkbox', checked: !!s.ambient },
-        settings: settingsMenu, hide: api ? { id: 'hideWin', label: '暂时隐藏全部' } : null,
+        settings: settingsMenu, hide: api ? { id: 'hideWin', label: '暂时隐藏全部（30 分钟）' } : null,
       };
       const top = TRAY_ITEMS.filter(([k]) => on.has(k) && parts[k]).map(([k]) => parts[k]);
       const more = [petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu];
       return [...top, '-', { label: '更多', sub: more }, ...(api ? [{ id: 'quit', label: '退出' }] : [])];
     }
     items.push(petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu);
-    if (api) items.push('-', { id: 'hideWin', label: '暂时隐藏全部' }, { id: 'quit', label: '退出' });
+    // 宠物身上的菜单里不放“隐藏全部”：一不小心点到，整个窗口就没了（只在托盘菜单里有，半小时后自己回来）
+    if (api && forTray) items.push('-', { id: 'hideWin', label: '暂时隐藏全部（30 分钟）' }, { id: 'quit', label: '退出' });
+    else if (api) items.push('-', { id: 'quit', label: '退出' });
     return items;
   };
 

@@ -274,7 +274,20 @@
       p.anim = 'lie'; p.eyes = 'closed'; yield U.rand(3, 6);
       if (!p.hat && Math.random() < 0.5) { p.hat = 'yuzu'; p.say('…（头上有柚子）', 2); }
     } else if (sp === 'hedgehog') {
-      p.anim = 'curl'; yield 0.8; p.anim = 'idle'; p.eyes = 'happy'; p.jolt(-3, 0); yield 0.8;
+      const r = Math.random();
+      if (r < 0.4) {
+        // 缩成刺球，咕噜咕噜往前滚一小段，停下来晕乎乎，再抖一抖展开
+        p.anim = 'curl'; yield 0.5; p.anim = 'roll';
+        const x0 = p.x, tx = U.clamp(x0 + p.facing * U.rand(30, 70) * S(), 30, G.W - 30);
+        for (let k = 1; k <= 24; k++) { p.x = x0 + (tx - x0) * (k / 24); yield 0.035; }
+        p.anim = 'curl'; yield 0.4; p.anim = 'idle'; p.eyes = 'dizzy'; yield 0.9; p.eyes = 'wide'; p.jolt(-2, 0); yield 0.3; p.eyes = 'happy'; yield 0.8;
+      } else if (r < 0.7) {
+        // 低头嗅嗅、扒拉扒拉，找到一只小虫
+        p.anim = 'eat'; yield 1.3; p.anim = 'idle'; p.eyes = 'happy'; p.say(U.pick(['（找到一只小虫）', '嗅嗅…有好吃的', '（叼起一片叶子）']), 1.6); yield 1;
+      } else {
+        // 抖抖刺：刺一下子竖起来又落下去
+        p.eyes = 'wide'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? -2 : 2, 0); yield 0.15; } p.eyes = 'happy'; p.say('沙沙', 1); yield 0.9;
+      }
     } else if (sp === 'dragon') {
       p.mouth = 'open'; p.eyes = 'closed'; yield 0.6;
       for (let i = 0; i < 8; i++) PP.fx({ kind: 'dot', x: p.x + p.facing * 10 * S(), y: p.headPos[1] + 6 * S(), vx: p.facing * U.rand(60, 140), vy: U.rand(-30, 10), life: 0.6, col: U.pick(['#ff9a3a', '#ffcf33', '#ff5a3a']), size: S() * 2 });

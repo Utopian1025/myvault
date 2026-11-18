@@ -28,6 +28,14 @@
   }
 
   async function boot() {
+    try { await boot0(); }
+    catch (e) {
+      // 启动到一半出错：记下来，但画面和按钮照样跑起来，不留一块空白
+      oops(e, 'boot');
+      try { if (!PP.started) { PP.started = true; PP.syncPets && PP.syncPets(); loop(); } } catch (x) { oops(x, 'boot2'); }
+    }
+  }
+  async function boot0() {
     if (!api) document.body.classList.add('web');
     cv = document.getElementById('stage'); ctx = cv.getContext('2d');
     resize();
@@ -64,16 +72,60 @@
     setInterval(() => PP.save.write(), 20000);
     window.addEventListener('beforeunload', () => PP.save.write());
     PP.events.tick();
+    setInterval(() => { try { guard(); } catch (e) { oops(e, 'guard'); } }, 1000);
+    if (api && api.onRescue) api.onRescue((force) => { try { rescue(force); } catch (e) { oops(e, 'rescue'); } });
     loop();
   }
 
+  // ---------- 看门狗：任何情况下主角都不能“凭空消失” ----------
+  // 每秒查一遍：坐标坏了 / 跑出屏幕 / 卡在门里 / 极简模式下主角没在画面上（又不是你让它走的）→ 自动纠正，并写进日志
+  const LOG = (m) => { try { console.warn('[guard]', m); api && api.log && api.log('[guard] ' + m); } catch (e) {} };
+  PP.log = LOG;
+  let missing = 0;
+  function guard() {
+    if (!G.save || !PP.started) return;
+    if (cv && (Math.abs(window.innerWidth - G.W) > 1 || Math.abs(window.innerHeight - G.H) > 1)) { LOG(`画布尺寸不对 ${G.W}x${G.H} → ${window.innerWidth}x${window.innerHeight}`); resize(); }
+    for (const p of G.pets) {
+      if (p.held) continue;
+      const bad = !Number.isFinite(p.x) || !Number.isFinite(p.y);
+      if (bad || p.x < -60 || p.x > G.W + 60 || p.y < -300 || p.y > G.H + 80) {
+        LOG(`${p.name} 位置异常 (${p.x}, ${p.y})，拉回来`);
+        p.interrupt(true); p.airborne = false; p.target = null;
+        p.x = U.clamp(Number.isFinite(p.x) ? p.x : G.W * 0.7, 40, G.W - 40); p.y = p.floor != null && Number.isFinite(p.floor) ? p.floor : G.ground;
+        if (!Number.isFinite(p.y)) p.y = G.H - 2;
+      }
+    }
+    const s = G.save.settings, m = PP.mainPet && PP.mainPet();
+    // 极简：主角应该在；不在的正当理由只有：出门探险、被你选成不显示、你让大家都回电脑里、被你拎着
+    if (s.mode === 'mini' && m && !s.allAway && !m.d.trip && !m.d.hidden && !m.held && (!G.pets.includes(m) || m.outing)) {
+      if (++missing >= 4) {
+        missing = 0; LOG(`极简模式主角 ${m.name} 不在画面上（inDoor=${!!m.inDoor} outing=${!!m.outing} inHome=${!!m.d.inHome}），叫回来`);
+        m.outing = null; m.d.inHome = false; PP.syncPets();
+        if (G.pets.includes(m)) PP.petEmerge(m, U.clamp(m.x, 60, G.W - 60));
+      }
+    } else missing = 0;
+  }
+  // 托盘“看不见宠物？点这里找回” / 又双击了一次图标 / 睡眠唤醒（force=0：只做检查）
+  function rescue(force) {
+    resize();
+    if (!force) { guard(); return; }
+    const s = G.save.settings;
+    LOG('找回宠物：mode=' + s.mode + ' allAway=' + !!s.allAway + ' pets=' + G.pets.map((p) => p.name + '@' + Math.round(p.x) + ',' + Math.round(p.y)).join(' '));
+    s.allAway = false;
+    document.querySelectorAll('.panel').forEach((e) => e.style.removeProperty('display'));
+    PP.summonMain && PP.summonMain();
+    PP.refreshInteractive && PP.refreshInteractive();
+    PP.ui.toast('在这儿呢～');
+  }
+
   // 30fps 足够像素风，也更省电
-  let last = performance.now(), acc = 0;
+  let last = performance.now(), acc = 0, lastBeat = 0;
   const STEP = 1 / 30;
   function loop() {
     requestAnimationFrame(loop);
     const now = performance.now();
     acc += Math.min(0.25, (now - last) / 1000); last = now;
+    if (api && api.beat && now - lastBeat > 2000) { lastBeat = now; api.beat(); } // 报平安：主进程 15 秒收不到就重新载入页面
     if (acc < STEP) return;
     const dt = Math.min(acc, 0.1); acc = 0;
     try { update(dt); } catch (e) { oops(e, 'update'); }
@@ -86,10 +138,13 @@
     seen[k] = (seen[k] || 0) + 1;
     if (seen[k] > 1) return;
     console.error(where, e);
+    try { api && api.log && api.log(msg + ' | ' + String((e && e.stack) || '').split('\n').slice(1, 5).join(' | ')); } catch (x) {}
     try { const f = G.save.flags; f.errs = (f.errs || []).slice(-9); f.errs.push({ t: Date.now(), m: msg, s: String((e && e.stack) || '').split('\n').slice(1, 4).join(' | ').slice(0, 300) }); } catch (x) {}
     try { PP.ui.toast('遇到一个小故障，已自动跳过（' + msg.slice(0, 60) + '）'); } catch (x) {}
   }
   PP.oops = oops;
+  window.addEventListener('error', (e) => oops(e.error || e.message, 'window'));
+  window.addEventListener('unhandledrejection', (e) => oops(e.reason, 'promise'));
   const safe = (fn, where) => { try { fn(); } catch (e) { oops(e, where); } };
 
   function update(dt) {

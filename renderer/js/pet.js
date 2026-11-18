@@ -121,7 +121,7 @@
       if (this.inDoor || this.outing) return false;
       const S = G.S * (this.scaleMul || 1);
       const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
-      const half = (PP.QUAD && PP.QUAD.has(this.d.species) ? 14 : 10) * S;
+      const half = ((PP.QUAD && PP.QUAD.has(this.d.species)) || (PP.VOX && PP.VOX.has(this.d.species)) ? 14 : 10) * S;
       return mx > this.x - half && mx < this.x + half && my > this.y - top + (this.wade || 0) && my < this.y + G.S * 2;
     }
     hitHead(mx, my) {
@@ -538,6 +538,7 @@
         jelly: { sy: 1 + this.jy, sx: 1 - this.jy * 0.55, skew: this.jsk + (this.purr > 0 ? Math.sin(this.t * 55) * 0.25 : 0), sway: this.tsw },
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
         scene: !this.held && G.save && (G.isle || (G.save.settings.mode === 'band' && !G.save.settings.sceneHidden)),
+        vyaw: PP.VOX && PP.VOX.has(this.d.species) ? PP.VOX.yawFor(this) : null, petting: this.petting,
       });
       if (buf.head) this._head = buf.head;
       const SS = S * (this.scaleMul || 1);

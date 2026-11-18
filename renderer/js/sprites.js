@@ -281,6 +281,8 @@
 
   function drawPet(p) {
     // 四条腿的动物走侧身模型（头像 / 图标仍用正脸）
+    // 做好了 3D 体素版的动物（刺猬…）：直接用 3D（头像 / 图标也用它的正脸）。出错就退回 2D
+    if (PP.VOX && PP.VOX.has(p.species) && !p.custom && !p.transform) { try { return PP.VOX.drawPet(p); } catch (e) { PP.oops && PP.oops(e, 'vox'); } }
     if (!p.portrait && PP.QUAD && PP.QUAD.draw && PP.QUAD.has(p.species)) return PP.QUAD.draw(p);
     // 新动作映射到第一版的姿势上
     let keyboard = false;
@@ -1555,5 +1557,5 @@
   var HP = { ell, rect, poly, outline, K, OUT, RIM, drawEye, lookX, blobFit, FACES: null };
   const STAND_IDLE = new Set(['lion', 'tiger', 'snowleopard', 'polarbear', 'brownbear', 'zebra', 'antelope', 'deer', 'cow', 'yak', 'alpaca', 'sheep', 'hippo', 'pig', 'capybara']);
   const STAND_WALK = new Set([...STAND_IDLE, 'cat', 'dog', 'fox', 'arcticfox', 'fennec']);
-  PP.SPR = { STAND_IDLE, STAND_WALK, HP, customPal, tone, _h: { outline, outlineSel, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
+  PP.SPR = { STAND_IDLE, STAND_WALK, HP, customPal, tone, _h: { outline, outlineSel, sceneRim, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
 })();

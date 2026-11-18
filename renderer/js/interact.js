@@ -20,9 +20,25 @@
     if (api) api.setInteractive(v);
     document.body.style.cursor = v && (G.hoverPet || G.hoverItem || G.hoverHot) ? (!G.hoverPet && !G.hoverItem && G.hoverHot.cur) || 'pointer' : 'default';
   }
+  // 看得见才算数：自己或任何一层父元素几乎透明 / 隐藏 → 当它不存在（不接鼠标、不挡你点桌面）
+  PP.seen = (el) => {
+    for (let e = el; e && e !== document.body; e = e.parentElement) {
+      const cs = getComputedStyle(e);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity < 0.3) return false;
+    }
+    return true;
+  };
+  // 全局：点在看不见的东西上 = 没点（任何隐藏 / 正在淡出 / 还没淡入的按钮都不会被误点）
+  for (const ev of ['mousedown', 'mouseup', 'click', 'dblclick', 'contextmenu', 'pointerdown']) {
+    window.addEventListener(ev, (e) => {
+      const t = e.target;
+      if (!t || t === document.body || t.id === 'stage' || !t.closest || !t.closest('#ui, .panel, .menu, .fishcard')) return;
+      if (!PP.seen(t)) { e.stopImmediatePropagation(); e.preventDefault(); }
+    }, true);
+  }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = !!document.querySelector('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover')
+    const overUI = [...document.querySelectorAll('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover')].some((e) => PP.seen(e))
       || !!(PP.ringZone && G.mouse.onScreen !== false && PP.ringZone(G.mouse.x, G.mouse.y));
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
@@ -79,7 +95,8 @@
     PP.refreshInteractive();
     if (interactive) document.body.style.cursor = G.hoverPet || G.hoverItem || G.hoverHot ? (!G.hoverPet && !G.hoverItem && G.hoverHot.cur) || 'pointer' : 'default';
 
-    detectEdgeWiggle(x, y);
+    // （以前这里有“在屏幕最底边左右晃鼠标 = 让大家都回电脑里”的手势。鼠标在任务栏上划过图标时很容易误触，
+    //  一触发宠物就全躲进电脑、提示按钮又藏着，看起来就是“整个不见了”——已删掉。召唤/送回只走菜单和快捷键。）
     if (!press) {
       detectRub(x, y);
       detectCircle(x, y);

@@ -474,7 +474,9 @@
     const t = p.eco && p.eco.task;
     if (t && !t.home && t.scene === p.d.scene) {
       const pos = t.spot ? spotPos(t.spot) : null;
-      p.x = pos ? U.clamp(pos.x + U.rand(-30, 30), 20, G.W - 20) : U.rand(G.W * 0.15, G.W * 0.85);
+      // 主角本来就在画面上：留在原地自己走过去，不要“嗖”地一下闪到别处
+      const stay = PP.mainPet && PP.mainPet() === p && p.x > 20 && p.x < G.W - 20;
+      if (!stay) p.x = pos ? U.clamp(pos.x + U.rand(-30, 30), 20, G.W - 20) : U.rand(G.W * 0.15, G.W * 0.85);
       p.y = floorY(p);
       const left = p.eco.until ? Math.max(4, p.eco.until - G.t) : t.dur;
       p.eco = null;

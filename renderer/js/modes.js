@@ -554,15 +554,25 @@
       }
       const bs = Math.round(U.clamp(16 + S * 4, 20, 30) * (mini ? 0.85 : 1));
       ring.style.setProperty('--bs', bs + 'px');
-      const cx = ringPet.x, cy = ringPet.y - 13 * S + ringPet.sinkPx() + (ringPet.wade || 0), span = Math.PI * 0.9;
+      const bh = ringPet.bodyH ? ringPet.bodyH() : 26 * S, cx = ringPet.x, cy = mini ? ringPet.y - bh * 0.5 : ringPet.y - 13 * S + ringPet.sinkPx() + (ringPet.wade || 0), span = Math.PI * 0.9;
       const groups = [[...ring.querySelectorAll('button:not(.sys)')], [...ring.querySelectorAll('button.sys')]].filter((g) => g.length);
       let R = 0;
       groups.forEach((btns, gi) => {
         const n = btns.length;
         // 弧的半径：保证按钮之间不挤在一起；外圈在里圈外面一个按钮远
-        R = Math.max(gi ? R + bs * 1.22 : 12 * S + bs * 0.9, ((n - 1) * bs * 1.12) / span);
+        R = Math.max(gi ? R + bs * 1.22 : (mini ? bh * 0.62 + bs * 0.7 : 12 * S + bs * 0.9), ((n - 1) * bs * 1.12) / span); // 极简：按着动物身子大小绕，不压到脸
         const nearL = cx < R + bs * 1.2, nearR = cx > G.W - R - bs * 1.2;
-        if (nearL || nearR) {
+        if (mini && (nearL || nearR)) {
+          // 极简贴着屏幕边：改成朝里的四分之一圈（从侧面绕到头顶），还是围着它
+          const q = Math.PI / 2;
+          R = Math.max(R, ((n - 1) * bs * 1.12) / q);
+          const a0 = nearR ? Math.PI : -q;
+          btns.forEach((b, i) => {
+            const a = n === 1 ? a0 + q / 2 : a0 + (q * (nearR ? i : n - 1 - i)) / (n - 1);
+            const x = U.clamp(cx + Math.cos(a) * R, bs / 2 + 2, G.W - bs / 2 - 2), y = U.clamp(cy + Math.sin(a) * R, bs / 2 + 2, G.H - bs / 2 - 2);
+            b.style.left = x - bs / 2 + 'px'; b.style.top = y - bs / 2 + 'px';
+          });
+        } else if (nearL || nearR) {
           // 贴着屏幕左右边：弧会被切掉一半，改成在它朝里的一侧竖着排（外圈再往里一列）
           const side = nearR ? -1 : 1, gap = bs * 1.15, colX = U.clamp(cx + side * (10 * S + bs * 0.9 + gi * bs * 1.22), bs / 2 + 2, G.W - bs / 2 - 2);
           const top = U.clamp(cy - ((n - 1) * gap) / 2, bs / 2 + 2, G.H - bs / 2 - 2 - (n - 1) * gap);
@@ -583,9 +593,9 @@
     hideBar();
     ringPet = p;
     if (miniBar(p)) {
+      // 极简：还是绕着动物一圈。里圈：喂 / 水 / 摸 / 更多；外圈：场景（最常用，高亮）/ 地图 / 背包
       const sys = sysFor(p), care = btnsFor(p);
-      const B = ([c, tip], sysb) => `<button class="${sysb ? 'sys' : ''} ${c === 'view' ? 'scn' : ''} ${c === 'bag' && PP.econ && PP.econ.unread() ? 'new' : ''}" ${sysb ? 'data-h' : 'data-c'}="${c}" title="${esc(tip)}"><canvas width="20" height="20"></canvas>${c === 'view' ? '<span>场景</span>' : ''}</button>`;
-      ring = $(`<div class="hoverbar petring mbar">${B(sys[0], 1)}<i class="sep"></i>${care.slice(0, 3).map((b) => B(b)).join('')}<i class="sep"></i>${sys.slice(1).map((b) => B(b, 1)).join('')}${B(care[3])}</div>`);
+      ring = $(`<div class="hoverbar petring">${care.slice(0, 4).map(([c, tip]) => `<button data-c="${c}" title="${esc(tip)}"><canvas width="20" height="20"></canvas></button>`).join('')}${sys.map(([c, tip]) => `<button class="sys ${c === 'view' ? 'key' : ''} ${c === 'bag' && PP.econ && PP.econ.unread() ? 'new' : ''}" data-h="${c}" title="${esc(tip)}"><canvas width="20" height="20"></canvas></button>`).join('')}</div>`);
     } else
     ring = $(`<div class="hoverbar petring">${btnsFor(p).map(([c, tip]) => `<button data-c="${c}" title="${tip}"><canvas width="20" height="20"></canvas></button>`).join('')}${sysFor(p).map(([c, tip]) => `<button class="sys ${c === 'mini' || c === 'expand' ? 'key' : ''} ${c === 'bag' && PP.econ && PP.econ.unread() ? 'new' : ''}" data-h="${c}" title="${esc(tip)}"><canvas width="20" height="20"></canvas></button>`).join('')}</div>`);
     ring.querySelectorAll('button').forEach((b) => (b.dataset.h ? hIcon(b.querySelector('canvas'), b.dataset.h) : drawIconTo(b.querySelector('canvas'), b.dataset.c, p)));
