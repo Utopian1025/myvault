@@ -199,10 +199,19 @@
       // 极简模式：只在右下角那一小块走动
       if (G.save && G.save.settings.mode === 'mini' && PP.miniZone) { const [a, b] = PP.miniZone(); this.target = U.clamp(this.target, a, b); }
       // 场景里走路时顺便换一排（往前 / 往后），看起来是在场景里走，不是在一条线上
-      if (lane != null) this.tLane = lane; else if (G.isle && !this.isleSpot && Math.random() < 0.5) this.tLane = U.clamp((this.lane != null ? this.lane : 0.3) + U.rand(-0.3, 0.3), 0.05, 0.95); else if (!this.surf && PP.scene && PP.scene.active() && Math.random() < 0.6) this.tLane = U.clamp((this.lane != null ? this.lane : 0.75) + U.rand(-0.35, 0.35), 0.15, 1);
+      // 竖着的小场景：屏幕上别处的目标按比例挪进那块地里；走路是平面上走（左右 + 前后一起）
+      const vz = !G.isle && !G.bar && PP.scene && PP.scene.vzone && G.pets.includes(this) ? PP.scene.vzone() : null;
+      if (vz) { if (x < vz[0] || x > vz[1]) this.target = vz[0] + U.clamp(x / G.W, 0, 1) * (vz[1] - vz[0]); this.target = U.clamp(this.target, vz[0], vz[1]); if (lane == null && !this.surf && Math.random() < 0.85) lane = U.clamp((this.lane != null ? this.lane : 0.6) + U.rand(-0.45, 0.45), 0.04, 1); }
+      if (lane != null) this.tLane = U.clamp(lane, 0, 1); else if (G.isle && !this.isleSpot && Math.random() < 0.5) this.tLane = U.clamp((this.lane != null ? this.lane : 0.3) + U.rand(-0.3, 0.3), 0.05, 0.95); else if (!this.surf && PP.scene && PP.scene.active() && Math.random() < 0.6) this.tLane = U.clamp((this.lane != null ? this.lane : 0.75) + U.rand(-0.35, 0.35), 0.15, 1);
       return () => this.target == null;
     }
 
+    // 往目标挪一步：竖着的小场景里左右和前后一起走（匀速，斜着走也一样快）
+    mv(dx, step, vd) {
+      if (!vd || this.tLane == null) { this.x += Math.sign(dx) * Math.min(Math.abs(dx), step); return; }
+      const l0 = this.lane != null ? this.lane : 0.75, dy = (this.tLane - l0) * vd, dist = Math.hypot(dx, dy), f = Math.min(1, step / Math.max(0.001, dist));
+      this.x += dx * f; this.lane = l0 + (this.tLane - l0) * f;
+    }
     // ---------- 每帧 ----------
     update(dt) {
       this.t += dt;
@@ -241,7 +250,9 @@
       if (this.airborne) { this.hopY = 0; this.updateAir(dt); return; }
       // 换排
       if (G.isle) this.tLane = null;
-      if (this.tLane != null) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else { let rate = 0.9; if (G.isle && this.target != null) { const left = Math.abs(this.target - this.x), sp0 = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * 1.8; rate = Math.max(0.9, Math.abs(d) * sp0 / Math.max(6, left)); } this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * rate); } }
+      const vd = !G.isle && !G.bar && !this.surf && PP.scene && PP.scene.vdepth && G.pets.includes(this) ? PP.scene.vdepth() : 0;
+      if (vd && this.target == null) this.tLane = null;
+      if (this.tLane != null && !vd) { const d = this.tLane - (this.lane != null ? this.lane : 0.75); if (Math.abs(d) < 0.01 || this.target == null) { this.lane = this.target == null ? this.lane : this.tLane; if (this.target == null) this.tLane = null; } else { let rate = 0.9; if (G.isle && this.target != null) { const left = Math.abs(this.target - this.x), sp0 = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * 1.8; rate = Math.max(0.9, Math.abs(d) * sp0 / Math.max(6, left)); } this.lane = (this.lane != null ? this.lane : 0.75) + Math.sign(d) * Math.min(Math.abs(d), dt * rate); } }
       const floor = this.floor;
 
       // 走路
@@ -250,7 +261,7 @@
         const dx = this.target - this.x;
         const spd = (this.running ? this.sp.run : this.sp.speed) * G.S / 2 * (this.dizzy > 0 ? 0.5 : 1) * (this.mood < 30 ? 0.75 : 1) * (G.isle ? 1.8 : 1);
         const sp = this.sp;
-        if (Math.abs(dx) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; if (this.tLane != null) { this.lane = this.tLane; this.tLane = null; } this.y = this.floor; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
+        if ((vd && this.tLane != null ? Math.hypot(dx, (this.tLane - (this.lane != null ? this.lane : 0.75)) * vd) : Math.abs(dx)) < 3) { this.target = null; this.hopP = 0; this.hopY = 0; if (this.tLane != null) { this.lane = this.tLane; this.tLane = null; } this.y = this.floor; if (['walk', 'run', 'jump', 'fall', 'land'].includes(this.anim)) this.anim = 'idle'; }
         else if (sp.gait === 'hop' && !this.peek) {
           // 一蹦一蹦地走：只有在空中的时候才前进
           this.facing = dx > 0 ? 1 : -1;
@@ -260,7 +271,7 @@
           if (ph < 0.62) {
             const a = ph / 0.62;
             this.hopY = -Math.sin(a * Math.PI) * sp.hopH * G.S / 2 * (this.running ? 1.3 : 1);
-            this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt * 1.6);
+            this.mv(dx, spd * dt * 1.6, vd);
             this.anim = a < 0.5 ? 'jump' : 'fall'; this._landed = false;
           } else {
             this.hopY = 0; this.anim = 'land';
@@ -268,8 +279,8 @@
           }
           this.y = floor + this.hopY;
         } else {
-          this.facing = dx > 0 ? 1 : -1;
-          this.x += Math.sign(dx) * Math.min(Math.abs(dx), spd * dt * (this.calm ? 0.7 : 1));
+          if (Math.abs(dx) > 1) this.facing = dx > 0 ? 1 : -1;
+          this.mv(dx, spd * dt * (this.calm ? 0.7 : 1), vd);
           this.anim = this.running ? 'run' : 'walk';
           if (this.dizzy > 0) this.x += Math.sin(this.t * 9) * 0.8;
         }
@@ -525,6 +536,7 @@
         transform: this.transform, lop: this.d.lop,
         jelly: { sy: 1 + this.jy, sx: 1 - this.jy * 0.55, skew: this.jsk + (this.purr > 0 ? Math.sin(this.t * 55) * 0.25 : 0), sway: this.tsw },
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
+        scene: !this.held && G.save && (G.isle || (G.save.settings.mode === 'band' && !G.save.settings.sceneHidden)),
       });
       if (buf.head) this._head = buf.head;
       const SS = S * (this.scaleMul || 1);
@@ -534,8 +546,10 @@
       const clipY = this.sinkPx() ? G.ground + 1 : this.y + 1;
       // 脚下一块像素软影子（离地越高越小越淡）：动物“站”在地上，不再像贴纸浮着
       if (!sink && !this.held && G.save && (G.save.settings.mode !== 'mini' || G.isle)) {
-        const air = Math.max(0, G.ground - this.y), k = Math.max(0.25, 1 - air / (40 * SS)), wpx = Math.round((PP.SPR.STAND_WALK.has(this.d.species) ? 11 : 8) * SS * k), hpx = Math.max(1, Math.round(SS));
-        ctx.fillStyle = `rgba(40,24,48,${0.16 * k})`; ctx.fillRect(Math.round(this.x - wpx), Math.round(G.ground - hpx * 0.5), wpx * 2, hpx); ctx.fillRect(Math.round(this.x - wpx + 2 * SS), Math.round(G.ground - hpx * 0.5 - hpx), Math.max(0, wpx * 2 - 4 * SS), hpx);
+        // 小场景里每只站在自己那一排上（y 不同）：影子跟着自己的脚；跳起来时影子留在落脚的那一排
+        const band = G.save.settings.mode === 'band' && !G.isle, gy = band ? (this.floor != null ? this.floor : this.y) : G.ground;
+        const air = Math.max(0, gy - this.y), k = Math.max(0.25, 1 - air / (40 * SS)), wpx = Math.round((PP.SPR.STAND_WALK.has(this.d.species) ? 11 : 8) * SS * k), hpx = Math.max(1, Math.round(SS));
+        ctx.fillStyle = `rgba(28,26,40,${(band ? 0.3 : 0.16) * k})`; ctx.fillRect(Math.round(this.x - wpx), Math.round(gy - hpx * 0.5), wpx * 2, hpx); ctx.fillRect(Math.round(this.x - wpx + 2 * SS), Math.round(gy - hpx * 0.5 - hpx), Math.max(0, wpx * 2 - 4 * SS), hpx); ctx.fillRect(Math.round(this.x - wpx + 2 * SS), Math.round(gy + hpx * 0.5), Math.max(0, wpx * 2 - 4 * SS), hpx);
       }
       if (sink) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, G.W, clipY); ctx.clip(); }
       PP.SPR.blit(ctx, buf, px, py, SS);

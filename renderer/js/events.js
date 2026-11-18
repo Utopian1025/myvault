@@ -176,11 +176,7 @@
       }
       // 杯子（给猫推的）
       G.ambient.nextCup -= 5;
-      if (G.ambient.nextCup <= 0 && G.pets.some((p) => p.d.species === 'cat') && !PP.findItem('cup')) {
-        G.ambient.nextCup = U.rand(1800, 5400);
-        const side = Math.random() < 0.5;
-        PP.addItem({ type: 'cup', x: side ? 34 : G.W - 34 });
-      }
+      // （以前会在桌面上放一个给猫推的杯子：点了没反应、只能拖来拖去，去掉了）
       // 节日食物
       const hol = PP.holiday(d);
       if (hol) {

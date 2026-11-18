@@ -404,7 +404,8 @@
   function spotPos(id) {
     const l = lay(); if (!l) return null;
     const s = l.L.spots[id]; if (!s) return null;
-    return { x: s.c * l.g.u, r: s.r, water: !!s.water, perch: !!s.perch, hang: !!s.hang, c: s.c, id };
+    const V = l.L.v, lane = V && !s.water && !s.perch && !s.hang ? U.clamp((s.r - (l.L.base + 1)) / Math.max(1, V.T3 - 2 - (l.L.base + 1)), 0, 1) : undefined;
+    return { x: s.c * l.g.u, r: s.r, water: !!s.water, perch: !!s.perch, hang: !!s.hang, c: s.c, id, lane };
   }
   function rowY(r) { const l = lay(); return l ? l.g.y0 + r * l.g.u : G.ground; }
   // 宠物脚下的“地面”：陆地分前后好几排（lane），水里、高处另算
@@ -651,7 +652,7 @@
       } else yield p.goto(tx, run);
       return;
     }
-    yield p.goto(tx, run);
+    yield p.goto(tx, run, pos.lane);
     if (pos.perch && PP.canClimb(p.d.species)) { p.facing = U.chance(0.5) ? 1 : -1; yield* hopTo(p, { r: pos.r, perch: true, hang: pos.hang, c: pos.c, id: pos.id }, null); }
   }
   function wadeOf(p, task) {
@@ -683,7 +684,7 @@
       const pos = spotPos(task.spot);
       if (p.surf && !(pos && pos.water)) { p.wade = 0; yield* hopTo(p, null, 0.5); }
       if (pos && pos.water && !p.surf) yield* walkTo(p, pos, Object.assign({ jit: 0 }, task), task.run);
-      else yield p.goto(pos ? pos.x : p.x, !!task.run);
+      else yield p.goto(pos ? pos.x : p.x, !!task.run, pos ? pos.lane : undefined);
       p.facing = U.chance(0.5) ? 1 : -1;
       yield* goIn(p, task);
       return;

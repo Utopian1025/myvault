@@ -27,6 +27,8 @@
       s.settings.pomo = Object.assign(fresh().settings.pomo, s.settings.pomo || {});
       // 旧版本迁移：透明模式没了 → 小场景；小屋没了 → 森林
       if (s.settings.mode === 'clear') s.settings.mode = 'band';
+      if (s.settings.mode === 'full') s.settings.mode = 'band'; // 全屏场景取消了
+      if (s.settings.lastMode === 'full') s.settings.lastMode = 'band';
       if (s.settings.lastMode === 'clear' || s.settings.lastMode === 'mini') s.settings.lastMode = 'band';
       if (!(PP.WORLD || []).some((w) => w[0] === s.settings.scene)) s.settings.scene = 'forest';
       if (s.settings.decor) delete s.settings.decor.cabin;

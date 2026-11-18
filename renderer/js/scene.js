@@ -33,7 +33,7 @@
   PP.SCENES = SCENES; PP.EXITS = EXITS;
   // 每种动物的家在哪个场景
   PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
-  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['isle', '小岛', '右下角一座漂浮的小岛：小屋、菜地、信箱，主角在上面过小日子'], ['band', '小场景', '任务栏上方一条，大家在里面过日子'], ['full', '全屏场景', '整块屏幕都是它们的世界（一打字就自动收起）']];
+  PP.MODES = [['mini', '极简', '只留主角，安安静静待在右下角'], ['bar', '任务栏', '主角住进任务栏里：不挡图标，点击都穿透给任务栏'], ['isle', '小岛', '右下角一座漂浮的小岛：小屋、菜地、信箱，主角在上面过小日子'], ['band', '小场景', '右下角一块竖着的像素小天地，大家在里面过日子']];
 
   // 装饰：k → [名字, 室内?]
   const DECOR = {
@@ -68,20 +68,33 @@
   const decorOf = (scene) => settings().decor[scene] || defaultDecor(scene);
 
   // ---------- 几何 ----------
-  function mode() { return (G.save && settings().mode) || 'band'; }
-  function active() { const m = mode(); return m === 'full' || m === 'band'; }
+  function mode() { const m = (G.save && settings().mode) || 'band'; return m === 'full' ? 'band' : m; }
+  function active() { return mode() === 'band'; }
   // 场景像素和宠物像素一样大（1 格 = G.S 屏幕像素），画面更细
+  // 小场景：右下角一块竖着的矩形（宽 M 格、高 N 格，1 格 = 宠物的 1 个像素），贴着任务栏
+  function vrect(u) {
+    // 框在屏幕上的大小（像素）固定，和宠物大小无关；格子数 = 屏幕像素 / 场景像素
+    const k = [0, 0.82, 1, 1.2][(G.save && settings().bgH) || 2] || 1, wpx = Math.round(320 * k * U.clamp((G.save && settings().size || 2) / 2, 0.8, 1.3));
+    let M = Math.round((wpx * 1.18) / u), N = Math.round(M * 0.92); // 近似方形（和小岛一样）
+    const maxN = Math.floor((G.H - 40) / u); if (N > maxN) { N = maxN; M = Math.min(M, Math.round(N / 0.92)); }
+    M = Math.min(M, Math.floor((G.W - 40) / u));
+    const ox = Math.max(0, Math.floor((G.W - 14) / u) - M), y0 = G.H - N * u - 2;
+    return { M, N, ox, y0 };
+  }
   function geo() {
     const m = mode();
     const u = Math.max(1, G.S);
-    if (m === 'full') return { m, y0: 0, H: G.H, u };
     if (m !== 'band') return null;
-    const H = bandHeight();
-    return { m, y0: G.H - H, H, u };
+    const v = vrect(u);
+    return { m, y0: v.y0, H: v.N * u, u, vert: true, ox: v.ox, cols: v.M, x0: v.ox * u, W: v.M * u };
   }
   function height() { const g = geo(); return g ? g.H : 0; }
-  // 小场景模式下场景条有多高（不管现在是什么模式，按钮都按这个位置放，切换模式时按钮不会跳走）
-  function bandHeight() { return Math.round([0, 120, 170, 230][(G.save && settings().bgH) || 2] * U.clamp(G.S / 2, 0.75, 1.6)); }
+  function bandHeight() { return vrect(Math.max(1, G.S)).N * Math.max(1, G.S); }
+  // 小场景里能走的横向范围（屏幕像素）和“最前排”的地面高度
+  function vzone() { const g = geo(); if (!g || !L || G.isle) return null; if (L.room) return [(L.room.x0 + 10) * g.u, (L.room.x1 - 10) * g.u]; if (!L.v) return null; return [L.v.walk[0] * g.u, L.v.walk[1] * g.u]; }
+  function vground() { const g = geo(); if (!g || !L || !L.v) return null; return g.y0 + (L.v.T3 - 2) * g.u; }
+  function vdepth() { const g = geo(); if (!g || !L || !L.v || inside) return 0; return Math.max(1, (L.v.T3 - 2 - (L.base + 1)) * g.u); }
+  function vrectPx() { const g = geo(); return g ? { x0: g.x0, x1: g.x0 + g.W, y0: g.y0, y1: g.y0 + g.H } : null; }
 
   // 固定种子的伪随机
   function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
@@ -126,6 +139,20 @@
     if (!full && !lay.cave && !lay.under) for (let y = 0; y < 6; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 7)) P.d[y * cols + x] = 0;
     PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
+  // 竖着的小场景：先用原来那套画法在一张看不见的纸上画一遍，拿到各家的家、设施点，再交给 vscene 重新排成竖着的一块
+  function vbuild(scene, g, env) {
+    const A = PP.ART, cols = 400, rows = 85, gh = Math.round(rows * 0.34), gy = rows - gh, base = gy + 2;
+    const season = scene === 'snow' ? 'winter' : env.season;
+    const dl = { cols, rows, gy, base, hots: [], lights: [], lanterns: [], xmas: [], boxes: [], items: [], season, hol: env.holiday && env.holiday.id, scene, full: false, water: null, spots: {}, homes: [] };
+    const R = rng(cols * 31 + rows + scene.length * 7);
+    try { PP.BIOMES[scene](new A.Pix(cols, rows), dl, R, env); } catch (e) { console.error(e); }
+    const homes = dl.homes.map((h) => { const it = dl.items.find((i) => i.home === h.species); return it ? { species: h.species, s: it.s, door: h.c - h.x0, light: it.light } : null; }).filter(Boolean);
+    const hots = dl.hots.filter((h) => h.door).map((h) => ({ door: true, tip: h.tip, go: h.go }));
+    for (const [, to] of (PP.NEST && PP.NEST[scene] ? EXITS[scene] : [])) hots.push({ label: SCENES[to].name, tip: `回到${SCENES[to].name}`, go: to });
+    const decor = [];
+    (settings().decor[scene] || []).forEach((d, i) => { if (d.k === 'lily') return; const it = decorItem(d, dl, R); if (it) decor.push({ s: it.s, fx: d.x, fv: d.v || 0, di: i, light: it.light }); });
+    return PP.VSCENE.build(scene, { u: g.u, H: g.H, ox: g.ox, cols: g.cols }, env, { homes, hots, spots: dl.spots, dims: { cols, rows, base }, decor });
+  }
   // 地面上的零碎：前后错落，越靠前越大一点，避开小路、水和房子门口
   function scatter(lay, R) {
     const A = PP.ART, sc = lay.scene, s = lay.season, w = s === 'winter' || sc === 'snow';
@@ -153,10 +180,10 @@
   }
   // 家里面
   function buildInside(sp, scene, g, env) {
-    const A = PP.ART, u = g.u, cols = Math.ceil(G.W / u), rows = Math.ceil(g.H / u), full = g.m === 'full';
-    // 屋子不铺满整个屏幕：像一个剖开的小房子，摆在中间
-    const rw = Math.min(cols - 8, Math.max(240, Math.round(cols * (full ? 0.62 : 0.5)))), ox = Math.round((cols - rw) / 2);
-    const top = full ? Math.round(rows * 0.18) : 0, rh = rows - top;
+    const A = PP.ART, u = g.u, cols = Math.ceil(G.W / u), rows = Math.ceil(g.H / u), full = false;
+    // 屋子像一个剖开的小房子：摆在小场景那块地方的下面，上面盖个屋顶
+    const rw = g.cols, ox = g.ox;
+    const rh = Math.min(rows - 30, Math.max(90, Math.round(rw * 0.78))), top = rows - rh;
     const gh = Math.round(rh * (full ? 0.32 : 0.38)), gy = rh - gh, base = gy + 2;
     const season = scene === 'snow' ? 'winter' : env.season;
     const lay = { cols: rw, rows: rh, gy, base, hots: [], lights: [], lanterns: [], xmas: [], boxes: [], items: [], season, scene, full, water: null, spots: {}, homes: [], inside: sp };
@@ -169,7 +196,16 @@
     // 外框 + 影子
     P.rect(ox + 3, top + 3, rw, rh, '#00000055');
     Q.stamp(P, ox, top, 0, 0);
-    P.rect(ox - 2, top, 2, rh, '#2a2026'); P.rect(ox + rw, top, 2, rh, '#2a2026'); if (full) P.rect(ox - 2, top - 2, rw + 4, 2, '#2a2026');
+    P.rect(ox - 2, top, 2, rh, '#2a2026'); P.rect(ox + rw, top, 2, rh, '#2a2026');
+    // 屋顶：一片片瓦（剖面），屋脊上一根烟囱
+    const rf = Math.min(top - 2, Math.round(rw * 0.22)), rc = ox + rw / 2, roof = ['#7a3a2e', '#94493a', '#ac5a46', '#c27058'];
+    const den = /洞|窝|巢|穴|窟|泉|叶/.test(PP.HOME_NAME[sp] || '');
+    if (den) { // 洞、窝：上面是一个长满草的小土坡
+      const gc = PP.ART.LEAF ? ['#3f7c30', '#4f9438', '#68ae46', '#8ece62'] : roof, soil = ['#5a3e2c', '#6a4a34'];
+      for (let y = 0; y < rf; y++) { const half = (rw / 2 + 3) * Math.sqrt(1 - ((rf - y) / rf) ** 2), yy = top - rf + y; for (let x = Math.floor(rc - half); x <= Math.ceil(rc + half); x++) { const n = PP.ART.hash(x, yy, 3); P.set(x, yy, y < rf - 3 ? (season === 'winter' ? (n < 0.2 ? '#dce6f2' : '#ffffff') : gc[n < 0.15 ? 0 : n < 0.5 ? 1 : n < 0.85 ? 2 : 3]) : soil[n < 0.5 ? 0 : 1]); } }
+    } else for (let y = 0; y < rf; y++) { const half = (rw / 2 + 4) * (y + 1) / rf, yy = top - rf + y; for (let x = Math.floor(rc - half); x <= Math.ceil(rc + half); x++) { const edge = Math.abs(x - rc) > half - 2; P.set(x, yy, edge ? '#3a2020' : roof[((Math.floor((x - rc + 400) / 4) + y) % 4 === 0 || y % 4 === 3) ? 0 : (x < rc ? 3 : 1) - (y % 4 === 2 ? 1 : 0)]); } }
+    if (!den) P.rect(ox - 6, top - 2, rw + 12, 2, '#3a2020');
+    const chx = Math.round(rc + rw * 0.22), chy = top - Math.round(rf * 0.55); if (!den) { P.rect(chx, chy - 12, 7, 12, '#8a5a4a'); P.rect(chx - 1, chy - 13, 9, 2, '#5a3a34'); P.rect(chx + 1, chy - 9, 2, 6, '#a06a56'); lay.chimneyIn = [chx + 3, chy - 14]; }
     // 坐标挪到整张画布上
     const sh = (o) => { if (!o) return o; if (o.c != null) o.c += ox; if (o.r != null) o.r += top; return o; };
     Object.values(lay.spots).forEach(sh);
@@ -182,7 +218,6 @@
     lay.hots.push({ x0: c - 14, y0: r - sg.h, x1: c + 14, y1: r + 1, tip: '回到外面', leave: true, sign: { x: c - 13, y: r - sg.h + 1, side: 1, label: '出去' } });
     if (lay.steam) sh(lay.steam);
     lay.bubblesX = lay.bubbles ? [ox, rw] : null;
-    if (!full) for (let y = 0; y < 4; y++) for (let x = 0; x < cols; x++) if (!A.dith(x, y, (y + 1) / 5)) P.d[y * cols + x] = 0;
     lightPass(P.d, P.w, P.h, lay.gy); PP.gradePix && PP.gradePix(P.d); return { cv: P.canvas(), lay };
   }
   // 装饰 → 精灵
@@ -253,8 +288,8 @@
     const g = geo(); if (!g) return null;
     const s = settings(), scene = SCENES[s.scene] ? s.scene : 'forest', e = PP.env.at(scene);
     if (inside && !(PP.INTERIOR && PP.INTERIOR[inside])) inside = null;
-    const k = [scene, inside || '', g.m, G.W, g.H, g.u, e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName, PP.ownSpecies ? PP.ownSpecies(scene).join(',') : ''].join('|');
-    if (k !== key) { const r = inside ? buildInside(inside, scene, g, e) : build(scene, g, e); cache = r.cv; L = r.lay; key = k; lampsOff = {}; }
+    const k = [scene, inside || '', g.m, G.W, g.H, g.u, g.ox, g.cols, PP.KT && PP.KT.ready ? 'kt' : '', e.season, e.holiday ? e.holiday.id : '', JSON.stringify(s.decor[scene] || 0), s.ownerName, PP.ownSpecies ? PP.ownSpecies(scene).join(',') : ''].join('|');
+    if (k !== key) { const r = inside ? buildInside(inside, scene, g, e) : vbuild(scene, g, e); cache = r.cv; L = r.lay; key = k; lampsOff = {}; PP.VSCENE.reset(); if (L.chimneyIn) L.chimney = L.chimneyIn; }
     return { g, e, scene };
   }
 
@@ -268,18 +303,14 @@
     const { g, e, scene } = st, u = g.u, y0 = g.y0, W = G.W, t = G.t, F = e.fx;
     const out = SCENES[scene].out && !inside, ph = e.time.phase, night = ph === 'night';
     const R = (x, y, col, w = 1, h = 1) => { ctx.fillStyle = col; ctx.fillRect(Math.round(x) * u, y0 + Math.round(y) * u, w * u, h * u); };
-    // 天空（全屏模式）
-    if (g.m === 'full' && out) {
-      const [top, bot] = skyCols(e);
-      const gr = ctx.createLinearGradient(0, 0, 0, G.H * 0.8); gr.addColorStop(0, top); gr.addColorStop(1, bot);
-      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, G.H);
-      drawSkyBodies(ctx, g, e, R);
-    } else if (out && night && F.cloud < 0.6 && !F.rain && !F.snow) {
+    if (out && night && F.cloud < 0.6 && !F.rain && !F.snow) {
       // 小场景：夜里右上角挂个月亮
-      const big = e.holiday && e.holiday.id === 'midautumn', r = big ? 5 : 3, mx = L.cols - 34, my = 4;
+      const big = e.holiday && e.holiday.id === 'midautumn', r = big ? 5 : 3, mx = g.ox + g.cols - 10, my = -2 * r - 4;
       for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (xx * xx + yy * yy <= r * r) R(mx + xx, my + yy + r, '#fff3b0');
     }
-    ctx.imageSmoothingEnabled = false; ctx.drawImage(cache, 0, y0, cache.width * u, cache.height * u);
+    ctx.imageSmoothingEnabled = false;
+    { const dk = L.cvN && (night || ph === 'dusk' || F.dark > 0.3 || L.dark), img = dk ? L.cvN : cache, sc = img.px || u; ctx.drawImage(img, img.ox || 0, y0, img.width * sc, img.height * sc); }
+    if (L.v) { ctx.save(); ctx.beginPath(); ctx.rect(g.x0, y0, g.W, g.H); ctx.clip(); PP.VSCENE.anim(ctx, L, g, e, t, R); ctx.restore(); }
 
     // 湖：波光、倒影里的涟漪、跳起来的鱼
     if (L.water && !L.water.ice) {
@@ -343,6 +374,7 @@
 
     // 灯：天暗了亮起来（画在调色之后，所以是亮的）
     const dark = L.cave || L.dark || night || ph === 'dusk' || (!out && ph !== 'day') || F.dark > 0.2;
+    ctx.save(); if (L.v) { ctx.beginPath(); ctx.rect(g.x0, y0, g.W, g.H); ctx.clip(); }
     L.lights.forEach((l, i) => {
       if (lampsOff[i]) return;
       if (l.win) { if (!dark) return; R(l.x, l.y, '#ffd27a', l.w, l.h); R(l.x + 3, l.y, '#5a3a24', 1, l.h); R(l.x, l.y + 2, '#5a3a24', l.w, 1); }
@@ -350,13 +382,14 @@
       glow(ctx, (l.x + l.w / 2) * u, y0 + (l.y + l.h / 2) * u, (l.r + l.w) * u, l.col || '#ffd27a', 0.45 + Math.sin(t * 3 + l.x) * 0.05);
       if (!l.win) R(l.x, l.y, l.col || '#ffe08a', l.w, l.h);
     });
+    ctx.restore();
     if (festLantern && dark) for (const [lx, ly] of L.lanterns) { glow(ctx, (lx + 0.5) * u, y0 + (ly + 3.5) * u, 6 * u, '#ff6040', 0.5); R(lx - 1, ly + 2, e.holiday.id === 'midautumn' ? '#ffd070' : '#ff4a3a', 3, 3); }
     if (e.holiday && e.holiday.id === 'xmas') {
       L.xmas.forEach(([x, y], i) => { if (Math.floor(t * 2 + i) % 3) R(x, y, ['#ff4a4a', '#ffd84a', '#5ad1ff', '#7be07b'][i % 4]); });
       if (L.treeTop) { R(L.treeTop[0] - 1, L.treeTop[1] - 2, '#ffd84a', 3, 1); R(L.treeTop[0], L.treeTop[1] - 3, '#ffd84a', 1, 3); }
     }
     // 萤火虫（夏天晚上、没下雨）
-    if (out && e.season === 'summer' && dark && !F.rain) for (let i = 0; i < 10; i++) { const fx = (Math.sin(t * 0.3 + i * 7.1) * 0.5 + 0.5) * L.cols, fy = L.gy - 4 - (Math.sin(t * 0.7 + i * 3.3) * 0.5 + 0.5) * Math.min(20, L.gy); if (Math.sin(t * 2.5 + i) > 0) R(fx, fy, '#f6ff8a'); }
+    if (out && !L.v && e.season === 'summer' && dark && !F.rain) for (let i = 0; i < 10; i++) { const fx = (Math.sin(t * 0.3 + i * 7.1) * 0.5 + 0.5) * L.cols, fy = L.gy - 4 - (Math.sin(t * 0.7 + i * 3.3) * 0.5 + 0.5) * Math.min(20, L.gy); if (Math.sin(t * 2.5 + i) > 0) R(fx, fy, '#f6ff8a'); }
     labels(ctx, g, L);
     if (G.editing) drawEditOverlay(ctx, g);
   }
@@ -432,7 +465,7 @@
     if (settings().sceneInfo && !L.inside) {
       const sc = view(), reg = (PP.REGIONS || []).find((r) => r.subs.some((x) => x[0] === sc)), e = PP.env.at(sc), w = e.weather;
       const txt = `${reg && reg.subs.length > 1 ? reg.name + ' · ' : ''}${SCENES[sc].name} · ${PP.env.seasonName(e.season)} · ${PP.env.weatherName(w.kind)}${w.temp != null ? ' ' + w.temp + '°' : ''}`;
-      ctx.textAlign = 'left'; const tw = ctx.measureText(txt).width + 14, tx = 8, ty = y0 + (g.m === 'full' ? 10 : 12);
+      ctx.textAlign = 'left'; const tw = ctx.measureText(txt).width + 14, tx = Math.max(4, Math.min(g.x0 + 6, G.W - tw - 4)), ty = y0 - 22;
       ctx.fillStyle = 'rgba(20,14,10,.6)'; ctx.fillRect(tx, ty, tw, 18); ctx.fillStyle = '#fff'; ctx.fillText(txt, tx + 7, ty + 9); ctx.textAlign = 'center';
     }
     // 家门口的小牌子：谁在家、在干嘛（不用找了）
@@ -463,6 +496,7 @@
     if (!G.save || !L) return;
     const g = geo(); if (!g) { fxs.length = 0; return; }
     const F = PP.env.at(view()).fx;
+    ctx.save(); ctx.beginPath(); ctx.rect(g.x0, g.y0 - 6, g.W, g.H + 6); ctx.clip();
     for (const p of fxs) {
       if (p.k === 'rain') { ctx.strokeStyle = p.sleet ? 'rgba(220,235,255,.8)' : 'rgba(180,205,255,.7)'; ctx.lineWidth = Math.max(1, g.u / 2); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx * 0.012, p.y + p.len); ctx.stroke(); }
       else if (p.k === 'snow') { ctx.fillStyle = '#ffffff'; ctx.fillRect(p.x, p.y, p.s, p.s); }
@@ -472,7 +506,7 @@
       else if (p.k === 'splash') { ctx.fillStyle = 'rgba(200,220,255,.8)'; ctx.fillRect(p.x - g.u, p.y, g.u, g.u); ctx.fillRect(p.x + g.u, p.y, g.u, g.u); }
     }
     for (const b of bats) { const f = Math.floor(G.t * 8 + b.ph) % 2; ctx.fillStyle = '#1a1424'; ctx.fillRect(b.x - g.u, b.y, g.u * 3, g.u); ctx.fillRect(b.x - g.u * 2, b.y - (f ? g.u : -g.u), g.u, g.u); ctx.fillRect(b.x + g.u * 2, b.y - (f ? g.u : -g.u), g.u, g.u); }
-    if (F.wind >= 2 && fxs.length < 5) { /* 大风但没有可吹的东西时也让人看得出：在 update 里吹落叶/雪尘 */ }
+    ctx.restore();
   }
 
   // 指着家就弹出“叫出来 / 进去看看”，不用再点
@@ -497,23 +531,23 @@
     const e = PP.env.at(view()), out = true;
     // 雪原在山上：下雨在这里就是下雪
     const F = inside || view() === 'sea' ? Object.assign({}, e.fx, { snow: 0, rain: 0, storm: 0, wind: 0 }) : view() === 'snow' ? Object.assign({}, e.fx, { snow: Math.max(e.fx.snow, e.fx.rain), rain: 0 }) : e.fx;
-    const top = g.m === 'full' ? -10 : Math.max(0, g.y0 - 40), bottom = G.ground;
-    const low = settings().quiet ? 0.4 : 1, fullK = g.m === 'full' ? 2.2 : 1;
+    const top = Math.max(0, g.y0 - 10), bottom = g.y0 + g.H - 2, XA = g.x0, XW = g.W;
+    const low = settings().quiet ? 0.4 : 1, fullK = 0.45;
     const windVx = -(F.wind * 70);
     if (out) {
       // 雨：雨量决定密度、长度、速度；风让雨斜着下
       if (F.rain) {
         const want = (G.W / 22) * (0.4 + F.rain * 2.2) * low * fullK, cur = fxs.filter((p) => p.k === 'rain').length;
-        for (let i = 0; i < Math.min(40, (want - cur) * dt * 3); i++) fxs.push({ k: 'rain', x: Math.random() * (G.W + 200) - (windVx < 0 ? 0 : 100), y: top - Math.random() * 40, vy: 300 + F.rain * 260 + Math.random() * 80, vx: windVx - 20, len: g.u * (2 + F.rain * 3), sleet: e.weather.kind === 'sleet' });
+        for (let i = 0; i < Math.min(40, (want - cur) * dt * 3); i++) fxs.push({ k: 'rain', x: XA + Math.random() * (XW + 60) - (windVx < 0 ? 0 : 60), y: top - Math.random() * 40, vy: 300 + F.rain * 260 + Math.random() * 80, vx: windVx - 20, len: g.u * (2 + F.rain * 3), sleet: e.weather.kind === 'sleet' });
       }
       if (F.snow) {
         const want = (G.W / 26) * (0.5 + F.snow * 1.6) * low * fullK, cur = fxs.filter((p) => p.k === 'snow').length;
-        for (let i = 0; i < Math.min(20, (want - cur) * dt * 2); i++) fxs.push({ k: 'snow', x: Math.random() * (G.W + 200) - 100, y: top - Math.random() * 30, vy: 18 + F.snow * 20 + Math.random() * 18, s: g.u * (Math.random() < 0.3 + F.snow * 0.3 ? 2 : 1), ph: Math.random() * 9 });
+        for (let i = 0; i < Math.min(20, (want - cur) * dt * 2); i++) fxs.push({ k: 'snow', x: XA - 20 + Math.random() * (XW + 40), y: top - Math.random() * 30, vy: 18 + F.snow * 20 + Math.random() * 18, s: g.u * (Math.random() < 0.3 + F.snow * 0.3 ? 2 : 1), ph: Math.random() * 9 });
       }
       // 落叶 / 花瓣 / 风里的叶子（风越大越多）
       const leafRate = inside || view() === 'sea' ? 0 : ((e.season === 'autumn' || e.season === 'spring') && !F.rain ? 0.6 : 0) + (F.wind >= 1 && e.season !== 'winter' ? F.wind * 0.8 : 0);
       if (Math.random() < dt * leafRate * low * fullK)
-        fxs.push({ k: 'leaf', x: windVx < -60 ? G.W + 10 : Math.random() * G.W, y: top + Math.random() * 30, vy: 16 + Math.random() * 14, ph: Math.random() * 9, col: e.season === 'autumn' ? U.pick(['#e8913a', '#d9662a', '#c9a23a']) : e.season === 'spring' ? U.pick(['#ffc4d8', '#ffb0c8', '#fff0f4']) : U.pick(['#5fae4a', '#7cc35a']) });
+        fxs.push({ k: 'leaf', x: windVx < -60 ? XA + XW : XA + Math.random() * XW, y: top + Math.random() * 30, vy: 16 + Math.random() * 14, ph: Math.random() * 9, col: e.season === 'autumn' ? U.pick(['#e8913a', '#d9662a', '#c9a23a']) : e.season === 'spring' ? U.pick(['#ffc4d8', '#ffb0c8', '#fff0f4']) : U.pick(['#5fae4a', '#7cc35a']) });
       if (F.storm) { nextBolt -= dt; if (nextBolt <= 0) { flash = 0.7; nextBolt = U.rand(7, 18); setTimeout(() => (flash = 0.45), 120); PP.ambientThunder && PP.ambientThunder(true); } }
       // 湖面：下雨时到处是小涟漪，偶尔有鱼跳出来
       if (L.water && !L.water.ice) {
@@ -521,10 +555,9 @@
         if (!fish && Math.random() < dt * 0.02) jumpFish(Math.random() * L.cols);
       }
       // 小鸟：白天、不下雨时偶尔一群飞过（全屏模式）
-      if (g.m === 'full' && !inside && view() !== 'sea' && e.time.phase !== 'night' && !F.rain && !F.storm) { nextBirds -= dt; if (nextBirds <= 0) { nextBirds = U.rand(25, 70); flock(); } }
       const fw = e.holiday && ['spring', 'lantern', 'newyear', 'nye'].includes(e.holiday.id) && e.time.phase === 'night';
-      if (fw) { nextRocket -= dt; if (nextRocket <= 0) { nextRocket = U.rand(1.5, 4); fxs.push({ k: 'rocket', x: U.rand(G.W * 0.1, G.W * 0.9), y: bottom, vy: -U.rand(260, 340), top: g.m === 'full' ? G.H * 0.25 : g.y0 - U.rand(30, 120) }); } }
-      if (e.holiday && e.holiday.id === 'halloween' && e.time.phase !== 'day' && bats.length < 4 && Math.random() < dt * 0.3) bats.push({ x: -20, y: g.y0 + U.rand(5, Math.max(10, g.H * 0.4)), vx: U.rand(50, 90), ph: Math.random() * 9 });
+      if (fw) { nextRocket -= dt; if (nextRocket <= 0) { nextRocket = U.rand(1.5, 4); fxs.push({ k: 'rocket', x: XA + U.rand(XW * 0.15, XW * 0.85), y: g.y0 + g.H * 0.6, vy: -U.rand(220, 300), top: g.y0 + U.rand(10, g.H * 0.3) }); } }
+      if (e.holiday && e.holiday.id === 'halloween' && e.time.phase !== 'day' && bats.length < 4 && Math.random() < dt * 0.3) bats.push({ x: XA - 10, y: g.y0 + U.rand(5, Math.max(10, g.H * 0.3)), vx: U.rand(40, 70), ph: Math.random() * 9 });
     }
     flash = Math.max(0, flash - dt * 2.5);
     for (const p of fxs) {
@@ -543,7 +576,7 @@
     for (let i = fxs.length - 1; i >= 0; i--) if (fxs[i].dead) fxs.splice(i, 1);
     if (fxs.length > 1800) fxs.splice(0, fxs.length - 1800);
     for (const b of bats) { b.x += b.vx * dt; b.y += Math.sin(G.t * 3 + b.ph) * 20 * dt; }
-    bats = bats.filter((b) => b.x < G.W + 30);
+    bats = bats.filter((b) => b.x < XA + XW + 10);
     for (const r of ripples) r.t += dt; ripples = ripples.filter((r) => r.t < r.max);
     if (fish) { fish.t += dt; if (fish.t > fish.max) { ripples.push({ x: fish.x + 5 * fish.dir, y: fish.y, t: 0, max: 0.8 }); fish = null; } }
     for (const bd of birds) bd.x += bd.dir * bd.v * dt;
@@ -554,7 +587,6 @@
   function flock(y) { const rows = Math.ceil(G.H / (geo() || { u: 4 }).u), dir = Math.random() < 0.5 ? 1 : -1; birds.push({ x: dir > 0 ? -20 : L.cols + 20, y: y != null ? y : rows * (0.08 + Math.random() * 0.25), dir, v: 18 + Math.random() * 10, n: 3 + Math.floor(Math.random() * 4) }); }
 
   // ---------- 热点：门、路牌；全屏模式下还能点树、湖、灯、天空…… ----------
-  const TIP = { pine: '摇一摇', oak: '摇一摇', apple: '摇一摇（会掉苹果）', bush: '扒拉一下', flower: '闻一闻', mushroom: '戳一下', lamp: '开灯 / 关灯', snowman: '摸摸雪人', pumpkin: '敲一敲', hay: '扒拉一下', bench: '坐坐' };
   function hot(x, y) {
     hover = null;
     if (G.editing || hidden()) return null;
@@ -565,15 +597,6 @@
     // 动物的家：看看谁在里面，点一下叫它出来
     const hm = L.homes.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1 && PP.eco && PP.eco.homeKnown(h.species));
     if (hm) { hover = { x0: hm.x0, x1: hm.x1, y0: hm.y0, y1: hm.y1, tip: PP.eco.homeTip(hm.species), home: hm.species }; return hover; }
-    if (g.m !== 'full' || inside) return null;
-    // 全屏：可以和场景里的东西玩
-    const list = decorOf(settings().scene || 'forest');
-    for (let i = L.boxes.length - 1; i >= 0; i--) {
-      const bx = L.boxes[i], d = list[bx.i];
-      if (d && TIP[d.k] && lx >= bx.x0 && lx <= bx.x1 && ly >= bx.y0 && ly <= bx.y1) { hover = { ...bx, tip: TIP[d.k], decor: d, di: bx.i }; return hover; }
-    }
-    if (L.water && !L.water.ice && ly >= L.water.y0 && ly <= L.water.y1) { hover = { x0: lx - 4, x1: lx + 4, y0: L.water.y0, y1: L.water.y1, tip: '丢颗石子', water: true, sky: true }; return hover; }
-    if (SCENES[settings().scene || 'forest'].out && !L.under && ly < L.gy - 30) { const night = PP.env.get().time.phase === 'night'; hover = { x0: lx - 4, x1: lx + 4, y0: ly, y1: ly + 1, tip: night ? '许个愿' : '招招手', skyClick: true, sky: true }; return hover; }
     return null;
   }
   function click(h) {
@@ -581,25 +604,6 @@
     if (h.go) { go(h.go); return; }
     if (h.leave) { leave(); return; }
     if (h.home) { homeMenu(h); return; }
-    const g = geo(), e = PP.env.at(view());
-    if (h.water) { const x = (h.x0 + h.x1) / 2; ripples.push({ x, y: (L.water.y0 + L.water.y1) / 2, t: 0, max: 0.9 }); if (Math.random() < 0.6) jumpFish(x); return; }
-    if (h.skyClick) {
-      if (e.time.phase === 'night') { shoot = { x: (h.x0 + h.x1) / 2 - 30, y: h.y0 - 10, t: 0, max: 0.9 }; const p = PP.F.main(); p && p.say(U.pick(['许愿！', '流星！快许愿', '希望明天也一起玩']), 2.2); }
-      else flock(h.y0);
-      return;
-    }
-    if (h.decor) {
-      const d = h.decor, k = d.k, cx = ((h.x0 + h.x1) / 2) * g.u, topY = g.y0 + h.y0 * g.u;
-      const season = e.season;
-      if (k === 'lamp') { const li = L.lights.findIndex((l) => Math.abs(l.x + 1 - (h.x0 + h.x1) / 2) < 4); if (li >= 0) lampsOff[li] = !lampsOff[li]; return; }
-      const n = k === 'pine' || k === 'oak' || k === 'apple' ? 14 : 6;
-      const col = season === 'winter' ? '#ffffff' : season === 'autumn' ? '#e8913a' : season === 'spring' && k !== 'pine' ? '#ffc4d8' : '#5fae4a';
-      for (let i = 0; i < n; i++) fxs.push({ k: 'leaf', x: cx + U.rand(-20, 20) * (g.u / 2), y: topY + U.rand(0, 30) * (g.u / 4), vy: U.rand(20, 45), ph: Math.random() * 9, col });
-      if (k === 'apple' && (season === 'summer' || season === 'autumn') && Math.random() < 0.7) PP.addItem({ type: 'treat', x: cx + U.rand(-30, 30), y: topY + 20, vy: 0, data: { sprite: 'treat_apple' } });
-      else if ((k === 'oak' || k === 'pine') && Math.random() < 0.3) PP.addItem({ type: 'gift', x: cx + U.rand(-30, 30), y: topY + 20, data: { gift: U.pick(['acorn', 'leaf']) } });
-      if (k === 'flower' && !G.ambient.bug && season !== 'winter') G.ambient.bug = { x: cx, y: topY, vx: U.pick([-40, 40]), t: 0, life: U.rand(30, 60), caught: false };
-      if (k === 'snowman' || k === 'mushroom' || k === 'pumpkin') PP.hearts && PP.hearts(cx, topY, 1);
-    }
   }
 
   // ---------- 换场景（只是换个地方看看，大家各过各的） ----------
@@ -607,7 +611,7 @@
   function go(to) {
     if (!SCENES[to]) return;
     const s = settings();
-    if (s.mode === 'mini') PP.setMode(s.lastMode === 'full' ? 'full' : 'band', true);
+    if (s.mode === 'mini') PP.setMode('band', true);
     if (s.scene === to) return;
     fadeTo = to; fade = Math.max(fade, 0.01);
   }
@@ -629,7 +633,7 @@
   // 进家里看看 / 出来
   function enter(sp) {
     const s = settings();
-    if (s.mode === 'mini') PP.setMode(s.lastMode === 'full' ? 'full' : 'band', true);
+    if (s.mode === 'mini') PP.setMode('band', true);
     const home = PP.HAB && PP.HAB[sp] ? PP.HAB[sp].home : s.scene;
     if (home !== s.scene) { s.scene = home; }
     inside = sp; key = ''; fade = Math.max(fade, 0.6); ripples = []; fish = null;
@@ -696,37 +700,36 @@
     if (y < g.y0 - 20) return;
     const hitB = decorAt(x, y);
     if (btn === 2) { if (hitB) list.splice(hitB.i, 1); return; }
-    if (pick) { list.push({ k: pick, x: U.clamp(x / G.W, 0, 1), v: Math.round(Math.random() * 10) / 10 }); return; }
-    if (hitB) dragD = { i: hitB.i, dx: x / G.W - list[hitB.i].x };
+    if (pick) { list.push({ k: pick, x: fracX(x), v: Math.round(Math.random() * 10) / 10 }); return; }
+    if (hitB) dragD = { i: hitB.i, dx: fracX(x) - list[hitB.i].x };
   }
-  function editMove(x) { ghostX = x; if (!dragD) return; const s = settings(), list = s.decor[s.scene || 'forest']; if (list[dragD.i]) list[dragD.i].x = U.clamp(x / G.W - dragD.dx, 0, 1); }
+  // 屏幕横坐标 → 装饰在场景里的横向位置（0~1）
+  function fracX(x) { const g = geo(); if (!g || !L || !L.v) return U.clamp(x / G.W, 0, 1); const [a, b] = L.v.walk; return U.clamp((x / g.u - a) / Math.max(1, b - a), 0, 1); }
+  function editMove(x) { ghostX = x; if (!dragD) return; const s = settings(), list = s.decor[s.scene || 'forest']; if (list[dragD.i]) list[dragD.i].x = U.clamp(fracX(x) - dragD.dx, 0, 1); }
   function editUp() { dragD = null; }
   function drawEditOverlay(ctx, g) {
     ctx.save(); ctx.strokeStyle = 'rgba(17,17,17,.6)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
     const hb = decorAt(G.mouse.x, G.mouse.y);
     for (const b of L.boxes) { ctx.strokeStyle = hb === b ? '#ffcf33' : 'rgba(17,17,17,.5)'; ctx.lineWidth = hb === b ? 2 : 1; ctx.strokeRect(b.x0 * g.u, g.y0 + b.y0 * g.u, (b.x1 - b.x0) * g.u, (b.y1 - b.y0) * g.u); }
-    if (pick && ghostX != null) { ctx.setLineDash([]); ctx.strokeStyle = '#ffcf33'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ghostX, g.y0); ctx.lineTo(ghostX, G.H); ctx.stroke(); }
+    if (pick && ghostX != null) { ctx.setLineDash([]); ctx.strokeStyle = '#ffcf33'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ghostX, g.y0); ctx.lineTo(ghostX, g.y0 + g.H); ctx.stroke(); }
     ctx.restore();
   }
 
   // 地图用的小画面：每个地方的全景缩略图（按季节缓存）
   const thumbs = {};
   function thumb(sc, w, h) {
-    const e = PP.env.at(sc), u = 2, bh = 150;
+    const e = PP.env.at(sc);
     const k = [sc, e.season, e.holiday ? e.holiday.id : '', w, h, JSON.stringify(settings().decor[sc] || 0)].join('|');
     if (thumbs[sc] && thumbs[sc].k === k) return thumbs[sc].cv;
-    const W0 = G.W; let r;
-    try { G.W = 1200; r = build(sc, { m: 'band', u, H: bh, y0: 0 }, e); } finally { G.W = W0; }
+    // 用和小场景同一套 3D 模型渲染一张小图
+    const r = vbuild(sc, { u: 2, H: 2 * Math.round(h * 1.6), ox: 0, cols: Math.round(w * 1.6) }, e);
     const cv = document.createElement('canvas'); cv.width = w; cv.height = h; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
-    const [top, bot] = sc === 'cave' ? ['#2a2430', '#3a3242'] : sc === 'sea' ? ['#2a6a9a', '#4a9ac8'] : skyCols(e);
+    const [top, bot] = sc === 'cave' || sc === 'undergrove' ? ['#2a2430', '#3a3242'] : sc === 'sea' ? ['#2a6a9a', '#4a9ac8'] : skyCols(e);
     const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, top); gr.addColorStop(1, bot); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-    // 取中间偏左的一段（家和动物最多的地方），按比例缩放
-    const src = r.cv, sh = src.height, sw = Math.min(src.width, Math.round(sh * w / h));
-    const sx = Math.max(0, Math.round((src.width - sw) * 0.35));
-    c.drawImage(src, sx, 0, sw, sh, 0, 0, w, h);
+    c.drawImage(r.cv, 0, 0, r.cv.width, r.cv.height, 0, 0, w, h);
     thumbs[sc] = { k, cv };
     return cv;
   }
-  PP.scene = { thumb, hidden, render, renderFront, update, hot, click, go, active, height, bandHeight, geo, fav, exitX, view, layout, edit, editDown, editMove, editUp, get hover() { return hover; }, defaultDecor, splash(x, y) { ripples.push({ x, y, t: 0, max: 0.7 }); }, fishAt(x) { jumpFish(x); }, enter, leave, inside: () => inside };
+  PP.scene = { invalidate() { key = ''; }, vzone, vground, vdepth, vrect: vrectPx, thumb, hidden, render, renderFront, update, hot, click, go, active, height, bandHeight, geo, fav, exitX, view, layout, edit, editDown, editMove, editUp, get hover() { return hover; }, defaultDecor, splash(x, y) { ripples.push({ x, y, t: 0, max: 0.7 }); }, fishAt(x) { jumpFish(x); }, enter, leave, inside: () => inside };
 
 })();

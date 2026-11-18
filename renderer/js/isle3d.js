@@ -5,7 +5,9 @@
   const MU = 2.83, MZ = 1.155; // 把 (u,v,z) 换成等比例的“真实空间”，算法线和光照用
   const hex = (h) => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
   const C = (c) => (typeof c === 'string' ? hex(c) : c);
-  const MAT = { flat: 0, tile: 1, plank: 2, stone: 3, grass: 4, glass: 5, glow: 6, soil: 7, leaf: 8, plaster: 9, water: 10, cloth: 11, metal: 12, wallpaper: 13, snow: 14 };
+  const MAT = { flat: 0, tile: 1, plank: 2, stone: 3, grass: 4, glass: 5, glow: 6, soil: 7, leaf: 8, plaster: 9, water: 10, cloth: 11, metal: 12, wallpaper: 13, snow: 14,
+    // 像素画用的材质：花纹都是“成块”的，放大缩小都不会变成噪点
+    pgrass: 15, pstone: 16, pplank: 17, pdirt: 18, psand: 19, pleaf: 20, proof: 21, pwater: 22, psnow: 23, pcrys: 24, pice: 25, pbrick: 26, pthatch: 27, prock: 28 };
 
   // ---------- 网格 ----------
   class Mesh {
@@ -55,7 +57,8 @@
       return this;
     }
     // 一团（树冠、灌木、云）：低面数的球，带一点起伏
-    blob(u, v, z, r, rz, col, mat = 8, seed = 1, la = 5, lo = 9) {
+    blob(u, v, z, r, rz, col, mat = 8, seed = 1, la = 5, lo = 9) { return this.ball(u, v, z, r, rz, col, mat, Math.max(3, la), Math.max(6, lo), 0.12, seed); }
+    blobF(u, v, z, r, rz, col, mat = 8, seed = 1, la = 5, lo = 9) {
       const P = (i, j) => { const t = (i / la) * Math.PI, f = (j / lo) * 6.2832, k = 1 + 0.16 * Math.sin(seed * 7.1 + i * 2.3 + j * 1.7); return [u + Math.sin(t) * Math.cos(f) * r * k, v + Math.sin(t) * Math.sin(f) * r * k, z + Math.cos(t) * rz * k]; };
       for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) this.quad(P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1), col, mat);
       return this;
@@ -140,6 +143,14 @@
       this.blob(u, v, z + 15 * s, 2.5 * s, 7.5 * s, cols[0], 8, seed); this.blob(u - 1.2 * s, v + 0.9 * s, z + 12 * s, 1.7 * s, 5 * s, cols[1], 8, seed + 1); this.blob(u + 1.1 * s, v - 0.6 * s, z + 13.5 * s, 1.7 * s, 5 * s, cols[2] || cols[0], 8, seed + 2); this.blob(u + 0.3 * s, v + 0.5 * s, z + 20 * s, 1.5 * s, 4.5 * s, cols[2] || cols[1], 8, seed + 3);
       return this;
     }
+    // 光滑的球（顶点法线朝外）：像素画里一团叶子、一块圆石头，光照会是一圈圈干净的明暗
+    ball(u, v, z, r, rz, col, mat = 0, la = 6, lo = 12, bump = 0, seed = 1) {
+      col = C(col); const P = [], N = [];
+      for (let i = 0; i <= la; i++) for (let j = 0; j <= lo; j++) { const t = (i / la) * Math.PI, f = (j / lo) * 6.2832, k = 1 + bump * Math.sin(seed * 7.1 + i * 2.3 + (j % lo) * 1.7); const x = Math.sin(t) * Math.cos(f), y = Math.sin(t) * Math.sin(f), zz = Math.cos(t); P.push([u + x * r * k, v + y * r * k, z + zz * rz * k]); let nx = x / (r * MU), ny = y / (r * MU), nz = zz / (rz * MZ); const l = Math.hypot(nx, ny, nz) || 1; N.push([nx / l, ny / l, nz / l]); }
+      const W = lo + 1, put = (a) => { const q = P[a], n = N[a]; this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(n[0], n[1], n[2]); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); };
+      for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const a = i * W + j, b = a + 1, c = a + W + 1, d = a + W; put(a); put(b); put(c); put(a); put(c); put(d); }
+      return this;
+    }
     pot(u, v, z, r, col, plant, seed = 1) { this.cyl(u, v, z, z + r * 4.2, r * 0.7, r, col || '#c8705a', 0, 8); if (plant) this.blob(u, v, z + r * 6.5, r * 1.25, r * 3.6, plant, 8, seed, 4, 7); return this; }
   }
 
@@ -147,32 +158,36 @@
   const VS = `#version 300 es
   in vec3 aP; in vec3 aN; in vec3 aC; in float aM; in float aW;
   uniform float uTime; uniform float uWind; uniform float uMir;
-  uniform vec4 uView; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
-  out vec3 vW; out vec3 vN; out vec3 vC; out float vM; out vec3 vS;
+  uniform vec4 uView; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo; uniform vec4 uCam; uniform vec2 uPit;
+  out vec3 vW; out vec3 vN; out vec3 vC; out float vM; out vec3 vS; out float vD;
   void main(){ vW=aP; vN=aN; vC=aC; vM=aM;
     vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 l=(uL*m-uLo)*uLs; vS=vec3(l.xy,-l.z)*0.5+0.5;
     vec3 P=aP; if(aW>0.0){ float ph=uTime*(1.5+uWind)+aP.x*0.45+aP.y*0.33; float a=aW*(0.07+0.16*uWind); P.x+=sin(ph)*a; P.y+=cos(ph*0.83+1.3)*a*0.8; P.z+=sin(ph*1.31+aP.z*0.5)*a*1.2; }
-    float X=2.0*(P.x-P.y), Y=P.x+P.y-P.z;
-    gl_Position=vec4(uMir*((X+uView.x)*uView.z-1.0), 1.0-(Y+uView.y)*uView.w, -(aP.x+aP.y+2.0*aP.z)/700.0, 1.0); }`;
+    vec2 d=P.xy-uCam.zw, r=vec2(d.x*uCam.x-d.y*uCam.y, d.x*uCam.y+d.y*uCam.x)+uCam.zw; // 相机绕岛中心转
+    vec2 d0=aP.xy-uCam.zw, r0=vec2(d0.x*uCam.x-d0.y*uCam.y, d0.x*uCam.y+d0.y*uCam.x)+uCam.zw; vD=r0.x+r0.y;
+    float X=2.0*(r.x-r.y), Y=(r.x+r.y)*uPit.x-P.z*uPit.y;
+    gl_Position=vec4(uMir*((X+uView.x)*uView.z-1.0), 1.0-(Y+uView.y)*uView.w, -(r0.x+r0.y+2.0*aP.z*uPit.x/max(uPit.y,0.3))/700.0, 1.0); }`;
   const VSS = `#version 300 es
   in vec3 aP; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
   void main(){ vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 s=(uL*m-uLo)*uLs; gl_Position=vec4(s.xy, -s.z, 1.0); }`;
   const FS = `#version 300 es
   precision highp float; precision highp sampler2DShadow;
-  in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS;
-  uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow;
+  in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
+  uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
+  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
   void main(){
-    if(uCut>-1e5 && vW.x+vW.y<uCut) discard;
+    if(uCut>-1e5 && vD<uCut) discard;
     // 宠物被挡住时，把挡在它前面的东西挖掉一块（墙、树、栏杆……），这样永远看得见它
     for(int i=0;i<4;i++){ vec4 q=uPet[i]; if(q.z<=0.0) continue; float dx=(gl_FragCoord.x-q.x)/(q.z*0.5), dy=((uH-gl_FragCoord.y)-(q.y-q.z*0.52))/(q.z*0.66);
-      if(dx*dx+dy*dy<1.0 && vW.x+vW.y>q.w+0.8 && vW.z>uPetZ[i].x+0.7) discard; }
+      if(dx*dx+dy*dy<1.0 && vD>q.w+0.8 && vW.z>uPetZ[i].x+0.7) discard; }
     if(uPick>0.5){ o=vec4(floor(vM/32.0+0.01)/255.0,0.0,0.0,1.0); return; }
-    vec3 n=normalize(vN); vec3 V=normalize(vec3(${MU},${MU},${(2 * MZ).toFixed(3)})); if(dot(n,V)<0.0) n=-n;
+    vec3 n=normalize(vN); vec3 V=normalize(uVd); if(dot(n,V)<0.0) n=-n;
     int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0;
+    if(uCel>0.5){ if(m==1) m=21; else if(m==2) m=17; else if(m==3) m=16; else if(m==4) m=15; else if(m==7) m=18; else if(m==8) m=20; else if(m==14) m=23; }
+    if(uMode>0.5){ float d=gl_FragCoord.z*255.0; float face=n.z>0.6?0.0:(abs(n.x)>abs(n.y)?1.0:2.0); if(n.z<-0.6) face=3.0; o=vec4(floor(d)/255.0, fract(d), (float(m)+32.0*face)/255.0, 1.0); return; }
     bool wall=abs(n.z)<0.5; float hc=(abs(n.x)>abs(n.y))?vW.y:vW.x; // 墙面上的水平坐标
     if(m==1){ // 瓦片：一排排错开的鱼鳞瓦
       float row=vW.z/2.1; float r=floor(row); float t=hc*1.25+mod(r,2.0)*0.5; float id=h1(vec2(floor(t),r));
@@ -206,12 +221,42 @@
     } else if(m==11){ float t=floor(vW.x*0.7)+floor(vW.y*0.7+vW.z*0.2); c*=0.88+0.2*mod(t,2.0);
     } else if(m==12){ c*=0.85+0.25*ns(vec2(hc*0.5,vW.z*0.6)); c+=0.12*smoothstep(0.8,1.0,fract(vW.z*0.2+hc*0.1));
     } else if(m==13){ float s=mod(floor(hc*0.9),2.0); c*=0.94+0.08*s; vec2 g=vec2(hc*0.9, vW.z*0.22); if(length(fract(g)-0.5)<0.13) c=mix(c, mix(vec3(0.9,0.55,0.5),vec3(0.5,0.72,0.6),s),0.75);
-    } else if(m==14){ c*=0.93+0.09*ns(vW.xy*1.5); }
+    } else if(m==14){ c*=0.93+0.09*ns(vW.xy*1.5);
+    } else if(m==15){ // 像素草地：一大块一大块深浅绿，零星亮草叶、暗点
+      vec2 q=vW.xy; float a=ns(q*0.21+3.0)*0.65+ns(q*0.55)*0.35; c*= a>0.6?1.13:(a>0.42?1.0:0.86);
+      if(wall){ c=c*0.9; } else { vec2 g=floor(q*1.4); float f=h1(g); if(f>0.95) c*=1.25; else if(f<0.04) c*=0.78; }
+    } else if(m==16||m==28){ // 石墙 / 岩壁：一层层错开的石块，缝是暗的；顶上铺石板
+      if(wall){ float rh=m==16?3.2:4.4, row=vW.z/rh; float r=floor(row); float t=hc/(m==16?1.7:2.6)+h1(vec2(r,9.0))*0.7; float id=h1(vec2(floor(t),r)); c*=0.8+0.3*id;
+        float e=max(step(0.84,fract(t)), step(0.8,fract(row))); c=mix(c,c*0.58,e); if(fract(row)<0.18 && e<0.5) c*=1.1; if(id>0.88) c=mix(c,vec3(0.38,0.52,0.36),0.45); }
+      else { vec2 q=vW.xy/(m==16?1.9:2.6); float o2=mod(floor(q.y),2.0)*0.5; vec2 qi=floor(vec2(q.x+o2,q.y)); float id=h1(qi); c*=0.86+0.22*id; vec2 f=fract(vec2(q.x+o2,q.y)); if(f.x>0.86||f.y>0.86) c*=0.7; }
+    } else if(m==17){ // 木板：一条条，接缝暗，每条深浅不一
+      float t=wall? hc/0.9 : vW.x/0.9; float r=floor(t); float id=h1(vec2(r,floor((wall?vW.z:vW.y)/7.0+h1(vec2(r,2.0))*3.0))); c*=0.86+0.22*id; if(fract(t)>0.8) c*=0.66; if(h1(vec2(r,floor((wall?vW.z:vW.y)*0.9)))>0.97) c*=0.75;
+    } else if(m==18){ vec2 q=vW.xy; float a=ns(q*0.3); c*= a>0.55?1.07:0.93; float f=h1(floor(q*1.6)); if(f>0.95) c*=1.2; else if(f<0.05) c*=0.75; if(wall) c*=0.92;
+    } else if(m==19){ vec2 q=vW.xy; float w=sin(q.x*0.9+q.y*0.35+ns(q*0.2)*4.0); c*= w>0.75?1.08:(w<-0.8?0.9:1.0); if(h1(floor(q*1.6))>0.97) c*=0.85;
+    } else if(m==20){ // 像素树叶：上亮下暗，两三档，带亮点
+      float a=ns(vW.xy*0.7+vW.z*0.2); c*= a>0.62?1.14:(a>0.38?1.0:0.84); float f=h1(floor(vec2(vW.x*1.3+vW.z*0.4, vW.y*1.3))); if(f>0.93 && n.z>0.0) c*=1.25;
+    } else if(m==21){ // 屋瓦：一排排，每排下沿暗一条
+      float row=vW.z/1.9; float r=floor(row); float t=hc/1.1+mod(r,2.0)*0.5; float id=h1(vec2(floor(t),r)); c*=0.88+0.2*id; if(fract(row)<0.22) c*=0.68; else if(fract(t)>0.86) c*=0.82; if(id>0.92) c=mix(c,vec3(0.4,0.55,0.35),0.35);
+    } else if(m==22){ // 像素水：深浅两档 + 一道道亮线
+      vec2 q=vW.xy; float w=sin(q.x*0.7+q.y*0.5+ns(q*0.25)*5.0); c*= w>0.82?1.25:(w>0.2?1.06:0.94); emis=0.2;
+      if(wall){ float s1=fract(hc*0.6+h1(vec2(floor(hc*0.8),1.0))*3.0-vW.z*0.05); c=mix(c*0.95,vec3(0.9,0.97,1.0),step(0.86,s1)*0.7); emis=0.4; }
+    } else if(m==23){ float a=ns(vW.xy*0.3); c*= a>0.6?1.0:0.95; if(wall) c*=0.9; if(h1(floor(vW.xy*1.5))>0.97) c=vec3(1.0);
+    } else if(m==24){ emis=0.55; c*= n.z>0.5?1.2:(abs(n.x)>abs(n.y)?1.0:0.8);
+    } else if(m==25){ c*= wall? (fract(hc*0.5)>0.8?1.15:0.95):1.05; emis=0.15;
+    } else if(m==26){ // 砖：小块红砖
+      float row= wall? vW.z/1.6 : vW.y/0.8; float r=floor(row); float t=(wall?hc:vW.x)/1.4+mod(r,2.0)*0.5; float id=h1(vec2(floor(t),r)); c*=0.84+0.24*id; if(fract(t)>0.85||fract(row)>0.8) c=mix(c,vec3(0.78,0.74,0.66)*c.r*1.3,0.55);
+    } else if(m==27){ // 茅草
+      float t=wall? hc*1.6 : (vW.x+vW.y)*1.2; c*=0.88+0.22*h1(vec2(floor(t),floor(vW.z/2.5))); if(fract(vW.z/2.5)<0.25) c*=0.75; }
     float nl=max(dot(n,uSun),0.0);
     float sh=1.0; if(uShadow>0.5 && vS.x>0.0&&vS.x<1.0&&vS.y>0.0&&vS.y<1.0){ float s=0.0; for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) s+=texture(uSh, vec3(vS.xy+vec2(float(i),float(j))/2048.0*1.3, vS.z-0.0025)); sh=s/9.0; }
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
-    vec3 lit=c*(amb+uSunCol*nl*sh);
+    float L=nl*sh; vec3 lit;
+    if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
+      float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.86,0.88,1.1), vec3(1.05,1.0,0.9), b);
+      float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,0.86); // 稍微灰一点，和猫屋那种柔和的颜色一致
+    } else lit=c*(amb+uSunCol*L);
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
+    if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     o=vec4(lit,1.0);
   }`;
   const FSS = `#version 300 es
@@ -224,7 +269,7 @@
   function init() {
     if (ok != null) return ok;
     try {
-      cv = document.createElement('canvas'); gl = cv.getContext('webgl2', { alpha: true, antialias: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
+      cv = document.createElement('canvas'); gl = cv.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: true });
       if (!gl) throw new Error('no webgl2');
       prog = mk(VS, FS); progS = mk(VSS, FSS);
       shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, SH, SH, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);
@@ -256,7 +301,7 @@
     const off = [0, 1, 2].map((i) => lb.m[i] * cm[0] + lb.m[i + 3] * cm[1] + lb.m[i + 6] * cm[2]);
     const setL = (p) => { gl.uniformMatrix3fv(p.u.uL, false, lb.m); gl.uniform3f(p.u.uLs, 1 / R, 1 / R, 1 / R); gl.uniform3f(p.u.uLo, off[0], off[1], off[2]); };
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.disable(gl.BLEND);
-    if (o.shadow !== false && !o.cutPass && !o.pickAt) {
+    if (o.shadow !== false && !o.cutPass && !o.pickAt && !o.mode) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, shFb); gl.viewport(0, 0, SH, SH); gl.disable(gl.SCISSOR_TEST); gl.clearDepth(1); gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.useProgram(progS); setL(progS); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
       for (const s of scenes) { if (!s || s.noShadow) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
@@ -270,7 +315,11 @@
     const u = prog.u;
     gl.uniform4f(u.uView, o.ox, o.oy, 2 * o.k / W, 2 * o.k / H);
     gl.uniform3fv(u.uSun, lb.L); gl.uniform3fv(u.uSunCol, o.sunCol || [0.85, 0.8, 0.7]); gl.uniform3fv(u.uSkyCol, o.sky || [0.5, 0.56, 0.68]); gl.uniform3fv(u.uGndCol, o.gnd || [0.36, 0.33, 0.36]);
-    gl.uniform1f(u.uLit, o.lit || 0); gl.uniform1f(u.uTime, o.time || 0); gl.uniform1f(u.uCut, o.cut == null ? -1e6 : o.cut); gl.uniform1f(u.uRain, o.rain || 0); gl.uniform1f(u.uInside, o.inside ? 1 : 0); gl.uniform1f(u.uShadow, o.shadow === false ? 0 : 1);
+    gl.uniform1f(u.uLit, o.lit || 0); gl.uniform1f(u.uTime, o.time || 0); gl.uniform1f(u.uCut, o.cut == null ? -1e6 : o.cut); gl.uniform1f(u.uRain, o.rain || 0); gl.uniform1f(u.uInside, o.inside ? 1 : 0); gl.uniform1f(u.uShadow, o.shadow === false ? 0 : 1); gl.uniform1f(u.uPost, o.posterize || 0); gl.uniform1f(u.uMode, o.mode || 0); gl.uniform1f(u.uCel, o.cel ? 1 : 0);
+    { const yaw = o.yaw || 0, A = o.pitch ? o.pitch[0] : 1, B = o.pitch ? o.pitch[1] : 1, c = Math.cos(yaw), s = Math.sin(yaw), cc = o.camC || [24, 23];
+      gl.uniform4f(u.uCam, c, s, cc[0], cc[1]); gl.uniform2f(u.uPit, A, B);
+      // 看过来的方向（世界空间），双面光照时用来判断哪一面朝着相机
+      gl.uniform3f(u.uVd, MU * (c + s), MU * (c - s), 2 * MZ * A / Math.max(0.3, B)); }
     gl.uniform1f(u.uWind, o.wind || 0); gl.uniform1f(u.uMir, o.mirror ? -1 : 1); gl.uniform1f(u.uPick, o.pickAt ? 1 : 0); gl.uniform1f(u.uH, H);
     { const pa = new Float32Array(16), pz = new Float32Array(16), rp = new Float32Array(12); (o.pets || []).slice(0, 4).forEach((q, i) => { pa.set(q.slice(0, 4), i * 4); pz[i * 4] = q[4]; }); (o.rips || []).slice(0, 4).forEach((q, i) => rp.set(q, i * 3)); if (!(o.rips || []).length) for (let i = 0; i < 4; i++) rp[i * 3 + 2] = -99; else for (let i = (o.rips || []).length; i < 4; i++) rp[i * 3 + 2] = -99; if (u['uPet[0]']) gl.uniform4fv(u['uPet[0]'], pa); if (u['uPetZ[0]']) gl.uniform4fv(u['uPetZ[0]'], pz); if (u['uRip[0]']) gl.uniform3fv(u['uRip[0]'], rp); }
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);

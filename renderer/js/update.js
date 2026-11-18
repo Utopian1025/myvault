@@ -14,7 +14,8 @@
   }
   function newerThan(cur, latest) {
     const hist = (latest.history && latest.history.length ? latest.history : [{ version: latest.version, date: latest.date, title: latest.title, notes: latest.notes }]);
-    return hist.filter((v) => cmp(v.version, cur) > 0 && cmp(v.version, latest.version) <= 0);
+    // 只看最新这一版写了什么（以前的版本不再列出来）
+    return hist.filter((v) => v.version === latest.version).slice(0, 1);
   }
 
   function statusLine() {
@@ -42,8 +43,7 @@
           : `<button class="small" data-a="check" ${st.status === 'checking' || st.status === 'downloading' ? 'disabled' : ''}>检查更新</button>`}
         ${st.status === 'checking' || st.status === 'downloading' ? '<button class="small" data-a="bg">收起，在后台继续</button>' : ''}<button class="small" data-a="page">发布页面</button>
       </div>
-      <label class="row"><input type="checkbox" data-a="auto" ${s.autoUpdate !== false ? 'checked' : ''}> 自动检查并下载新版（下载好了会问你要不要装）</label>
-      <details><summary class="muted">历史更新</summary><div class="upd-notes">${notesHTML(changelog)}</div></details>`;
+      <label class="row"><input type="checkbox" data-a="auto" ${s.autoUpdate !== false ? 'checked' : ''}> 自动检查并下载新版（下载好了会问你要不要装）</label>`;
   }
   // 收起以后：右下角一个小条显示进度，下好了变成“点这里更新”
   let bg = false, manual = false; // manual：这次检查 / 下载是你自己点的（不是开机自动的）
@@ -97,7 +97,7 @@
 
   // 刚更新完：第一次打开时说一下更新了什么
   function whatsNew(from) {
-    const list = changelog.filter((v) => cmp(v.version, from) > 0 && cmp(v.version, ver) <= 0);
+    const list = cmp(ver, from) > 0 ? changelog.filter((v) => v.version === ver).slice(0, 1) : [];
     if (!list.length) return;
     showChip(`已更新到 v${ver} · 看看更新了什么`, () => {
       const box = $(`<div class="about"><p class="lead">已经更新到 <b>v${esc(ver)}</b>，这次有这些变化：</p><div class="upd-notes">${notesHTML(list)}</div><div class="row"><button class="primary" data-a="ok">知道啦</button></div></div>`);

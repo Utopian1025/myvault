@@ -132,23 +132,15 @@
     expand: ['kkkk..kkkk', 'kyy....yyk', 'ky......yk', 'k...kk...k', '...kyyk...', '...kyyk...', 'k...kk...k', 'ky......yk', 'kyy....yyk', 'kkkk..kkkk'],
     menu: ['..........', '.kk....kk.', 'kook..kook', 'kook..kook', '.kk.kk.kk.', '...kook...', '..kooook..', '..kooook..', '...kkkk...', '..........'],
   };
+  HICON.call = ['..........', '.k......k.', '.kk....kk.', '.kwkkkkwk.', '.kwwwwwwk.', 'kwkwwwwkwk', 'kwwwrrwwwk', '.kwwwwwwk.', '..kkkkkk..', '..........'];
   const HCOL = { k: '#231c20', y: '#ffcf33', g: '#7cc35a', o: '#e8a060', O: '#b8703a', r: '#e0604a', w: '#fff6e0', b: '#8ac8f0' };
   function hIcon(cv, name) {
     const c = cv.getContext('2d'); c.clearRect(0, 0, 20, 20); c.imageSmoothingEnabled = false;
     if (name === 'map') { c.drawImage(icon((PP.SCENE_ICON || {})[PP.scene.view()]), 0, 0, 10, 10, 0, 0, 20, 20); return; }
     (HICON[name] || HICON.menu).forEach((row, y) => [...row].forEach((ch, x) => { if (HCOL[ch]) { c.fillStyle = HCOL[ch]; c.fillRect(x * 2, y * 2, 2, 2); } }));
   }
-  function hudButtons() {
-    const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside();
-    const small = s.taskbar ? '任务栏' : s.isle ? '小岛' : '极简';
-    return [
-      ['view', s.mode === 'mini' ? `视图：${small}` : `视图：${MODE_NAME[s.mode]}`],
-      ['map', '地图 · 季节 · 声音'],
-      ['bag', PP.econ && PP.econ.unread() ? `背包 · 商店 · 探险（${PP.econ.unread()} 封新信）` : '背包 · 商店 · 探险'],
-      ...(isle ? [[inside ? 'out' : 'home', inside ? '出门' : '进小屋']] : []),
-      ['menu', '菜单（右键宠物也有）'],
-    ];
-  }
+  // 兜底按钮：只有主角不在画面上（回窝了、出门了、进了电脑）超过 2.5 秒才出现，就一个“叫主角出来”
+  function hudButtons() { const p = PP.mainPet && PP.mainPet(); return [['call', p ? `叫${p.name}出来` : '叫主角出来']]; }
   let hudKey = '';
   function buildHud() {
     const btns = hudButtons(), key = btns.map((b) => b.join(':')).join('|') + '|' + PP.scene.view() + '|' + (PP.econ && PP.econ.unread() ? 1 : 0);
@@ -157,20 +149,26 @@
     if (!hud) {
       hud = $(`<div class="hud far"></div>`);
       document.getElementById('ui').appendChild(hud);
-      hud.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        if (e.button !== 0) return;
-        const b = e.target.closest('button');
-        if (!b) { dragHud(e); return; }
-      });
+      hud.addEventListener('mousedown', (e) => e.stopPropagation());
       hud.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) hudClick(b.dataset.h, b); });
       hud.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); hidePop(); const r = hud.getBoundingClientRect(); PP.ui.menu(PP.menuModel(null), r.left, r.top - 4); });
     }
-    hud.innerHTML = btns.map(([k, tip]) => `<button data-h="${k}" data-tip="${esc(tip)}" class="${popKind === k ? 'on' : ''} ${k === 'bag' && PP.econ && PP.econ.unread() ? 'new' : ''}"><canvas width="20" height="20"></canvas></button>`).join('') + (G.isle || S().mode === 'mini' ? '' : '<i class="grip" title="拖动换个位置"></i>');
+    hud.innerHTML = btns.map(([k, tip]) => `<button data-h="${k}" class="callbtn"><canvas width="20" height="20"></canvas>${esc(tip)}</button>`).join('');
     hud.querySelectorAll('button').forEach((b) => hIcon(b.querySelector('canvas'), b.dataset.h));
     PP.refreshInteractive();
   }
+  // 把主角叫回画面上
+  function summonMain() {
+    const p = PP.mainPet && PP.mainPet(); if (!p) return;
+    if (p.d.trip) { PP.ui.toast(`${p.name}出门旅行了，回来会给你写信`); return; }
+    p.outing = null; p.d.hidden = false; p.d.inHome = false; p.eco = null;
+    if (S().mode !== 'mini') PP.hereNow(p);
+    PP.syncPets();
+    if (G.pets.includes(p) && !p.held) PP.petEmerge(p, PP.miniZone ? (PP.miniZone()[0] + PP.miniZone()[1]) / 2 : G.W - 120);
+  }
+  PP.summonMain = summonMain;
   function hudClick(k, b) {
+    if (k === 'call') { summonMain(); absentSince = 0; setNear(false); return; }
     if (k === 'view' || k === 'map') { if (popKind === k) { hidePop(); return; } PP.ui.closeMenu(); k === 'view' ? showPop() : showScenePop(); return; }
     hidePop();
     if (k === 'bag') { PP.econ.openPanel('bag'); return; }
@@ -194,43 +192,62 @@
     hud.classList.toggle('far', !v); PP.refreshInteractive();
   }
   const rectsHit = (a, b) => a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  let absentSince = 0;
   function placeHud() {
     if (!hud || !G.save) return;
     buildHud();
-    // 主角在场时，所有按钮都在主角身边那一圈里；只有主角不在画面上（回窝了、出门了）才用这条工具栏兜底
-    if (anchorPet() && !G.uiDrag) { setNear(false); if (pop) placePop(); return; }
-    const s = S(), M = G.mouse, now = performance.now(), W = hud.offsetWidth || 160, Hh = hud.offsetHeight || 34, sb = PP.safeB ? PP.safeB() : G.H;
-    let x, y, zone = false;
-    if (G.isle && PP.isle.rect()) {
-      const L = PP.isle.rect();
-      x = L.x1 - W - 6; y = L.y0 - Hh - 4; if (y < 4) y = L.y0 + 4;
-      zone = M.onScreen && M.x > L.x0 - 40 && M.x < L.x1 + 20 && M.y > Math.min(y, L.y0) - 30 && M.y < L.y1;
-    } else if (s.mode === 'mini' || G.bar) {
-      const p = anchorPet();
-      if (p) {
-        const sc = G.S * (p.scaleMul || 1), half = (PP.QUAD && PP.QUAD.has(p.d.species) ? 14 : 10) * sc;
-        x = p.x + half + 8;
-        if (G.bar) { const [a, b] = barZone(); y = G.H - G.bar.h / 2 - Hh / 2; if (x + W > b) x = p.x - half - 8 - W; x = U.clamp(x, a - 10, Math.max(a - 10, b + 10 - W)); }
-        else { y = p.y - 34 * sc - Hh / 2; if (x + W > G.W - 4) x = p.x - half - 8 - W; }
-        zone = M.onScreen && Math.hypot(M.x - p.x, M.y - (p.y - 14 * sc)) < Math.max(120, half * 4);
-      } else { x = G.W - W - 12; y = sb - Hh - 60; zone = M.onScreen && M.x > G.W - 360 && M.y > sb - 260; }
-    } else {
-      const o = s.orb, sh = PP.scene.bandHeight();
-      x = o ? o.x * G.W : G.W - W - 12; y = o ? o.y * G.H : G.H - sh + 8;
-      zone = M.onScreen && (s.mode === 'full' || M.y > G.H - sh - 40);
-    }
-    x = Math.round(U.clamp(x, 4, G.W - W - 4)); y = Math.round(U.clamp(y, 2, sb - Hh - 2));
-    hud.style.left = x + 'px'; hud.style.top = y + 'px';
-    const r = { left: x - 24, right: x + W + 24, top: y - 24, bottom: y + Hh + 24 };
-    const onHud = M.onScreen && M.x > r.left && M.x < r.right && M.y > r.top && M.y < r.bottom;
-    const busy = !!pop || G.uiDrag || !!document.querySelector('.menu');
-    // 宠物身边那圈小按钮出来、又正好压在工具栏上：工具栏先让开
-    const ringR = ring && [...ring.querySelectorAll('button')].reduce((u, b) => { const q = b.getBoundingClientRect(); return u ? { left: Math.min(u.left, q.left), right: Math.max(u.right, q.right), top: Math.min(u.top, q.top), bottom: Math.max(u.bottom, q.bottom) } : q; }, null), clash = ring && !(hud.matches(':hover')) && (!G.isle || rectsHit(ringR, { left: x - 6, right: x + W + 6, top: y - 6, bottom: y + Hh + 6 }));
-    if ((zone || onHud || busy) && !clash) nearUntil = now + 1200;
-    if (clash) nearUntil = 0;
-    setNear(now < nearUntil);
+    const p = PP.mainPet && PP.mainPet(), now = performance.now();
+    // 主角在画面上（或者正被你拎着）：所有按钮都在它身边那一圈里，这里什么都不显示
+    if (anchorPet() || (p && p.held) || G.uiDrag || G.editing || dockOn()) { absentSince = 0; setNear(false); if (pop) placePop(); return; }
+    if (!absentSince) absentSince = now;
+    const W = hud.offsetWidth || 120, Hh = hud.offsetHeight || 32, sb = PP.safeB ? PP.safeB() : G.H;
+    let x, y;
+    if (G.isle && PP.isle.rect()) { const L = PP.isle.rect(); x = L.x1 - W - 8; y = L.y0 - Hh - 6; if (y < 4) y = L.y0 + 4; }
+    else if (S().mode === 'band' && PP.scene.vrect && PP.scene.vrect()) { const r = PP.scene.vrect(); x = r.x1 - W - 6; y = r.y0 - Hh - 8; }
+    else if (G.bar) { const [a, b] = barZone(); x = (a + b) / 2 - W / 2; y = G.H - G.bar.h / 2 - Hh / 2; }
+    else { x = G.W - W - 16; y = sb - Hh - 24; }
+    hud.style.left = Math.round(U.clamp(x, 4, G.W - W - 4)) + 'px'; hud.style.top = Math.round(U.clamp(y, 2, sb - Hh - 2)) + 'px';
+    setNear(now - absentSince > 2500);
     if (pop) placePop();
   }
+  // ---------- 框旁边的按钮条（小场景 / 小岛）：鼠标进框才浮出来 ----------
+  function dockRect() { if (G.isle && PP.isle && PP.isle.rect()) return PP.isle.rect(); if (S().mode === 'band' && PP.scene.vrect) return PP.scene.vrect(); return null; }
+  function dockOn() { return !!(G.save && dockRect()); }
+  PP.dockOn = dockOn;
+  let dock = null, dockKey = '', dockUntil = 0;
+  function dockBtns() {
+    const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread(), p = PP.mainPet && PP.mainPet();
+    return [
+      ['mini', '极简：只留主角'],
+      ['view', '视图：小场景 / 小岛 / 任务栏 / 极简'],
+      ...(!isle ? [['map', '地图 · 季节 · 声音']] : []),
+      ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
+      ...(isle ? [[inside ? 'out' : 'home', inside ? '出门' : '进小屋']] : []),
+      ...(isle && !inside ? [['cam', '回到默认视角（按住右键拖动可以转视角）']] : []),
+      ...(p && !anchorPet() && !p.held ? [['call', `叫${p.name}出来`]] : []),
+    ];
+  }
+  HICON.cam = ['...kkkk...', '..k....k..', '.k..kk..k.', 'k..kyyk..k', 'k..kyyk..k', '.k..kk..k.', '..k....kk.', '...kkkk.kk', '.........k', '..........'];
+  function placeDock() {
+    if (!G.save) return;
+    const r = dockRect();
+    if (!r) { if (dock) { dock.remove(); dock = null; dockKey = ''; PP.refreshInteractive(); } return; }
+    const btns = dockBtns(), key = btns.map((b) => b.join(':')).join('|') + (PP.econ && PP.econ.unread() ? 1 : 0);
+    if (!dock) {
+      dock = $(`<div class="sdock far"></div>`); document.getElementById('ui').appendChild(dock);
+      dock.addEventListener('mousedown', (e) => e.stopPropagation());
+      dock.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; const k = b.dataset.h, br = b.getBoundingClientRect();
+        if (k === 'mini') { PP.toggleMinimal(); return; } if (k === 'call') { summonMain(); return; } if (k === 'cam') { PP.isle.resetCam && PP.isle.resetCam(); return; }
+        pendAt = { x: br.left + br.width / 2, y: br.top + br.height / 2 }; hudClick(k, b); pendAt = null; });
+    }
+    if (key !== dockKey) { dockKey = key; dock.innerHTML = btns.map(([k, tip]) => `<button data-h="${k}" title="${esc(tip)}" class="${k === 'mini' ? 'key' : ''} ${k === 'bag' && PP.econ && PP.econ.unread() ? 'new' : ''}"><canvas width="20" height="20"></canvas></button>`).join(''); dock.querySelectorAll('button').forEach((b) => hIcon(b.querySelector('canvas'), b.dataset.h)); }
+    const M = G.mouse, bw = 34, H2 = btns.length * 36, left = r.x0 - bw - 6 < 4 ? r.x1 + 6 : r.x0 - bw - 6, top = U.clamp(r.y1 - H2 - 6, 4, (PP.safeB ? PP.safeB() : G.H) - H2 - 4);
+    dock.style.left = Math.round(left) + 'px'; dock.style.top = Math.round(top) + 'px';
+    const near = M.onScreen && M.x > Math.min(r.x0, left) - 24 && M.x < Math.max(r.x1, left + bw) + 24 && M.y > Math.min(r.y0, top) - 24 && M.y < r.y1 + 10;
+    const now = performance.now(); if (near || pop || dock.matches(':hover')) dockUntil = now + 900;
+    const vis = now < dockUntil && !G.editing; if (dock.classList.contains('far') === vis) { dock.classList.toggle('far', !vis); PP.refreshInteractive(); }
+  }
+  (function dockLoop() { try { placeDock(); } catch (e) {} requestAnimationFrame(dockLoop); })();
   const placeOrb = placeHud, drawOrb = () => { hudKey = ''; buildHud(); };
   PP.placeOrb = placeHud;
   (function follow() { try { if (G.save && hud) placeHud(); } catch (e) {} requestAnimationFrame(follow); })();
@@ -251,20 +268,21 @@
       <button class="primary flip" data-flip="1">${mini ? `展开成「${MODE_NAME[big]}」` : `收起成「${small}」`}</button>
       <div class="vrow"><span>收起时</span>${B(smallK === '0', 'data-small="0"', '极简', '主角待在屏幕右下角')}${B(smallK === '2', 'data-small="2"', '小岛', '一座漂着的小城堡：小屋、花房、菜箱、鱼塘')}${B(smallK === '1', 'data-small="1"', '任务栏', '主角住进任务栏的空白处')}</div>
       <div class="vrow"><span>展开时</span>${PP.MODES.filter(([k]) => k !== 'mini' && k !== 'bar' && k !== 'isle').map(([k, n, d]) => B(big === k, `data-m="${k}"`, n, d)).join('')}</div>
-      ${s.isle && mini ? `<div class="vrow"><span>小岛大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动小岛可以放到任何地方">放回右下角</button></div><div class="vrow"><span>城堡朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}</div><div class="hint">在小岛上滚滚轮可以随意缩放；按住城堡拖动，可以挪到屏幕任何地方</div>` : ''}
+      ${s.isle && mini ? `<div class="vrow"><span>小岛大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动小岛可以放到任何地方">放回右下角</button></div><div class="vrow"><span>城堡朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}</div><div class="vrow"><span>视角</span><button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住右键（或滚轮键）拖动转视角；按住城堡拖动可以挪位置。调好的都会记住</div>` : ''}
       ${s.taskbar && mini ? `<div class="vrow"><span>住在</span>${B(s.barSide !== 'right', 'data-side="left"', '左边')}${B(s.barSide === 'right', 'data-side="right"', '右边')}</div>` : ''}</div>`);
     openPop('view');
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const d = b.dataset;
       if (d.flip) { hidePop(); PP.toggleMini(); return; }
-      if (d.small != null) { S().taskbar = d.small === '1'; S().isle = d.small === '2'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else PP.setMode('mini', true, true); showPop(); return; }
-      if (d.side) { S().barSide = d.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } showPop(); return; }
+      if (d.small != null) { hidePop(); S().taskbar = d.small === '1'; S().isle = d.small === '2'; PP.save.soon(); if (S().mode !== 'mini') PP.setMode('mini'); else PP.setMode('mini', true, true); return; }
+      if (d.side) { hidePop(); S().barSide = d.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } return; }
       if (d.isz) { PP.isle.setSize(+d.isz); showPop(); return; }
       if (d.izo) { PP.isle.setZoom((S().isleZ || PP.isle.Z0) * (d.izo > 0 ? 1.15 : 1 / 1.15), true); showPop(); return; }
       if (d.imir != null) { PP.isle.setMirror(d.imir === '1'); showPop(); return; }
       if (d.ipos) { PP.isle.resetPos(); showPop(); return; }
-      if (d.m) { if (S().mode === 'mini') { S().lastMode = d.m; PP.save.soon(); } PP.setMode(d.m); hidePop(); }
+      if (d.m) { hidePop(); if (S().mode === 'mini') { S().lastMode = d.m; PP.save.soon(); } PP.setMode(d.m); }
+      if (d.icam) { PP.isle.resetCam && PP.isle.resetCam(); showPop(); return; }
     });
   }
   // 一次只开一个小窗：贴着工具栏（或者点的位置）摆，放不下就翻到另一边
@@ -391,7 +409,7 @@
     const pins = all.map(([k, n]) => { const p = MAP_POS[k] || [0.5, 0.5], cnt = c[k] ? Object.values(c[k]).reduce((a, b) => a + (b.n || 0), 0) : 0; return `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="${k}"></i><span>${esc(n)}</span>${cnt ? `<em>${cnt}</em>` : ''}</button>`; }).join('');
     const tabs = [['map', '地图'], ['sound', '声音'], ['set', '设置']].map(([k, n]) => `<button class="tab ${popTab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('');
     let body = '';
-    if (popTab === 'map') body = `<div class="mapwrap"><canvas class="worldmap" width="${MAP_W}" height="${MAP_H}"></canvas><div class="mine-tag">我的</div>${pins}<div class="pv"></div></div><div class="hint">点旗子就过去 · 鼠标停在旗子上先看一眼 <button class="small" data-a="hide">${s.sceneHidden ? '显示场景画面' : '藏起场景画面'}</button></div>`;
+    if (popTab === 'map') body = `<div class="mapwrap"><canvas class="worldmap" width="${MAP_W}" height="${MAP_H}"></canvas>${pins}<div class="pv"></div></div><div class="hint">按住地球拖动可以转 · 点旗子就过去 · 鼠标停在旗子上先看一眼 <button class="small" data-a="hide">${s.sceneHidden ? '显示场景画面' : '藏起场景画面'}</button></div>`;
     else if (popTab === 'sound') {
       const off = s.ambOff || {};
       body = `<div class="sndtop"><button class="small ${s.ambient ? 'on' : ''}" data-a="amb">${s.ambient ? '♪ 环境声：开' : '♪ 环境声：关'}</button>${[[0.25, '轻'], [0.5, '中'], [0.8, '响']].map(([v, n]) => `<button class="small ${s.ambient && (s.ambientVol != null ? s.ambientVol : 0.5) === v ? 'on' : ''}" data-vol="${v}" ${s.ambient ? '' : 'disabled'}>${n}</button>`).join('')}</div>
@@ -404,13 +422,13 @@
     const sz = s.popSize || 'S', sizes = [['S', '小'], ['M', '中'], ['L', '大']].map(([k, n]) => `<button class="tab ${sz === k ? 'on' : ''}" data-size="${k}" title="弹窗大小">${n}</button>`).join('');
     pop = $(`<div class="orb-pop scene-pop map2 size-${sz}"><div class="maphead"><b>${cur && PP.SCENES[cur] ? esc(PP.SCENES[cur].name) : '地图'}</b><div class="tabs">${tabs}</div><div class="tabs sizes">${sizes}</div></div>${body}</div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
-    const cvs = pop.querySelector('canvas.worldmap'); if (cvs) cvs.getContext('2d').drawImage(drawWorldMap(), 0, 0);
+    const cvs = pop.querySelector('canvas.worldmap'); if (cvs) { if (PP.GLOBE) PP.GLOBE.mount(pop.querySelector('.mapwrap')); else cvs.getContext('2d').drawImage(drawWorldMap(), 0, 0); }
     // 鼠标停在旗子上：小预览（那边现在的样子 + 谁在那儿）
     const pv = pop.querySelector('.pv');
     if (pv) pop.querySelectorAll('.pin').forEach((b) => {
       b.addEventListener('mouseenter', () => {
         const k = b.dataset.s; pv.innerHTML = '';
-        try { const t = PP.scene.thumb(k, 156, 46), im = document.createElement('canvas'); im.width = 156; im.height = 46; im.getContext('2d').drawImage(t, 0, 0); pv.appendChild(im); } catch (err) {}
+        try { const t = PP.scene.thumb(k, 132, 120), im = document.createElement('canvas'); im.width = 132; im.height = 120; im.getContext('2d').drawImage(t, 0, 0); pv.appendChild(im); } catch (err) {}
         const r = regionOf[k], nm = PP.SCENES[k] ? PP.SCENES[k].name : k, who = PP.wild ? PP.wild.censusText(k, c[k]) : '';
         pv.insertAdjacentHTML('beforeend', `<div><b>${esc((r && r.subs.length > 1 ? r.name + ' · ' : '') + nm)}</b>${PP.NEST && PP.NEST[k] ? '<small>（在' + esc(PP.SCENES[PP.NEST[k]].name) + '里）</small>' : ''}<br><span>${esc(who || '现在没人')}</span></div>`);
         pv.style.left = b.style.left; pv.style.top = b.style.top; pv.classList.add('show'); pv.classList.toggle('up', parseFloat(b.style.top) > 55); pv.classList.toggle('left', parseFloat(b.style.left) > 60);
@@ -478,6 +496,7 @@
   // 不同视图给的不一样：极简 / 任务栏里没有场景，就不放地图；小岛上多一个进屋 / 出门
   function sysFor(p) {
     if (!(PP.mainPet && PP.mainPet() === p) || p.d.wild) return [];
+    if (dockOn()) return []; // 小场景 / 小岛：这些按钮在框旁边那一条里
     const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread();
     return [
       [isPure() ? 'expand' : 'mini', isPure() ? '退出极简（回到刚才的样子）' : '极简：只留主角'],
@@ -495,7 +514,7 @@
     if (hp !== lastHover) { lastHover = hp; hoverSince = performance.now(); }
     const menuOpen = !!document.querySelector('.menu');
     if (hp && !G.editing && !menuOpen && !pop && !(hud && hud.matches(':hover')) && !(PP.isle && PP.isle.pressing && PP.isle.pressing()) && performance.now() - hoverSince > 250 && hp !== ringPet) showBar(hp);
-    if (ring && !hp && !over) { if (!hideT) hideT = performance.now(); if (performance.now() - hideT > 800) hideBar(); } else hideT = 0;
+    if (ring && !hp && !over) { if (!hideT) hideT = performance.now(); if (performance.now() - hideT > 450) hideBar(); } else hideT = 0;
     if (ring && ringPet) {
       if (!G.pets.includes(ringPet) || ringPet.inDoor || ringPet.held) { hideBar(); return; }
       const S = G.S * (ringPet.scaleMul || 1);

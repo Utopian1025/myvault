@@ -14,7 +14,7 @@
     mouse: { x: -999, y: -999, vx: 0, vy: 0, down: false, moved: 0, lastMove: 0, still: 0, onScreen: false },
     user: { lastActive: Date.now(), activeSince: Date.now(), typing: false, typingSince: 0, lastKey: 0, away: false, awayFrom: 0 },
     save: null, // 持久化数据（见 save.js）
-    get S() { const z = (G.save && G.save.settings.size) || 2; if (G.isle && PP.isle && PP.isle.scale) return PP.isle.scale(); return G.bar ? Math.max(1, Math.min(z, Math.round(((G.bar.h - 4) / 24) * 2) / 2)) : z; },
+    get S() { const z = (G.save && G.save.settings.size) || 2; if (G.isle && PP.isle && PP.isle.scale) return PP.isle.scale(); if (!G.bar && G.save && G.save.settings.mode === 'band') return Math.max(1, Math.round(z * 0.55)); return G.bar ? Math.max(1, Math.min(z, Math.round(((G.bar.h - 4) / 24) * 2) / 2)) : z; },
     bar: null, // 任务栏视图时：{ h: 任务栏高度 }
   });
 
@@ -152,7 +152,7 @@
   const HOMEY = new Set(['food', 'water', 'bed', 'litter']); // 家里用的东西：只在极简模式
   PP.itemHere = (i) => HOMEY.has(i.type) || (i.scene || 'mini') === PP.place();
   // 画出来的：饭碗水碗这些“家里的东西”不画（场景里大家在野外吃喝）
-  PP.itemShown = (i) => !HOMEY.has(i.type) && (i.scene || 'mini') === PP.place();
+  PP.itemShown = (i) => !HOMEY.has(i.type) && !G.isle && (i.scene || 'mini') === PP.place();
   // 物品落在哪：场景里落在地面的某一排
   PP.itemFloor = (i) => {
     if (!G.save || G.save.settings.mode === 'mini' || !PP.scene) return G.ground;

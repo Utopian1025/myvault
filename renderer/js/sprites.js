@@ -85,6 +85,12 @@
       }
     b.d = out;
   }
+  // 在小场景、小岛里：白色贴纸边换成和场景一样的深色描边，颜色对齐场景的调色板（看起来是同一个世界里的）
+  function sceneRim(b, p) {
+    if (!p.scene || !PP.DIO) { outline(b, RIM); return; }
+    for (let i = 0; i < b.d.length; i++) { const v = b.d[i]; if (v != null && v !== OUT) b.d[i] = PP.DIO.qhex(v); }
+    outlineSel(b);
+  }
   // 以下变换都在逻辑坐标（32x32 方格）里做
   function flipV(b) {
     const o = b.clone0();
@@ -264,7 +270,7 @@
       b.set(L - 2, ey + 3, BL); b.set(L - 1, ey + 3, BL); b.set(R + 1, ey + 3, BL); b.set(R + 2, ey + 3, BL);
     }
     if (p.hat) drawHat(b, p.hat, 16, ey - 5 + 7, f);
-    outline(b, RIM);
+    sceneRim(b, p);
     let out = b;
     if (p.transform === 'flipV') out = shift(flipV(b), 0, 1);
     else if (p.transform === 'rotR') out = shift(rot90(b, 1), 0, 4);
@@ -502,7 +508,7 @@
     }
 
     // 白色外描边：贴纸感，任何壁纸上都清楚
-    outline(b, RIM);
+    sceneRim(b, p);
 
     let out = b;
     if (p.transform === 'flipV') out = shift(flipV(b), 0, -2);
@@ -976,6 +982,7 @@
       p.__geo = { kind: 'hedgehog', curl: true, cx, cy };
       return;
     }
+    if (!lie && anim !== 'held' && !p.portrait) { drawHedgehog34(b, p, g); return; }
     let [cy, ry, rx] = blobFit(g, p, lie ? 23.6 : 22.4, lie ? 5.6 : 6.4, lie ? 10.4 : 9.4);
     const cx = 16 - f * 0.8 + (g.jsk || 0) * 0.4;
     let hx = 16 + f * 1.4 + (g.jsk || 0) * 0.7, hy = lie ? 21 : g.anim === 'held' ? 12 : 17.4;
@@ -999,6 +1006,35 @@
       rect(b, Math.round(cx - 4), 28 - s, 2, 1, C.paw); rect(b, Math.round(cx + 3), 28 - (1 - s) * (s ? 0 : 0), 2, 1, C.paw);
     }
     p.__geo = { kind: 'hedgehog', cx, cy, hx, hy, lie, sy, srx, sry, hatX: hx, hatY: sy - sry + 6 };
+  }
+  // 刺猬（斜 45° 的样子）：身子是一个往后拖长的椭圆，刺帽罩着后背和头顶、往后翘；
+  // 脸和小尖嘴朝前下方伸出来，近处那只眼睛大、远处那只小；四只小脚；左上来光、右下背光
+  function drawHedgehog34(b, p, g) {
+    const C = p.pal, f = g.f, anim = g.anim, t = g.t, js = g.jsk || 0;
+    const walk = anim === 'walk' || anim === 'run', bob = walk ? (Math.floor(t * 8) % 2) * 0.5 : 0;
+    let [cy, ry, rx] = blobFit(g, p, 22.6, 6.2, 9.8);
+    cy -= bob;
+    const cx = 16 - f * 1.4 + js * 0.4;
+    // 后脚（远一点，暗）
+    const st = walk ? Math.floor(t * 8) % 2 : 0;
+    rect(b, Math.round(cx - f * 6.5) - 1, 27 - (st ? 1 : 0), 2, 2, tone(C.paw, -0.18)); rect(b, Math.round(cx - f * 2.5) - 1, 28 - (st ? 0 : 1), 2, 2, tone(C.paw, -0.18));
+    // 肚子（奶油色，底下露出一条）
+    ell(b, cx + f * 2, cy + 2.6, rx - 1.6, ry - 2.2, C.base);
+    // 刺帽：往后上方鼓，边上一圈尖
+    const sx = cx - f * 3.2, sy = cy - 2.6, srx = rx + 0.4, sry = ry + 2.8;
+    spikes(b, sx - f * 0.6, sy, srx + 1, sry + 0.8, C.spine, f > 0 ? Math.PI * 0.55 : Math.PI * 1.0, f > 0 ? Math.PI * 2.0 : Math.PI * 2.45, 13);
+    ell(b, sx, sy, srx, sry, C.spine);
+    // 脸：朝前那一侧，压在刺帽下面
+    const hx = cx + f * 6.4, hy = cy + 0.8 + (anim === 'eat' ? 2.4 : 0);
+    ell(b, hx, hy, 6, 5.1, C.base);
+    ell(b, hx + f * 5, hy + 1.8, 2.8, 1.9, C.base); // 小尖嘴
+    // 刘海：脸上沿的几根短刺
+    for (const k of [-2.2, -0.8, 0.6]) { const x = hx + k * 1.5 * f - f * 1.6; poly(b, [[x - 1, hy - 5.2], [x + 1, hy - 5.2], [x + f * 0.6, hy - 3.6]], C.spine); }
+    // 近处的耳朵
+    ell(b, hx - f * 2.2, hy - 5, 1.6, 1.5, C.base);
+    // 前脚（近，亮）
+    rect(b, Math.round(cx + f * 3.5) - 1, 28 - (st ? 0 : 1), 2, 1, C.paw); rect(b, Math.round(cx + f * 6.5) - 1, 28 - (st ? 1 : 0), 2, 1, C.paw);
+    p.__geo = { kind: 'hedgehog', tq: true, cx, cy, hx, hy, lie: false, sy, srx, sry, f, hatX: sx, hatY: sy - sry + 6 };
   }
   function spikes(b, cx, cy, rx, ry, col, a0, a1, n) {
     for (let i = 0; i <= n; i++) {
@@ -1246,6 +1282,20 @@
         else if (band === 0 && d > 0.5) b.d[y * b.w + x] = C.dark;
       }
       if (q.curl) { const cx = Math.round(q.cx), cy = Math.round(q.cy); b.set(cx - 2, cy + 4, K); b.set(cx + 2, cy + 4, K); b.set(cx, cy + 6, C.nose); return; }
+      if (q.tq) { // 斜 45°：刺帽右下（背光）一圈暗，左上刺尖亮；近眼大、远眼小；鼻头在嘴尖
+        const f = q.f, sx = q.cx - f * 1.6;
+        for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) { const v = b.raw(x, y); if (v !== C.spine && v !== C.tip && v !== C.dark) continue; const dx = (x + 0.5 - sx) / (q.srx + 1), dy = (y + 0.5 - q.sy) / (q.sry + 1); if (dx * 0.7 + dy * 0.7 > 0.55 && v === C.spine) b.d[y * b.w + x] = tone(C.spine, -0.22); else if (dx * -0.6 + dy * -0.8 > 0.62) b.d[y * b.w + x] = C.tip; }
+        for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) { const v = b.raw(x, y); if (v !== C.base) continue; const dx = x + 0.5 - q.hx, dy = y + 0.5 - q.hy; if (dy > 2.4 && dx * f < 1) b.d[y * b.w + x] = tone(C.base, -0.1); }
+        const eyes = p.eyes || 'open', look = p.look || [0, 0], ey = Math.round(q.hy - 0.6), nx = Math.round(q.hx + f * 1.6), fx = Math.round(q.hx - f * 2.6);
+        b.setOn(Math.round(q.hx - f * 2.2), Math.round(q.hy - 5), C.inner);
+        drawEye(b, nx, ey, eyes, look, f < 0, C, C.base);
+        if (eyes === 'open' || eyes === 'wide' || eyes === 'angry') { b.set(fx, ey - 1, K); b.set(fx, ey, K); b.set(fx + (f > 0 ? -1 : 1), ey, K); } else b.set(fx, ey, K);
+        const mx = Math.round(q.hx + f * 7.4), my = Math.round(q.hy + 1.4);
+        rect(b, mx - (f > 0 ? 0 : 1), my, 2, 2, C.nose); b.set(mx + (f > 0 ? 1 : -1) * 0, my, '#5a4a50');
+        if (p.mouth === 'open' || p.mouth === 'yawn') rect(b, mx - f * 2, my + 2, 2, 1, '#6e2434'); else if (p.mouth !== 'none') b.set(mx - f * 2, my + 2, K);
+        if (p.blush) { b.setOn(nx - f * 2, ey + 3, '#ff8fa8'); b.setOn(nx - f * 1, ey + 3, '#ff8fa8'); }
+        return;
+      }
       const lx = lookX(p), eyes = p.eyes || 'open', look = p.look || [0, 0];
       const ey = Math.round(q.hy - 0.8), mx = Math.round(q.hx) + lx;
       b.setOn(Math.round(q.hx - 5.2), Math.round(q.hy - 3.2), C.inner); b.setOn(Math.round(q.hx + 5.2), Math.round(q.hy - 3.2), C.inner);

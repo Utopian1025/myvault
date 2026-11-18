@@ -13,7 +13,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
     const bar = document.body.classList.contains('web') ? 44 : 2;
-    G.ground = G.bar ? G.H - Math.max(2, Math.round(G.bar.h * 0.1)) : G.H - bar;
+    G.ground = G.bar ? G.H - Math.max(2, Math.round(G.bar.h * 0.1)) : G.H - bar; G._g0 = G.H - bar;
     if (G.isle && PP.isle) { PP.isle.layout(); G.ground = PP.isle.groundY(); }
     for (const p of G.pets) { p.x = U.clamp(p.x, 20, G.W - 20); if (!p.airborne && !p.held) p.y = p.floor; }
     for (const it of G.items) { it.x = U.clamp(it.x, 12, G.W - 12); if (!it.held) it.y = Math.min(it.y, G.ground); }
@@ -34,7 +34,7 @@
     window.addEventListener('resize', resize);
     const had = await PP.save.load();
     const s = G.save;
-    if (s.items && s.items.length) s.items.filter((o) => !['food', 'water', 'bed', 'litter', 'poop'].includes(o.type)).forEach((o) => PP.addItem(o));
+    if (s.items && s.items.length) s.items.filter((o) => !['food', 'water', 'bed', 'litter', 'poop', 'cup'].includes(o.type)).forEach((o) => PP.addItem(o));
     G.all = (s.pets || []).filter((d) => PP.SPECIES[d.species]).map((d) => new PP.Pet(d));
     for (const p of G.all) { p.y = G.ground; if (p.d.lane != null) p.lane = p.d.lane; p.d.hidden = false; p.d.calm = false; p.d.headOnly = false; }
     G.save.settings.work = false; G.save.settings.headOnly = false;
@@ -96,6 +96,13 @@
     G.t += dt;
     for (const p of G.pets) safe(() => p.update(dt), 'pet');
     if (G.bar && PP.barZone) { const [a, b] = PP.barZone(); for (const p of G.pets) if (!p.held && (p.x < a - 6 || p.x > b + 6)) { p.x = U.clamp(p.x, a, b); p.target = U.clamp(p.target != null ? p.target : p.x, a, b); } }
+    // 竖着的小场景：大家只在那一块地上活动
+    const vz = !G.bar && !G.isle && PP.scene && PP.scene.vzone && PP.scene.vzone();
+    if (vz) {
+      G.ground = PP.scene.vground() || G._g0 || G.ground;
+      for (const p of G.pets) if (!p.held && !p.airborne && !p.edgePeek && !p.inDoor && (p.x < vz[0] - 6 || p.x > vz[1] + 6)) { p.x = U.clamp(p.x, vz[0], vz[1]); if (p.target != null) p.target = U.clamp(p.target, vz[0], vz[1]); }
+      for (const it of G.items) if (!it.held && PP.itemShown(it) && (it.x < vz[0] || it.x > vz[1])) it.x = U.clamp(it.x, vz[0], vz[1]);
+    } else if (!G.bar && !G.isle && G._g0) G.ground = G._g0;
     separate();
     for (const it of G.items) if (PP.itemHere(it)) it.update(dt);
     safe(() => PP.eco && PP.eco.tick(dt), 'eco');
