@@ -297,7 +297,7 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .map2 .src small { display: block; font-size: 11px; color: #8a7a94; margin-top: 1px; }
 
 /* 跟着主角的三个按钮：走开时隐去 */
-.orb.far, .dock.far { opacity: 0 !important; pointer-events: none; transition: opacity .35s; }
+.orb.far, .dock.far { opacity: 0 !important; pointer-events: none !important; transition: opacity .35s; }
 .orb:not(.far), .dock:not(.far) { opacity: .92; }
 .orb:hover, .dock:hover { opacity: 1; }
 
@@ -366,7 +366,7 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .dock.mail::after { content: ''; position: absolute; right: -4px; top: -4px; width: 9px; height: 9px; background: #e8405a; border: 2px solid var(--paper); }
 /* 小岛旁边的一列圆按钮 */
 .isle-bar { position: fixed; display: flex; flex-direction: column; gap: 5px; z-index: 40; transition: opacity .3s; }
-.isle-bar.far { opacity: 0; pointer-events: none; }
+.isle-bar.far { opacity: 0; pointer-events: none !important; }
 .isle-bar button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); display: grid; place-items: center; padding: 0; box-shadow: 2px 2px 0 rgba(0,0,0,.25); cursor: pointer; position: relative; }
 .isle-bar button:hover { transform: translateY(-1px); background: #fff8e8; }
 .isle-bar button canvas { image-rendering: pixelated; width: 16px; height: 16px; }
@@ -374,7 +374,8 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 
 /* ---------- HUD：一条工具栏，所有按钮都在这里 ---------- */
 .hud { position: fixed; z-index: 30; display: flex; align-items: center; gap: 4px; padding: 3px; background: rgba(255,255,255,.92); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); border-radius: 18px; transition: opacity .18s, transform .18s; }
-.hud.far { opacity: 0; pointer-events: none; transform: translateY(4px); }
+.hud.far *, .sdock.far *, .isle-bar.far * { pointer-events: none !important; }
+.hud.far { opacity: 0; pointer-events: none !important; transform: translateY(4px); }
 .hud button { position: relative; width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: none; display: grid; place-items: center; }
 .hud button:hover:not(:disabled), .hud button.on { background: var(--accent); }
 .hud button:active { transform: translateY(1px); }
@@ -413,7 +414,7 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 
 /* 小场景 / 小岛旁边的按钮条 */
 .sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: calc(4px * var(--zs, 1)); transition: opacity .18s, transform .18s; }
-.sdock.far { opacity: 0; pointer-events: none; transform: translateX(4px); }
+.sdock.far { opacity: 0; pointer-events: none !important; transform: translateX(4px); }
 .sdock button { position: relative; width: calc(24px * var(--zs, 1)); height: calc(24px * var(--zs, 1)); padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: 1px 1px 0 var(--ink); display: grid; place-items: center; }
 .sdock button:hover { background: var(--accent); transform: scale(1.08); }
 .sdock button.key { background: #ffe58a; }
@@ -429,7 +430,7 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .map2 .pin { padding: 2px 3px; }
 
 /* 钓鱼：钓到时弹出的小卡片 */
-.fishcard { position: fixed; right: 18px; bottom: 120px; z-index: 40; display: flex; gap: 10px; align-items: center; max-width: 330px; padding: 8px 12px 8px 8px; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; box-shadow: 3px 3px 0 var(--ink); opacity: 0; transform: translateY(10px); transition: opacity .25s, transform .25s; pointer-events: none; }
+.fishcard { position: fixed; right: 18px; bottom: 120px; z-index: 40; display: flex; gap: 10px; align-items: center; max-width: 330px; padding: 8px 12px 8px 8px; background: var(--paper); border: 2px solid var(--ink); border-radius: 10px; box-shadow: 3px 3px 0 var(--ink); opacity: 0; transform: translateY(10px); transition: opacity .25s, transform .25s; pointer-events: none !important; }
 .fishcard.in { opacity: 1; transform: none; }
 .fishcard canvas { width: 66px; height: 36px; image-rendering: pixelated; flex: none; background: #d8eef6; border-radius: 6px; }
 .fishcard b { font-size: 14px; margin-right: 6px; } .fishcard small { display: block; font-size: 11px; } .fishcard p { margin: 2px 0; font-size: 12px; }
