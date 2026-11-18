@@ -59,7 +59,7 @@
     POND, FISH: { u: 19, v: 33.4 }, BOB: { u: 19.4, v: 38.8 },
     PLOTS: [[27, 27], [31.2, 27], [35.4, 27], [27, 31.6], [31.2, 31.6], [35.4, 31.6]], PS: 3.6, PH: [1.1, 1.4, 1.0, 1.2, 0.9, 1.3],
     SLOTS: [[15, 24.8], [4.8, 26.6], [23.4, 31.4], [34.4, 23.4], [41, 18.6], [11.6, 31]], LAMPS: [[21.6, 31.6, 0], [12.6, 22.8, 0], [36.6, 17.2, 0]],
-    RDOOR: { u: iu(HOUSE, 0.42) }, GRDOOR: { u: iu(GH, 0.5) },
+    RDOOR: { u: iu(HOUSE, 0.42) }, GRDOOR: { u: iu(GH, 0.5) }, GPOTS: [[10.6, 10.4], [15, 10.4], [10.6, 15], [15, 15]],
   };
   const WOOD = '#b88a5a', WOOD2 = '#a8784a', DARK = '#6a4a36', TIMBER = '#5a3a28', STONE = '#a8a296', STONE2 = '#8a8478', PLAS = '#f0e2c4', PLAS2 = '#e8d6b4', COPPER = '#b0704a', BRICK = '#b8705a';
   const FLOW = ['#f2a6c2', '#ffd95a', '#e8705a', '#c8a0f0', '#ffffff'];
@@ -80,7 +80,33 @@
     else if (kind === 'cabbage') { rosette(6, 0.42 * s, 0.9, ['#7ab85a', '#8cc86a'], 0.55, 1); rosette(4, 0.2 * s, 0.7, ['#b8e08a', '#c8ec9a'], 0.95, 1.5); }
     else if (kind === 'carrot') { rosette(6, 0.12, 0.9, [g1, g2], 1.15, 1.6); if (big) m.cyl(u, v, z, z + 0.9, 0.2, 0.26, '#f08a3a', 0, 6); }
     else if (kind === 'tomato') { stalk(6 * s, '#8a6040'); for (let i = 0; i < 6; i++) L([u + Math.cos(i * 1.9) * 0.3, v + Math.sin(i * 1.9) * 0.3, z + (1.5 + i * 0.75) * s], i * 1.9, 0.5, 0.75 * s, i % 2 ? g1 : g0); if (big) for (let i = 0; i < 4; i++) m.blob(u + Math.cos(i * 1.7) * 0.45, v + Math.sin(i * 1.7) * 0.45, z + 2 + i * 0.9, 0.2, 0.5, '#e0402a', 0, i, 3, 5); }
+    else if (PP.LIFE && PP.LIFE.PL[kind]) lifePlant(m, PP.LIFE.PL[kind], stage, u, v, z, seed, 1);
     else { rosette(7, 0.3 * s, 0.8, [g1, g0, g2], 0.6, 1.3); if (big) for (let i = 0; i < 5; i++) m.blob(u + Math.cos(i * 1.3) * 0.5, v + Math.sin(i * 1.3) * 0.5, z + 1.2 + (i % 3) * 0.7, 0.15, 0.38, '#e8405a', 0, i, 2, 4); }
+  }
+
+  // 新作物 / 花房稀有植物的 3D 样子：按植物的“形状”和颜色搭出来（k = 缩放，花房的大花盆里大一点）
+  function lifePlant(m, P, stage, u, v, z, seed, k) {
+    const [l1, l2, f1, f2] = P.c, big = stage === 3, s = (big ? 1 : stage === 2 ? 0.85 : 0.6) * k, L = (c, a, t, sz, col) => m.leaf(c, a, t, sz, col, 0.9);
+    const ros = (n, r, ls, cols, tilt, zz) => { for (let i = 0; i < n; i++) { const a = (i * 6.283) / n + seed; L([u + Math.cos(a) * r, v + Math.sin(a) * r, z + zz], a, tilt, ls, cols[i % cols.length]); } };
+    if (stage === 0) { for (let i = 0; i < 2; i++) L([u + (i ? 0.1 : -0.1), v, z + 0.6 * k], i * 3.14 + seed, 0.9, 0.36 * k, l2); return; }
+    if (stage === 1) { ros(4, 0.15 * k, 0.55 * k, [l1, l2], 0.8, 1.2 * k); return; }
+    const sh = P.shape;
+    if (sh === 'root') { ros(7, 0.12 * s, 0.95 * s, [l1, l2], 1.1, 1.6 * s); if (big) m.ball(u, v, z + 0.3, 0.42 * s, P.round ? 0.42 * s : 0.7 * s, f1, 0, 4, 8); }
+    else if (sh === 'leafy') { ros(7, 0.4 * s, 0.95 * s, [l1, l2], 0.5, 1); if (big) m.ball(u, v, z + 0.9 * s, 0.6 * s, 0.55 * s, f1, 0, 5, 8); }
+    else if (sh === 'stalk') { const hh = 8 * s; m.cyl(u, v, z, z + hh, 0.08, 0.06, l1, 0, 4); for (let i = 0; i < 4; i++) L([u, v, z + (1.5 + i * 1.6) * s], i * 2.3 + seed, 0.3, 0.9 * s, i % 2 ? l1 : l2); if (big) { if (P.head === 'ear') for (let i = 0; i < 5; i++) m.ball(u + (P.droop ? i * 0.12 : 0), v, z + hh - 0.2 - i * 0.35, 0.16, 0.24, i % 2 ? f2 : f1, 0, 3, 5); else m.cyl(u + 0.2, v, z + hh * 0.5, z + hh * 0.8, 0.22, 0.12, f1, 0, 6); } }
+    else if (sh === 'vine') { if (!P.ground) for (const a of [-0.6, 0.6]) m.box(u + a - 0.04, v - 0.04, z, u + a + 0.04, v + 0.04, z + 5.4 * s, '#c8b07a', 0); ros(6, 0.4 * s, 0.85 * s, [l1, l2], P.ground ? 0.25 : 0.6, P.ground ? 0.6 : 2.4 * s); if (!P.ground) ros(5, 0.3 * s, 0.75 * s, [l2, l1], 0.6, 4 * s);
+      if (big) { if (P.bunch) for (let i = 0; i < 7; i++) m.ball(u + 0.3 + (i % 3) * 0.22 - 0.2, v + 0.3, z + 3.6 * s - Math.floor(i / 3) * 0.32, 0.18, 0.18, i % 2 ? f2 : f1, 0, 3, 5); else if (P.ground) m.blob(u + 0.2, v + 0.3, z + 0.9, 0.6, 1.1, f1, 0, seed, 4, 8); else for (let i = 0; i < 3; i++) m.ball(u + Math.cos(i * 2.1) * 0.5, v + Math.sin(i * 2.1) * 0.5, z + (2 + i) * s, 0.22, 0.26, f1, 0, 3, 6); } }
+    else if (sh === 'bush') { m.foliage(u, v, z + 1.4 * s, 0.9 * s, 1.5 * s, [l1, l2], 26, seed, 0.6); if (P.spike) for (let i = 0; i < 5; i++) { const a = i * 1.26 + seed; m.cyl(u + Math.cos(a) * 0.4, v + Math.sin(a) * 0.4, z + 2 * s, z + 3.6 * s, 0.1, 0.05, stage >= 2 ? f1 : l2, 0, 4); }
+      else if (stage === 2 && P.flw) for (let i = 0; i < 4; i++) m.ball(u + Math.cos(i * 1.6) * 0.6 * s, v + Math.sin(i * 1.6) * 0.6 * s, z + 2.4 * s, 0.14, 0.1, P.flw, 0, 3, 5);
+      if (big && !P.spike) for (let i = 0; i < 5; i++) m.ball(u + Math.cos(i * 1.3 + seed) * 0.7 * s, v + Math.sin(i * 1.3 + seed) * 0.7 * s, z + (1.4 + (i % 3) * 0.6) * s, P.long ? 0.16 : 0.2, P.long ? 0.42 : 0.2, f1, 0, 3, 5); }
+    else if (sh === 'flower') { const n = P.water ? 1 : 3; for (let q = 0; q < n; q++) { const a = u + (q - 1) * 0.45 * k, b = v + (q % 2 ? 0.3 : -0.2) * k, hh = P.water ? 0.2 : (3.6 + q * 0.8) * s; if (!P.water) { m.cyl(a, b, z, z + hh, 0.05, 0.04, l1, 0, 4); L([a, b, z + 1.2 * s], q * 2 + seed, 1, 0.7 * s, l2); } else { m.cyl(u, v, z, z + 0.08, 1.2 * k, 1.2 * k, '#5aa8d8', M.water, 10); L([u - 0.6, v, z + 0.1], 0, 0, 0.9 * k, l2); }
+        if (stage === 2) m.ball(a, b, z + hh + 0.2, 0.18 * k, 0.32 * k, l2, 0, 3, 5);
+        else for (let i = 0; i < 5; i++) { const an = (i / 5) * 6.283; m.leaf([a + Math.cos(an) * 0.18 * k, b + Math.sin(an) * 0.18 * k, z + hh + 0.15], an, P.bell ? -0.9 : P.water ? 0.2 : 0.5, 0.42 * k, i % 2 ? f1 : f2, 0.5); } } }
+    else if (sh === 'cactus') { m.cyl(u, v, z, z + 3.2 * s, 0.55 * s, 0.45 * s, l1, 0, 8); m.ball(u, v, z + 3.2 * s, 0.45 * s, 0.4 * s, l2, 0, 4, 8); m.cyl(u + 0.6 * s, v, z + 1.2 * s, z + 2.4 * s, 0.22 * s, 0.2 * s, l1, 0, 6); if (big) for (let i = 0; i < 6; i++) m.leaf([u, v, z + 3.7 * s], (i / 6) * 6.283, 0.4, 0.5 * k, f1, 0.4); }
+    else if (sh === 'fern') { for (let i = 0; i < 7; i++) { const a = (i / 7) * 6.283 + seed; for (let j = 0; j < 4; j++) L([u + Math.cos(a) * j * 0.3 * s, v + Math.sin(a) * j * 0.3 * s, z + (0.6 + j * 0.45) * s], a, 0.2 + j * 0.2, (0.6 - j * 0.08) * s, j % 2 ? l1 : l2); if (big) m.ball(u + Math.cos(a) * 1.3 * s, v + Math.sin(a) * 1.3 * s, z + 2.2 * s, 0.1, 0.1, f1, M.glow, 3, 4); } }
+    else if (sh === 'shroom') { if (P.moss) { m.ball(u, v, z + 0.8 * s, 0.9 * s, 0.75 * s, f1, M.grass, 5, 8); if (big) m.ball(u + 0.3, v + 0.3, z + 1.6 * s, 0.14, 0.14, '#f2a6c2', 0, 3, 5); } else { const L2 = big ? [[0, 0, 1.2], [0.6, 0.4, 0.8], [-0.5, 0.3, 0.6]] : [[0, 0, 0.9]]; for (const [a, b, r] of L2) { m.cyl(u + a, v + b, z, z + 1.6 * r * k, 0.12 * r, 0.1 * r, '#e8e0d0', 0, 5); m.ball(u + a, v + b, z + 1.6 * r * k, 0.5 * r * k, 0.3 * r * k, f1, M.glow, 4, 8); } } }
+    else if (sh === 'tree') { m.cyl(u, v, z, z + 2.4 * s, 0.32 * s, 0.4 * s, f1, M.plank, 8); m.foliage(u, v, z + 3.2 * s, 1 * s, 0.6 * s, [l1, l2], 30, seed, 0.6); }
+    else ros(7, 0.3 * s, 0.8 * s, [l1, l2], 0.6, 1.3 * s);
   }
   // 树篱 / 灌木：一蓬叶子 + 几朵花
   function bush(m, u, v, z, r, cols, seed, flw) { m.foliage(u, v, z + r * 1.6, r, r * 2.1, cols, Math.round(18 + r * 26), seed, 0.6); if (flw) for (let i = 0; i < 3; i++) m.leaf([u + (H(seed, i) - 0.5) * r * 1.4, v + (H(i, seed) - 0.3) * r * 1.2, z + r * 2.4 + H(seed + 1, i) * r], H(i, 7) * 6, 0.9, 0.42, FLOW[(seed + i) % 5], 0.8); }
@@ -121,6 +147,8 @@
     // 装饰用的圆塔（城堡的轮廓）：[u, v, 半径, 塔身顶高, 屋顶颜色]
     TOWERS: [[2.6, 19.4, 1.5, 22, '#4a6a9a'], [25.4, 6.4, 1.6, 30, '#b8503c'], [8.2, 5.6, 1.3, 33, '#5a8a6a']],
     BOILER: { u: 21.4, v: 20.9 },
+    // 平台上的小房子（让城堡看起来是一栋栋房子拼起来的，不是光秃秃的木台）：[层, u0, v0, u1, v1, 墙高, 墙色, 屋顶色, 屋顶方向]
+    BLOCKS: [[1, 3.8, 7.3, 11.6, 11.4, 8.4, '#e8d6b4', '#5a7a8a', 'u'], [2, 9.2, 6.8, 16.9, 10.7, 8, '#f0e2c4', '#b8503c', 'u'], [2, 20.7, 6.8, 24.5, 10.7, 7.4, '#cfe0e8', '#4a6a9a', 'v'], [3, 20.8, 13.2, 23.7, 16.6, 5.6, '#e8d6b4', '#5a8a6a', 'v']],
     // 小窝：[层, u0, v0, u1, v1, 门朝哪边]（'v' = 门朝前，'u' = 门朝右）
     DENS: [[2, 9.3, 6.9, 12.9, 10.6, 'v'], [1, 7.8, 7.4, 11.4, 11.4, 'v'], [2, 13.2, 6.9, 16.8, 10.6, 'v'], [1, 3.8, 7.4, 7.4, 11.4, 'v'], [2, 20.8, 6.9, 24.4, 10.6, 'v'],
       [1, 3.6, 14.2, 7.6, 17.8, 'u'], [3, 20.8, 13.2, 23.6, 16.6, 'u'], [0, 37.2, 16.6, 40.8, 20.2, 'v'], [0, 41.6, 15.2, 45, 18.8, 'v'], [0, 36.8, 9.4, 40.4, 13, 'v']],
@@ -255,6 +283,21 @@
     { const [u, v] = CA.TOWERS[0]; for (let k = 0; k < 6; k++) { const a = CA.WING1[0] + 0.2, t0 = k / 6, t1 = (k + 0.85) / 6, sag = Math.sin(((t0 + t1) / 2) * Math.PI) * 0.6; m.box(a - 0.8 + (u + 1 - a) * 0, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t0, Z1 - 0.7 - sag, a + 0.4, CA.WING1[3] - 0.2 + (v - 1.4 - CA.WING1[3]) * t1, Z1 - 0.5 - sag, '#a8784a', M.plank); } }
     // 二层前沿挂一串小灯笼、几面三角小旗
     { const P2 = CA.P2; for (let k = 0; k < 9; k++) { const u = P2[0] + 1 + k * 1.8, v = P2[3] + 0.15, sag = Math.sin((k / 8) * Math.PI) * 0.8; if (k % 2) m.box(u - 0.22, v - 0.22, Z2 - 2.4 - sag, u + 0.22, v + 0.22, Z2 - 1.8 - sag, '#ffe9a8', M.glow); else m.tri([u - 0.5, v, Z2 - 1.3 - sag], [u + 0.5, v, Z2 - 1.3 - sag], [u, v, Z2 - 2.4 - sag], ['#e0604a', '#ffd36a', '#5aa6d8', '#f2a6c2'][k % 4], M.cloth); } }
+    // —— 平台上的小房子：木筋灰泥墙、窗、门、陡屋顶，屋顶上长苔藓 ——
+    CA.BLOCKS.forEach(([lv, u0, v0, u1, v1, h, wc, rc, ax], i) => { const z = lv ? CA.Z[lv] : 0;
+      m.box(u0, v0, z, u1, v1, z + h, wc, M.plaster); m.box(u0 - 0.1, v0 - 0.1, z, u1 + 0.1, v1 + 0.1, z + 1.2, STONE2, M.stone);
+      for (const uu of [u0, u1]) m.box(uu - 0.16, v1, z, uu + 0.16, v1 + 0.2, z + h, TIMBER, 2); m.box(u0, v1, z + h - 0.4, u1, v1 + 0.2, z + h, TIMBER, 2); m.quad([u0 + 0.2, v1 + 0.15, z + 1.2], [u0 + 0.5, v1 + 0.15, z + 1.2], [u1 - 0.2, v1 + 0.15, z + h - 0.4], [u1 - 0.5, v1 + 0.15, z + h - 0.4], TIMBER, 2);
+      const dc = (u0 + u1) / 2; m.box(dc - 0.8, v1, z, dc + 0.8, v1 + 0.2, z + 4.4, ['#5a8a6a', '#8a5a3a', '#4a8ac8', '#a8603a'][i % 4], M.plank); m.box(dc - 1, v1, z + 4.4, dc + 1, v1 + 0.3, z + 4.8, TIMBER, 2);
+      if (u1 - u0 > 5) { m.win('v', u0 + 0.9, u0 + 2, z + 3, z + 5.6, v1, { shut: '#5a7a8a', box: FLOW[i % 5] }); m.win('v', u1 - 2, u1 - 0.9, z + 3, z + 5.6, v1, {}); }
+      m.win('u', (v0 + v1) / 2 - 0.7, (v0 + v1) / 2 + 0.7, z + 3, z + 5.6, u1, {});
+      m.gable(u0 - 0.3, v0 - 0.3, u1 + 0.3, v1 + 0.3, z + h, ax === 'u' ? 3.4 : 2.8, ax, rc, M.tile, 0.4, wc, M.plaster);
+      if (!snow) for (let k = 0; k < 8; k++) m.leaf([u0 + H(k, i) * (u1 - u0), v0 + 0.5 + H(i, k) * (v1 - v0 - 1), z + h + 1 + H(k + 3, i)], H(k, 9) * 6, 0.15, 0.6, k % 3 ? '#6a9a50' : '#8ab860', 0.2);
+      if (i === 1) { m.box(u1 - 2.2, v0 + 0.6, z + h, u1 - 1.2, v0 + 1.6, z + h + 5, BRICK, M.stone); m.cyl(u1 - 1.7, v0 + 1.1, z + h + 5, z + h + 6.2, 0.35, 0.3, '#3a3448', M.metal, 6); }
+      if (i === 3) { m.cyl((u0 + u1) / 2, (v0 + v1) / 2, z + h, z + h + 0.4, 2.2, 2.2, rc, M.tile, 10); } });
+    // 花房右边的空地：接雨水的木水塔、堆肥箱、一小片花圃
+    { const u = 39, v = 18.2, z = tz(u, v); posts(m, [[u - 1.2, v - 1.2], [u + 1.2, v - 1.2], [u - 1.2, v + 1.2], [u + 1.2, v + 1.2]], z, 6, TIMBER, 0.2); m.cyl(u, v, z + 6, z + 10, 1.8, 1.8, '#a8784a', M.plank, 12); for (const hh of [6.6, 9.2]) m.cyl(u, v, z + hh, z + hh + 0.3, 1.85, 1.85, '#4a4652', M.metal, 12); m.cyl(u, v, z + 10, z + 11.4, 2, 0.3, '#5a7a8a', M.tile, 12); m.cyl(u + 1.6, v, z + 1, z + 7, 0.14, 0.14, COPPER, M.metal, 6); }
+    { const u = 43, v = 16.6, z = tz(u, v); m.box(u - 1.4, v - 1, z, u + 1.4, v + 1, z + 1.8, '#8a5e3c', M.plank, '#5a4030', M.soil); for (let i = 0; i < 4; i++) m.box(u - 1.4 + i * 0.9, v + 0.95, z + 0.2, u - 1.1 + i * 0.9, v + 1.05, z + 1.6, '#6a4a34', 0); }
+    for (let i = 0; i < 7; i++) { const u = 37.4 + (i % 4) * 1.6, v = 10.4 + Math.floor(i / 4) * 1.6, z = tz(u, v); if (!snow) bush(m, u, v, z, 0.45, HED, 700 + i, true); }
     // —— 每只动物自己的窝 ——
     (o.dens || []).forEach((sp, i) => { const d = CA.DENS[i]; if (!d || !sp) return; m.pk(CA.PICK_DEN + i); den(m, sp, d, CA.denZ(d), snow); m.pk(0); });
   }
@@ -556,6 +599,12 @@
     m.pk(PICK.basket); for (const [u, v, z] of [[10.6, 12.6, 13], [15.4, 8.4, 14.6]]) { m.box(u - 0.04, v - 0.04, z, u + 0.04, v + 0.04, hgt + rf * 0.5, '#d8c8a0', 0); m.cyl(u, v, z - 1.4, z, 0.5, 0.9, '#a8784a', M.cloth, 8); m.foliage(u, v, z + 0.4, 1.1, 1.4, ['#5aa64e', '#86cc6a'], 22, u, 0.6); m.vine([[u - 0.8, v, z], [u + 0.8, v, z]], { seed: u, gap: 0.5, ls: 0.5, drop: 4.5, bloom: '#f2a6c2' }); } m.pk(0);
     m.pk(PICK.sacks); m.blob(8.4, 19.6, 1.3, 1.2, 1.5, '#d8c8a0', M.cloth, 2, 4, 7); m.blob(10.2, 20.4, 1, 1, 1.2, '#c8b890', M.cloth, 3, 4, 7); m.pk(0);
     m.vine([[R0, R0 + 0.3, 3.1], [R0 + 0.3, R0 + 0.3, hgt - 1], [R0 + 6, R0 + 0.3, hgt - 0.4]], { seed: 3, gap: 0.5, ls: 0.6 });
+    // 四个种稀有植物的大花盆 + 暖气阀门（铜管沿着墙脚走）
+    K.GPOTS.forEach(([pu, pv], i) => { const pt = (o.pots || [])[i]; m.pk(160 + i); m.cyl(pu, pv, 0, 2.2, 1.1, 1.35, i % 2 ? '#c8705a' : '#b8604a', 0, 12); m.cyl(pu, pv, 2.2, 2.6, 1.42, 1.42, '#a8503a', 0, 12); m.cyl(pu, pv, 2.4, 2.45, 1.25, 1.25, pt && pt.wet ? '#3a2a20' : '#5a4030', M.soil, 12);
+      if (pt && PP.LIFE && PP.LIFE.PL[pt.id]) lifePlant(m, PP.LIFE.PL[pt.id], pt.stage, pu, pv, 2.45, i * 3 + 1, 1.7); m.pk(0); });
+    m.pk(165); m.cyl(R0 + 0.6, 14, 0, 6, 0.22, 0.22, COPPER, M.metal, 6); m.disc(R0 + 0.85, 14, 4.2, 0.7, 'u', '#c8403a', M.metal, 10); m.box(R0 + 0.5, 13.4, 3.8, R0 + 1, 14.6, 4.6, '#4a4652', M.metal);
+    for (let i = 0; i < 4; i++) m.box(R0 + 0.4, 9 + i * 0.5, 0.2, R0 + 0.8, 9.3 + i * 0.5, 2.4, COPPER, M.metal);
+    m.box(R0 + 0.3, 6, 0.4, R0 + 0.7, 22, 0.8, COPPER, M.metal); m.pk(0);
     return m;
   }
 

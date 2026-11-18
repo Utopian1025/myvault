@@ -9,7 +9,7 @@
   const { ORG, R0, HOUSE, GH, PICK, HU1, HV1, GU1, GV1, LOFT, Z, DOOR, GDOOR, TREE, TANK, MAILB, BALLOON, POND, FISH, BOB, PLOTS, PS, PH, SLOTS, LAMPS, RDOOR, GRDOOR, COOP, HIVE } = K, T = K.T;
   const SLOT_NAME = ['门口', '桥那边的草坪', '塘边', '水井旁', '大树下', '小河边'];
   const S = () => G.save.settings, E = () => PP.econ.E();
-  const denList = () => { const m = PP.F && PP.F.main && PP.F.main(), l = (G.all || []).filter((q) => !q.d.wild && q !== m); return (m ? [m, ...l] : l).slice(0, 6); }; // 城堡里每只动物一间窝（按家里的顺序）
+  const denList = () => []; // 每只动物的窝先不做了（每个人领养的动物都不一样）
   const denOpen = {}; // 第 i 间窝的门开着（有人进出）
   let chickT = 0, beeBoost = 0;
   const FURN = PP.FURN;
@@ -19,7 +19,8 @@
   const mir = () => !!(G.save && S().isleMirror), org = () => (inside ? ORG[inside] : (bnd() || { org: ORG.deck }).org);
   const SCL = { gh: 1.45 }, scl = () => SCL[inside] || 1; // 花房小，进去以后放大一点看
   // 相机：外面可以转（绕岛中心转 yaw）、可以调俯视角（pitch）；屋里固定
-  const cam = () => { if (inside || !G.save) return { c: 1, s: 0, A: 1, B: 1, yaw: 0 }; const y = +S().isleYaw || 0, ph = U.clamp(+S().islePitch || 45, 22, 72) * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; };
+  const CAST_CAM = (() => { const y = -Math.PI / 4, ph = 16 * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; })(); // 城堡里：正对着剖面看，像看玩具屋
+  const cam = () => { if (inside === 'castle') return CAST_CAM; if (inside || !G.save) return { c: 1, s: 0, A: 1, B: 1, yaw: 0 }; const y = +S().isleYaw || 0, ph = U.clamp(+S().islePitch || 45, 22, 72) * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; };
   const rotUV = (u, v, k = cam()) => { const du = u - T.CEN[0], dv = v - T.CEN[1]; return [du * k.c - dv * k.s + T.CEN[0], du * k.s + dv * k.c + T.CEN[1]]; };
   const depth = (u, v) => { const r = rotUV(u, v); return r[0] + r[1]; };
   const IWf = () => (inside ? K.IW : (bnd() || K).IW), IHf = () => (inside ? K.IH : (bnd() || K).IH);
@@ -53,6 +54,7 @@
         ...CA.TOWERS.map(([u, v, r]) => [0, 'c', u, v, r + 0.3]),
         [1, CA.KIT.u0, CA.KIT.v0, CA.KIT.u1, CA.KIT.v1], [1, CA.BATH.u0, CA.BATH.v0, CA.BATH.u1, CA.BATH.v1], [1, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r + 0.3], [1, 'c', CA.CHIM.u, CA.CHIM.v, 0.9],
         [2, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [2, 'c', CA.CHIM.u, CA.CHIM.v, 0.9], [3, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [3, 'c', CA.BOILER.u, CA.BOILER.v, 1],
+        ...CA.BLOCKS.map((d) => [d[0], d[1] - 0.2, d[2] - 0.2, d[3] + 0.2, d[4] + 0.25]), [0, 'c', 39, 18.2, 2], [0, 'c', 43, 16.6, 1.6],
         ...denList().map((_, i) => CA.DENS[i]).filter(Boolean).map((d) => [d[0], d[1] - 0.1, d[2] - 0.1, d[3] + 0.1, d[4] + 0.1]), [1, 'c', 10.65, 17.65, 0.8],
         ...(E().isleDeco || []).map((id, i) => (id && SLOTS[i] ? [0, 'c', SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 0.4 : 1.5] : null)).filter(Boolean)],
     },
@@ -62,14 +64,15 @@
       obst: () => { return [[0, fu - 5, R0, fu + 5, R0 + 3.6], [0, ku - 5.4, R0, HU1, R0 + 3], [0, R0, R0, 10, 7], [0, 'c', 21.6, 17.6, 0.5], [0, 33.4, 16.8, HU1, 22.2], [0, RDOOR.u + 3.8, HV1 - 2.8, RDOOR.u + 8.2, HV1],
         ...FURN.layout(E()).filter((it) => !FURN.D[it.f].walk && (fdrag ? it !== fdrag.it : true)).map((it) => [it.lv || 0, ...FURN.rect(it, 0.3)])]; },
     },
-    gh: { z: [0], floors: [[0, R0, R0, GU1, GV1]], ramps: [], obst: () => [[0, R0 + 3.4, R0, GU1, R0 + 2.8], [0, R0, R0 + 3, R0 + 2.8, GV1 - 1.8], [0, 'c', 20.4, 12, 2], [0, 'c', 24.6, 18.6, 1.5], [0, 'c', 9.2, 20, 1.5]] },
+    castle: PP.castleIn.AREA,
+    gh: { z: [0], floors: [[0, R0, R0, GU1, GV1]], ramps: [], obst: () => [[0, R0 + 3.4, R0, GU1, R0 + 2.8], [0, R0, R0 + 3, R0 + 2.8, GV1 - 1.8], [0, 'c', 20.4, 12, 2], [0, 'c', 24.6, 18.6, 1.5], [0, 'c', 9.2, 20, 1.5], ...K.GPOTS.map(([u, v]) => [0, 'c', u, v, 1.5]), [0, 'c', R0 + 0.8, 14, 0.8]] },
   };
   const area = () => AREAS[inside || 'deck'];
   const Zf = (a, lv, u, v) => (a.zf && !lv ? a.zf(u, v) : a.z[lv]);
   const inRamp = (r, u, v) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1;
   const rampT = (r, u, v) => U.clamp(((r.axis === 'u' ? u : v) - r.lo) / (r.hi - r.lo), 0, 1);
   // 寻路用的格子（半格一个点）：某一层的这个点能不能站
-  const GS = 0.5, GN = 100;
+  const GS = 0.5, GN = 120;
   let grids = {}, cells = {};
   function grid(a) {
     const key = (inside || 'deck') + dirtyK;
@@ -101,7 +104,7 @@
     const g = grid(a)[lv], si = Math.round(s[0] / GS) + Math.round(s[1] / GS) * GN, ti = Math.round(t[0] / GS) + Math.round(t[1] / GS) * GN;
     const cost = new Float32Array(GN * GN).fill(1e9), from = new Int32Array(GN * GN).fill(-1), open = [si]; cost[si] = 0; const fsc = new Float32Array(GN * GN); const hh = (k) => Math.hypot((k % GN) - (ti % GN), Math.floor(k / GN) - Math.floor(ti / GN));
     fsc[si] = hh(si); let found = false, guard = 0, bestN = si, bestH = hh(si);
-    while (open.length && guard++ < 20000) {
+    while (open.length && guard++ < 30000) {
       let bi = 0; for (let k = 1; k < open.length; k++) if (fsc[open[k]] < fsc[open[bi]]) bi = k;
       const c = open.splice(bi, 1)[0]; if (c === ti) { found = true; break; } { const h0 = hh(c); if (h0 < bestH) { bestH = h0; bestN = c; } }
       const ci = c % GN, cj = Math.floor(c / GN);
@@ -151,12 +154,13 @@
   function toUV(x, y, z) {
     const k = cam(); let X = (x - L.x0) / L.u; if (mir()) X = IWf() - X; X = (X - org()[0]) / scl(); const Y = (((y - L.y0) / L.u - org()[1]) / scl() + z * k.B) / k.A;
     const ru = (Y + X / 2) / 2, rv = (Y - X / 2) / 2, du = ru - T.CEN[0], dv = rv - T.CEN[1];
-    return inside ? [ru, rv] : [du * k.c + dv * k.s + T.CEN[0], -du * k.s + dv * k.c + T.CEN[1]];
+    return inside && inside !== 'castle' ? [ru, rv] : [du * k.c + dv * k.s + T.CEN[0], -du * k.s + dv * k.c + T.CEN[1]];
   }
   function groundY() { if (!L) layout(); return Math.round(inside ? scrV(18, 18, 0) : scrV(DOOR.u, HOUSE.v1 + 4, 0)); }
   function zone() { if (!L) layout(); return [L.x0 + 4, L.x1 - 4]; }
   // 宠物在世界里的位置 p.ip = {u, v, z, lv}
-  const start = () => (inside === 'house' ? { u: RDOOR.u, v: HV1 - 2.4, lv: 0 } : inside === 'gh' ? { u: GRDOOR.u, v: GV1 - 2.2, lv: 0 } : { u: DOOR.u + 1, v: HOUSE.v1 + 3, lv: 0 });
+  let fromIn = null;
+  const start = () => (inside === 'castle' ? (fromIn === 'house' ? PP.castleIn.FROM_LIVING : PP.castleIn.START) : inside === 'house' ? { u: RDOOR.u, v: HV1 - 2.4, lv: 0 } : inside === 'gh' ? { u: GRDOOR.u, v: GV1 - 2.2, lv: 0 } : { u: DOOR.u + 1, v: HOUSE.v1 + 3, lv: 0 });
   function setIp(p, u, v, lv) { const a = area(); lv = a.z[lv] != null ? lv : 0; p.ip = { u, v, lv, z: Zf(a, lv, u, v) }; p.isleLv = lv; p.x = scrU(u, v); }
   function ipOf(p) { if (!p.ip || p.ip.sc !== (inside || 'deck')) { const s = start(); setIp(p, s.u + U.rand(-1, 1), s.v + U.rand(0, 1), s.lv); p.ip.sc = inside || 'deck'; } return p.ip; }
   function uvOf(p) { if (p.isleSpot) return [p.isleSpot.u, p.isleSpot.v]; const q = ipOf(p); return [q.u, q.v]; }
@@ -259,12 +263,13 @@
   function farmKey() { return PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? inf.crop + inf.stage + ((E().farm[i].water || 0) > 0 ? 'w' : '') : '-'; }).join(','); }
   function scene() {
     const name = inside || 'deck', e = E();
-    const key = name === 'deck' ? [denList().map((q) => q.d.species).join(','), season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK;
+    const key = name === 'deck' ? [denList().map((q) => q.d.species).join(','), season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK + (name === 'gh' && PP.LIFE ? PP.LIFE.ghKey() : '');
     const s = meshes[name];
     if (s && s.key === key) return s;
     let m;
     if (name === 'deck') m = MD.deck({ dens: denList().map((q) => q.d.species), season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), busy: null, farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }) });
-    else if (name === 'house') m = MD.room({ room: e.room, layout: FURN.layout(e), skip: fdrag ? fdrag.i : undefined }); else m = MD.green({});
+    else if (name === 'castle') m = PP.castleIn.build({});
+    else if (name === 'house') m = MD.room({ room: e.room, layout: FURN.layout(e), skip: fdrag ? fdrag.i : undefined }); else m = MD.green({ pots: [0, 1, 2, 3].map((i) => { const f = PP.LIFE && PP.LIFE.potInfo(i); return f ? { id: f.id, stage: f.stage, wet: f.wet } : null; }) });
     const pos = name === 'deck' ? m.p.filter((_, i) => i % 9 < 3) : null; // 留一部分顶点，用来算画框
     const r = (meshes[name] = { key, gpu: g3.upload(m, s && s.gpu), pos });
     if (name === 'deck') { bndC = null; setTimeout(() => { if (G.isle && !inside) { const ox = L && L.x1, oy = L && L.y1; fit(false); } }, 0); }
@@ -278,29 +283,29 @@
     else if (ph === 'dawn') { sun = [1.0, 0.76, 0.66]; sky = [0.54, 0.5, 0.62]; gnd = [0.36, 0.3, 0.36]; lit = 0.3; dir = [0.2, 0.75, 0.42]; top = [0.54, 0.66, 0.85]; bot = [0.97, 0.78, 0.72]; }
     if (dim > 0) { sun = sun.map((x) => x * (1 - 0.7 * dim)); sky = sky.map((x, i) => x * (1 - 0.25 * dim) + [0.5, 0.52, 0.58][i] * 0.2 * dim); top = top.map((x, i) => x + ([0.55, 0.58, 0.64][i] - x) * dim * 0.8); bot = bot.map((x, i) => x + ([0.66, 0.68, 0.72][i] - x) * dim * 0.8); lit = Math.max(lit, dim * 0.6); }
     if (inside) { sky = sky.map((x, i) => x * 0.75 + [0.2, 0.16, 0.1][i]); gnd = gnd.map((x, i) => x + [0.1, 0.07, 0.04][i]); dir = [0.5, 0.62, 0.9]; if (ph === 'night') { sun = [0.5, 0.4, 0.28]; sky = [0.42, 0.34, 0.3]; } }
-    return { sun: dir, sunCol: sun, sky, gnd, lit, skyTop: top, skyBot: bot, rain: fx.rain || 0, wind: Math.min(1, (fx.wind || 0) + (fx.storm ? 0.5 : 0)), inside: !!inside, time: performance.now() / 1000, center: inside ? [20, 18, 18] : [25, 22, 4], radius: inside ? 95 : 115 };
+    return { sun: dir, sunCol: sun, sky, gnd, lit, skyTop: top, skyBot: bot, rain: fx.rain || 0, wind: Math.min(1, (fx.wind || 0) + (fx.storm ? 0.5 : 0)), inside: !!inside, time: performance.now() / 1000, center: inside === 'castle' ? [28, 12, 24] : inside ? [20, 18, 18] : [25, 22, 4], radius: inside === 'castle' ? 52 : inside ? 95 : 115 };
   }
   // 宠物被挡住时要挖开的位置（坐着 / 躺着 / 被拎着的不挖）
   function petCuts() {
     const out = [];
-    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, inside ? q.u + q.v : depth(q.u, q.v), q.z]); }
+    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, inside && inside !== 'castle' ? q.u + q.v : depth(q.u, q.v), q.z]); }
     return out;
   }
   // 像素化：3D 画在一张小一号的画布上，再按整数倍放大（不平滑）——真光照 + 像素画的颗粒感
   // 按屏幕的真实像素来算：每个像素画格子正好是整数个物理像素（Windows 缩放 125% / 150% 时不再糊、不再一格大一格小）
   const DPR = () => window.devicePixelRatio || 1;
   const pixOn = () => !(G.save && S().islePix === false), pixD = () => (pixOn() ? Math.max(1, Math.round(L.u * DPR() * 0.3)) : 1), pixK = () => pixD() / DPR();
-  function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
+  function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() && inside !== 'castle' }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = MD.dyn({ scene: inside || 'deck', t, cooking, dens: Object.keys(denOpen).filter((i) => denOpen[i]).map(Number), drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
+    const dm = inside === 'castle' ? PP.castleIn.dyn({ t, cooking }) : MD.dyn({ scene: inside || 'deck', t, cooking, dens: Object.keys(denOpen).filter((i) => denOpen[i]).map(Number), drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
     if (!inside && Math.floor(t * 1.2) !== Math.floor((t - 1 / 60) * 1.2)) rips.push([16.6 + Math.random() * 0.4, 36 + Math.random() * 0.4, t]); // 小河流进塘的地方一直有涟漪
     const vo = viewOpts(), cv = g3.draw(lastScenes, Object.assign({}, vo, { pets: [], rips: rips.slice(-4) }));
     if (!cv || !pixOn()) return cv;
-    const out = outline(cv), em = edges(s, vo);
+    const out = outline(cv), em = inside === 'castle' ? null : edges(s, vo); // 城堡里是正面看，按深度描边会出竖条纹，不描
     if (em) out.getContext('2d').drawImage(em, 0, 0);
     return out;
   }
@@ -592,6 +597,7 @@
   // 只留做了有结果的事：做饭（得到饼干 / 吃饱）、睡觉（体力）、坐一会儿（体力）、弹琴（心情）、花房的水桶（喝水）、照看花草（每天一朵郁金香）
   const PROPS = {
     deck: [],
+    castle: PP.castleIn.PROPS,
     house: [
       P(PICK.kitchen, { at: [ku - 0.6, R0 + 4.6, 0], do: 'kitchen', label: '厨房：做点吃的', cur: 'cook' }),
     ],
@@ -599,6 +605,14 @@
       P(PICK.gbarrel, { at: [22.4, 19.8, 0], do: 'drink', label: '水桶：喝口水', cur: 'water' }), P(PICK.bench, { at: [14, R0 + 4.4, 0], do: 'tend', label: '花架：照看花草', cur: 'water' }),
     ],
   };
+  // 花房：水桶、花架 + 四个大花盆、暖气阀门（标签跟着花盆里的情况变）
+  const GH_BASE = PROPS.gh;
+  Object.defineProperty(PROPS, 'gh', { get() {
+    const L0 = PP.LIFE, TN = L0 ? L0.TEMPN : {};
+    const pots = K.GPOTS.map(([u, v], i) => { const f = L0 && L0.potInfo(i); return { id: 160 + i, i, at: [u, v + 2.3, 0], do: 'pot', cur: 'water', label: f ? `${f.name}：${['种子', '发芽了', '开花了', '可以收获了'][f.stage]}${f.wet ? '' : ' · 该浇水了'}${f.stage === 2 && !f.pol ? ' · 等授粉' : ''}${f.tempOk ? '' : ' · 想要' + TN[f.temp]}（点开花房面板）` : `花盆 ${i + 1}：空着，种一颗稀有种子` }; });
+    const e = E(), t = e && e.gh ? e.gh.temp : 'mild';
+    return GH_BASE.concat(pots, [{ id: 165, at: [R0 + 2.6, 14, 0], do: 'valve', cur: 'use', label: `暖气阀门：现在是「${TN[t] || '温和'}」（点开调）` }]);
+  } });
   // 小屋里能用的东西 = 厨房（固定）+ 摆着的每一件家具（位置跟着你摆的走）
   const KITCHEN = PROPS.house[0];
   const USE_LABEL = { sit: '坐一会儿（回体力）', rock: '摇一摇，打个盹', lamp: '摸一摸', climb: '爬上去看看', play: '玩毛线', warm: '窝一会儿', rug: '在上面打滚', sleep: '睡一觉（回体力）', write: '写日记', rummage: '翻一翻（说不定有小鱼干）', sniff: '闻一闻', table: '坐一坐，喝口热可可', book: '看书', piano: '弹一曲（心情变好）', nap: '窝进去打个盹', music: '放一张唱片，跳个舞', look: '看一看' };
@@ -616,7 +630,7 @@
   const FIX = { // 固定的东西：拾取号 → 是什么、什么手
     [PICK.door]: { k: 'door', label: '进小屋', cur: 'enter' }, [PICK.green]: { k: 'green', label: '进玻璃花房', cur: 'enter' }, [PICK.exit]: { k: 'exit', label: '出门', cur: 'enter' },
     [PICK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PICK.barrel]: { k: 'barrel', label: '水井：打水喝（解渴）', cur: 'water' },
-    [PICK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PICK.fish]: { k: 'fish', label: '水塘：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PICK.river]: { k: 'river', label: '小河：走到河边看看', cur: 'look' }, [PICK.kdoor]: { k: 'door', label: '厨房（进屋，厨房在屋里的角落）', cur: 'enter' }, [PICK.bdoor]: { k: 'bath', label: '浴室：洗个澡', cur: 'use' },
+    [PICK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PICK.fish]: { k: 'fish', label: '水塘：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PICK.river]: { k: 'river', label: '小河：走到河边看看', cur: 'look' }, [PICK.kdoor]: { k: 'kdoor', label: '厨房的后门：进城堡做菜', cur: 'cook' }, [PICK.bdoor]: { k: 'bath', label: '浴室：洗个澡', cur: 'use' },
     [PICK.tree]: { k: 'tree', label: '老橡树：摇一摇（会掉果子）', cur: 'use' }, [PICK.coop]: { k: 'coop', label: '鸡舍：捡鸡蛋', cur: 'use' }, [PICK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' },
   };
   let pickC = { x: -1, y: -1, t: 0, id: 0 };
@@ -680,11 +694,12 @@
     const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); } };
     if (h.k === 'ground') { mark = { u: h.u, v: h.v, z: h.z, t: performance.now() }; go('isleGo', A.isleGo, h.u, h.v, h.lv); return; }
     if (h.k === 'hull') return;
-    if (h.k === 'prop') { go('isleUse', A.isleUse, h.pr); return; }
+    if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (h.pr.do === 'living' && !p) { setInside('house'); return; } go('isleUse', A.isleUse, h.pr); return; }
     if (h.k === 'deco') { go('isleSit', A.isleSit, { id: h.id, i: h.i, u: SLOTS[h.i][0], v: SLOTS[h.i][1] }); return; }
-    if (h.k === 'door' || h.k === 'green') { const w = h.k === 'door' ? 'house' : 'gh'; if (p) go('isleHouse', A.isleHouse, w); else setInside(w); return; }
-    if (h.k === 'exit') { if (p) go('isleHouse', A.isleHouse, false); else setInside(false); return; }
+    if (h.k === 'door' || h.k === 'green') { const w = h.k === 'door' ? 'castle' : 'gh'; if (p) go('isleHouse', A.isleHouse, w); else setInside(w); return; }
+    if (h.k === 'exit') { const to = inside === 'house' ? 'castle' : false; if (p) go('isleHouse', A.isleHouse, to); else setInside(to); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }
+    if (h.k === 'kdoor') { PP.econ.openPanel('cook'); if (p) go('isleHouse', A.isleHouse, 'castle'); else setInside('castle'); return; }
     if (h.k === 'den') { const q = denList()[h.i]; if (!q || !G.pets.includes(q) || q.held) { PP.ui.toast(q ? `${q.name}现在不在家` : '空着的窝'); return; } q.interrupt(true); q.fishing = null; q.tool = null; q.run('isleDen', A.isleDen, h.i); return; }
     if (h.k === 'bath') { go('isleBath', A.isleBath); return; }
     if (h.k === 'river') { // 点小河：就近走到点的那段河岸，蹲下看水，不会跑去水塘钓鱼
@@ -706,6 +721,7 @@
   // 作物小图标（选种子的小窗用）
   const cropCache = {}, CROP_COL = { carrot: '#f08a3a', berry: '#e8405a', corn: '#ffd36a', sunflower: '#f6c43a', pumpkin: '#f2832a', tomato: '#e0402a', cabbage: '#9ad070', melon: '#3f8a44', tulip: '#f2a6c2' };
   function cropSpr(crop) {
+    if (PP.LIFE && PP.LIFE.PL[crop]) return PP.LIFE.art(crop, 3);
     if (cropCache[crop]) return cropCache[crop];
     const a = PP.ART, s = a.spr(13, 13), C = CROP_COL[crop] || '#f08a3a';
     s.ell(6.5, 9, 5, 3.4, (nx, ny) => (ny < -0.3 ? '#86cc6a' : '#5aa64e')); s.vl(6, 2, 6, '#3f8a44');
@@ -715,7 +731,7 @@
   }
   PP.cropSpr = cropSpr;
   function seedPicker(i, x, y) {
-    const e = E(), I = PP.econ.ITEMS, seeds = Object.keys(I).filter((k) => I[k].kind === 'seed');
+    const e = E(), I = PP.econ.ITEMS, seeds = Object.keys(I).filter((k) => I[k].kind === 'seed').map((k) => [k, (e.bag[k] ? 2 : 0) + (PP.cropSpeed && PP.cropSpeed(I[k].crop) < 1 ? 1 : 0)]).sort((a, b) => b[1] - a[1]).map((x) => x[0]); // 有的、当季的排前面
     const el = document.createElement('div'); el.className = 'seedpick';
     el.innerHTML = `<div class="sp-head"><b>种点什么？</b><span class="muted">小鱼干 ${e.fish}</span></div><div class="sp-list">${seeds.map((k) => { const it = I[k], c = PP.econ.CROPS[it.crop], crop = I[c.item], have = e.bag[k] || 0; return `<button class="sp" data-k="${k}" ${!have && e.fish < it.price ? 'disabled' : ''}><canvas data-crop="${it.crop}"></canvas><b>${crop.name}</b><small>${c.min >= 60 ? c.min / 60 + ' 小时' : c.min + ' 分钟'} · 卖 ${crop.sell}</small><em>${have ? '有 ' + have + ' 颗' : it.price + ' 小鱼干'}</em></button>`; }).join('')}</div>`;
     el.querySelectorAll('canvas[data-crop]').forEach((cv) => { const s = cropSpr(cv.dataset.crop); cv.width = s.width * 3; cv.height = s.height * 3; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(s, 0, 0, cv.width, cv.height); });
@@ -730,7 +746,7 @@
   function setInside(v) {
     v = v === true ? 'house' : v || false;
     if (inside === v) return;
-    const from = inside; inside = v; hover = null; smoke = []; drops = []; rips = [];
+    const from = inside; fromIn = from; inside = v; hover = null; smoke = []; drops = []; rips = [];
     if (v !== 'house' && fedit) { fedit = false; fsel = -1; fdrag = null; fBar(); }
     if (v && G.save.flags) G.save.flags.isleIn = 1;
     layout(); G.ground = groundY();
@@ -748,7 +764,9 @@
   const face = (p, u, v) => { const [a, b] = uvOf(p), d = ((u - a) - (v - b)) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
   const gain = (p, txt) => PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } });
   const fxAt = (u, v, z, o) => PP.fx(Object.assign({ x: scrU(u, v), y: scrV(u, v, z), s: 1 }, o));
-  function* walkTo(p, u, v, run, lv = 0) { if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; }
+  // 走过去；走不到（被挡住 / 在别的层上下不来）就返回 false，调用的地方别在原地硬做（比如在楼上钓鱼）
+  function* walkTo(p, u, v, run, lv = 0) { if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; const q = p.ip; return !!q && (q.lv || 0) === (area().z[lv] != null ? lv : 0) && Math.hypot(q.u - u, q.v - v) < 2.2; }
+  const stuck = (p) => { p.tool = null; p.fishing = null; say(p, U.pick(['过不去……', '那边走不过去', '咦，路被挡住了']), 2); p.anim = 'idle'; };
   // 跳上去 / 跳下来：一道小弧线，落地时身子一压（不再是平移）
   function* hop(p, to, T = 0.34) {
     const [u0, v0] = uvOf(p), z0 = p.isleSpot ? p.isleSpot.z : ipOf(p).z, hh = 2.2 + Math.abs(to.z - z0) * 0.25; face(p, to.u, to.v);
@@ -764,7 +782,7 @@
   // 浇水：提着水壶走过去 → 壶一歪，水一道弧线洒到土里 → 土变深色
   A.isleWater = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
-    p.tool = { k: 'can', t0: performance.now() }; yield* walkTo(p, su, sv); face(p, cu, cv - 2); p.anim = 'idle'; p.eyes = 'happy'; yield 0.2;
+    p.tool = { k: 'can', t0: performance.now() }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'idle'; p.eyes = 'happy'; yield 0.2;
     p.tool = { k: 'can', t0: performance.now(), pour: true };
     for (let k = 0; k < 14; k++) { fxAt(cu + U.rand(-1.2, 1.2), cv + U.rand(-1.2, 1.2), cz + 4.5, { vy: 46, icon: 'drop', life: 0.45 }); if (k % 4 === 0) p.jolt(0, 1); yield 0.11; }
     if (PP.econ.waterPlot(i)) p.think('heart', 1); p.tool = null; p.jolt(0, -2); yield 0.5;
@@ -772,7 +790,7 @@
   // 播种：蹲下刨两下土 → 撒种子 → 拍一拍 → 浇水
   A.isleSow = function* (i, seed) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
-    yield* walkTo(p, su, sv); face(p, cu, cv - 2); p.anim = 'eat';
+    if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'eat';
     for (let k = 0; k < 4; k++) { p.jolt(k % 2 ? 1.5 : -1.5, 1); fxAt(cu + U.rand(-1, 1), cv + 0.6, cz + 1, { vx: U.rand(-30, 30), vy: -50, icon: 'leaf', life: 0.4 }); yield 0.22; }
     if (PP.econ.plant(i, seed)) { for (let k = 0; k < 5; k++) fxAt(cu + U.rand(-1, 1), cv + U.rand(-1, 1), cz + 3, { vy: 30, icon: 'sparkle', life: 0.5 }); PP.ui.toast(`种下了${PP.econ.ITEMS[seed].name.replace('种子', '').replace('球茎', '')}`); }
     p.anim = 'idle'; p.jolt(0, 2); yield 0.3; p.jolt(0, 2); yield 0.3;
@@ -781,12 +799,12 @@
   // 收获：挎着篮子过去 → 弯腰拔三下 → 菜飞进篮子
   A.isleHarvest = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i), inf = PP.econ.plotInfo(i), col = inf && CROP_COL[inf.crop];
-    p.tool = { k: 'basket', t0: performance.now(), col }; yield* walkTo(p, su, sv); face(p, cu, cv - 2);
+    p.tool = { k: 'basket', t0: performance.now(), col }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2);
     for (let k = 0; k < 3; k++) { p.anim = 'eat'; p.jolt(k % 2 ? 2 : -2, 1.5); yield 0.28; p.anim = 'idle'; p.jolt(0, -2.5); fxAt(cu + (k - 1), cv, cz + 3, { vy: -70, vx: (p.x - scrU(cu, cv)) * 1.5, icon: 'sparkle', life: 0.5 }); yield 0.22; }
     PP.econ.harvest(i); p.tool.full = true; p.anim = 'jump'; p.jolt(0, -4); p.eyes = 'happy'; p.think('heart', 1.4); yield 0.5; p.anim = 'idle'; yield 0.9; p.tool = null;
   };
-  A.isleMail = function* () { const p = this; yield* walkTo(p, MAILB.u, MAILB.v + 1.5); face(p, MAILB.u, MAILB.v - 2); p.anim = 'jump'; p.jolt(0, -3); yield 0.35; p.anim = 'idle'; p.think('excl', 1.5); yield 1; if (PP.econ.unread()) say(p, '信箱里有信哦～', 3); yield 1.5; };
-  A.isleDrink = function* () { const p = this, wz = T.zAt(TANK.u, TANK.v); yield* walkTo(p, TANK.u, TANK.v + 2.4); face(p, TANK.u, TANK.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TANK.u, TANK.v + 1, wz + 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
+  A.isleMail = function* () { const p = this; if (!(yield* walkTo(p, MAILB.u, MAILB.v + 1.5))) { stuck(p); return; } face(p, MAILB.u, MAILB.v - 2); p.anim = 'jump'; p.jolt(0, -3); yield 0.35; p.anim = 'idle'; p.think('excl', 1.5); yield 1; if (PP.econ.unread()) say(p, '信箱里有信哦～', 3); yield 1.5; };
+  A.isleDrink = function* () { const p = this, wz = T.zAt(TANK.u, TANK.v); if (!(yield* walkTo(p, TANK.u, TANK.v + 2.4))) { stuck(p); return; } face(p, TANK.u, TANK.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TANK.u, TANK.v + 1, wz + 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
   // 回自己的窝：走到门口 → 门开 → 钻进去（看不见了）→ 门关上，窝里冒 zZ → 睡够了开门出来，伸个懒腰
   A.isleDen = function* (i) {
     const p = this, d = CA.DENS[i]; if (!d || inside) return;
@@ -806,13 +824,13 @@
     p.inDen = false; p.anim = 'idle'; p.jolt(1.5, 0); yield 0.3; p.jolt(-1.5, 0); yield 0.3; p.anim = 'idle'; say(p, ['洗得香喷喷', '甩甩水～', '好舒服！']); yield 1.2;
   };
   A.isleRiver = function* (u, v, wu, wv) {
-    const p = this; yield* walkTo(p, u, v); face(p, wu, wv); p.anim = 'sit'; ripple(wu, wv); yield 0.8;
+    const p = this; if (!(yield* walkTo(p, u, v))) { stuck(p); return; } face(p, wu, wv); p.anim = 'sit'; ripple(wu, wv); yield 0.8;
     const r = Math.random(); if (r < 0.4) { p.think('heart', 1.2); say(p, ['河水好凉', '有小鱼游过去了', '水里有片叶子']); } else if (r < 0.7) { p.anim = 'drink'; yield 1.2; } else { p.jolt(0, -2); ripple(wu, wv); say(p, ['啪嗒～', '溅了自己一脸水']); }
     yield 1.4; p.anim = 'idle';
   };
   A.isleFish = function* () {
     const p = this;
-    yield* walkTo(p, FISH.u, FISH.v, null, 3); face(p, BOB.u, BOB.v + 6); p.anim = 'sit';
+    if (!(yield* walkTo(p, FISH.u, FISH.v, null, 0))) { stuck(p); return; } face(p, BOB.u, BOB.v + 6); p.anim = 'sit';
     const set = (ph) => { p.fishing = Object.assign(p.fishing || {}, { ph, t0: performance.now() }); };
     set('cast'); p.jolt(0, -2); yield 0.8; ripple(BOB.u, BOB.v); yield 0.6; set('wait'); yield U.rand(3, 7); set('nibble'); ripple(BOB.u, BOB.v); yield U.rand(0.9, 1.6);
     set('bite'); ripple(BOB.u, BOB.v); p.eyes = 'wide'; p.think('excl', 0.8); yield () => !p.fishing || p.fishing.helped || performance.now() - p.fishing.t0 > 1500;
@@ -830,9 +848,17 @@
     else say(p, ['跑掉了……', '哎呀，只钓到一根水草', '下次一定！'], 2.5);
     p.eyes = 'happy'; p.n.fun = Math.min(100, p.n.fun + 15); yield 1.6; p.eyes = 'open';
   };
+  function* cookJiggle(p) { p.anim = 'idle'; cooking = true; p.think(U.pick(['cake', 'bowl', 'bread']), 3); for (let k = 0; k < 9; k++) { p.jolt(k % 2 ? 1.5 : -1.5, k % 3 ? 0 : -1); yield 0.42; } cooking = false; }
+  // 在菜谱里点「做」：主角跑到灶台前做菜（城堡里 / 起居室的厨房角都行）
+  function cookAnim(p, name) {
+    if (!G.isle || !p || !G.pets.includes(p) || p.held) return;
+    const pr = inside === 'castle' ? Object.assign({}, PROPS.castle.find((q) => q.do === 'cookp'), { user: true }) : null;
+    p.interrupt(true); p.fishing = null; p.tool = null;
+    p.run('isleCookDish', function* () { if (pr) { if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, 0))) { stuck(p); return; } face(p, pr.at[0], 0); } else if (inside === 'house') { if (!(yield* walkTo(p, ku - 0.6, R0 + 4.6))) { stuck(p); return; } face(p, ku, R0 - 2); } yield* cookJiggle(p); say(p, `「${name}」做好啦！`, 2.5); p.eyes = 'happy'; yield 1.2; p.eyes = 'open'; });
+  }
   A.isleCook = function* () {
     const p = this;
-    yield* walkTo(p, ku - 0.6, R0 + 4.6); face(p, ku, R0 - 2); p.anim = 'idle'; cooking = true; p.think(U.pick(['cake', 'bowl', 'bread']), 3);
+    if (!(yield* walkTo(p, ku - 0.6, R0 + 4.6))) { stuck(p); return; } face(p, ku, R0 - 2); p.anim = 'idle'; cooking = true; p.think(U.pick(['cake', 'bowl', 'bread']), 3);
     for (let k = 0; k < 9; k++) { p.jolt(k % 2 ? 1.5 : -1.5, k % 3 ? 0 : -1); yield 0.42; }
     cooking = false; const d = day(); if (PP.quest) PP.quest.on('cook');
     if (d.cook < 4 && Math.random() < 0.5) { d.cook++; PP.econ.give('biscuit', 1); PP.ui.toast(`${p.name}烤了一块小饼干，放进背包了`); }
@@ -841,7 +867,7 @@
   };
   // 鸡舍：走到小梯子前，弯腰摸一摸，捡到今天的鸡蛋（一天最多 3 个）
   A.isleCoop = function* () {
-    const p = this, d = day(); yield* walkTo(p, COOP.u + 0.4, COOP.v + 4.8); face(p, COOP.u, COOP.v);
+    const p = this, d = day(); if (!(yield* walkTo(p, COOP.u + 0.4, COOP.v + 4.8))) { stuck(p); return; } face(p, COOP.u, COOP.v);
     for (let k = 0; k < 3; k++) { p.anim = 'eat'; p.jolt(k % 2 ? 1.5 : -1.5, 1); yield 0.3; p.anim = 'idle'; yield 0.2; }
     chickT = performance.now();
     if ((d.egg || 0) < 3) { d.egg = (d.egg || 0) + 1; PP.econ.give('henegg', 1); p.think('heart', 1.4); say(p, ['热乎乎的鸡蛋！', '捡到一个蛋～', '母鸡咯咯哒'], 2); if (PP.quest) PP.quest.on('egg'); }
@@ -850,7 +876,7 @@
   };
   // 蜂箱：戴上小网兜，掀开盖子，蜜蜂绕着飞；收一罐蜂蜜（一天 1 罐）
   A.isleHive = function* () {
-    const p = this, d = day(); yield* walkTo(p, HIVE.u - 0.4, HIVE.v + 3); face(p, HIVE.u, HIVE.v);
+    const p = this, d = day(); if (!(yield* walkTo(p, HIVE.u - 0.4, HIVE.v + 3))) { stuck(p); return; } face(p, HIVE.u, HIVE.v);
     beeBoost = performance.now(); p.eyes = 'wide'; yield 0.6;
     for (let k = 0; k < 4; k++) { p.jolt(k % 2 ? 2 : -2, 0); yield 0.3; }
     if (!d.honey) { d.honey = 1; PP.econ.give('honeyjar', 1); p.anim = 'jump'; p.jolt(0, -4); say(p, ['一罐金黄的蜂蜜！', '好香好甜'], 2.2); if (PP.quest) PP.quest.on('honey'); yield 0.5; p.anim = 'idle'; }
@@ -877,27 +903,43 @@
   A.isleGarden = function* () { yield* A.isleUse.call(this, prop('gh', PICK.bench)); };
   A.isleSit = function* (sl) {
     const p = this, lv = 0, z = T.zAt(sl.u, sl.v), at = [sl.u + 0.4, sl.v + 2, lv];
-    yield* walkTo(p, at[0], at[1], null, lv);
+    if (!(yield* walkTo(p, at[0], at[1], null, lv))) { stuck(p); return; }
     if (sl.id === 'hay') { yield* hop(p, { u: sl.u, v: sl.v, z: z + 3.2 }); p.anim = 'lie'; p.eyes = 'sleepy'; yield U.rand(5, 10); p.n.energy = Math.min(100, p.n.energy + 12); gain(p, '+体力'); p.eyes = 'open'; yield* hopOff(p, at); }
     else if (sl.id === 'swing') { p.n.fun = Math.min(100, p.n.fun + 4); yield* hop(p, { u: sl.u, v: sl.v + 0.1, z: z + 3.4 }); p.anim = 'sit'; const x0 = p.x; for (let t = 0; t < 8; t += 1 / 30) { p.x = x0 + Math.sin(t * 2.4) * 2.4 * L.u; p.isleSpot.z = z + 3.4 + (1 - Math.cos(t * 4.8)) * 0.5; p.facing = Math.cos(t * 2.4) > 0 ? 1 : -1; yield 1 / 30; } p.x = x0; p.n.fun = Math.min(100, p.n.fun + 12); gain(p, '+心情'); yield* hopOff(p, at); }
     else { yield* hop(p, { u: sl.u, v: sl.v + 0.1, z: z + 2.6 }); p.anim = 'sit'; p.eyes = Math.random() < 0.5 ? 'happy' : 'open'; yield U.rand(5, 9); p.n.energy = Math.min(100, p.n.energy + 10); gain(p, '+体力'); p.eyes = 'open'; yield* hopOff(p, at); }
     p.anim = 'idle';
   };
+  // 进进出出：小岛 ⇄ 城堡里（门厅）⇄ 起居室；小岛 ⇄ 花房
   A.isleHouse = function* (go) {
-    const p = this;
-    if (go === true) go = 'house';
-    if (go === 'house') { yield* walkTo(p, DOOR.u, HOUSE.v1 + 1.6); face(p, DOOR.u, 0); yield 0.2; setInside('house'); }
-    else if (go === 'gh') { yield* walkTo(p, GDOOR.u, GDOOR.v + 2.6, null, 0); face(p, GDOOR.u, 0); yield 0.2; setInside('gh'); }
-    else { const s = start(); yield* walkTo(p, s.u, s.v + 1, null, 0); yield 0.2; setInside(false); }
+    const p = this; if (go === true) go = 'house';
+    const living = () => PROPS.castle.find((q) => q.do === 'living');
+    if (inside === 'house') { if (!(yield* walkTo(p, RDOOR.u, HV1 - 2.4, null, 0))) { stuck(p); return; } yield 0.2; setInside('castle'); return; }
+    if (inside === 'castle') {
+      if (go === 'house') { yield* A.isleUse.call(p, living()); return; }
+      if (go === 'castle') return;
+      if (!(yield* walkTo(p, PP.castleIn.START.u, PP.castleIn.START.v, null, 0))) { stuck(p); return; } yield 0.2; setInside(false); return;
+    }
+    if (inside === 'gh') { if (go === 'gh') return; const s = start(); yield* walkTo(p, s.u, s.v + 1, null, 0); yield 0.2; setInside(false); return; }
+    if (go === 'gh') { if (!(yield* walkTo(p, GDOOR.u, GDOOR.v + 2.6, null, 0))) { stuck(p); return; } face(p, GDOOR.u, 0); yield 0.2; setInside('gh'); return; }
+    if (go === 'castle' || go === 'house') { if (!(yield* walkTo(p, DOOR.u, HOUSE.v1 + 1.6))) { stuck(p); return; } face(p, DOOR.u, 0); yield 0.2; setInside('castle'); if (go === 'house') { yield 0.6; yield* A.isleUse.call(p, living()); } }
   };
   A.isleFurn = function* (k) { const pr = PROPS.house.find((q) => q.f === k); if (pr) yield* A.isleUse.call(this, pr); };
   A.isleUse = function* (pr) {
     const p = this, d = day(), S2 = () => G.S, k = pr.do, a = area();
     const spark = (ic, n = 4, up = 20) => { for (let i = 0; i < n; i++) PP.fx({ x: p.x + U.rand(-12, 12) * S2(), y: p.y - up * S2(), vy: -30, icon: ic, life: 0.9, s: 1 }); };
-    yield* walkTo(p, pr.at[0], pr.at[1], null, pr.at[2] || 0);
+    if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, pr.at[2] || 0))) { stuck(p); return; }
     if (pr.spot) yield* hop(p, pr.spot);
     p.anim = 'idle';
     if (k === 'sleep') { yield* A.isleBedSleep.call(p, {}); }
+    else if (k === 'living') { face(p, pr.at[0], 0); yield 0.25; setInside('house'); return; }
+    else if (k === 'cookp') { face(p, pr.at[0], 0); yield* cookJiggle(p); if (!pr.user && d.cook < 4 && Math.random() < 0.5) { d.cook++; PP.econ.give('biscuit', 1); PP.ui.toast(`${p.name}在城堡厨房烤了一块小饼干，放进背包了`); } else if (!pr.user) { p.n.hunger = Math.min(100, p.n.hunger + 25); say(p, '偷吃了一口锅里的～'); } }
+    else if (k === 'dine') { const ds = Object.keys(E().bag).filter((id) => PP.econ.ITEMS[id] && PP.econ.ITEMS[id].kind === 'dish' && E().bag[id] > 0); p.anim = 'sit'; yield 0.5; if (ds.length) { PP.econ.feedItem(p, ds[0]); return; } say(p, ['肚子饿了……厨房还没做菜', '想吃好吃的！（去灶台做菜）']); p.think('bowl', 2); yield 2.5; }
+    else if (k === 'bath') { face(p, pr.at[0], pr.at[1] - 3); p.anim = 'sit'; for (let i = 0; i < 12; i++) { bubble(pr.at[0] + U.rand(-3, 3), pr.at[1] - 4, ipOf(p).z + 5); if (i % 3 === 0) p.jolt(i % 2 ? 1 : -1, 0); yield 0.45; } p.anim = 'idle'; p.jolt(2, 0); yield 0.25; p.jolt(-2, 0); say(p, ['洗得香喷喷！', '泡泡好多～', '甩甩水！']); p.n.fun = Math.min(100, p.n.fun + 10); yield 1.2; }
+    else if (k === 'dex' || k === 'read') { p.anim = 'sit'; p.think('book', 3); yield U.rand(3.5, 6); say(p, U.pick(['原来月光蕨在森林最深处', '这本书里有好多鱼', '记下来：雪绒花喜欢凉快', '下次去探险带种子回来！'])); p.n.fun = Math.min(100, p.n.fun + 8); yield 1.5; }
+    else if (k === 'craft') { face(p, pr.at[0], pr.at[1] - 3); for (let i = 0; i < 8; i++) { p.anim = i % 2 ? 'idle' : 'crouch'; p.jolt(0, i % 2 ? -1.5 : 1); PP.fx({ kind: 'dot', x: p.x + p.facing * 10, y: p.y - 14 * G.S, vx: U.rand(-30, 30), vy: U.rand(-40, -10), life: 0.5, col: '#e8c890', size: 2 }); yield 0.3; } p.anim = 'idle'; say(p, ['叮叮当当～', '做好一个小鸟屋！', '锯木头真好玩']); p.n.fun = Math.min(100, p.n.fun + 10); yield 1.2; }
+    else if (k === 'store') { p.anim = 'eat'; for (let i = 0; i < 5; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 0); yield 0.3; } p.anim = 'idle'; say(p, ['种子都分好格子了', '这个抽屉里是向日葵种子']); yield 1.5; }
+    else if (k === 'tele') { p.look = [0, -1]; p.anim = 'sit'; const fx = wfx(); yield 1.5; say(p, night() ? ['看到好多星星！', '那颗最亮的是什么星？', '月亮好圆'] : fx.rain ? ['云好厚……'] : ['看到远处的热气球了', '那边的云像一条鱼', '天好蓝']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2.5; }
+    else if (k === 'pot' || k === 'valve') { p.tool = { k: 'can', t0: performance.now(), pour: true }; for (let i = 0; i < 6; i++) { PP.fx({ x: p.x + p.facing * 14 * S2(), y: p.y - 12 * S2(), vy: 30, icon: 'drop', life: 0.4, s: 1 }); yield 0.25; } p.tool = null; if (k === 'pot' && pr.i != null && PP.LIFE) { const f = PP.LIFE.potInfo(pr.i); if (f && !f.wet) { PP.LIFE.potWater(pr.i); dirty(); gain(p, '浇好水了'); } else if (f && f.stage === 2 && !f.pol) { PP.LIFE.potPollinate(pr.i); gain(p, '授粉了'); } } p.think('flower', 1.4); yield 0.8; }
     else if (k === 'sit') { p.anim = 'sit'; p.eyes = 'sleepy'; p.think(U.pick(['book', 'note', 'heart']), 2.5); yield U.rand(5, 9); p.n.energy = Math.min(100, p.n.energy + 15); gain(p, '+体力'); p.eyes = 'open'; }
     else if (k === 'piano') { p.anim = 'sit'; for (let i = 0; i < 10; i++) { PP.fx({ x: p.x + U.rand(-10, 10), y: p.y - 24 * S2(), vy: -24, icon: 'note', life: 1, s: 1 }); p.jolt(0, i % 2 ? -1 : 1); yield 0.4; } p.n.fun = Math.min(100, p.n.fun + 15); gain(p, '+心情'); }
     else if (k === 'shake') { face(p, TREE.u, TREE.v); for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 2.5 : -2.5, 0); fxAt(TREE.u + U.rand(-2.6, 2.6), TREE.v + U.rand(-2.6, 2.6), 17, { vy: 50, vx: U.rand(-10, 10), icon: 'leaf', life: 1 }); yield 0.22; } if ((d.tree || 0) < 3 && season() !== 'winter' && Math.random() < 0.7) { d.tree = (d.tree || 0) + 1; const it = U.pick(['apple', 'apple', 'berry']); PP.econ.give(it, 1); fxAt(TREE.u - 1, TREE.v + 1, 14, { vy: 60, icon: it === 'apple' ? 'apple' : 'berry', life: 0.9 }); say(p, it === 'apple' ? '掉下来一个苹果！' : '掉下来一颗浆果！'); if (PP.quest) PP.quest.on('shake'); } else say(p, d.tree >= 3 ? ['今天的果子都摇完啦'] : ['掉了一头叶子', '树上的鸟被吓跑了']); yield 1.6; }
@@ -941,7 +983,14 @@
     if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {
       const e = E(), p = this, PR = (PROPS[inside || 'deck'] || []).slice(), useAny = (ch) => (PR.length && Math.random() < ch ? (p.run('isleUse', A.isleUse, U.pick(PR)), true) : false), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; };
       const roam = () => { const cs = cellList(); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
-      if (inside === 'house') {
+      if (inside === 'castle') {
+        roomT++;
+        if (p.n.energy < 50 && Math.random() < 0.5) return R('isleUse', A.isleUse, PROPS.castle.find((q) => q.do === 'sleep'));
+        if (roomT > (wet ? 10 : 5) && Math.random() < (wet ? 0.1 : 0.3)) return R('isleHouse', A.isleHouse, false);
+        if (Math.random() < 0.12) return R('isleUse', A.isleUse, PROPS.castle.find((q) => q.do === 'living'));
+        if (useAny(0.55)) return true;
+        return roam();
+      } else if (inside === 'house') {
         roomT++;
         if (p.n.energy < 55 && Math.random() < 0.6) return R('isleBed', A.isleBed);
         if (roomT > (wet ? 9 : 4) && Math.random() < (wet ? 0.12 : 0.35)) return R('isleHouse', A.isleHouse, false);
@@ -953,7 +1002,7 @@
         if (useAny(0.6)) return true;
         return roam();
       } else {
-        if (wet && Math.random() < 0.45) return R('isleHouse', A.isleHouse, Math.random() < 0.75 ? 'house' : 'gh');
+        if (wet && Math.random() < 0.45) return R('isleHouse', A.isleHouse, Math.random() < 0.75 ? 'castle' : 'gh');
         const grow = PLOTS.map((_, i) => i).filter((i) => { const inf = PP.econ.plotInfo(i); return inf && inf.stage < 3 && (e.farm[i].water || 0) < 3; });
         if (grow.length && !fx.rain && Math.random() < 0.3) return R('isleWater', A.isleWater, U.pick(grow));
         if (PP.econ.unread() && Math.random() < 0.25) return R('isleMail', A.isleMail);
@@ -963,7 +1012,7 @@
         if (Math.random() < 0.2) return R('isleFish', A.isleFish);
         if (useAny(0.2)) return true;
         if (Math.random() < 0.1) return R('isleHouse', A.isleHouse, 'gh');
-        if (((night() || p.n.energy < 40) && Math.random() < 0.5) || Math.random() < 0.08) return R('isleHouse', A.isleHouse, 'house');
+        if (((night() || p.n.energy < 40) && Math.random() < 0.5) || Math.random() < 0.08) return R('isleHouse', A.isleHouse, 'castle');
         if (Math.random() < 0.6) return roam();
       }
     }
@@ -975,5 +1024,5 @@
   setInterval(() => { if (PP.started && G.save) sync(); }, 1500);
   const doorX = () => { if (!L) layout(); const s = start(); return scrU(s.u, s.v); };
   function furnAdd(f) { const e = E(), L0 = FURN.layout(e); if (!FURN.D[f] || L0.some((q) => q.f === f)) return false; const d = FURN.D[f], q = fFree({ f, u: 0, v: 0, r: 0, lv: d.lv[0] }, -1); if (!q) return false; L0.push(q); fChanged(); return true; }
-  PP.isle = { furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props: () => PROPS, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: () => inside, setInside, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: AREAS, free: (u, v, lv) => free(area(), u, v, lv) };
+  PP.isle = { cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props: () => PROPS, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: () => inside, setInside, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: AREAS, free: (u, v, lv) => free(area(), u, v, lv) };
 })();
