@@ -7,9 +7,18 @@ let uIOhook = null;
 try { ({ uIOhook } = require('uiohook-napi')); } catch (e) { console.warn('uiohook-napi 不可用，打字检测改用系统空闲时间推测'); }
 const updater = require('./updater');
 // 任何意外错误都只记一下，不弹“主进程 JavaScript 错误”吓人的框
-process.on('uncaughtException', (e) => { try { console.error('uncaught', e); } catch {} });
-process.on('unhandledRejection', (e) => { try { console.error('unhandled', e); } catch {} });
 const fs = require('fs');
+// 运行日志：%APPDATA%\PixelNest\desktopia.log（出问题时能看到发生了什么；超过 1MB 自动从头记）
+function plog(...a) {
+  try {
+    const f = path.join(app.getPath('userData'), 'desktopia.log');
+    try { if (fs.statSync(f).size > 1024 * 1024) fs.renameSync(f, f + '.old'); } catch {}
+    const t = new Date(); const ts = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().replace('T', ' ').slice(0, 19);
+    fs.appendFileSync(f, ts + ' ' + a.map((x) => (typeof x === 'string' ? x : x && x.stack ? x.stack : JSON.stringify(x))).join(' ') + '\n');
+  } catch {}
+}
+process.on('uncaughtException', (e) => { try { console.error('uncaught', e); plog('[main] uncaught', e); } catch {} });
+process.on('unhandledRejection', (e) => { try { console.error('unhandled', e); plog('[main] unhandled', e); } catch {} });
 
 if (process.platform === 'linux') {
   app.commandLine.appendSwitch('enable-transparent-visuals');
@@ -44,8 +53,30 @@ function createWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
   win.setIgnoreMouseEvents(true, { forward: true });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  win.once('ready-to-show', () => win.showInactive());
+  win.once('ready-to-show', () => { if (!hidden) win.showInactive(); });
+  // 有的显卡驱动下透明窗口等不到 ready-to-show：4 秒后不管怎样都显示出来
+  setTimeout(() => { if (win && !win.isDestroyed() && !hidden && !win.isVisible()) { plog('[win] ready-to-show 没来，强制显示'); win.showInactive(); } }, 4000);
   win.on('closed', () => (win = null));
+  // 页面崩了 / 卡死了：记下来，自动重新载入（存档每 20 秒写一次，最多丢几秒）
+  win.webContents.on('render-process-gone', (_e, d) => { plog('[win] 页面进程退出', d && d.reason); setTimeout(() => reviveWin('render-gone'), 800); });
+  win.webContents.on('unresponsive', () => { plog('[win] 页面没响应'); setTimeout(() => { if (win && !win.isDestroyed() && Date.now() - lastBeat > 8000) reviveWin('unresponsive'); }, 8000); });
+  win.webContents.on('did-fail-load', (_e, code, desc) => plog('[win] 载入失败', code, desc));
+  win.webContents.on('console-message', (_e, level, msg) => { if (level >= 3) plog('[page]', String(msg).slice(0, 500)); });
+}
+let lastBeat = Date.now(), reviving = 0;
+// 重新载入页面 + 窗口复位（不透明、可见、盖住工作区）
+function reviveWin(why) {
+  if (!win || win.isDestroyed()) { createWindow(); return; }
+  if (Date.now() - reviving < 5000) return;
+  reviving = Date.now(); lastBeat = Date.now();
+  plog('[win] 恢复窗口：', why);
+  try { win.setOpacity(1); fitToWorkArea(); if (!hidden) win.showInactive(); win.webContents.reload(); } catch (e) { plog('[win] 恢复失败', e); }
+}
+// 不重载，只把窗口本身复位（看不见的时候先试这个）
+function resetWin(why) {
+  if (!win || win.isDestroyed()) return;
+  plog('[win] 窗口复位：', why);
+  try { scanning = false; win.setOpacity(1); fitToWorkArea(); hidden = false; win.showInactive(); win.setAlwaysOnTop(true, process.platform === 'darwin' ? 'floating' : 'screen-saver'); win.webContents.invalidate(); rebuildTray(); } catch (e) { plog('[win] 复位失败', e); }
 }
 
 let barMode = false, barTimer = null;
@@ -121,7 +152,7 @@ async function scanBar() {
     await new Promise((r) => setTimeout(r, 160));
     let src = null;
     try {
-      const list = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: W, height: H } });
+      const list = await Promise.race([desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: W, height: H } }), new Promise((_r, rej) => setTimeout(() => rej(new Error('截屏超时')), 2500))]);
       src = list.find((x) => String(x.display_id) === String(d.id)) || list[0];
     } finally { if (win && !win.isDestroyed()) win.setOpacity(1); }
     if (!src || !src.thumbnail || src.thumbnail.isEmpty()) return null;
@@ -139,7 +170,16 @@ function send(ch, data) { if (win && !win.isDestroyed()) win.webContents.send(ch
 
 // 托盘菜单：和宠物右键菜单是同一棵树（由页面那边生成，发过来）
 let trayModel = null;
-function setHidden(v) { hidden = v; if (!win) return; hidden ? win.hide() : win.showInactive(); rebuildTray(); }
+let hideTimer = null;
+function setHidden(v) {
+  hidden = v; clearTimeout(hideTimer);
+  if (!win) return;
+  plog('[win]', v ? '暂时隐藏' : '显示');
+  if (hidden) { win.hide(); hideTimer = setTimeout(() => setHidden(false), 30 * 60000); } // “暂时”隐藏：半小时后自己回来
+  else { win.setOpacity(1); win.showInactive(); }
+  if (tray) tray.setToolTip(hidden ? 'Desktopia：已暂时隐藏（点这里 → 显示宠物）' : 'Desktopia 桌面乌托邦（Ctrl+Alt+Shift+P 召唤/送回）');
+  rebuildTray();
+}
 function toTemplate(items) {
   return items.map((it) => {
     if (it === '-') return { type: 'separator' };
@@ -158,7 +198,7 @@ function toTemplate(items) {
 }
 function rebuildTray() {
   if (!tray) return;
-  const head = hidden ? [{ label: '显示宠物', click: () => setHidden(false) }, { type: 'separator' }] : [];
+  const head = (hidden ? [{ label: '显示宠物', click: () => setHidden(false) }] : []).concat([{ label: '看不见宠物？点这里找回', click: () => { resetWin('托盘：找回'); send('rescue', 1); } }, { type: 'separator' }]);
   const body = trayModel ? toTemplate(trayModel) : [{ label: '退出', click: () => app.quit() }];
   tray.setContextMenu(Menu.buildFromTemplate(head.concat(body)));
 }
@@ -245,12 +285,26 @@ app.whenReady().then(() => {
   } catch (e) { console.warn('shortcut', e); }
 
   screen.on('display-metrics-changed', fitToWorkArea);
-  screen.on('display-added', fitToWorkArea);
-  screen.on('display-removed', fitToWorkArea);
-  powerMonitor.on('resume', () => send('idle', 0));
+  screen.on('display-added', () => { plog('[screen] 接上显示器'); fitToWorkArea(); });
+  screen.on('display-removed', () => { plog('[screen] 拔掉显示器'); fitToWorkArea(); });
+  // 睡眠 / 锁屏回来：透明窗口在部分显卡上会“看不见”，复位一下、让页面重画
+  const wake = (w) => { plog('[power]', w); send('idle', 0); setTimeout(() => { if (win && !win.isDestroyed()) { fitToWorkArea(); win.setOpacity(1); win.webContents.invalidate(); send('rescue', 0); } }, 1500); };
+  powerMonitor.on('resume', () => wake('resume'));
+  powerMonitor.on('unlock-screen', () => wake('unlock'));
+  // 看门狗：页面每 2 秒报一次平安；15 秒没消息 = 卡死了 → 重新载入。截屏以外的时候窗口永远是不透明的
+  setInterval(() => {
+    if (!win || win.isDestroyed()) return;
+    if (!scanning && win.getOpacity() < 1) { plog('[win] 透明度被卡住，复位'); win.setOpacity(1); }
+    if (!hidden && !win.isVisible()) { plog('[win] 窗口不见了（没在隐藏状态），重新显示'); win.showInactive(); }
+    if (Date.now() - lastBeat > 15000) reviveWin('页面 15 秒没报平安');
+  }, 3000);
+  plog('[app] 启动', app.getVersion(), process.platform, os.release());
 });
+// 显卡进程崩溃后透明窗口会变成全空白：重新载入
+app.on('child-process-gone', (_e, d) => { plog('[app] 子进程退出', d && d.type, d && d.reason); if (d && d.type === 'GPU' && d.reason !== 'clean-exit') setTimeout(() => reviveWin('GPU'), 1200); });
 
-app.on('second-instance', () => { if (win) { hidden = false; win.showInactive(); } });
+// 又双击了一次图标：说明你在找它们——窗口复位、主角叫出来
+app.on('second-instance', () => { if (win) { resetWin('又打开了一次'); send('rescue', 1); } });
 app.on('window-all-closed', () => app.quit());
 app.on('will-quit', () => { keepCopy('quit'); try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
 
@@ -325,6 +379,8 @@ ipcMain.handle('load', () => readSave());
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('tray-menu', (_e, json) => { try { trayModel = JSON.parse(json); rebuildTray(); } catch {} });
 ipcMain.on('hide-window', () => setHidden(true));
+ipcMain.on('beat', () => { lastBeat = Date.now(); });
+ipcMain.on('log', (_e, m) => plog('[page]', String(m).slice(0, 2000)));
 ipcMain.handle('get-autostart', () => app.getLoginItemSettings({ name: 'PixelNest' }).openAtLogin);
 ipcMain.on('set-autostart', (_e, v) => app.setLoginItemSettings({ openAtLogin: !!v, name: 'PixelNest' }));
 

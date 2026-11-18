@@ -28,4 +28,7 @@ contextBridge.exposeInMainWorld('petAPI', {
   onUpdate: (fn) => ipcRenderer.on('update', (_e, s) => fn(s)),
   openExternal: (url) => ipcRenderer.send('open-external', url),
   setAppIcon: (o) => ipcRenderer.invoke('set-app-icon', o),
+  beat: () => ipcRenderer.send('beat'),
+  log: (m) => ipcRenderer.send('log', String(m)),
+  onRescue: (fn) => ipcRenderer.on('rescue', (_e, v) => fn(v)),
 });
