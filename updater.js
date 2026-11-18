@@ -33,18 +33,27 @@ function fetchT(url, ms = 9000) {
   return net.fetch(url, { signal: ctl.signal, cache: 'no-store', headers: { 'User-Agent': 'Desktopia-Updater' } }).finally(() => clearTimeout(t));
 }
 
-let state = { status: 'idle', latest: null, progress: 0, file: null, error: '' };
+let state = { status: 'idle', latest: null, progress: 0, file: null, error: '', route: 0 };
+const markFile = () => path.join(app.getPath('userData'), 'update-tried.json');
 let notify = () => {};
 
 async function check() {
+  // 已经装上了：清掉“装过”的记号
+  try { const mk = JSON.parse(fs.readFileSync(markFile(), 'utf8')); if (!mk || cmp(mk.version, app.getVersion()) <= 0) fs.rmSync(markFile(), { force: true }); } catch {}
+  if (state.status === 'downloading' || state.status === 'verifying') return state;
   state.status = 'checking'; state.error = ''; notify(state);
   const results = await Promise.all(MANIFEST.map((u) => fetchT(u + '?t=' + Date.now(), 9000).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
   const ok = results.filter((m) => m && m.version);
   if (!ok.length) { state.status = 'error'; state.error = '连不上更新服务器（稍后会自动再试）'; notify(state); return state; }
   ok.sort((a, b) => cmp(b.version, a.version));
   const m = ok[0];
+  // 已经在下载 / 已经下好了同一个版本：别退回“发现新版”，不然会又从头下一遍
+  const same = state.latest && state.latest.version === m.version;
   state.latest = m;
+  if (same && (state.status === 'downloading' || state.status === 'verifying' || state.status === 'ready')) return state;
   state.status = cmp(m.version, app.getVersion()) > 0 ? 'available' : 'latest';
+  // 上次装过这个版本却还是旧版：说明安装被拦住了（杀毒 / 权限），别一遍遍自动重下重装
+  try { const mk = JSON.parse(fs.readFileSync(markFile(), 'utf8')); if (mk && mk.version === m.version && state.status === 'available' && Date.now() - mk.t < 6 * 3600e3) { state.status = 'error'; state.error = `上次安装 v${m.version} 没成功（可能被杀毒软件或公司权限拦住了）。可以点“发布页面”下载安装包手动装`; } } catch {}
   notify(state);
   return state;
 }
@@ -92,9 +101,10 @@ async function download1() {
   if (!dir) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
   // 清掉以前版本留下的安装包和分块
   try { for (const f of fs.readdirSync(dir)) if (/^(MoyuZoo|Desktopia)-\d/.test(f) && !f.startsWith(base)) fs.rmSync(path.join(dir, f), { force: true }); } catch {}
-  state.status = 'downloading'; state.progress = 0; state.error = ''; notify(state);
+  state.status = 'downloading'; state.progress = 0; state.error = ''; state.route = 1; notify(state);
   const total = plat.size || 1; let got = 0, lastN = 0;
-  const onBytes = (n) => { got += n; const p = Math.max(0, Math.min(0.999, got / total)); if (Math.abs(p - lastN) > 0.005) { lastN = p; state.progress = p; notify(state); } };
+  const onBytes = (n) => { got += n; const p = Math.max(0, Math.min(0.99, got / total)); if (Math.abs(p - lastN) > 0.005) { lastN = p; state.progress = p; notify(state); } };
+  const verifying = () => { state.status = 'verifying'; state.progress = 0.99; notify(state); };
   const finish = (dest, via) => { state.status = 'ready'; state.file = dest; state.progress = 1; state.via = via; notify(state); return state; };
   const dest = path.join(dir, base + ext);
 
@@ -119,6 +129,7 @@ async function download1() {
     };
     try {
       await Promise.all([0, 1, 2].map(() => worker()));
+      verifying();
       const hash = crypto.createHash('sha256'), fd = fs.openSync(dest, 'w');
       try { for (let i = 0; i < N; i++) { const b = fs.readFileSync(pf(i)); hash.update(b); fs.writeSync(fd, b); } } finally { fs.closeSync(fd); }
       if (plat.sha256 && hash.digest('hex') !== plat.sha256) { for (let i = 0; i < N; i++) fs.rmSync(pf(i), { force: true }); fs.rmSync(dest, { force: true }); throw new Error('校验不一致'); }
@@ -128,10 +139,12 @@ async function download1() {
   }
   // 线路 2：GitHub Releases + 加速镜像（整个文件）
   const gh = `https://github.com/${REPO}/releases/download/v${m.version}/${plat.asset || plat.name}`;
+  let route = 1;
   for (const px of PROXIES) {
-    got = 0; onBytes(0);
+    got = 0; lastN = -1; route++; state.status = 'downloading'; state.route = route; onBytes(0);
     try {
       await pullTo(px + gh, dest, onBytes, 30000);
+      verifying();
       if (plat.sha256 && sha256File(dest) !== plat.sha256) throw new Error('校验不一致');
       return finish(dest, px || 'GitHub');
     } catch (e) { try { fs.rmSync(dest, { force: true }); } catch {} console.warn('update source failed', px || 'GitHub', e && e.message); }
@@ -151,6 +164,7 @@ function install(relaunch = true) {
     const dir = path.join(app.getPath('appData'), 'PixelNest-keep');
     if (fs.existsSync(src)) { fs.mkdirSync(dir, { recursive: true }); fs.copyFileSync(src, path.join(dir, 'save-before-update.json')); }
   } catch (e) { console.warn('backup before update failed', e); }
+  try { fs.writeFileSync(markFile(), JSON.stringify({ version: state.latest && state.latest.version, t: Date.now() })); } catch {}
   if (process.platform === 'win32') {
     const args = ['/S']; if (relaunch) args.push('--force-run');
     try {
