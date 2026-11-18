@@ -450,3 +450,11 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .quest small { grid-column: 1 / -1; font-size: 11px; color: var(--muted); } .quest .xpbar { grid-column: 1; }
 .quest.done { background: #f2fbe8; } .quest.claimed { opacity: .6; } .quest .ok { font-style: normal; color: #3a8a4a; font-size: 12px; }
 .quest button { grid-column: 2; grid-row: 1 / span 2; width: auto; }
+
+/* 布置小屋的工具条 */
+.furnbar { position: fixed; z-index: 45; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 5px 7px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); border-radius: 8px; font-size: 12px; }
+.furnbar b { margin-right: 4px; }
+.furnbar .muted { color: var(--muted); margin-right: 4px; }
+.furnbar button { font-size: 11px; padding: 2px 7px; }
+.furnbar button.primary { background: var(--accent); }
+.furnbar .add { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; width: 100%; color: var(--muted); }
