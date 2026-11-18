@@ -167,6 +167,8 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 .petring { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 14; }
 .petring button { position: fixed; width: var(--bs, 30px); height: var(--bs, 30px); padding: 0; display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; box-shadow: 2px 2px 0 var(--ink); transform: scale(.2); opacity: 0; transition: transform .16s ease-out, opacity .16s, background .1s; }
 .petring.in button { transform: scale(1); opacity: 1; }
+.petring:not(.in) button { pointer-events: none; }
+.hud .callbtn { width: auto; border-radius: 16px; padding: 0 10px 0 4px; display: flex; gap: 4px; align-items: center; font-size: 12px; }
 .petring button:nth-child(2) { transition-delay: .02s; } .petring button:nth-child(3) { transition-delay: .04s; } .petring button:nth-child(4) { transition-delay: .06s; }
 .petring button:nth-child(5) { transition-delay: .08s; } .petring button:nth-child(6) { transition-delay: .1s; } .petring button:nth-child(7) { transition-delay: .12s; } .petring button:nth-child(8) { transition-delay: .14s; }
 .petring button:hover { background: var(--accent); transform: scale(1.18); }
@@ -400,3 +402,20 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .updchip button { border: 0; box-shadow: none; background: transparent; font-size: 11px; padding: 4px 8px; }
 .updchip button.go:hover { background: var(--accent); }
 .updchip button.x { border-left: 1px solid var(--ink); padding: 4px 7px; color: var(--muted); }
+
+/* 小场景 / 小岛旁边的按钮条 */
+.sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: 6px; transition: opacity .18s, transform .18s; }
+.sdock.far { opacity: 0; pointer-events: none; transform: translateX(4px); }
+.sdock button { position: relative; width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: 2px 2px 0 var(--ink); display: grid; place-items: center; }
+.sdock button:hover { background: var(--accent); transform: scale(1.1); }
+.sdock button.key { background: #ffe58a; }
+.sdock button canvas { width: 18px; height: 18px; image-rendering: pixelated; pointer-events: none; }
+.sdock button.new::before { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); border-radius: 50%; }
+
+/* 地球地图：转到背面的旗子藏起来 */
+.map2 .mapwrap { background: #161a2c; }
+.map2 .pin.back { opacity: 0; pointer-events: none; }
+.map2 .pin { transition: opacity .15s; }
+.map2 .pin span { display: none; }
+.map2 .pin:hover span, .map2 .pin.on span { display: inline; }
+.map2 .pin { padding: 2px 3px; }
