@@ -493,7 +493,7 @@
     PP.iconCanvas = function (o, size) {
       const buf = PP.SPR.drawPet({ species: o.species, pal: o.pal, coatKey: o.coat, facing: 1, anim: 'idle', t: 0, eyes: 'open', look: [0, 0], mouth: 'w', lop: o.lop, portrait: true });
       const tmp = document.createElement('canvas'); tmp.width = buf.w; tmp.height = buf.h; const tc = tmp.getContext('2d'); tc.imageSmoothingEnabled = false;
-      PP.SPR.blit(tc, buf, (buf.tx || 0), (buf.ty || 0), 1);
+      PP.SPR.blit(tc, buf, (buf.tx || 0), (buf.ty || 0), buf.res || 1);
       const W = tmp.width, H = tmp.height, img = tc.getImageData(0, 0, W, H), d = img.data;
       // 去掉贴纸似的白边：最外圈的白色像素删掉，只留动物本身和深色轮廓
       const A = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : d[(y * W + x) * 4 + 3]);

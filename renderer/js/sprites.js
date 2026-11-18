@@ -1530,6 +1530,7 @@
     }
     tctx.putImageData(img, 0, 0);
     ctx.imageSmoothingEnabled = false;
+    if (buf.res) s /= buf.res; // 3D 体素宠物的缓冲区更细（1 像素里 2 格）
     y -= (buf.ty || 0) * s; x -= (buf.tx || 0) * s;
     if (flip) {
       ctx.save(); ctx.translate(x + buf.w * s, y); ctx.scale(-1, 1); ctx.drawImage(_tmp, 0, 0, buf.w * s, buf.h * s); ctx.restore();

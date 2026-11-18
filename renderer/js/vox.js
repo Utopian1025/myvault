@@ -4,7 +4,9 @@
 (function () {
   const PP = (window.PP = window.PP || {});
 
-  function tone(hex, k) {
+  const _tone = new Map();
+  function tone(hex, k) { const key = hex + k; let v = _tone.get(key); if (v === undefined) { v = tone0(hex, k); _tone.set(key, v); } return v; }
+  function tone0(hex, k) {
     const n = parseInt(hex.slice(1), 16); const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
     const f = (v) => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
     return '#' + [f(r), f(g), f(b)].map((v) => v.toString(16).padStart(2, '0')).join('');
@@ -14,165 +16,168 @@
   const K = '#231c20';
 
   // ---------- 体素模型 ----------
-  // 坐标：x 朝前（鼻子方向），y 朝上，z 朝它的右手边。
+  // 坐标：x 朝前（鼻子方向），y 朝上，z 朝它的右手边。单位是“格”（R=2 时 1 格 = 半个像素，颗粒更细）。
   class Model {
     constructor() { this.m = new Map(); }
-    k(x, y, z) { return x + ',' + y + ',' + z; }
-    set(x, y, z, c, flat) { this.m.set(this.k(x, y, z), { x, y, z, c, f: !!flat }); }
+    k(x, y, z) { return ((x + 512) * 1024 + (y + 512)) * 1024 + (z + 512); } // 数字当键，比字符串快很多
+    set(x, y, z, c, flat, n, m) { this.m.set(this.k(x, y, z), { x, y, z, c, f: !!flat, n: n || null, m: m || '' }); }
     get(x, y, z) { return this.m.get(this.k(x, y, z)); }
     has(x, y, z) { return this.m.has(this.k(x, y, z)); }
-    // 法线：看周围 2 格内哪边是空的；表面方块才参与渲染
     finish() {
       for (const v of this.m.values()) {
         v.out = !this.has(v.x + 1, v.y, v.z) || !this.has(v.x - 1, v.y, v.z) || !this.has(v.x, v.y + 1, v.z) || !this.has(v.x, v.y - 1, v.z) || !this.has(v.x, v.y, v.z + 1) || !this.has(v.x, v.y, v.z - 1);
         if (!v.out) continue;
-        let nx = 0, ny = 0, nz = 0;
-        for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
-          if ((!dx && !dy && !dz) || this.has(v.x + dx, v.y + dy, v.z + dz)) continue;
-          const w = 1 / (dx * dx + dy * dy + dz * dz); nx += dx * w; ny += dy * w; nz += dz * w;
+        if (!v.n) { // 没给法线的：看周围哪边空
+          let nx = 0, ny = 0, nz = 0;
+          for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) for (let dz = -2; dz <= 2; dz++) {
+            if ((!dx && !dy && !dz) || this.has(v.x + dx, v.y + dy, v.z + dz)) continue;
+            const w = 1 / (dx * dx + dy * dy + dz * dz); nx += dx * w; ny += dy * w; nz += dz * w;
+          }
+          const l = Math.hypot(nx, ny, nz) || 1; v.n = [nx / l, ny / l, nz / l];
         }
-        const l = Math.hypot(nx, ny, nz) || 1; v.n = [nx / l, ny / l, nz / l];
         v.k = this.k(v.x, v.y, v.z);
-        // 预先算好 4 档明暗（亮 / 本色 / 暗 / 更暗），渲染时不再算颜色
-        v.t = v.f ? [v.c, v.c, v.c, v.c] : [tone(v.c, 0.08), v.c, tone(v.c, -0.14), tone(v.c, -0.28)];
+        // 4 档柔和的明暗（像黏土小模型那样，一块块干净的色面，不是噪点）
+        v.t = v.f ? [v.c, v.c, v.c, v.c] : [tone(v.c, 0.12), v.c, tone(v.c, -0.1), tone(v.c, -0.2)];
       }
       this.list = [...this.m.values()].filter((v) => v.out);
       return this;
     }
   }
-  function ellip(M, cx, cy, cz, rx, ry, rz, fn) {
-    for (let x = Math.floor(cx - rx - 1); x <= Math.ceil(cx + rx + 1); x++)
-      for (let y = Math.floor(cy - ry - 1); y <= Math.ceil(cy + ry + 1); y++)
-        for (let z = Math.floor(cz - rz - 1); z <= Math.ceil(cz + rz + 1); z++) {
-          const dx = (x + 0.5 - cx) / rx, dy = (y + 0.5 - cy) / ry, dz = (z + 0.5 - cz) / rz, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          if (d <= 1) { const c = typeof fn === 'string' ? fn : fn(x, y, z, d, dx, dy, dz); if (c) M.set(x, y, z, c); }
-        }
-  }
-  // 这一行（y,z）最靠前的方块的 x
-  function frontX(M, y, z, from = 26) { for (let x = from; x > -24; x--) if (M.has(x, y, z)) return x; return null; }
+  const nrm = (a, b, c) => { const l = Math.hypot(a, b, c) || 1; return [a / l, b / l, c / l]; };
+  // 椭球：在里面吗 + 那一点的法线
+  const E = (cx, cy, cz, rx, ry, rz) => ({ cx, cy, cz, rx, ry, rz,
+    d(x, y, z) { const a = (x - cx) / rx, b = (y - cy) / ry, c = (z - cz) / rz; return a * a + b * b + c * c; },
+    n(x, y, z) { return nrm((x - cx) / (rx * rx), (y - cy) / (ry * ry), (z - cz) / (rz * rz)); } });
+  // 这一列（y,z）最靠前的方块
+  function frontV(M, y, z, from) { for (let x = from; x > -from; x--) { const v = M.get(x, y, z); if (v) return v; } return null; }
 
-  // ---------- 刺猬：身子（随姿势变） ----------
-  // 对照 2D 正脸（1 格 = 1 像素）：整只宽约 28、高约 26；刺帽罩住头顶、两侧和后背；
-  // 正面一张 15×16 的奶油色大脸；脸上沿两只小圆耳朵；底下四只小脚。
-  // pose：leg 走路第几帧（0 站 / 1~4 / 5 挠痒）、curl 缩球程度 0~1、dip 低头（-1 抬头 / 1 / 2）、spike 炸毛、lie 趴下
-  function hedgehogBody(C, P) {
+  // ---------- 刺猬（R 倍细） ----------
+  // 圆滚滚的一团：后背和头顶是一顶整齐的刺帽，前面一张奶油色的大圆脸；
+  // 大白眼睛 + 小黑豆瞳孔（呆呆的），小鼻头，ω 嘴，腮红，两只小圆耳朵，四只小短脚。
+  // pose：leg 走路帧（0 站 / 1~4 / 5 挠痒）、curl 缩球 0~1、dip 低头（-1 抬头）、spike 炸毛、lie 趴下
+  function hedgehogBody(C, P, R) {
     const M = new Model(), c = P.curl || 0, dip = P.dip || 0, lie = P.lie || 0, spike = P.spike || 0;
-    const SX = lerp(-1, 0, c), SY = lerp(12.5, 11.2, c) - lie * 2.2, SRX = lerp(14, 11.6, c), SRY = lerp(12.5, 11.4, c) - lie * 2.4, SRZ = lerp(13.5, 11.8, c) + lie * 0.6;
-    const fk = 1 - c * 0.42;
-    const FX = lerp(6.6, 3.2, c), FY = 10.5 - dip * 0.9 - c * 1.6 - lie * 2.2, FRX = 8.6 * fk, FRY = 8.2 * fk, FRZ = 7.8 * fk;
-    const open = Math.max(0, 1 - c * 1.25); // 脸露出来多少（缩成球时脸藏进去）
-    const inFaceCol = (y, z) => { if (open <= 0.05) return false; const dy = (y + 0.5 - FY) / (FRY * open), dz = (z + 0.5) / (FRZ * Math.max(0.35, open)); return dy * dy + dz * dz < 1; };
-    const cut = FX - 4.6;
-    const spine = [C.dark, C.spine, tone(C.spine, 0.22), C.tip];
-    // 1. 刺帽：从额头往后、往两边放射的一条条刺。每条是“深色缝 + 中间色的刺 + 一截一截的浅色刺尖”，
-    //    浅色刺尖排成虚线——远看就是一根根梳好的刺，不是一团噪点
-    const AX = FX + 1, AY = FY + FRY * 0.9;
-    const shellAt = (x, y, z) => {
-      const th = Math.atan2(z + 0.5, y + 0.5 - (FY - 3)), u = (th / Math.PI) * 12 + 40, si = Math.floor(u), f = u - si;
-      const dist = Math.hypot(x + 0.5 - AX, y + 0.5 - AY, z + 0.5), g = dist / 3.1 + hash(si, 5, 9) - Math.floor(dist / 3.1 + hash(si, 5, 9));
-      return { f, g, si };
-    };
-    ellip(M, SX, SY, 0, SRX, SRY, SRZ, (x, y, z, d) => {
-      if (x > cut && inFaceCol(y, z)) return null;
-      if (c < 0.5 && y < 2.2 - lie && x > -9) return null;
-      const { f, g } = shellAt(x, y, z);
-      if (f < 0.28) return C.dark;
-      if (d > 0.9 && g > 0.7 && f > 0.42 && f < 0.88) return C.tip;
+    const open = Math.max(0, 1 - c * 1.3);
+    const B = E(-1, 9.4 - lie * 1.8 - c * 0.3, 0, 12 - c * 1.6, 9.2 - lie * 1.9 + c * 0.9, 10.6 - c * 0.5); // 身子
+    const CP = E(B.cx - 1.4, B.cy + 1.0, 0, B.rx + 1.1, B.ry + 1.0, B.rz + 1.0);                            // 刺帽
+    const SN = E(B.cx + B.rx * 0.9 + 0.8 + dip * 0.2, B.cy - 2.1 - dip * 0.9, 0, 2.9 * Math.max(0.3, open), 2.3 * Math.max(0.3, open), 2.6 * Math.max(0.3, open)); // 小尖嘴
+    const EARS = [-1, 1].map((s) => E(B.cx + B.rx * 0.5, B.cy + B.ry * 0.74, s * B.rz * 0.6, 2.0 * open, 2.1 * open, 1.7 * open));
+    // 刺帽前沿：额头往下斜，带一排整齐的小锯齿（刘海）
+    const cutX = (y, z) => lerp(7.4, 18, Math.max(0, c * 1.2 - 0.1)) + (y - B.cy) * 0.22 - 0.8 * Math.abs(((z * 0.7 + 100.5) % 2) - 1);
+    const capBottom = lerp(3.4, -2, Math.min(1, c * 1.4)) - lie;
+    // 脚
+    const feet = [];
+    if (c < 0.6) {
+      const L = P.leg || 0, st = [0, 0, 0, 0], fw = [0, 0, 0, 0];
+      if (L === 1) { st[0] = st[3] = 0.9; fw[0] = fw[3] = 1; } else if (L === 2) { fw[0] = fw[3] = 1; fw[1] = fw[2] = -1; }
+      else if (L === 3) { st[1] = st[2] = 0.9; fw[1] = fw[2] = 1; } else if (L === 4) { fw[1] = fw[2] = 1; fw[0] = fw[3] = -1; }
+      else if (L === 5) { st[2] = 2.4; fw[2] = 2; }
+      [[B.cx + B.rx * 0.52, -B.rz * 0.48], [B.cx + B.rx * 0.52, B.rz * 0.48], [B.cx - B.rx * 0.5, -B.rz * 0.52], [B.cx - B.rx * 0.5, B.rz * 0.52]].forEach(([x, z], i) => feet.push(E(x + fw[i], 1.0 + st[i] - lie * 0.6, z, 2.0, 1.15, 1.5)));
+    }
+    // 刺帽纹理：整齐的一排排小刺尖（深色细缝 + 浅色短刺），从额头往后梳
+    const capTex = (x, y, z) => {
+      const th = Math.atan2(z, y - (B.cy - 4)), ph = Math.atan2(x - (B.cx + 4), Math.hypot(z, y - B.cy));
+      const row = ph * 3.2, ri = Math.floor(row), u = th * 4.4 + (ri & 1) * 0.5, fu = u - Math.floor(u), fr = row - ri;
+      if (fu < 0.09) return C.dark;            // 一条条细细的深色刺缝
+      if (fr > 0.62 && fr < 0.8 && fu > 0.42 && fu < 0.62) return tone(C.spine, 0.16); // 很淡的一点刺尖反光
       return C.spine;
-    });
-    // 2. 肚皮、脸、小尖嘴
-    if (c < 0.5) ellip(M, -1, 4.2 - lie, 0, 11, 3.8 - lie * 0.6, 9.6, (x, y, z) => (M.has(x, y, z) ? null : C.base));
-    if (open > 0.05) {
-      ellip(M, FX, FY, 0, FRX, FRY, FRZ, (x, y, z) => (y < FY - 3 && Math.abs(z) < 4 && hash(x, z, 7) < 0.5 ? C.light : C.base));
-      const sx = lerp(14.2, 9, c) + (dip > 0 ? 0.6 : 0), sy = FY - 2.3 - dip * 0.4;
-      ellip(M, sx, sy, 0, 2.6 * fk, 2.4 * fk, 2.6 * fk, (x, y, z) => (y >= sy + 1 ? C.light : C.base));
-      // 胡须点：小嘴两侧各两个小黑点
-      for (const s of [-1, 1]) for (const [yy, dz] of [[0, 2], [-1, 2]]) { const z = s * dz - (s < 0 ? 1 : 0), y = Math.round(sy) + yy, x = frontX(M, y, z); if (x != null && x > sx - 1) M.set(x, y, z, tone(C.base, -0.42), true); }
-    }
-    // 3. 刺尖：在浅色刺尖的位置真的戳出来 1~2 格（往后梳；缩成球 / 炸毛时竖起来）——轮廓上就是一圈尖尖
-    const tips = [];
-    for (const v of [...M.m.values()]) {
-      const extra = spike && v.c === C.spine && hash(v.x, v.y, v.z) < 0.1; if (v.c !== C.tip && !extra) continue;
-      const dx = (v.x + 0.5 - SX) / SRX, dy = (v.y + 0.5 - SY) / SRY, dz = (v.z + 0.5) / SRZ;
-      let nx = dx / SRX, ny = dy / SRY, nz = dz / SRZ; const l0 = Math.hypot(nx, ny, nz); nx /= l0; ny /= l0; nz /= l0;
-      if (ny < (c > 0.5 ? -0.9 : -0.3)) continue;
-      const back = spike || c > 0.5 ? 0.1 : 0.55;
-      let ex = nx - back, ey = ny + 0.1, ez = nz; const l = Math.hypot(ex, ey, ez); ex /= l; ey /= l; ez /= l;
-      const L = (hash(v.y, v.x, v.z) < 0.5 ? 2 : 1) + (spike ? 1 : 0);
-      if (v.c === C.tip) v.c = C.spine; // 刺的根部是中间色，尖才是浅色
-      for (let k = 1; k <= L; k++) tips.push([Math.round(v.x + ex * k * 1.05), Math.round(v.y + ey * k * 1.05), Math.round(v.z + ez * k * 1.05), k === L && !extra ? C.tip : k === L ? tone(C.spine, 0.15) : C.spine]);
-    }
-    for (const [x, y, z, col] of tips) if (!M.has(x, y, z) && !(x > cut && inFaceCol(y, z))) M.set(x, y, z, col);
-    if (open > 0.3) {
-      // 4. 刘海：脸上沿一排往前垂的小刺
-      const fy = Math.round(FY + FRY * 0.92);
-      for (let z = -5; z <= 5; z += 2) { const x = frontX(M, fy, z); if (x == null) continue; M.set(x + 1, fy, z, C.spine); M.set(x + 1, fy - 1, z, (z & 2) ? C.tip : C.spine); if (Math.abs(z) < 4) M.set(x + 2, fy - 1, z, C.dark); }
-      // 5. 小圆耳朵 + 粉耳心
-      for (const s of [-1, 1]) {
-        const zc = s * 5.5, ey = FY + FRY * 0.82;
-        ellip(M, FX + 1.6, ey, zc, 1.6, 1.7, 1.6, C.base);
-        const z = Math.floor(zc); for (const yy of [0, 1]) { const x = frontX(M, Math.round(ey) - yy, z); if (x != null) M.set(x, Math.round(ey) - yy, z, C.inner, true); }
+    };
+    const X0 = -16 * R, X1 = 18 * R, Y1 = 25 * R, Z0 = 14 * R;
+    const parts = [B, CP, ...(open > 0.05 ? [SN] : []), ...(open > 0.3 ? EARS : []), ...feet];
+    for (let j = -1 * R; j <= Y1; j++) for (let k = -Z0; k <= Z0; k++) {
+      // 这一列里只扫各个部件实际占到的那一段 x（快很多）
+      const y = (j + 0.5) / R, z = (k + 0.5) / R; let lo = 1e9, hi = -1e9;
+      for (const e of parts) { const t = 1 - ((y - e.cy) / e.ry) ** 2 - ((z - e.cz) / e.rz) ** 2; if (t > 0) { const w = e.rx * Math.sqrt(t); if (e.cx - w < lo) lo = e.cx - w; if (e.cx + w > hi) hi = e.cx + w; } }
+      if (hi < lo) continue;
+      for (let i = Math.max(X0, Math.floor(lo * R) - 1); i <= Math.min(X1, Math.ceil(hi * R) + 1); i++) {
+      const x = (i + 0.5) / R;
+      if (open > 0.3) { let he = null; for (const e of EARS) if (e.d(x, y, z) <= 1) { he = e; break; }
+        if (he) { const front = x > he.cx + 0.4 && Math.abs(z - he.cz) < 0.95 && Math.abs(y - he.cy) < 1.2; M.set(i, j, k, front ? C.inner : C.base, front, he.n(x, y, z), 'ear'); continue; } }
+      // 刺帽
+      if (CP.d(x, y, z) <= 1 && x < cutX(y, z) && y > capBottom) { M.set(i, j, k, capTex(x, y, z), false, CP.n(x, y, z), 'cap'); continue; }
+      if (B.d(x, y, z) <= 1) { M.set(i, j, k, y < B.cy - B.ry * 0.62 && x < B.cx + B.rx * 0.6 ? C.light || C.base : C.base, false, B.n(x, y, z), 'face'); continue; }
+      if (open > 0.05 && SN.d(x, y, z) <= 1) { M.set(i, j, k, y > SN.cy + 0.6 ? (C.light || C.base) : C.base, false, SN.n(x, y, z), 'snout'); continue; }
+      for (const e of feet) if (e.d(x, y, z) <= 1) { M.set(i, j, k, x > e.cx + 1.3 ? tone(C.paw, -0.35) : C.paw, false, e.n(x, y, z), 'foot'); break; }
+    } }
+    // 刺：帽子表面上一排排小尖刺（往后梳；缩成球 / 炸毛时竖起来），每根是一个小圆锥
+    const back = spike || c > 0.5 ? 0.15 : 0.6, len = spike ? 2.8 : 2.0;
+    for (let r = 0; r < 6; r++) {
+      const ph = lerp(-0.2, 1.3, r / 5), n = 13;
+      for (let q = 0; q < n; q++) {
+        const th = (q + (r & 1) * 0.5) / n * Math.PI * 2;
+        // 帽子表面上的点：从帽子中心沿方向打出去
+        let dx = Math.cos(ph) * Math.cos(th) * -1, dy = Math.sin(ph), dz = Math.cos(ph) * Math.sin(th);
+        if (dy < -0.35 && c < 0.5) continue;
+        const t = 1 / Math.sqrt((dx / CP.rx) ** 2 + (dy / CP.ry) ** 2 + (dz / CP.rz) ** 2);
+        const bx = CP.cx + dx * t, by = CP.cy + dy * t, bz = dz * t;
+        if (bx >= cutX(by, bz) - 0.3 || by <= capBottom + 0.5) continue;
+        const nn = CP.n(bx, by, bz); const d = nrm(nn[0] - back, nn[1] + 0.1, nn[2]);
+        const steps = Math.ceil(len * R * 1.6);
+        for (let s2 = 0; s2 <= steps; s2++) {
+          const f = s2 / steps, rad = (1 - f) * 0.85, px = bx + d[0] * len * f, py = by + d[1] * len * f, pz = bz + d[2] * len * f;
+          const col = f > 0.72 ? C.tip : C.spine;
+          for (let a = -1; a <= 1; a++) for (let b2 = -1; b2 <= 1; b2++) for (let e2 = -1; e2 <= 1; e2++) {
+            const ox = a * rad, oy = b2 * rad, oz = e2 * rad; if (ox * ox + oy * oy + oz * oz > rad * rad + 0.05) continue;
+            const vi = Math.floor((px + ox) * R), vj = Math.floor((py + oy) * R), vk = Math.floor((pz + oz) * R);
+            if (!M.has(vi, vj, vk)) M.set(vi, vj, vk, col, false, nn, 'spike');
+          }
+        }
       }
     }
-    // 6. 四只小脚（带深色小爪尖）。走路时对角线的两只一起抬
-    if (c < 0.6) {
-      const L = P.leg || 0, st = [0, 0, 0, 0], fw = [0, 0, 0, 0]; // FL FR BL BR
-      if (L === 1) { st[0] = 1; st[3] = 1; fw[0] = 1; fw[3] = 1; } else if (L === 2) { fw[0] = 1; fw[3] = 1; fw[1] = -1; fw[2] = -1; }
-      else if (L === 3) { st[1] = 1; st[2] = 1; fw[1] = 1; fw[2] = 1; } else if (L === 4) { fw[1] = 1; fw[2] = 1; fw[0] = -1; fw[3] = -1; }
-      else if (L === 5) { st[2] = 2; fw[2] = 2; } // 挠痒：后脚抬起来
-      const feet = [[6, -6], [6, 4], [-8, -7], [-8, 5]];
-      feet.forEach(([x0, z0], i) => {
-        const y0 = st[i] + (lie ? -1 : 0), x1 = x0 + fw[i];
-        for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) { M.set(x1 + a, y0, z0 + b, C.paw); M.set(x1 + a, y0 + 1, z0 + b, C.paw); }
-        M.set(x1 + 3, y0, z0, tone(C.paw, -0.45), true); M.set(x1 + 3, y0, z0 + 1, tone(C.paw, -0.45), true);
-      });
-    }
-    M.FX = FX; M.FY = FY; M.open = open;
+    M.B = B; M.SN = SN; M.open = open; M.R = R; M.dip = dip;
     return M.finish();
   }
 
-  // ---------- 刺猬：脸（眼睛 / 鼻子 / 嘴 / 腮红），叠在身子上 ----------
-  // 眼睛照搬 2D 的 5×5：K 黑、W 白；左眼的白在外侧，右眼镜像——瞳孔都往中间看，呆呆的
-  const EYES = {
-    open: ['.KKK.', 'KWWWK', 'KWKKK', 'KWKKK', '.KKK.'],
-    wide: ['.KKK.', 'KWWWK', 'KWKWK', 'KWWWK', '.KKK.'],
-    sleepy: ['.....', '.....', 'KKKKK', 'KWKKK', '.KKK.'],
-    closed: ['.....', '.....', 'K...K', '.KKK.', '.....'],
-    happy: ['.....', '.KKK.', 'K...K', '.....', '.....'],
-    dizzy: ['K...K', '.K.K.', '..K..', '.K.K.', 'K...K'],
-    angry: ['KK...', 'KWKK.', 'KWKKK', 'KWKKK', '.KKK.'],
-    look: ['.KKK.', 'KKKWK', 'KKKWK', 'KWWWK', '.KKK.'], // 往上看（想事情）
-  };
+  // ---------- 刺猬：脸 ----------
+  // 大白眼睛 + 细黑边 + 小黑豆瞳孔 + 一点高光：呆呆萌萌；各种表情都是同一套画法
   function hedgehogFace(M, C, F) {
-    const o = new Map(); if (M.open < 0.3) return o;
-    const put = (x, y, z, col) => { const k = x + ',' + y + ',' + z; if (M.m.has(k)) o.set(k, col); };
-    const dy = Math.round(M.FY - 10.5), ep = EYES[F.eyes] || EYES.open;
-    const eye = (z0, mirror) => {
-      for (let r = 0; r < 5; r++) for (let cI = 0; cI < 5; cI++) {
-        const ch = ep[r][mirror ? 4 - cI : cI]; if (ch === '.') continue;
-        const y = 16 - r + dy, z = z0 - cI, x = frontX(M, y, z); if (x == null) continue;
-        put(x, y, z, ch === 'W' ? '#ffffff' : K);
+    const o = new Map(); if (M.open < 0.35) return o;
+    const R = M.R, B = M.B, SN = M.SN, op = M.open, dip = M.dip;
+    const ey = B.cy + 0.5 - dip * 0.55, ez = 3.35 * op, rw = 1.95 * op;
+    const put = (y, z, col, mats) => { const v = frontV(M, Math.floor(y * R), Math.floor(z * R), 26 * R); if (v && mats.includes(v.m)) o.set(v.k || M.k(v.x, v.y, v.z), col); };
+    const W = '#ffffff', KK = '#2a2024';
+    const st = F.eyes || 'open';
+    for (let j = Math.floor((ey - 3.5) * R); j <= Math.ceil((ey + 3.5) * R); j++) for (const s of [-1, 1]) for (let k = Math.floor((s * ez - 3.5) * R); k <= Math.ceil((s * ez + 3.5) * R); k++) {
+      const y = (j + 0.5) / R, z = (k + 0.5) / R, dy = y - ey, dz = (z - s * ez) * s; // dz>0 = 朝外侧
+      const d = Math.hypot(dy / 1.06, dz);
+      let col = null;
+      if (st === 'closed' || st === 'happy') {
+        const arc = Math.abs(d - rw * 0.72) < 0.32 / op && (st === 'closed' ? dy < -0.1 : dy > 0.1);
+        if (arc) col = KK;
+      } else if (d < rw + 0.45) {
+        if (d >= rw) col = KK; // 细黑边
+        else {
+          col = W;
+          const pr = st === 'wide' ? 0.6 : 1.0, py = st === 'look' ? 0.75 : -0.3, pz = st === 'wide' ? 0 : -0.45; // 瞳孔微微往里、往下：呆呆地看着前面
+          const pd = Math.hypot(dy - py, dz - pz);
+          if (st === 'dizzy') { if (Math.abs(d - rw * 0.55) < 0.3 || d < 0.3) col = KK; }
+          else if (pd < pr * op) col = KK;
+          if (st !== 'dizzy' && Math.hypot(dy - (py + 0.45), dz - (pz - 0.4)) < 0.38) col = W; // 高光
+          if (st === 'sleepy' && dy > 0.2) col = dy < 0.75 ? KK : null;
+          if (st === 'angry' && dy > 1.1 - dz * 0.45) col = KK;
+        }
       }
-    };
-    eye(5, false); eye(-1, true);
-    // 鼻头：2×2，左上一点高光；嗅嗅的时候鼻头上下动
-    const ny = 9 + dy + (F.sniff ? 1 : 0), nx = frontX(M, ny, 0) ?? frontX(M, ny - 1, 0);
-    if (nx != null) for (const [yy, z, col] of [[0, 0, K], [0, -1, '#5a4a50'], [-1, 0, K], [-1, -1, K]]) { const x = frontX(M, ny + yy, z); if (x != null) put(x, ny + yy, z, col); }
-    // 嘴
-    const my = 7 + dy;
-    const mouth = F.mouth || 'w';
-    if (mouth === 'open' || mouth === 'tongue' || mouth === 'o') {
-      for (const z of [-1, 0]) { const x = frontX(M, my, z); if (x != null) put(x, my, z, K); const x2 = frontX(M, my - 1, z); if (x2 != null) put(x2, my - 1, z, mouth === 'o' ? K : '#ff7f95'); }
-    } else {
-      const w = mouth === 'smile' ? 2 : 1;
-      for (const z of [w, -1 - w]) { const x = frontX(M, my, z); if (x != null) put(x, my, z, K); }
-      for (const z of [w - 1, -w]) { const x = frontX(M, my - 1, z); if (x != null) put(x, my - 1, z, K); }
+      if (col) put(y, z, col, ['face', 'cap']);
     }
     // 腮红
-    // 腮红：平时淡淡的一点，被摸 / 开心时更红一圈
-    const bl = F.blush ? [6, 7, -7, -8] : [6, -7];
-    for (const z of bl) { const y = 11 + dy, x = frontX(M, y, z); if (x != null) put(x, y, z, F.blush ? tone(C.inner, 0.05) : tone(C.inner, 0.4)); }
-    if (F.blush) for (const z of [6, -7]) { const y = 10 + dy, x = frontX(M, y, z); if (x != null) put(x, y, z, tone(C.inner, 0.3)); }
+    for (const s of [-1, 1]) for (let j = Math.floor((ey - 3.6) * R); j <= Math.ceil((ey - 1.6) * R); j++) for (let k = Math.floor((s * 6.3 - 1.6) * R); k <= Math.ceil((s * 6.3 + 1.6) * R); k++) {
+      const y = (j + 0.5) / R, z = (k + 0.5) / R; if (((y - (ey - 2.6)) / 0.62) ** 2 + ((z - s * 6.3) / 1.25) ** 2 < 1) put(y, z, F.blush ? tone(C.inner, 0.05) : tone(C.inner, 0.38), ['face']);
+    }
+    // 鼻头（小尖嘴最前面）+ 一点高光
+    const ny = SN.cy + SN.ry * 0.35, sniff = F.sniff ? 0.25 : 0;
+    for (let j = Math.floor((ny - 1.2) * R); j <= Math.ceil((ny + 1.2) * R); j++) for (let k = Math.floor(-1.3 * R); k <= Math.ceil(1.3 * R); k++) {
+      const y = (j + 0.5) / R, z = (k + 0.5) / R, d = Math.hypot((y - ny - sniff) / 0.8, z / 1.0);
+      if (d < 1) put(y, z, Math.hypot(y - ny - sniff - 0.35, z - 0.35) < 0.3 ? '#8a6a72' : KK, ['snout']);
+    }
+    // 嘴：ω / 张嘴 / 吐舌头 / o
+    const my = SN.cy - SN.ry * 0.45, mouth = F.mouth || 'w';
+    for (let j = Math.floor((my - 1.6) * R); j <= Math.ceil((my + 0.8) * R); j++) for (let k = Math.floor(-1.8 * R); k <= Math.ceil(1.8 * R); k++) {
+      const y = (j + 0.5) / R, z = (k + 0.5) / R, dy = y - my;
+      let col = null;
+      if (mouth === 'open' || mouth === 'o') { const d = Math.hypot(dy / 0.7, z / 0.75); if (d < 1) col = mouth === 'o' && d < 0.55 ? '#5a2a34' : dy < -0.15 ? '#ff8aa0' : KK; }
+      else { const w = mouth === 'smile' ? 0.75 : 0.55; for (const s of [-1, 1]) if (Math.abs(Math.hypot(dy, z - s * w) - w) < 0.22 && dy < 0.05) col = KK; if (mouth === 'tongue' && Math.hypot((dy + 0.75) / 0.5, z / 0.45) < 1) col = '#ff8aa0'; }
+      if (col) put(y, z, col, ['snout', 'face']);
+    }
     return o;
   }
 
@@ -214,12 +219,31 @@
   }
 
   // ---------- 缓存 ----------
-  const bodies = new Map(), faces = new Map(), frames = new Map();
+  const bodies = new Map(), faces = new Map(), frames = new Map(), warmed = new Set();
   const palKey = (C) => C.spine + C.base + C.tip;
-  function body(C, P) {
-    const k = palKey(C) + '|' + [P.leg || 0, P.curl || 0, P.dip || 0, P.spike || 0, P.lie || 0].join(',');
-    let m = bodies.get(k); if (!m) { m = hedgehogBody(C, P); bodies.set(k, m); if (bodies.size > 90) bodies.delete(bodies.keys().next().value); }
-    return m;
+  // 每个新姿势第一次要现算（几十毫秒）：先拿最接近的已经算好的顶上，真正的放到空闲时再算，画面不卡
+  let MID = 0;
+  const queue = [], queued = new Set();
+  function keyOf(C, P) { return palKey(C) + '|' + [P.leg || 0, P.curl || 0, P.dip || 0, P.spike || 0, P.lie || 0].join(','); }
+  function build(C, P) { const k = keyOf(C, P); let m = bodies.get(k); if (!m) { m = hedgehogBody(C, P, RES); m.id = ++MID; bodies.set(k, m); if (bodies.size > 120) bodies.delete(bodies.keys().next().value); } return m; }
+  function pump() {
+    const t0 = performance.now();
+    while (queue.length && performance.now() - t0 < 30) { const [C, P, k] = queue.shift(); queued.delete(k); build(C, P); }
+    if (queue.length) setTimeout(pump, 60);
+  }
+  function body(C, P, sync) {
+    const k = keyOf(C, P); const m = bodies.get(k); if (m) return m;
+    if (sync) return build(C, P);
+    // 找替身：同样缩球程度、站着的那个；再不行就同毛色随便一个；都没有就现算
+    const alt = bodies.get(keyOf(C, { curl: P.curl })) || bodies.get(keyOf(C, {})) || [...bodies.entries()].find(([kk]) => kk.startsWith(palKey(C)))?.[1];
+    if (!alt) return build(C, P);
+    if (!queued.has(k)) { queued.add(k); queue.push([C, Object.assign({}, P), k]); if (queue.length === 1) setTimeout(pump, 30); }
+    return alt;
+  }
+  // 预热：常用姿势在空闲时先算好
+  function warm(C) {
+    const L = [{}, { leg: 1 }, { leg: 2 }, { leg: 3 }, { leg: 4 }, { dip: 1 }, { dip: 2 }, { curl: 0.65 }, { curl: 0.6 }, { curl: 1 }, { spike: 1 }, { lie: 1 }, { leg: 1, spike: 1 }, { dip: -1 }, { leg: 5, dip: 1 }, { leg: 5 }, { leg: 1, dip: 1 }, { leg: 3, dip: 1 }];
+    for (const P of L) body(C, P);
   }
   function face(M, C, F) {
     const k = [F.eyes, F.mouth, F.sniff ? 1 : 0, F.blush ? 1 : 0].join(',');
@@ -295,19 +319,21 @@
 
   // ---------- 接到 drawPet ----------
   // 输出和 2D 一样能直接 blit 的 Buf：宽 44（左右各多 6 格，转斜了也放得下），往上多留 8 格给刺尖
-  const BW = 44, BH = 36, TX = 6, TY = 8, GROUND = 31 + TY; // 第 31 行是脚底（和 2D 一样），下面再多 4 行放斜着看时伸出来的脚
+  // RES：1 个像素里放几格（2 = 颗粒细一倍）。缓冲区按“格”算，blit 时自动缩回去
+  const RES = 2, BW = 44 * RES, BH = 36 * RES, TX = 6 * RES, TY = 8 * RES, GROUND = (31 + 8) * RES; // 第 31 行是脚底（和 2D 一样），下面多留 4 行放斜着看时伸出来的脚
   function drawPet(p) {
     const SPR = PP.SPR, C = p.pal, ps = poseOf(p);
+    if (!warmed.has(palKey(C))) { warmed.add(palKey(C)); body(C, {}, true); warm(C); }
     const M = body(C, ps.P), over = face(M, C, ps.F);
     let yaw = p.portrait ? Math.PI / 2 : p.vyaw != null ? p.vyaw : (p.facing >= 0 ? 0.3 : 0.7) * Math.PI;
     yaw += ps.spin;
     const pitch = p.portrait ? 0.12 : 0.36;
     const yq = Math.round(yaw / (Math.PI / 32)), rq = Math.round((ps.roll || 0) / (Math.PI / 16)), sqq = Math.round(ps.sq * 40);
-    const key = palKey(C) + '|' + [ps.P.leg, ps.P.curl, ps.P.dip, ps.P.spike, ps.P.lie].join(',') + '|' + [ps.F.eyes, ps.F.mouth, ps.F.sniff ? 1 : 0, ps.F.blush ? 1 : 0].join(',') + '|' + [yq, rq, sqq, ps.bob, Math.round(ps.lean * 2), pitch, p.scene ? 1 : 0, p.grade || ''].join(',');
+    const key = M.id + '|' + [ps.F.eyes, ps.F.mouth, ps.F.sniff ? 1 : 0, ps.F.blush ? 1 : 0].join(',') + '|' + [yq, rq, sqq, ps.bob, Math.round(ps.lean * 2), pitch, p.scene ? 1 : 0, p.grade || ''].join(',');
     let b = frames.get(key);
     if (b) { frames.delete(key); frames.set(key, b); return b; }
-    b = new SPR.Buf(BW, BH, TY); b.tx = TX;
-    b.d = render(M, over, { w: BW, h: BH + TY, yaw: yq * (Math.PI / 32), pitch, roll: rq * (Math.PI / 16), sq: sqq / 40, lean: Math.round(ps.lean * 2) / 2, ox: BW / 2, oy: GROUND + 0.5 - ps.bob });
+    b = new SPR.Buf(BW, BH, TY); b.tx = TX; b.res = RES;
+    b.d = render(M, over, { w: BW, h: BH + TY, yaw: yq * (Math.PI / 32), pitch, roll: rq * (Math.PI / 16), sq: sqq / 40, lean: Math.round(ps.lean * 2) / 2 * RES, ox: BW / 2, oy: GROUND + 0.5 - ps.bob * RES });
     SPR._h.outlineSel(b);
     if (SPR._h.sceneRim) SPR._h.sceneRim(b, p);
     frames.set(key, b); if (frames.size > 400) frames.delete(frames.keys().next().value);
@@ -317,5 +343,5 @@
   // 只给做好的动物开 3D；设置里可以关（settings.vox === false 时全用 2D）
   const READY = new Set(['hedgehog']);
   const has = (sp) => READY.has(sp) && !(PP.G && PP.G.save && PP.G.save.settings && PP.G.save.settings.vox === false);
-  PP.VOX = { Model, ellip, has, drawPet, yawFor, poseOf, render, body, face, _cache: { bodies, frames } };
+  PP.VOX = { Model, RES, has, drawPet, yawFor, poseOf, render, body, face, _cache: { bodies, frames } };
 })();

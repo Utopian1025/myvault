@@ -48,7 +48,17 @@
   }
   // 收起以后：右下角一个小条显示进度，下好了变成“点这里更新”
   let bg = false, manual = false; // manual：这次检查 / 下载是你自己点的（不是开机自动的）
-  function bgChip() { bg = true; showChip(st.status === 'downloading' ? `正在后台下载新版 ${Math.round((st.progress || 0) * 100)}%` : st.status === 'verifying' ? '新版下好了，正在检查…' : '正在后台检查更新…', about); }
+  // 后台更新：右上角一个半透明的小字条，底下一根 2 像素的细进度线；鼠标移上去才变清楚
+  function bgChip() {
+    bg = true;
+    const pc = Math.round((st.progress || 0) * 100);
+    if (chip && chip.classList.contains('bgc')) { // 已经有了：只改字和进度线，不重新弹
+      chip.querySelector('.go').textContent = st.status === 'downloading' ? `更新 ${pc}%` : st.status === 'verifying' ? '更新：校验中' : '检查更新…';
+      chip.querySelector('.pg').style.width = (st.status === 'downloading' ? pc : 100) + '%'; return;
+    }
+    showChip(st.status === 'downloading' ? `更新 ${pc}%` : st.status === 'verifying' ? '更新：校验中' : '检查更新…', about);
+    if (chip) { chip.classList.add('bgc'); const g = document.createElement('i'); g.className = 'pg'; g.style.width = (st.status === 'downloading' ? pc : 0) + '%'; chip.appendChild(g); }
+  }
   function about() {
     bg = false; hideChip();
     if (!api || !api.updateCheck) { PP.ui.toast('试玩版没有检查更新'); return; }
@@ -71,7 +81,7 @@
     PP.ui.panel('关于 & 检查更新', box, { wide: true });
     // 标题栏上的“－”：收到右下角的小条，检查 / 下载在后台继续
     const bar = box.closest('.panel') && box.closest('.panel').querySelector('.bar');
-    if (bar) { const mn = $('<button class="x" title="收到右下角，在后台继续" style="margin-left:auto;margin-right:2px">－</button>'); mn.onclick = () => { PP.ui.closePanel(); if (st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying') bgChip(); else if (st.status === 'ready') { asked = ''; askInstall(); } else if (st.status === 'available') showChip(`发现新版 v${st.latest.version} · 点这里`, about, 60000); }; bar.insertBefore(mn, bar.querySelector('.x')); }
+    if (bar) { const mn = $('<button class="x" title="收到右下角，在后台继续" style="margin-left:auto;margin-right:2px">－</button>'); mn.onclick = () => { PP.ui.closePanel(); if (st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying') bgChip(); else if (st.status === 'ready') { asked = ''; askInstall(); } else if (st.status === 'available') showChip(`有新版 v${st.latest.version}`, about, 60000); }; bar.insertBefore(mn, bar.querySelector('.x')); }
     manual = true;
     renderAbout();
     if (st.status === 'idle' || st.status === 'error' || st.status === 'latest') api.updateCheck();
@@ -93,14 +103,14 @@
   function askInstall() {
     if (!st.latest || asked === st.latest.version) return;
     asked = st.latest.version;
-    showChip(`新版 v${st.latest.version} 已下载好 · 点这里更新`, about);
+    showChip(`v${st.latest.version} 已下好 · 更新`, about);
   }
 
   // 刚更新完：第一次打开时说一下更新了什么
   function whatsNew(from) {
     const list = cmp(ver, from) > 0 ? changelog.filter((v) => v.version === ver).slice(0, 1) : [];
     if (!list.length) return;
-    showChip(`已更新到 v${ver} · 看看更新了什么`, () => {
+    showChip(`已更新 v${ver} · 看看`, () => {
       const box = $(`<div class="about"><p class="lead">已经更新到 <b>v${esc(ver)}</b>，这次有这些变化：</p><div class="upd-notes">${notesHTML(list)}</div><div class="row"><button class="primary" data-a="ok">知道啦</button></div></div>`);
       box.addEventListener('click', (e) => { if (e.target.closest('[data-a=ok]')) PP.ui.closePanel(); });
       PP.ui.panel('更新好了', box, { wide: true });
@@ -130,7 +140,7 @@
       // 面板被关掉了（点了 ×、或者开了别的面板）但还在检查 / 下载：自动转到后台小条，不用专门去点“收起”
       if (!open && !bg && manual && (x.status === 'checking' || x.status === 'downloading' || x.status === 'verifying')) bgChip();
       if (x.status === 'latest' || x.status === 'ready' || x.status === 'error') manual = manual && open;
-      if (bg && !open) { if (x.status === 'verifying') { const g = chip && chip.querySelector('.go'); if (g) g.textContent = '新版下好了，正在检查…'; } else if (x.status === 'downloading') { const g = chip && chip.querySelector('.go'); if (g) g.textContent = `正在后台下载新版 ${Math.round((x.progress || 0) * 100)}%`; else bgChip(); } else if (x.status === 'ready') { bg = false; asked = ''; askInstall(); } else if (x.status === 'error') { bg = false; showChip('更新没下完（点这里再试）', about); } else if (x.status === 'latest') { bg = false; showChip('已经是最新版', () => {}, 6000); } else if (x.status === 'available') { bg = false; showChip(`发现新版 v${x.latest.version} · 点这里下载`, about); } }
+      if (bg && !open) { if (x.status === 'verifying' || x.status === 'downloading') { bgChip(); } else if (x.status === 'ready') { bg = false; asked = ''; askInstall(); } else if (x.status === 'error') { bg = false; showChip('更新没下完 · 重试', about); } else if (x.status === 'latest') { bg = false; showChip('已经是最新版', () => {}, 6000); } else if (x.status === 'available') { bg = false; showChip(`有新版 v${x.latest.version}`, about); } }
       else if (x.status === 'ready' && G.save.settings.autoUpdate !== false && !open) askInstall();
     });
     setTimeout(auto, 25000);
