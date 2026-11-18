@@ -165,6 +165,14 @@ input[type=color] { width: 44px; height: 26px; padding: 0 2px; }
 
 /* 环绕宠物的一圈图标 */
 .petring { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 14; }
+/* 极简：主角头顶一条小胶囊 */
+.petring.mbar { transform-origin: 0 0; width: auto; height: auto; display: flex; align-items: center; gap: 3px; padding: 3px 5px; background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; box-shadow: 2px 2px 0 var(--ink); opacity: 0; transition: opacity .14s; }
+.petring.mbar.in { opacity: 1; }
+.petring.mbar button, .petring.mbar.in button { position: static; width: 24px; height: 24px; border-width: 1.5px; box-shadow: none; transform: none; opacity: 1; transition: background .1s; }
+.petring.mbar button canvas { width: 14px; height: 14px; }
+.petring.mbar button.scn { width: auto; border-radius: 12px; padding: 0 8px 0 4px; display: flex; align-items: center; gap: 3px; background: #ffe58a; font-size: 12px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.petring.mbar button:hover { background: var(--accent); }
+.petring.mbar .sep { width: 1px; height: 16px; background: rgba(0,0,0,.18); margin: 0 1px; }
 .petring button { position: fixed; width: var(--bs, 30px); height: var(--bs, 30px); padding: 0; display: grid; place-items: center; background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; box-shadow: 2px 2px 0 var(--ink); transform: scale(.2); opacity: 0; transition: transform .16s ease-out, opacity .16s, background .1s; }
 .petring.in button { transform: scale(1); opacity: 1; }
 .petring:not(.in) button { pointer-events: none; }
@@ -404,12 +412,12 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .updchip button.x { border-left: 1px solid var(--ink); padding: 4px 7px; color: var(--muted); }
 
 /* 小场景 / 小岛旁边的按钮条 */
-.sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: 6px; transition: opacity .18s, transform .18s; }
+.sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: calc(4px * var(--zs, 1)); transition: opacity .18s, transform .18s; }
 .sdock.far { opacity: 0; pointer-events: none; transform: translateX(4px); }
-.sdock button { position: relative; width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: 2px 2px 0 var(--ink); display: grid; place-items: center; }
-.sdock button:hover { background: var(--accent); transform: scale(1.1); }
+.sdock button { position: relative; width: calc(24px * var(--zs, 1)); height: calc(24px * var(--zs, 1)); padding: 0; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); box-shadow: 1px 1px 0 var(--ink); display: grid; place-items: center; }
+.sdock button:hover { background: var(--accent); transform: scale(1.08); }
 .sdock button.key { background: #ffe58a; }
-.sdock button canvas { width: 18px; height: 18px; image-rendering: pixelated; pointer-events: none; }
+.sdock button canvas { width: calc(14px * var(--zs, 1)); height: calc(14px * var(--zs, 1)); image-rendering: pixelated; pointer-events: none; }
 .sdock button.new::before { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); border-radius: 50%; }
 
 /* 地球地图：转到背面的旗子藏起来 */
