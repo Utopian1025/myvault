@@ -730,5 +730,5 @@
     }
     return m;
   }
-  PP.isleModels = { K, deck, room, green, dyn };
+  PP.isleModels = { K, deck, room, green, dyn, parts: { warp, hut, dome, stack, wheel, truss, fin, hull, crenel, pipeOut, crop, lifePlant, deco, lamp, shade, HW, bush, hedge } };
 })();

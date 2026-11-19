@@ -14,7 +14,7 @@
     biscuit: { kind: 'snack', name: '小饼干', price: 3, icon: 'bread', xp: 20, aff: 1, hunger: 30, desc: '香香脆脆，+20 经验' },
     jerky: { kind: 'snack', name: '肉干', price: 5, icon: 'meat', xp: 35, aff: 1.5, hunger: 40, desc: '嚼劲十足，+35 经验' },
     tuna: { kind: 'snack', name: '鱼罐头', price: 8, icon: 'fish', xp: 60, aff: 2, hunger: 60, desc: '大餐！+60 经验' },
-    henegg: { kind: 'snack', name: '鸡蛋', icon: 'egg', xp: 15, aff: 1, hunger: 25, desc: '鸡舍里捡的，热乎乎，+15 经验' },
+    henegg: { kind: 'snack', name: '鸡蛋', icon: 'egg', xp: 15, aff: 1, hunger: 25, desc: '屋顶鸟巢里捡的，热乎乎，+15 经验' },
     honeyjar: { kind: 'snack', name: '一罐蜂蜜', icon: 'drop', xp: 45, aff: 2, hunger: 20, thirst: 40, desc: '自己岛上的蜂蜜，+45 经验' },
     apple: { kind: 'snack', name: '苹果', icon: 'apple', xp: 12, aff: 1, hunger: 20, thirst: 10, desc: '老橡树上摇下来的（？），+12 经验' },
     honey: { kind: 'snack', name: '蜂蜜水', price: 4, icon: 'drop', xp: 25, aff: 1, thirst: 60, desc: '甜甜的，解渴，+25 经验' },

@@ -463,6 +463,8 @@
   // 刚出现在画面里：放到它正在干的事情的地方
   function appear(p) {
     p._shown = true;
+    // 主角已经在画面上、正在做你让它做的事：别把它拽去干别的
+    if (PP.mainPet && PP.mainPet() === p && p.action && !['idle', 'eco', 'wander'].includes(p.action) && p.x > 0 && p.x < G.W) { p.eco = null; return; }
     if (ins() && p.d.inHome) { // 在家里：接着睡 / 接着待着
       p.homeEco = p.eco || { state: 'home', task: { home: true, why: 'rest', label: '在家里歇着', dur: 60 }, until: G.t + 60 };
       p.eco = null; p.surf = null; p.wade = 0; p.sinkOut = 0; p.lane = U.rand(0.3, 0.8);

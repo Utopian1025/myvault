@@ -8,18 +8,19 @@
 
   // 把“家具自己的坐标”（中心在原点，正面朝 +y）转成房间里的坐标
   class TM {
-    constructor(m, u, v, r, z) { this.m = m; this.u = u; this.v = v; this.r = ((r % 4) + 4) % 4; this.z = z; }
-    p(x, y) { const r = this.r; const [a, b] = r === 0 ? [x, y] : r === 1 ? [-y, x] : r === 2 ? [-x, -y] : [y, -x]; return [this.u + a, this.v + b]; }
-    q(pt) { const [a, b] = this.p(pt[0], pt[1]); return [a, b, this.z + pt[2]]; }
-    box(x0, y0, z0, x1, y1, z1, ...a) { const A = this.p(x0, y0), B = this.p(x1, y1); this.m.box(Math.min(A[0], B[0]), Math.min(A[1], B[1]), this.z + z0, Math.max(A[0], B[0]), Math.max(A[1], B[1]), this.z + z1, ...a); return this; }
-    cyl(x, y, z0, z1, ...a) { const P = this.p(x, y); this.m.cyl(P[0], P[1], this.z + z0, this.z + z1, ...a); return this; }
-    ball(x, y, z, ...a) { const P = this.p(x, y); this.m.ball(P[0], P[1], this.z + z, ...a); return this; }
-    pot(x, y, z, ...a) { const P = this.p(x, y); this.m.pot(P[0], P[1], this.z + z, ...a); return this; }
-    foliage(x, y, z, ...a) { const P = this.p(x, y); this.m.foliage(P[0], P[1], this.z + z, ...a); return this; }
-    flower(x, y, z, ...a) { const P = this.p(x, y); this.m.flower(P[0], P[1], this.z + z, ...a); return this; }
+    constructor(m, u, v, r, z, s = 1) { this.m = m; this.u = u; this.v = v; this.r = ((r % 4) + 4) % 4; this.z0 = z; this.s = s; }
+    get z() { return this.z0; }
+    p(x, y) { const r = this.r, s = this.s; x *= s; y *= s; const [a, b] = r === 0 ? [x, y] : r === 1 ? [-y, x] : r === 2 ? [-x, -y] : [y, -x]; return [this.u + a, this.v + b]; }
+    q(pt) { const [a, b] = this.p(pt[0], pt[1]); return [a, b, this.z0 + pt[2] * this.s]; }
+    box(x0, y0, z0, x1, y1, z1, ...a) { const A = this.p(x0, y0), B = this.p(x1, y1), s = this.s; this.m.box(Math.min(A[0], B[0]), Math.min(A[1], B[1]), this.z0 + z0 * s, Math.max(A[0], B[0]), Math.max(A[1], B[1]), this.z0 + z1 * s, ...a); return this; }
+    cyl(x, y, z0, z1, r0, r1, ...a) { const P = this.p(x, y), s = this.s; this.m.cyl(P[0], P[1], this.z0 + z0 * s, this.z0 + z1 * s, r0 * s, r1 * s, ...a); return this; }
+    ball(x, y, z, r, rz, ...a) { const P = this.p(x, y), s = this.s; this.m.ball(P[0], P[1], this.z0 + z * s, r * s, rz * s, ...a); return this; }
+    pot(x, y, z, r, ...a) { const P = this.p(x, y), s = this.s; this.m.pot(P[0], P[1], this.z0 + z * s, r * s, ...a); return this; }
+    foliage(x, y, z, r, rz, ...a) { const P = this.p(x, y), s = this.s; this.m.foliage(P[0], P[1], this.z0 + z * s, r * s, rz * s, ...a); return this; }
+    flower(x, y, z, h, ...a) { const P = this.p(x, y), s = this.s; this.m.flower(P[0], P[1], this.z0 + z * s, h * s, ...a); return this; }
     quad(a, b, c, d, ...x) { this.m.quad(this.q(a), this.q(b), this.q(c), this.q(d), ...x); return this; }
     tri(a, b, c, ...x) { this.m.tri(this.q(a), this.q(b), this.q(c), ...x); return this; }
-    disc(x, y, z, rad, face, ...a) { const P = this.p(x, y), f = this.r % 2 ? (face === 'u' ? 'v' : face === 'v' ? 'u' : face) : face; this.m.disc(P[0], P[1], this.z + z, rad, f, ...a); return this; }
+    disc(x, y, z, rad, face, ...a) { const P = this.p(x, y), f = this.r % 2 ? (face === 'u' ? 'v' : face === 'v' ? 'u' : face) : face; this.m.disc(P[0], P[1], this.z0 + z * this.s, rad * this.s, f, ...a); return this; }
     posts(list, z0, h, col, w) { for (const [x, y] of list) this.box(x - w, y - w, z0, x + w, y + w, z0 + h, col, M.plank); return this; }
   }
 
@@ -98,16 +99,18 @@
     return e.layout;
   }
   // 世界里的占地矩形 [u0, v0, u1, v1]
-  function rect(it, pad = 0) { const d = D[it.f], odd = it.r % 2; const hw = (odd ? d.d : d.w) / 2 + pad, hd = (odd ? d.w : d.d) / 2 + pad; return [it.u - hw, it.v - hd, it.u + hw, it.v + hd]; }
+  let SC = 1; // 城堡里的家具比原来的小屋小一号
+  function rect(it, pad = 0) { const d = D[it.f], odd = it.r % 2; const hw = (odd ? d.d : d.w) / 2 * SC + pad, hd = (odd ? d.w : d.d) / 2 * SC + pad; return [it.u - hw, it.v - hd, it.u + hw, it.v + hd]; }
   // 正面前面站的位置（宠物走到这儿再用它）
-  function front(it, dist) { const d = D[it.f], k = d.d / 2 + (dist == null ? 1.8 : dist); return new TM(null, it.u, it.v, it.r, 0).p(0, k); }
-  function seat(it) { const d = D[it.f]; if (!d.seat) return null; const [x, y, z] = d.seat; const p = new TM(null, it.u, it.v, it.r, 0).p(x, y); return { u: p[0], v: p[1], z: z }; }
+  function front(it, dist) { const d = D[it.f], k = d.d / 2 + (dist == null ? 1.8 : dist) / SC; return new TM(null, it.u, it.v, it.r, 0, SC).p(0, k); }
+  function seat(it) { const d = D[it.f]; if (!d.seat) return null; const [x, y, z] = d.seat; const p = new TM(null, it.u, it.v, it.r, 0, SC).p(x, y); return { u: p[0], v: p[1], z: z * SC }; }
   function build(m, list, o = {}) {
     list.forEach((it, i) => {
       if (o.skip === i) return;
-      const d = D[it.f]; if (!d) return;
-      m.pk(100 + i); d.build(new TM(m, it.u, it.v, it.r, it.lv ? o.LOFT : 0), o); m.pk(0);
+      const d = D[it.f]; if (!d) return; const k = o.idx ? o.idx(it) : i;
+      m.pk(k >= 0 ? 100 + k : 0); d.build(new TM(m, it.u, it.v, it.r, o.zOf ? o.zOf(it) : it.lv ? o.LOFT : 0, o.S || 1), o); m.pk(0);
     });
   }
-  PP.FURN = { D, TM, STARTER, owned, defaultLayout, layout, rect, front, seat, build, PICK0: 100 };
+  const setScale = (s) => { SC = s; };
+  PP.FURN = { D, TM, STARTER, owned, defaultLayout, layout, rect, front, seat, build, setScale, PICK0: 100 };
 })();

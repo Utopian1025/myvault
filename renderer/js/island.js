@@ -1,87 +1,60 @@
-// 小岛视图：一座东拼西凑的浮空小城堡，真 3D（引擎 isle3d.js，模型 isle_models.js）。这里是玩法：
-//   每个模块有自己的地面高度（院子、树台、石头露台、鱼塘台、屋顶露台、舱顶），之间用台阶 / 楼梯连着
-//   宠物在“世界坐标”里走路：匀速、会绕开房子和菜箱（寻路）、上下楼梯；被挡住时把挡它的东西挖开
-//   鼠标指到的东西按模型精确判定（拾取），鼠标变成对应的手型：进门 / 钓鱼 / 播种 / 浇水 / 收获 / 使用 / 休息 / 看
+// 小岛视图 = 一整座浮空城堡（模型 fort.js，引擎 isle3d.js）。这里是玩法：
+//   外部视角：整座城堡；点任何一扇门 → 剖切进那一层（同一个模型，上面拿掉、朝镜头的墙压矮），能转能缩放
+//   宠物在“世界坐标”里走路：一层一层的地板、墙上的门洞、楼梯塔里的楼梯；室内室外用同一套寻路
+//   鼠标指到的东西按模型精确判定（拾取），鼠标变成对应的手型
 (function () {
   const PP = (window.PP = window.PP || {});
-  const U = PP.U, G = PP.G, A = PP.ACTIONS, g3 = PP.g3, MD = PP.isleModels, K = MD.K;
-  const CA = K.CA;
-  const { ORG, R0, HOUSE, GH, PICK, HU1, HV1, GU1, GV1, LOFT, Z, DOOR, GDOOR, TREE, TANK, MAILB, BALLOON, POND, FISH, BOB, PLOTS, PS, PH, SLOTS, LAMPS, RDOOR, GRDOOR, COOP, HIVE } = K, T = K.T;
-  const SLOT_NAME = ['门口', '桥那边的草坪', '塘边', '水井旁', '大树下', '小河边'];
+  const U = PP.U, G = PP.G, A = PP.ACTIONS, g3 = PP.g3, F = PP.FORT, FURN = PP.FURN;
+  FURN.setScale(F.FS);
+  const { Z, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, NEST, GPOTS, PK, CEN, ROOMS, RM } = F;
+  const SLOT_NAME = ['田边', '信箱旁', '花房门口', '池子东边', '池子西边', '池子前面'];
   const S = () => G.save.settings, E = () => PP.econ.E();
-  const denList = () => []; // 每只动物的窝先不做了（每个人领养的动物都不一样）
-  const denOpen = {}; // 第 i 间窝的门开着（有人进出）
-  let chickT = 0, beeBoost = 0;
-  const FURN = PP.FURN;
-  let fedit = false, fsel = -1, fdrag = null, fbar = null;
-  let L = null, inside = false, hover = null, dirtyK = 0, smoke = [], cooking = false, mark = null, drops = [], flash = 0, press = null, rips = [];
+  let beeBoost = 0;
+  let fedit = false, fsel = -1, fdrag = null, fbar = null, cbar = null;
+  let L = null, cut = null, hover = null, dirtyK = 0, smoke = [], cooking = false, mark = null, drops = [], flash = 0, press = null, rips = [];
   let meshes = {}, dynMesh = null, glOK = true, lastScenes = null, lastLO = null;
-  const mir = () => !!(G.save && S().isleMirror), org = () => (inside ? ORG[inside] : (bnd() || { org: ORG.deck }).org);
-  const SCL = { gh: 1.45 }, scl = () => SCL[inside] || 1; // 花房小，进去以后放大一点看
-  // 相机：外面可以转（绕岛中心转 yaw）、可以调俯视角（pitch）；屋里固定
-  const CAST_CAM = (() => { const y = -Math.PI / 4, ph = 16 * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; })(); // 城堡里：正对着剖面看，像看玩具屋
-  const cam = () => { if (inside === 'castle') return CAST_CAM; if (inside || !G.save) return { c: 1, s: 0, A: 1, B: 1, yaw: 0 }; const y = +S().isleYaw || 0, ph = U.clamp(+S().islePitch || 45, 22, 72) * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; };
-  const rotUV = (u, v, k = cam()) => { const du = u - T.CEN[0], dv = v - T.CEN[1]; return [du * k.c - dv * k.s + T.CEN[0], du * k.s + dv * k.c + T.CEN[1]]; };
+  const mir = () => !!(G.save && S().isleMirror), org = () => (bnd() || { org: [0, 0] }).org;
+  const cam = () => { if (!G.save) return { c: 1, s: 0, A: 1, B: 1, yaw: 0 }; const y = +S().isleYaw || 0, ph = U.clamp(+S().islePitch || 45, 22, 72) * Math.PI / 180; return { c: Math.cos(y), s: Math.sin(y), A: Math.SQRT2 * Math.sin(ph), B: Math.SQRT2 * Math.cos(ph), yaw: y }; };
+  const rotUV = (u, v, k = cam()) => { const du = u - CEN[0], dv = v - CEN[1]; return [du * k.c - dv * k.s + CEN[0], du * k.s + dv * k.c + CEN[1]]; };
   const depth = (u, v) => { const r = rotUV(u, v); return r[0] + r[1]; };
-  const IWf = () => (inside ? K.IW : (bnd() || K).IW), IHf = () => (inside ? K.IH : (bnd() || K).IH);
-  const cx = (u, v) => { const k = cam(), [ru, rv] = rotUV(u, v, k), x = org()[0] + 2 * (ru - rv) * scl(); return mir() ? IWf() - x : x; }, cy = (u, v, z = 0) => { const k = cam(), [ru, rv] = rotUV(u, v, k); return org()[1] + ((ru + rv) * k.A - z * k.B) * scl(); };
-  // 外面的画框：按现在的视角把整座岛框住（转视角时岛的轮廓会变）
-  let bndC = null;
+  const IWf = () => (bnd() || { IW: 200 }).IW, IHf = () => (bnd() || { IH: 200 }).IH;
+  const cx = (u, v) => { const k = cam(), [ru, rv] = rotUV(u, v, k), x = org()[0] + 2 * (ru - rv); return mir() ? IWf() - x : x; }, cy = (u, v, z = 0) => { const k = cam(), [ru, rv] = rotUV(u, v, k); return org()[1] + ((ru + rv) * k.A - z * k.B); };
+  // 剖切：朝镜头的方向（世界坐标）
+  const cutO = () => { if (cut == null) return null; const k = cam(); return { lv: cut, vu: k.c + k.s, vv: k.c - k.s }; };
+  const quad = () => { const k = cam(); return (k.c + k.s > 0 ? 1 : 0) + (k.c - k.s > 0 ? 2 : 0); };
+  // 外面的画框：按整座城堡（外部）算，进屋剖切时画框不跳
+  let bndC = null, extPos = null, extKey = '';
   function bnd() {
-    const ms = meshes.deck; if (!ms || !ms.pos) return null; const k = cam(), key = [k.yaw.toFixed(3), k.A.toFixed(3), ms.key].join('|');
+    if (!extPos) return null; const k = cam(), key = [k.yaw.toFixed(3), k.A.toFixed(3), extKey].join('|');
     if (bndC && bndC.key === key) return bndC;
-    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; const P = ms.pos;
-    for (let i = 0; i < P.length; i += 3) { const du = P[i] - T.CEN[0], dv = P[i + 1] - T.CEN[1], ru = du * k.c - dv * k.s + T.CEN[0], rv = du * k.s + dv * k.c + T.CEN[1], X = 2 * (ru - rv), Y = (ru + rv) * k.A - P[i + 2] * k.B; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
-    y0 = Math.min(y0, y1 - 40) - 34; // 上面留点地方（热气球、树梢、冒出来的烟）
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; const P = extPos;
+    for (let i = 0; i < P.length; i += 3) { const du = P[i] - CEN[0], dv = P[i + 1] - CEN[1], ru = du * k.c - dv * k.s + CEN[0], rv = du * k.s + dv * k.c + CEN[1], X = 2 * (ru - rv), Y = (ru + rv) * k.A - P[i + 2] * k.B; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+    y0 -= 26; // 上面留点地方（热气球、烟）
     return (bndC = { key, IW: Math.ceil(x1 - x0 + 8), IH: Math.ceil(y1 - y0 + 4), org: [-x0 + 4, -y0 + 2] });
   }
   function want() { const s = G.save && S(); return !!(s && s.mode === 'mini' && s.isle && !s.taskbar); }
   const env = () => PP.env.get(), season = () => (PP.season ? PP.season() : 'summer'), phase = () => env().time.phase, night = () => phase() === 'night', wfx = () => env().fx;
   const snowy = () => season() === 'winter' || wfx().snow > 0.3, tripping = () => G.all.some((p) => p.d.trip);
-  const mix = (a, b, k) => PP.ART.mix(a, b, k);
-  const fu = R0 + HOUSE.fire * (HU1 - R0), ku = R0 + 0.85 * (HU1 - R0);
+  const today = () => new Date().toDateString();
+  // 城堡的“身体”：锅炉的柴（0~100）。柴够，翅膀扇得有劲、有热水、花房暖和；没柴了慢慢扇，洗澡水是凉的
+  const fort = () => { const e = E(); if (!e.fort) e.fort = { fuel: 70, t: Date.now(), egg: '' }; const f = e.fort, now = Date.now(); if (now - f.t > 60000) { f.fuel = Math.max(0, f.fuel - ((now - f.t) / 60000) * 0.12); f.t = now; } return f; };
+  const power = () => { const f = fort().fuel; return f <= 0 ? 0.08 : 0.25 + 0.75 * Math.min(1, f / 60); };
 
-  // ---------- 地面：每块有自己的高度 ----------
-  // floors: [层, u0, v0, u1, v1]；obst: 挡路的东西 [层, u0, v0, u1, v1] 或 [层, 'c', u, v, r]；ramps: 楼梯 / 台阶，把 a 层和 b 层连起来
-  const rc = (o, r) => [o.lv || 0, 'c', o.u, o.v, r];
-  const AREAS = {
-    deck: {
-      z: CA.Z, zf: (u, v) => T.zAt(u, v), ok: (u, v) => T.walkable(u, v),
-      floors: [[1, ...CA.T1], [1, ...CA.LAND1], [1, ...CA.WING1], [2, ...CA.P2], [2, ...CA.LAND2], [3, ...CA.P3]], ramps: [CA.R01, CA.R12, CA.R23],
-      obst: () => [[0, HOUSE.u0 - 0.4, HOUSE.v0 - 0.4, HOUSE.u1 + 0.4, HOUSE.v1 + 0.4], [0, GH.u0 - 0.4, GH.v0 - 0.4, GH.u1 + 0.4, GH.v1 + 0.3], [0, 'c', 11.2, 18.6, 0.8], [0, 'c', 10.6, 17.1, 0.8],
-        [0, 'c', TANK.u, TANK.v, 1.8], [0, 'c', MAILB.u, MAILB.v, 0.6], [0, 'c', TREE.u, TREE.v, 1.7], [0, 3.4, 27.4, 6.4, 30.4],
-        ...PLOTS.map(([u, v]) => [0, u, v, u + PS, v + PS]), ...LAMPS.map(([u, v]) => [0, 'c', u, v, 0.35]), [0, 26, 26, 39.8, 26.4], [0, 39.4, 26, 39.8, 35.8],
-        ...CA.HULLS.map(([u, v, r]) => [0, 'c', u, v, r * 1.12 + 0.3]), [0, 'c', 2.6, 19.4, 2],
-        [1, CA.KIT.u0, CA.KIT.v0, CA.KIT.u1, CA.KIT.v1], [1, CA.BATH.u0, CA.BATH.v0, CA.BATH.u1, CA.BATH.v1], [1, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r + 0.3], [1, 'c', CA.CHIM.u, CA.CHIM.v, 0.9],
-        [2, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [2, 'c', CA.CHIM.u, CA.CHIM.v, 0.9], [3, 'c', CA.TRUNK.u, CA.TRUNK.v, CA.TRUNK.r], [3, 'c', CA.BOILER.u, CA.BOILER.v, 1],
-        ...CA.BLOCKS.map((d) => [d[0], d[1] - 0.2, d[2] - 0.2, d[3] + 0.2, d[4] + 0.25]), [0, 'c', 39, 18.2, 2], [0, 'c', 43, 16.6, 1.6],
-        ...denList().map((_, i) => CA.DENS[i]).filter(Boolean).map((d) => [d[0], d[1] - 0.1, d[2] - 0.1, d[3] + 0.1, d[4] + 0.1]), [1, 'c', 10.65, 17.65, 0.8],
-        ...(E().isleDeco || []).map((id, i) => (id && SLOTS[i] ? [0, 'c', SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 0.4 : 1.5] : null)).filter(Boolean)],
-    },
-    house: {
-      z: [0, LOFT], floors: [[0, R0, R0, HU1, HV1], [1, R0, R0, 22, 18]],
-      ramps: [{ u0: 4.4, u1: 7.6, v0: 18, v1: 30, axis: 'v', lo: 30, hi: 18, a: 0, b: 1 }],
-      obst: () => { return [[0, fu - 5, R0, fu + 5, R0 + 3.6], [0, ku - 5.4, R0, HU1, R0 + 3], [0, R0, R0, 10, 7], [0, 'c', 21.6, 17.6, 0.5], [0, 33.4, 16.8, HU1, 22.2], [0, RDOOR.u + 3.8, HV1 - 2.8, RDOOR.u + 8.2, HV1],
-        ...FURN.layout(E()).filter((it) => !FURN.D[it.f].walk && (fdrag ? it !== fdrag.it : true)).map((it) => [it.lv || 0, ...FURN.rect(it, 0.3)])]; },
-    },
-    castle: PP.castleIn.AREA,
-    gh: { z: [0], floors: [[0, R0, R0, GU1, GV1]], ramps: [], obst: () => [[0, R0 + 3.4, R0, GU1, R0 + 2.8], [0, R0, R0 + 3, R0 + 2.8, GV1 - 1.8], [0, 'c', 20.4, 12, 2], [0, 'c', 24.6, 18.6, 1.5], [0, 'c', 9.2, 20, 1.5], ...K.GPOTS.map(([u, v]) => [0, 'c', u, v, 1.5]), [0, 'c', R0 + 0.8, 14, 0.8]] },
-  };
-  const area = () => AREAS[inside || 'deck'];
-  const Zf = (a, lv, u, v) => (a.zf && !lv ? a.zf(u, v) : a.z[lv]);
-  const inRamp = (r, u, v) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1;
+  // ---------- 地面：每层的地板、墙（门洞）、陈设、家具 ----------
+  const furnObs = () => FURN.layout(E()).filter((it) => !FURN.D[it.f].walk && (fdrag ? it !== fdrag.it : true)).map((it) => [F.roomLv(it.room || 'living'), ...FURN.rect(it, 0.3)]);
+  const AREA = { z: Z, inF: F.AREA.inF, ramps: F.AREA.ramps, obst: () => F.AREA.obst(furnObs().concat((E().isleDeco || []).map((id, i) => (id && SLOTS[i] ? [1, 'c', SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 0.4 : 1.5] : null)).filter(Boolean))) };
+  const area = () => AREA;
+  const Zf = (a, lv) => a.z[lv];
   const rampT = (r, u, v) => U.clamp(((r.axis === 'u' ? u : v) - r.lo) / (r.hi - r.lo), 0, 1);
-  // 寻路用的格子（半格一个点）：某一层的这个点能不能站
   const GS = 0.5, GN = 120;
   let grids = {}, cells = {};
   function grid(a) {
-    const key = (inside || 'deck') + dirtyK;
+    const key = 'f' + dirtyK;
     if (grids.key !== key) { grids = { key }; cells = {}; }
     if (grids.g) return grids.g;
     const ob = a.obst(), g = a.z.map(() => new Uint8Array(GN * GN));
-    const inF = (lv, u, v) => (a.ok && !lv ? a.ok(u, v) : a.floors.some((f) => f[0] === lv && u >= f[1] && u <= f[3] && v >= f[2] && v <= f[4]));
     for (let lv = 0; lv < a.z.length; lv++) for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) {
-      const u = i * GS, v = j * GS; let ok = inF(lv, u, v) && inF(lv, u + 0.45, v) && inF(lv, u - 0.45, v) && inF(lv, u, v + 0.45) && inF(lv, u, v - 0.45);
+      const u = i * GS, v = j * GS; let ok = a.inF(lv, u, v) && a.inF(lv, u + 0.45, v) && a.inF(lv, u - 0.45, v) && a.inF(lv, u, v + 0.45) && a.inF(lv, u, v - 0.45);
       if (ok) for (const r of a.ramps) if (u > r.u0 - 0.3 && u < r.u1 + 0.3 && v > r.v0 - 0.3 && v < r.v1 + 0.3) { ok = false; break; }
       if (ok) for (const o of ob) { if (o[0] !== lv) continue; if (o[1] === 'c' ? Math.hypot(u - o[2], v - o[3]) < o[4] + 0.3 : u > o[1] - 0.45 && u < o[3] + 0.45 && v > o[2] - 0.45 && v < o[4] + 0.45) { ok = false; break; } }
       g[lv][j * GN + i] = ok ? 1 : 0;
@@ -89,7 +62,6 @@
     return (grids.g = g);
   }
   const free = (a, u, v, lv) => { const i = Math.round(u / GS), j = Math.round(v / GS); return i >= 0 && j >= 0 && i < GN && j < GN && !!(grid(a)[lv] || [])[j * GN + i]; };
-  // 离 (u,v) 最近的能站的点
   function nearFree(a, u, v, lv) {
     if (free(a, u, v, lv)) return [u, v];
     const g = grid(a)[lv], i0 = Math.round(u / GS), j0 = Math.round(v / GS); let best = null, bd = 1e9;
@@ -97,20 +69,18 @@
     return best || [u, v];
   }
   const los = (a, lv, p, q) => { const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.3); for (let k = 1; k < n; k++) if (!free(a, p[0] + (q[0] - p[0]) * k / n, p[1] + (q[1] - p[1]) * k / n, lv)) return false; return true; };
-  // 同一层里从 s 走到 t：A* 寻路，再把拐弯拉直
   function pathIn(a, lv, s, t) {
     s = nearFree(a, s[0], s[1], lv); t = nearFree(a, t[0], t[1], lv);
     if (los(a, lv, s, t)) return [t];
     const g = grid(a)[lv], si = Math.round(s[0] / GS) + Math.round(s[1] / GS) * GN, ti = Math.round(t[0] / GS) + Math.round(t[1] / GS) * GN;
-    const cost = new Float32Array(GN * GN).fill(1e9), from = new Int32Array(GN * GN).fill(-1), open = [si]; cost[si] = 0; const fsc = new Float32Array(GN * GN); const hh = (k) => Math.hypot((k % GN) - (ti % GN), Math.floor(k / GN) - Math.floor(ti / GN));
+    const cost = new Float32Array(GN * GN).fill(1e9), from = new Int32Array(GN * GN).fill(-1), fsc = new Float32Array(GN * GN), inOpen = new Uint8Array(GN * GN), open = [si]; cost[si] = 0; inOpen[si] = 1; const hh = (k) => Math.hypot((k % GN) - (ti % GN), Math.floor(k / GN) - Math.floor(ti / GN));
     fsc[si] = hh(si); let found = false, guard = 0, bestN = si, bestH = hh(si);
-    while (open.length && guard++ < 30000) {
+    while (open.length && guard++ < 40000) {
       let bi = 0; for (let k = 1; k < open.length; k++) if (fsc[open[k]] < fsc[open[bi]]) bi = k;
-      const c = open.splice(bi, 1)[0]; if (c === ti) { found = true; break; } { const h0 = hh(c); if (h0 < bestH) { bestH = h0; bestN = c; } }
+      const c = open[bi]; open[bi] = open[open.length - 1]; open.pop(); inOpen[c] = 0; if (c === ti) { found = true; break; } { const h0 = hh(c); if (h0 < bestH) { bestH = h0; bestN = c; } }
       const ci = c % GN, cj = Math.floor(c / GN);
-      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ni = ci + di, nj = cj + dj; if (ni < 0 || nj < 0 || ni >= GN || nj >= GN) continue; const n = nj * GN + ni; if (!g[n] || (di && dj && (!g[cj * GN + ni] || !g[nj * GN + ci]))) continue; const nc = cost[c] + (di && dj ? 1.414 : 1); if (nc < cost[n]) { cost[n] = nc; from[n] = c; fsc[n] = nc + hh(n); if (!open.includes(n)) open.push(n); } }
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ni = ci + di, nj = cj + dj; if (ni < 0 || nj < 0 || ni >= GN || nj >= GN) continue; const n = nj * GN + ni; if (!g[n] || (di && dj && (!g[cj * GN + ni] || !g[nj * GN + ci]))) continue; const nc = cost[c] + (di && dj ? 1.414 : 1); if (nc < cost[n]) { cost[n] = nc; from[n] = c; fsc[n] = nc + hh(n); if (!inOpen[n]) { open.push(n); inOpen[n] = 1; } } }
     }
-    // 走不到（被围住了）：走到能到的、离目标最近的地方，绝不穿墙
     const end = found ? ti : bestN; if (end === si) return [];
     const raw = []; for (let c = end; c !== -1 && c !== si; c = from[c]) raw.unshift([(c % GN) * GS, Math.floor(c / GN) * GS]);
     if (found) raw[raw.length - 1] = t;
@@ -118,13 +88,12 @@
     while (k < raw.length) { let far = k; for (let q = raw.length - 1; q > k; q--) if (los(a, lv, cur, raw[q])) { far = q; break; } out.push(raw[far]); cur = raw[far]; k = far + 1; }
     return out;
   }
-  function route(a, from, to) { // 楼层之间走哪几段楼梯
+  function route(a, from, to) {
     const prev = { [from]: null }, q = [from];
     while (q.length) { const c = q.shift(); if (c === to) break; for (const r of a.ramps) { const n = r.a === c ? r.b : r.b === c ? r.a : null; if (n != null && !(n in prev)) { prev[n] = [c, r]; q.push(n); } } }
     const out = []; let c = to; while (prev[c]) { out.unshift([prev[c][1], c]); c = prev[c][0]; } return out;
   }
   const rampEnds = (r) => { const mid = r.axis === 'u' ? (r.v0 + r.v1) / 2 : (r.u0 + r.u1) / 2, sg = Math.sign(r.lo - r.hi), P = (e, s) => (r.axis === 'u' ? [e + s * 0.9, mid] : [mid, e + s * 0.9]); return [P(r.lo, sg), P(r.hi, -sg)]; };
-  // 排出一条完整的路：[{u,v,lv,ramp}]
   function plan(a, ip, u, v, lv) {
     const pts = []; let cur = [ip.u, ip.v], cl = ip.lv;
     if (cl !== lv) for (const [r, to] of route(a, cl, lv)) {
@@ -139,40 +108,39 @@
   // ---------- 位置、缩放 ----------
   function safeB() { let b = G.H - (document.body.classList.contains('web') ? 44 : 0); try { const sc = window.screen; if (sc && sc.availHeight) { const v = (sc.availTop || 0) + sc.availHeight - (window.screenY || 0); if (v > 200 && v < b) b = v; } } catch (e) {} return b; }
   PP.safeB = safeB;
-  const Z0 = 3.4, zoomOf = () => { const z = U.clamp(+(G.save && S().isleZ) || Z0, 1.6, 8); return Math.min(z, (safeB() - 8) / IHf(), (G.W - 8) / IWf()); };
+  const Z0 = 3, zoomOf = () => { const z = U.clamp(+(G.save && S().isleZ) || Z0, 1.4, 8); return Math.min(z, (safeB() - 8) / IHf(), (G.W - 8) / IWf()); };
   function layout() {
+    if (!extPos) ensureExt();
     const u = zoomOf(), w = Math.round(IWf() * u), h = Math.round(IHf() * u), pos = G.save && S().islePos, sb = safeB();
     let x1 = pos ? pos.x * G.W : G.W - 4, y1 = pos ? pos.y * sb : sb - 2;
     x1 = U.clamp(x1, w + 2, G.W - 2); y1 = U.clamp(y1, h + 2, sb - 2);
     L = { u, x0: Math.round(x1 - w), y0: Math.round(y1 - h), x1: Math.round(x1), y1: Math.round(y1), w, h };
-    // 岛上的弹窗（钓鱼卡片、种子、布置栏）跟着场景一起缩放，并贴着场景摆放
     const rs = document.documentElement.style; rs.setProperty('--isk', U.clamp(u / Z0, 0.55, 1.5).toFixed(3)); rs.setProperty('--isR', Math.max(4, G.W - L.x1) + 'px'); rs.setProperty('--isB', Math.max(4, G.H - L.y0 + 6) + 'px');
     return L;
   }
   const sx = (x) => L.x0 + x * L.u, sy = (y) => L.y0 + y * L.u;
   const scrU = (u, v) => sx(cx(u, v)), scrV = (u, v, z = 0) => sy(cy(u, v, z));
   function toUV(x, y, z) {
-    const k = cam(); let X = (x - L.x0) / L.u; if (mir()) X = IWf() - X; X = (X - org()[0]) / scl(); const Y = (((y - L.y0) / L.u - org()[1]) / scl() + z * k.B) / k.A;
-    const ru = (Y + X / 2) / 2, rv = (Y - X / 2) / 2, du = ru - T.CEN[0], dv = rv - T.CEN[1];
-    return inside && inside !== 'castle' ? [ru, rv] : [du * k.c + dv * k.s + T.CEN[0], -du * k.s + dv * k.c + T.CEN[1]];
+    const k = cam(); let X = (x - L.x0) / L.u; if (mir()) X = IWf() - X; X = X - org()[0]; const Y = ((y - L.y0) / L.u - org()[1] + z * k.B) / k.A;
+    const ru = (Y + X / 2) / 2, rv = (Y - X / 2) / 2, du = ru - CEN[0], dv = rv - CEN[1];
+    return [du * k.c + dv * k.s + CEN[0], -du * k.s + dv * k.c + CEN[1]];
   }
-  function groundY() { if (!L) layout(); return Math.round(inside ? scrV(18, 18, 0) : scrV(DOOR.u, HOUSE.v1 + 4, 0)); }
+  const HALL_OUT = { u: 20.6, v: 21.6, lv: 1 }; // 门厅（铁身子 A）的大门外面
+  function groundY() { if (!L) layout(); return Math.round(scrV(HALL_OUT.u, HALL_OUT.v, 0)); }
   function zone() { if (!L) layout(); return [L.x0 + 4, L.x1 - 4]; }
-  // 宠物在世界里的位置 p.ip = {u, v, z, lv}
-  let fromIn = null;
-  const start = () => (inside === 'castle' ? (fromIn === 'house' ? PP.castleIn.FROM_LIVING : PP.castleIn.START) : inside === 'house' ? { u: RDOOR.u, v: HV1 - 2.4, lv: 0 } : inside === 'gh' ? { u: GRDOOR.u, v: GV1 - 2.2, lv: 0 } : { u: DOOR.u + 1, v: HOUSE.v1 + 3, lv: 0 });
-  function setIp(p, u, v, lv) { const a = area(); lv = a.z[lv] != null ? lv : 0; p.ip = { u, v, lv, z: Zf(a, lv, u, v) }; p.isleLv = lv; p.x = scrU(u, v); }
-  function ipOf(p) { if (!p.ip || p.ip.sc !== (inside || 'deck')) { const s = start(); setIp(p, s.u + U.rand(-1, 1), s.v + U.rand(0, 1), s.lv); p.ip.sc = inside || 'deck'; } return p.ip; }
+  const start = () => HALL_OUT;
+  function setIp(p, u, v, lv) { const a = area(); lv = a.z[lv] != null ? lv : 1; p.ip = { u, v, lv, z: Zf(a, lv) }; p.isleLv = lv; p.x = scrU(u, v); }
+  function ipOf(p) { if (!p.ip) { const s = start(); setIp(p, s.u + U.rand(-1, 1), s.v + U.rand(0, 1), s.lv); } return p.ip; }
   function uvOf(p) { if (p.isleSpot) return [p.isleSpot.u, p.isleSpot.v]; const q = ipOf(p); return [q.u, q.v]; }
-  // 所有能站的点在屏幕上的位置（被拖着放下、被别的代码挪了位置时，用它找落脚点）
+  const seenLv = (lv) => cut == null ? lv >= 1 : lv <= cut;
   function cellList() {
-    const a = area(), g = grid(a), ck = L.u + '|' + L.x0 + '|' + L.y0 + '|' + mir() + '|' + (inside ? '' : (+S().isleYaw || 0) + ':' + (S().islePitch || 45)); if (cells.list && cells.k === ck) return cells.list;
-    const list = []; for (let lv = 0; lv < g.length; lv++) for (let j = 0; j < GN; j += 2) for (let i = 0; i < GN; i += 2) if (g[lv][j * GN + i]) list.push([scrU(i * GS, j * GS), scrV(i * GS, j * GS, Zf(a, lv, i * GS, j * GS)), i * GS, j * GS, lv]);
+    const a = area(), g = grid(a), ck = L.u + '|' + L.x0 + '|' + L.y0 + '|' + mir() + '|' + (+S().isleYaw || 0) + ':' + (S().islePitch || 45) + '|' + cut; if (cells.list && cells.k === ck) return cells.list;
+    const list = []; for (let lv = 0; lv < g.length; lv++) { if (!seenLv(lv) || (cut == null && lv === 0)) continue; for (let j = 0; j < GN; j += 2) for (let i = 0; i < GN; i += 2) if (g[lv][j * GN + i]) { const r = F.roomAt(i * GS, j * GS, lv); if (cut == null && r) continue; list.push([scrU(i * GS, j * GS), scrV(i * GS, j * GS, Z[lv]), i * GS, j * GS, lv]); } }
     cells.k = ck; cells.minX = null; return (cells.list = list);
   }
   function placeAt(p, x, y, below) {
     let best = null, bd = 1e9; for (const c of cellList()) { const dy = c[1] - y, d = Math.abs(c[0] - x) * (below ? 3 : 1) + (dy >= 0 || !below ? Math.abs(dy) : -dy * 4); if (d < bd) { bd = d; best = c; } }
-    if (best) { const a = area(); p.ip = { u: best[2], v: best[3], lv: best[4], z: Zf(a, best[4], best[2], best[3]), sc: inside || 'deck' }; p.isleLv = best[4]; }
+    if (best) { p.ip = { u: best[2], v: best[3], lv: best[4], z: Z[best[4]] }; p.isleLv = best[4]; }
     return best;
   }
   function floorY(p) {
@@ -184,14 +152,14 @@
     if (!p.iw && Math.abs(scrU(q.u, q.v) - p.x) > 2.5) { placeAt(p, p.x, scrV(q.u, q.v, q.z), false); p.x = scrU(p.ip.u, p.ip.v); }
     return Math.round(scrV(p.ip.u, p.ip.v, p.ip.z));
   }
-  // ---------- 走路：在世界里匀速走，沿着排好的路，上下楼梯时高度跟着变 ----------
+  // ---------- 走路 ----------
   const SPEED = 8.5, RUN = 15;
   function walkPlan(p, u, v, lv, run) {
     const a = area(), q = ipOf(p); p.isleSpot = null;
-    const pts = plan(a, q, u, v, a.z[lv] != null ? lv : 0);
+    const pts = plan(a, q, u, v, a.z[lv] != null ? lv : 1);
     if (!pts.length) { p.iw = null; return false; }
     let len = 0, c = q; for (const t of pts) { len += Math.hypot(t.u - c.u, t.v - c.v); c = t; }
-    p.iw = { pts, i: 0, run: run != null ? run : len > 26, gen: p.gen, d: 0, t: 0 }; p.target = p.x; return true;
+    p.iw = { pts, i: 0, run: run != null ? run : len > 30, gen: p.gen, d: 0, t: 0 }; p.target = p.x; return true;
   }
   function step(p, dt) {
     const w = p.iw, a = area(), q = ipOf(p);
@@ -200,11 +168,11 @@
     let left = (w.run ? RUN : SPEED) * (p.dizzy > 0 ? 0.5 : 1) * Math.min(1, 0.35 + w.t * 3) * dt, moved = 0, du = 0, dv = 0, onRamp = false;
     while (left > 0 && w.i < w.pts.length) {
       const t = w.pts[w.i], d = Math.hypot(t.u - q.u, t.v - q.v); onRamp = !!t.ramp; if (onRamp) left *= 0.8;
-      if (d <= left) { du += t.u - q.u; dv += t.v - q.v; q.u = t.u; q.v = t.v; q.lv = t.lv; p.isleLv = t.lv; q.z = Zf(a, t.lv, q.u, q.v); left -= d; moved += d; w.i++; }
-      else { const k = left / d; du += (t.u - q.u) * k; dv += (t.v - q.v) * k; q.u += (t.u - q.u) * k; q.v += (t.v - q.v) * k; moved += left; left = 0; if (t.ramp) { const r = t.ramp; q.z = a.z[r.a] + (a.z[r.b] - a.z[r.a]) * rampT(r, q.u, q.v); } else q.z = Zf(a, q.lv, q.u, q.v); }
+      if (d <= left) { du += t.u - q.u; dv += t.v - q.v; q.u = t.u; q.v = t.v; q.lv = t.lv; p.isleLv = t.lv; q.z = Zf(a, t.lv); left -= d; moved += d; w.i++; }
+      else { const k = left / d; du += (t.u - q.u) * k; dv += (t.v - q.v) * k; q.u += (t.u - q.u) * k; q.v += (t.v - q.v) * k; moved += left; left = 0; if (t.ramp) { const r = t.ramp; q.z = a.z[r.a] + (a.z[r.b] - a.z[r.a]) * rampT(r, q.u, q.v); } else q.z = Zf(a, q.lv); }
     }
     w.d += moved;
-    const rd = rotUV(T.CEN[0] + du, T.CEN[1] + dv), sdx = ((rd[0] - T.CEN[0]) - (rd[1] - T.CEN[1])) * (mir() ? -1 : 1); if (Math.abs(sdx) > 0.02) p.facing = sdx > 0 ? 1 : -1;
+    const rd = rotUV(CEN[0] + du, CEN[1] + dv), sdx = ((rd[0] - CEN[0]) - (rd[1] - CEN[1])) * (mir() ? -1 : 1); if (Math.abs(sdx) > 0.02) p.facing = sdx > 0 ? 1 : -1;
     p.x = scrU(q.u, q.v);
     const sp = p.sp || {}, S2 = G.S;
     if (sp.gait === 'hop') { p.hopP = (p.hopP || 0) + moved / 2.2; const ph = p.hopP % 1; if (ph < 0.66) { p.hopY = -Math.sin((ph / 0.66) * Math.PI) * (sp.hopH || 8) * S2 / 2 * (onRamp ? 1.25 : 1); p.anim = ph < 0.33 ? 'jump' : 'fall'; p._landed = false; } else { p.hopY = 0; p.anim = 'land'; if (!p._landed) { p._landed = true; p.jolt(-1.2, 0); } } }
@@ -212,7 +180,6 @@
     if (w.i >= w.pts.length) { p.iw = null; p.target = null; p.hopY = 0; p.hopP = 0; if (['walk', 'run', 'jump', 'fall', 'land'].includes(p.anim)) p.anim = 'idle'; }
     p.y = Math.round(scrV(q.u, q.v, q.z)) + (p.hopY || 0);
   }
-  // 别的行为叫它“走到屏幕上 x 这个位置”：在岛上就换成走到那一列附近一个能站的地方
   function gotoX(p, x, run) {
     if (p.iw && p.iw.gen === p.gen && Math.abs((p.iw.gx || 1e9) - x) < 6) return;
     const q = ipOf(p), cs = cellList().filter((c) => c[4] === q.lv), near = cs.filter((c) => Math.abs(c[0] - x) < 5 * L.u), c = near.length ? U.pick(near) : cs.sort((m, n) => Math.abs(m[0] - x) - Math.abs(n[0] - x))[0];
@@ -222,8 +189,8 @@
   function sync() {
     const w = want();
     document.body.classList.toggle('isle', !!w);
-    if (w && !G.isle) { G.isle = {}; inside = false; layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); } // 窗口铺满以后再按记住的大小摆一次
-    else if (!w && G.isle) { G.isle = null; inside = false; for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
+    if (w && !G.isle) { G.isle = {}; cut = null; migrateFurn(); layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); }
+    else if (!w && G.isle) { G.isle = null; cut = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
   }
   function fit(moveIn) {
     layout(); G.ground = groundY();
@@ -232,24 +199,23 @@
       const q = ipOf(p); p.x = scrU(q.u, q.v);
       if (!p.held) { p.y = p.floor; p.airborne = false; }
     }
-    PP.placeOrb && PP.placeOrb();
+    PP.placeOrb && PP.placeOrb(); cBar();
   }
   window.addEventListener('resize', () => { if (G.isle) setTimeout(() => fit(false), 0); });
   function setZoom(z, quiet) {
-    S().isleZ = U.clamp(z, 1.6, 8); PP.save.soon(); layout(); G.ground = groundY();
+    S().isleZ = U.clamp(z, 1.4, 8); PP.save.soon(); layout(); G.ground = groundY();
     for (const p of G.pets) { if (p.held) continue; const [u, v] = uvOf(p); p.x = scrU(u, v); p.y = p.floor; }
-    PP.placeOrb && PP.placeOrb();
-    if (!quiet) PP.ui.toast(`小岛大小 ${Math.round(L.u / Z0 * 100)}%（在小岛上滚滚轮也能缩放）`);
+    PP.placeOrb && PP.placeOrb(); cBar();
+    if (!quiet) PP.ui.toast(`城堡大小 ${Math.round(L.u / Z0 * 100)}%（在城堡上滚滚轮也能缩放）`);
   }
-  const SIZES = [0, 2.6, 3.4, 4.6], setSize = (n) => setZoom(SIZES[n] || Z0);
+  const SIZES = [0, 2.2, 3, 4.2], setSize = (n) => setZoom(SIZES[n] || Z0);
   function resetPos() { S().islePos = null; PP.save.soon(); fit(false); }
   function setMirror(v) { S().isleMirror = !!v; PP.save.soon(); layout(); for (const p of G.pets) { const [u, w] = uvOf(p); p.x = scrU(u, w); } PP.ui.toast(v ? '城堡朝右' : '城堡朝左'); }
-  // 转视角：在岛上按住右键（或滚轮键）拖动。左右转一圈，上下调俯视的角度
   function resetCam() { S().isleYaw = 0; S().islePitch = 45; PP.save.soon(); camChanged(); PP.ui.toast('回到默认视角'); }
-  function camChanged() { bndC = null; cells = {}; layout(); G.ground = groundY(); for (const p of G.pets) { if (p.held) continue; const q = p.isleSpot || ipOf(p); p.x = scrU(q.u, q.v); p.y = p.floor; } PP.placeOrb && PP.placeOrb(); }
+  function camChanged() { bndC = null; cells = {}; layout(); G.ground = groundY(); for (const p of G.pets) { if (p.held) continue; const q = p.isleSpot || ipOf(p); p.x = scrU(q.u, q.v); p.y = p.floor; } PP.placeOrb && PP.placeOrb(); cBar(); }
   let camDrag = null;
   window.addEventListener('mousedown', (e) => {
-    if (!G.isle || inside || !L || (e.button !== 2 && e.button !== 1) || G.hoverPet) return;
+    if (!G.isle || !L || (e.button !== 2 && e.button !== 1) || G.hoverPet) return;
     if (e.clientX < L.x0 || e.clientX > L.x1 || e.clientY < L.y0 || e.clientY > L.y1) return;
     camDrag = { x: e.clientX, y: e.clientY, yaw: +S().isleYaw || 0, pitch: +S().islePitch || 45, moved: false }; G.uiDrag = true; PP.refreshInteractive();
     const mv = (ev) => { if (!camDrag) return; const dx = ev.clientX - camDrag.x, dy = ev.clientY - camDrag.y; if (Math.hypot(dx, dy) > 4) camDrag.moved = true; if (!camDrag.moved) return; S().isleYaw = camDrag.yaw + dx * 0.012; S().islePitch = U.clamp(camDrag.pitch - dy * 0.25, 22, 72); camChanged(); document.body.style.cursor = 'grabbing'; };
@@ -257,22 +223,29 @@
     window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   }, true);
   window.addEventListener('contextmenu', (e) => { if (window.__noCtx && performance.now() - window.__noCtx < 400) { e.preventDefault(); e.stopPropagation(); } }, true);
-  window.addEventListener('wheel', (e) => { if (!G.isle || !L || !hover) return; if (e.target && e.target.closest && e.target.closest('.panel,.menu,.orb-pop,.hud')) return; e.preventDefault(); setZoom((S().isleZ || Z0) * (e.deltaY < 0 ? 1.08 : 1 / 1.08), true); }, { passive: false });
+  window.addEventListener('wheel', (e) => { if (!G.isle || !L || !hover) return; if (e.target && e.target.closest && e.target.closest('.panel,.menu,.orb-pop,.hud,.cutbar,.furnbar')) return; e.preventDefault(); setZoom((S().isleZ || Z0) * (e.deltaY < 0 ? 1.08 : 1 / 1.08), true); }, { passive: false });
 
   // ---------- 3D 场景 ----------
   function farmKey() { return PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? inf.crop + inf.stage + ((E().farm[i].water || 0) > 0 ? 'w' : '') : '-'; }).join(','); }
+  const potList = () => [0, 1, 2, 3].map((i) => { const f = PP.LIFE && PP.LIFE.potInfo(i); return f ? { id: f.id, stage: f.stage, wet: f.wet } : null; });
+  const eggOut = () => fort().egg !== today() && new Date().getHours() >= 6;
+  function opts(c) { const e = E(); return { cut: c, season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }), furn: FURN.layout(e), skip: fdrag ? fdrag.i : undefined, pinkBed: !!(e.room || {}).bed, egg: eggOut(), pots: potList() }; }
+  function baseKey() { const e = E(); return [season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, JSON.stringify(FURN.layout(e)), fdrag ? fdrag.i : '', eggOut() ? 1 : 0, JSON.stringify(potList()), dirtyK].join('|'); }
+  // 外部的轮廓（算画框用）：只在季节、摆设变了的时候重算一次
+  function ensureExt() {
+    if (!G.save || !PP.econ) return;
+    const k = [season(), snowy() ? 1 : 0, tripping() ? 1 : 0].join('|'); if (extPos && extKey === k) return;
+    const m = F.build(opts(null)), pos = m.p.filter((_, i) => i % 9 < 3);
+    for (const [u, v] of F.WING_ROOTS) pos.push(u + (u < 20 ? -14 : 14), v - 4, Z[2] + 32, u + (u < 20 ? -12 : 12), v - 3, Z[2] - 8);
+    extPos = pos; extKey = k; bndC = null;
+  }
   function scene() {
-    const name = inside || 'deck', e = E();
-    const key = name === 'deck' ? [denList().map((q) => q.d.species).join(','), season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, dirtyK].join('|') : name === 'house' ? JSON.stringify(e.room) + JSON.stringify(FURN.layout(e)) + '|' + (fdrag ? fdrag.i : '') + dirtyK : name + dirtyK + (name === 'gh' && PP.LIFE ? PP.LIFE.ghKey() : '');
-    const s = meshes[name];
+    ensureExt();
+    const key = [cut, cut == null ? '' : quad(), baseKey()].join('#');
+    const s = meshes.main;
     if (s && s.key === key) return s;
-    let m;
-    if (name === 'deck') m = MD.deck({ dens: denList().map((q) => q.d.species), season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), busy: null, farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }) });
-    else if (name === 'castle') m = PP.castleIn.build({});
-    else if (name === 'house') m = MD.room({ room: e.room, layout: FURN.layout(e), skip: fdrag ? fdrag.i : undefined }); else m = MD.green({ pots: [0, 1, 2, 3].map((i) => { const f = PP.LIFE && PP.LIFE.potInfo(i); return f ? { id: f.id, stage: f.stage, wet: f.wet } : null; }) });
-    const pos = name === 'deck' ? m.p.filter((_, i) => i % 9 < 3) : null; // 留一部分顶点，用来算画框
-    const r = (meshes[name] = { key, gpu: g3.upload(m, s && s.gpu), pos });
-    if (name === 'deck') { bndC = null; setTimeout(() => { if (G.isle && !inside) { const ox = L && L.x1, oy = L && L.y1; fit(false); } }, 0); }
+    const m = F.build(opts(cutO()));
+    const r = (meshes.main = { key, gpu: g3.upload(m, s && s.gpu) });
     return r;
   }
   function lightOpts() {
@@ -282,38 +255,33 @@
     else if (ph === 'dusk') { sun = [1.0, 0.56, 0.3]; sky = [0.5, 0.42, 0.56]; gnd = [0.34, 0.26, 0.32]; lit = 0.8; dir = [-0.8, 0.5, 0.36]; top = [0.42, 0.36, 0.6]; bot = [0.95, 0.63, 0.44]; }
     else if (ph === 'dawn') { sun = [1.0, 0.76, 0.66]; sky = [0.54, 0.5, 0.62]; gnd = [0.36, 0.3, 0.36]; lit = 0.3; dir = [0.2, 0.75, 0.42]; top = [0.54, 0.66, 0.85]; bot = [0.97, 0.78, 0.72]; }
     if (dim > 0) { sun = sun.map((x) => x * (1 - 0.7 * dim)); sky = sky.map((x, i) => x * (1 - 0.25 * dim) + [0.5, 0.52, 0.58][i] * 0.2 * dim); top = top.map((x, i) => x + ([0.55, 0.58, 0.64][i] - x) * dim * 0.8); bot = bot.map((x, i) => x + ([0.66, 0.68, 0.72][i] - x) * dim * 0.8); lit = Math.max(lit, dim * 0.6); }
-    if (inside) { sky = sky.map((x, i) => x * 0.75 + [0.2, 0.16, 0.1][i]); gnd = gnd.map((x, i) => x + [0.1, 0.07, 0.04][i]); dir = [0.5, 0.62, 0.9]; if (ph === 'night') { sun = [0.5, 0.4, 0.28]; sky = [0.42, 0.34, 0.3]; } }
-    return { sun: dir, sunCol: sun, sky, gnd, lit, skyTop: top, skyBot: bot, rain: fx.rain || 0, wind: Math.min(1, (fx.wind || 0) + (fx.storm ? 0.5 : 0)), inside: !!inside, time: performance.now() / 1000, center: inside === 'castle' ? [28, 12, 24] : inside ? [20, 18, 18] : [25, 22, 4], radius: inside === 'castle' ? 52 : inside ? 95 : 115 };
+    if (cut != null) { sky = sky.map((x, i) => x * 0.85 + [0.12, 0.1, 0.06][i]); if (ph === 'night') { sun = [0.42, 0.36, 0.3]; sky = [0.36, 0.3, 0.28]; } }
+    return { sun: dir, sunCol: sun, sky, gnd, lit, skyTop: top, skyBot: bot, rain: fx.rain || 0, wind: Math.min(1, (fx.wind || 0) + (fx.storm ? 0.5 : 0)), inside: false, time: performance.now() / 1000, center: [28, 26, cut == null ? 10 : Z[cut] + 4], radius: 125 };
   }
-  // 宠物被挡住时要挖开的位置（坐着 / 躺着 / 被拎着的不挖）
+  const hidden = (p) => cut != null && p.ip && !p.held && p.ip.lv > cut;
   function petCuts() {
     const out = [];
-    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, inside && inside !== 'castle' ? q.u + q.v : depth(q.u, q.v), q.z]); }
+    for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen || p.isleHide) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.x0) / pq, (p.y - L.y0 - (p.hopY || 0)) / pq, h / pq, depth(q.u, q.v), q.z]); }
     return out;
   }
-  // 像素化：3D 画在一张小一号的画布上，再按整数倍放大（不平滑）——真光照 + 像素画的颗粒感
-  // 按屏幕的真实像素来算：每个像素画格子正好是整数个物理像素（Windows 缩放 125% / 150% 时不再糊、不再一格大一格小）
   const DPR = () => window.devicePixelRatio || 1;
   const pixOn = () => !(G.save && S().islePix === false), pixD = () => (pixOn() ? Math.max(1, Math.round(L.u * DPR() * 0.3)) : 1), pixK = () => pixD() / DPR();
-  function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0] / scl(), oy: org()[1] / scl(), k: (L.u * scl()) / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: T.CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() && inside !== 'castle' }, lastLO); }
+  function viewOpts() { const k = cam(), q = pixK(); return Object.assign({ w: Math.ceil(L.w / q), h: Math.ceil(L.h / q), ox: org()[0], oy: org()[1], k: L.u / q, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = inside === 'castle' ? PP.castleIn.dyn({ t, cooking }) : MD.dyn({ scene: inside || 'deck', t, cooking, dens: Object.keys(denOpen).filter((i) => denOpen[i]).map(Number), drag: fdrag && inside === 'house' ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
+    const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
-    if (!inside && Math.floor(t * 1.2) !== Math.floor((t - 1 / 60) * 1.2)) rips.push([16.6 + Math.random() * 0.4, 36 + Math.random() * 0.4, t]); // 小河流进塘的地方一直有涟漪
     const vo = viewOpts(), cv = g3.draw(lastScenes, Object.assign({}, vo, { pets: [], rips: rips.slice(-4) }));
     if (!cv || !pixOn()) return cv;
-    const out = outline(cv), em = inside === 'castle' ? null : edges(s, vo); // 城堡里是正面看，按深度描边会出竖条纹，不描
+    const out = outline(cv), em = edges(s, vo);
     if (em) out.getContext('2d').drawImage(em, 0, 0);
     return out;
   }
-  // 像素画的内描边：物体前后叠着的地方（树冠压在房子上、屋檐压在墙上……）描一条深色细线。
-  // 只在视角 / 大小 / 场景变了的时候算一次（要多渲染一遍深度），平时直接叠上去
   let edgeKey = '', edgeCv = null;
   function edges(s, vo) {
-    const key = [inside || 'deck', vo.w, vo.h, vo.ox.toFixed(2), vo.oy.toFixed(2), vo.k.toFixed(3), vo.yaw, vo.pitch.join(','), vo.mirror, s.key].join('|');
+    const key = [vo.w, vo.h, vo.ox.toFixed(2), vo.oy.toFixed(2), vo.k.toFixed(3), vo.yaw, vo.pitch.join(','), vo.mirror, s.key].join('|');
     if (key === edgeKey) return edgeCv;
     edgeKey = key;
     const ic = g3.draw([s.gpu], Object.assign({}, vo, { mode: 2, shadow: false })); if (!ic) return null;
@@ -325,7 +293,6 @@
     for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = y * w + x; if (!has[i]) continue; for (const j of [i + 1, i - 1, i + w, i - w]) if (has[j] && dep[i] - dep[j] > TH) { o[i * 4] = 26; o[i * 4 + 1] = 22; o[i * 4 + 2] = 38; o[i * 4 + 3] = 170; break; } }
     ex.putImageData(im, 0, 0); return edgeCv;
   }
-  // 轮廓：岛的外沿、房子、树的剪影外面描一圈深色的像素边
   let olCv = null, tintCv = null;
   function outline(cv) {
     const w = cv.width, h = cv.height;
@@ -339,7 +306,7 @@
   }
   const ripple = (u, v) => rips.push([u, v, performance.now() / 1000]);
 
-  // ---------- 天气（2D 叠在最上面）----------
+  // ---------- 天气 ----------
   function weatherTick(ctx, ar) {
     const fx = wfx(), u = Math.max(1, L.u / 1.5), n = Math.round((fx.rain * 90 + fx.snow * 60) * (ar.w * ar.h) / (480 * 420)), wind = (fx.wind || 0) * 18;
     while (drops.length < n) drops.push({ x: ar.x + Math.random() * (ar.w + 60) - 30, y: ar.y + Math.random() * ar.h, snow: fx.snow > 0 && (fx.rain === 0 || Math.random() < 0.5), v: 0.6 + Math.random() * 0.6 });
@@ -355,41 +322,40 @@
   }
   function glow(ctx, x, y, r, col = 'rgba(255,214,140,', a = 0.45) { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col + a + ')'); g.addColorStop(1, col + '0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
   const fishSpr = (() => { let c = null; return () => { if (c) return c; const a = PP.ART, s = a.spr(11, 7); s.ell(5, 3.5, 4.5, 2.6, (nx, ny) => (ny < -0.3 ? '#cfeafa' : ny > 0.4 ? '#7a9ad8' : '#a8c8f8')); s.set(2, 3, '#2a2026'); s.rect(9, 1, 2, 5, '#f2a6c2'); s.set(5, 0, '#f2a6c2'); s.set(5, 6, '#f2a6c2'); return (c = s.outline('#3a3a6a').canvas()); }; })();
+  // 烟囱、排气管的顶（外部视角冒烟；锅炉柴越足冒得越多）
+  const CHIMS = [[16.6, 4.2, Z[3] + F.WH + 27.6], [22.9, 7.9, Z[3] + F.WH + 21], [6.4, 4.6, Z[3] + 21], [41.8, 3, Z[3] + 15], [2.4, 22.9, Z[3] + F.WH + 18]];
 
   // ---------- 画 ----------
   function renderBack(ctx) {
-    for (const p of G.all) if (p.inDen && (!['isleDen', 'isleBath'].includes(p.action) || !G.isle || inside)) p.inDen = false; // 被打断了就从窝里出来
+    for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
     if (!G.isle) return;
     if (!L) layout();
-    const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0;
+    const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0, pw = power();
     ctx.save();
     const cv = glOK && g3.ok() && render3d();
     if (cv) { ctx.imageSmoothingEnabled = false; const q = pixK(), d = DPR(); ctx.drawImage(cv, Math.round(L.x0 * d) / d, Math.round(L.y0 * d) / d, cv.width * q, cv.height * q); }
     if (cv) { try { lifeLayer(ctx); } catch (e) {} }
-    else { glOK = false; ctx.fillStyle = 'rgba(40,30,50,.8)'; ctx.fillRect(L.x0 + L.w * 0.1, L.y0 + L.h * 0.45, L.w * 0.8, 40); ctx.fillStyle = '#fff'; ctx.font = PP.FONT(12); ctx.fillText('这台电脑没法开启 3D 渲染（WebGL2），小岛画不出来', L.x0 + L.w * 0.12, L.y0 + L.h * 0.45 + 24); }
-    if (inside === 'house') {
-      glow(ctx, scrU(fu, R0 + 4), scrV(fu, R0 + 4, 5), (cooking ? 40 : nt ? 36 : 22) * u, 'rgba(255,170,90,', 0.38 + Math.sin(now / 130) * 0.05);
-      if (nt || phase() === 'dusk') for (const it of FURN.layout(E())) { const d = FURN.D[it.f]; if (d.light) glow(ctx, scrU(it.u, it.v), scrV(it.u, it.v, (it.lv ? LOFT : 0) + d.light[2]), 26 * u); }
-      if (cooking && Math.random() < 0.2) smoke.push({ x: cx(ku + 2.8, R0 + 1.5) + U.rand(-1, 1), y: cy(ku + 2.8, R0 + 1.5, 10), t: 0 });
-    } else if (!inside) {
-      const e = E();
-      const CH = K.CHIMNEY || [20.15, 10.2, 37], VT = K.VENT, FL = K.FALL;
-      if (Math.random() < (cooking || G.all.some((p) => p.inHouse) ? 0.12 : 0.03)) smoke.push({ x: cx(CH[0], CH[1]), y: cy(CH[0], CH[1], CH[2]), t: 0 });
-      if (VT && Math.random() < 0.04) smoke.push({ x: cx(VT[0], VT[1]), y: cy(VT[0], VT[1], VT[2]), t: 0 });
-      if (FL && Math.random() < 0.5) smoke.push({ x: cx(FL[0] + U.rand(-0.6, 0.6), FL[1]), y: cy(FL[0], FL[1], FL[2] + 1), t: 0, mist: true }); // 瀑布落下去散成雾
-      if (nt || phase() === 'dusk') { for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, T.zAt(a, b) + 10.6), 16 * u, 'rgba(255,214,140,', 0.34); glow(ctx, scrU(DOOR.u + 1.8, 20.5), scrV(DOOR.u + 1.8, 20.5, 7), 12 * u, 'rgba(255,214,140,', 0.3); (e.isleDeco || []).forEach((id, i) => { if (id === 'lampPost' || id === 'lantern') glow(ctx, scrU(SLOTS[i][0], SLOTS[i][1]), scrV(SLOTS[i][0], SLOTS[i][1], T.zAt(SLOTS[i][0], SLOTS[i][1]) + (id === 'lampPost' ? 11 : 2)), 18 * u); }); }
-      if (nt && season() === 'summer' && !fx.rain) { ctx.fillStyle = '#fff6a0'; for (let i = 0; i < 9; i++) { const t = now / 1000 + i * 3.1; if (Math.sin(t * 2.3 + i) > 0) { const pu = 10 + ((i * 13 + Math.sin(t) * 4) % 30), pv = 10 + ((i * 7 + Math.cos(t * 0.8) * 4) % 22); ctx.beginPath(); ctx.arc(scrU(pu, pv), scrV(pu, pv, T.zAt(pu, pv) + 4 + Math.sin(t * 2) * 3), u * 0.6, 0, 6.3); ctx.fill(); } } }
+    else { glOK = false; ctx.fillStyle = 'rgba(40,30,50,.8)'; ctx.fillRect(L.x0 + L.w * 0.1, L.y0 + L.h * 0.45, L.w * 0.8, 40); ctx.fillStyle = '#fff'; ctx.font = PP.FONT(12); ctx.fillText('这台电脑没法开启 3D 渲染（WebGL2），城堡画不出来', L.x0 + L.w * 0.12, L.y0 + L.h * 0.45 + 24); }
+    if (cut == null) {
+      CHIMS.forEach(([a, b, c], i) => { if (Math.random() < (i === 0 ? 0.04 + pw * 0.1 : cooking && i === 1 ? 0.12 : 0.02)) smoke.push({ x: cx(a, b), y: cy(a, b, c), t: 0 }); });
+      if (Math.random() < 0.5) smoke.push({ x: cx(30 + U.rand(-0.8, 0.8), F.DECK.v1 + 0.5), y: cy(30, F.DECK.v1 + 0.5, -30), t: 0, mist: true }); // 瀑布落下去散成雾
+      for (const [a, b] of F.WING_ROOTS) if (Math.random() < pw * 0.06) smoke.push({ x: cx(a, b), y: cy(a, b, Z[2] + 13), t: 0 });
+      if (nt || phase() === 'dusk') { for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, 10.6), 16 * u, 'rgba(255,214,140,', 0.34); (E().isleDeco || []).forEach((id, i) => { if (id === 'lampPost' || id === 'lantern') glow(ctx, scrU(SLOTS[i][0], SLOTS[i][1]), scrV(SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 11 : 2), 18 * u); }); }
+      if (nt && season() === 'summer' && !fx.rain) { ctx.fillStyle = '#fff6a0'; for (let i = 0; i < 9; i++) { const t = now / 1000 + i * 3.1; if (Math.sin(t * 2.3 + i) > 0) { const pu = 18 + ((i * 13 + Math.sin(t) * 4) % 30), pv = 24 + ((i * 7 + Math.cos(t * 0.8) * 4) % 22); ctx.beginPath(); ctx.arc(scrU(pu, pv), scrV(pu, pv, 4 + Math.sin(t * 2) * 3), u * 0.6, 0, 6.3); ctx.fill(); } } }
+    } else {
+      if (cut === 0) glow(ctx, scrU(12, 13), scrV(12, 13, Z[0] + 3), (18 + fort().fuel / 6) * u, 'rgba(255,150,70,', 0.32 + Math.sin(now / 150) * 0.04);
+      if (cut === 1 && cooking) glow(ctx, scrU(23, 10.6), scrV(23, 10.6, 7), 26 * u, 'rgba(255,170,90,', 0.36);
+      if (nt || phase() === 'dusk') for (const it of FURN.layout(E())) { const d = FURN.D[it.f]; if (d.light && F.roomLv(it.room || 'living') === cut) glow(ctx, scrU(it.u, it.v), scrV(it.u, it.v, Z[cut] + d.light[2] * F.FS), 22 * u); }
+      if (cut >= 1 && (nt || phase() === 'dusk')) for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, 10.6), 14 * u, 'rgba(255,214,140,', 0.28);
     }
     if (mark && now - mark.t < 700) { const k = (now - mark.t) / 700, x = scrU(mark.u, mark.v), y = scrV(mark.u, mark.v, mark.z); ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = u; ctx.beginPath(); ctx.ellipse(x, y, (2 + k * 5) * u, (1 + k * 2.5) * u, 0, 0, Math.PI * 2); ctx.stroke(); }
     smoke = smoke.filter((m) => (m.t += 1 / 60) < (m.mist ? 1.6 : 3));
     for (const m of smoke) {
-      if (m.spark) { ctx.fillStyle = `rgba(200,240,255,${(1 - m.t / 3).toFixed(2)})`; ctx.beginPath(); ctx.arc(sx(m.x + Math.sin(m.t * 3) * 2), sy(m.y + m.t * 6), u * 0.5, 0, 6.3); ctx.fill(); continue; }
       if (m.mist) { ctx.fillStyle = `rgba(225,242,255,${((1 - m.t / 1.6) * 0.35).toFixed(2)})`; ctx.beginPath(); ctx.arc(sx(m.x + Math.sin(m.t * 4 + m.x) * 1.5), sy(m.y + m.t * 5), (1 + m.t * 2.4) * u, 0, 6.3); ctx.fill(); continue; }
       ctx.fillStyle = `rgba(240,240,248,${((1 - m.t / 3) * 0.5).toFixed(2)})`; ctx.beginPath(); ctx.arc(sx(m.x + Math.sin(m.t * 2) * 2 + m.t * (3 + wind * 4) * (mir() ? -1 : 1)), sy(m.y - m.t * 8), (1 + m.t * 1.3) * u, 0, 6.3); ctx.fill();
     }
     ctx.restore();
   }
-  // 钓鱼：甩竿 → 等 → 浮漂点两下 → 猛地一沉（这时点一下帮它收竿）→ 鱼被甩上来
   function rodTip(p) {
     const S2 = G.S, f = p.fishing, t = (performance.now() - f.t0) / 1000; let a = 0.6;
     if (f.ph === 'cast') a = t < 0.35 ? 0.6 + t * 4 : Math.max(0.5, 2 - (t - 0.35) * 6); else if (f.ph === 'bite') a = 0.4 + Math.sin(t * 30) * 0.1; else if (f.ph === 'reel') a = 1.3;
@@ -397,12 +363,12 @@
     return [bx, by, bx + p.facing * Math.cos(a) * len, by - Math.sin(a) * len];
   }
   function drawFishing(ctx, p, now) {
-    const u = L.u, f = p.fishing, t = (now - f.t0) / 1000, [bx0, by0, tx, ty] = rodTip(p), bobX = scrU(BOB.u, BOB.v), bobY0 = scrV(BOB.u, BOB.v, POND.z);
-    let bobY = bobY0 + Math.sin(now / 400) * u * 0.4, cast = 1;
-    if (f.ph === 'cast') cast = U.clamp((t - 0.35) / 0.45, 0, 1); if (f.ph === 'nibble') bobY += (Math.sin(t * 18) > 0.6 ? 1.2 * u : 0); if (f.ph === 'bite') bobY += 2 * u;
+    const u = L.u, f = p.fishing, t = (now - f.t0) / 1000, [bx0, by0, tx, ty] = rodTip(p), bobX = scrU(BOB.u, BOB.v), bobY0 = scrV(BOB.u, BOB.v, POOL.z);
+    let bobY = bobY0 + Math.sin(now / 400) * u * 0.4, cst = 1;
+    if (f.ph === 'cast') cst = U.clamp((t - 0.35) / 0.45, 0, 1); if (f.ph === 'nibble') bobY += (Math.sin(t * 18) > 0.6 ? 1.2 * u : 0); if (f.ph === 'bite') bobY += 2 * u;
     ctx.lineCap = 'round'; ctx.strokeStyle = '#6a4430'; ctx.lineWidth = Math.max(1.5, u * 0.6); ctx.beginPath(); ctx.moveTo(bx0, by0); ctx.lineTo(tx, ty); ctx.stroke();
-    if (cast <= 0) return;
-    const ex = tx + (bobX - tx) * cast, ey = ty + (bobY - ty) * cast - Math.sin(cast * Math.PI) * 14 * u;
+    if (cst <= 0) return;
+    const ex = tx + (bobX - tx) * cst, ey = ty + (bobY - ty) * cst - Math.sin(cst * Math.PI) * 14 * u;
     ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = Math.max(1, u * 0.25); ctx.beginPath(); ctx.moveTo(tx, ty);
     if (f.ph === 'reel' || f.ph === 'bite') ctx.lineTo(ex, ey); else ctx.quadraticCurveTo((tx + ex) / 2, Math.max(ty, ey) + 4 * u, ex, ey); ctx.stroke();
     if (f.ph !== 'reel') { ctx.fillStyle = '#e8405a'; ctx.beginPath(); ctx.arc(ex, ey - u * 0.6, 1.1 * u, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey - u * 0.6, 1.1 * u, 0, Math.PI); ctx.fill(); }
@@ -413,80 +379,67 @@
       if (t < 0.4) for (let i = 0; i < 7; i++) { ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.arc(bobX + Math.cos(i * 0.9) * t * 24 * u, bobY0 - Math.abs(Math.sin(i * 0.9)) * t * 22 * u + t * t * 40 * u, u * 0.5, 0, 6.3); ctx.fill(); }
     }
   }
-  // 手里的工具：水壶（会倾斜、出水）、篮子
   function drawTool(ctx, p, now) {
     const S2 = G.S, t = (now - p.tool.t0) / 1000, hx = p.x + p.facing * 8 * S2, hy = p.y - 9 * S2, f = p.facing;
     ctx.save(); ctx.translate(hx, hy); ctx.scale(f * S2, S2);
     if (p.tool.k === 'can') { const tilt = Math.min(0.7, t * 2) * (p.tool.pour ? 1 : 0.2); ctx.rotate(tilt); ctx.fillStyle = '#7fb8d8'; ctx.strokeStyle = '#2a3a4a'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.rect(-3, -3, 6, 5); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(3, -1); ctx.lineTo(7, -4); ctx.lineTo(7.6, -3.2); ctx.lineTo(3, 0.6); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(-3.4, -0.6, 2, 1.2, 5); ctx.stroke(); }
     else if (p.tool.k === 'basket') { ctx.fillStyle = '#c89a5a'; ctx.strokeStyle = '#5a3a28'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.moveTo(-4, -1); ctx.lineTo(4, -1); ctx.lineTo(3, 3); ctx.lineTo(-3, 3); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -1, 3.6, Math.PI, 0); ctx.stroke(); if (p.tool.full) { ctx.fillStyle = p.tool.col || '#f08a3a'; for (const [a, b] of [[-2, -2], [0.4, -2.6], [2, -1.8]]) { ctx.beginPath(); ctx.arc(a, b, 1.4, 0, 6.3); ctx.fill(); } } }
+    else if (p.tool.k === 'wood') { ctx.strokeStyle = '#3a2418'; ctx.lineWidth = 0.6; for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#a8784a' : '#8a5a3a'; ctx.beginPath(); ctx.rect(-4 + (i % 2), -3 + i * 1.5, 8, 1.6); ctx.fill(); ctx.stroke(); } }
+    else if (p.tool.k === 'egg') { ctx.fillStyle = '#f8f0e0'; ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 0.6; ctx.beginPath(); ctx.ellipse(0, -1, 2, 2.6, 0, 0, 6.3); ctx.fill(); ctx.stroke(); }
     ctx.restore();
   }
-  // ---------- 会动的小东西（画在模型上面、动物下面）：鸡、蜜蜂、鱼缸里的鱼、萤火虫、花瓣 ----------
-  const CHK = [['....rr..', '...wwwr.', '..wwkwwo', 'wwwwwww.', 'wwwwwww.', '.wwwww..', '..y.y...'], ['....rr..', '...wwwr.', '..wwkwwo', 'wwwwwww.', 'wwwwwww.', '.wwwww..', '.y...y..']];
-  const CHC = { r: '#e0403a', w: '#fbf6ec', k: '#2a1a20', o: '#f0a020', y: '#e8a020', b: '#c8a070' };
-  function sprite(ctx, rows, x, y, s, flip, cols) { for (let j = 0; j < rows.length; j++) for (let i = 0; i < rows[j].length; i++) { const ch = rows[j][i]; if (ch === '.') continue; ctx.fillStyle = cols[ch]; ctx.fillRect(Math.round(x + (flip ? rows[j].length - 1 - i : i) * s), Math.round(y + j * s), s, s); } }
+  // ---------- 会动的小东西：蜜蜂、萤火虫、花瓣 ----------
   function lifeLayer(ctx) {
     const now = performance.now(), t = now / 1000, s = Math.max(1, Math.round(L.u * 0.42)), e = E();
-    if (!inside) {
-      // 鸡：三只在小院里溜达、啄地；刚捡完蛋会扑腾一下
-      const fl = now - chickT < 1500;
-      for (let i = 0; i < 3; i++) {
-        const ph = t * 0.23 + i * 2.1, u = COOP.u + 0.6 + Math.sin(ph) * 2.2 + Math.sin(ph * 2.7 + i) * 0.6, v = COOP.v + 3.2 + Math.cos(ph * 1.3 + i) * 1.4, z = T.zAt(u, v);
-        const peck = Math.sin(t * 5 + i * 3) > 0.7 ? 1 : 0, hop = fl ? Math.abs(Math.sin(t * 12 + i)) * 2 * s : 0;
-        const x = scrU(u, v) - 4 * s, y = scrV(u, v, z) - 7 * s - hop + peck * s, dir = Math.cos(ph) < 0;
-        ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x + s, scrV(u, v, z) - s, 6 * s, s);
-        sprite(ctx, CHK[peck], x, y, s, dir, CHC);
-      }
-      // 蜜蜂：绕着蜂箱和花飞
-      const nb = now - beeBoost < 4000 ? 9 : 4, hx = scrU(HIVE.u, HIVE.v), hy = scrV(HIVE.u, HIVE.v, T.zAt(HIVE.u, HIVE.v) + 3);
+    if (cut == null || cut >= 1) {
+      const nb = now - beeBoost < 4000 ? 9 : 4, [hu, hv] = HIVES[0], hx = scrU(hu + 1.6, hv), hy = scrV(hu + 1.6, hv, 4);
       for (let i = 0; i < nb; i++) { const a = t * (1.6 + i * 0.13) + i * 1.7, r = (6 + (i % 3) * 4) * L.u * 0.5, x = hx + Math.cos(a) * r * 1.3, y = hy + Math.sin(a * 1.4) * r * 0.6 - 2 * L.u; ctx.fillStyle = '#2a1a20'; ctx.fillRect(Math.round(x), Math.round(y), s, s); ctx.fillStyle = '#f6c43a'; ctx.fillRect(Math.round(x) + s, Math.round(y), s, s); ctx.fillStyle = 'rgba(255,255,255,.8)'; ctx.fillRect(Math.round(x), Math.round(y) - s, s, s); }
-      // 萤火虫（钓到萤光鱼 / 月光鳗之后）
-      if ((e.glowUntil || 0) > Date.now()) for (let i = 0; i < 22; i++) { const a = t * 0.3 + i * 2.39, u = 24 + Math.cos(a * 0.7 + i) * (8 + (i % 5) * 2.4), v = 23 + Math.sin(a * 0.9 + i * 1.3) * (7 + (i % 4) * 2.6), z = T.zAt(u, v) + 3 + Math.sin(t * 1.3 + i) * 2, k = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.7); if (k < 0.2) continue; const x = scrU(u, v), y = scrV(u, v, z); ctx.fillStyle = `rgba(200,255,140,${0.25 * k})`; ctx.fillRect(x - 2 * s, y - 2 * s, 5 * s, 5 * s); ctx.fillStyle = `rgba(240,255,170,${k})`; ctx.fillRect(x, y, s, s); }
-      // 花瓣雨（钓到樱花鱼之后）
+    }
+    if (cut == null) {
+      if ((e.glowUntil || 0) > Date.now()) for (let i = 0; i < 22; i++) { const a = t * 0.3 + i * 2.39, u = 30 + Math.cos(a * 0.7 + i) * (8 + (i % 5) * 2.4), v = 36 + Math.sin(a * 0.9 + i * 1.3) * (7 + (i % 4) * 2.6), z = 3 + Math.sin(t * 1.3 + i) * 2, k = 0.5 + 0.5 * Math.sin(t * 3 + i * 1.7); if (k < 0.2) continue; const x = scrU(u, v), y = scrV(u, v, z); ctx.fillStyle = `rgba(200,255,140,${0.25 * k})`; ctx.fillRect(x - 2 * s, y - 2 * s, 5 * s, 5 * s); ctx.fillStyle = `rgba(240,255,170,${k})`; ctx.fillRect(x, y, s, s); }
       if ((e.petalUntil || 0) > Date.now()) for (let i = 0; i < 26; i++) { const k = (t * 0.12 + i * 0.137) % 1, x = L.x0 + ((i * 97) % 100) / 100 * L.w + Math.sin(t + i) * 10, y = L.y0 + k * L.h; ctx.fillStyle = i % 3 ? '#f8c8d4' : '#ffe8ee'; ctx.fillRect(Math.round(x), Math.round(y), 2 * s, s); }
-    } else if (inside === 'house' && K.TANKIN) {
-      // 鱼缸里游着钓到过的小鱼（最多 6 条）
-      const [uf, v0, v1, z0, z1] = K.TANKIN, list = (e.tank || []).length ? e.tank : [];
-      list.forEach((id, i) => { if (!PP.FISHDEX || !PP.FISHDEX.BY[id]) return; const k = (Math.sin(t * 0.4 + i * 1.9) + 1) / 2, v = v0 + k * (v1 - v0), z = z0 + ((i * 0.37) % 1) * (z1 - z0) + Math.sin(t * 1.2 + i) * 0.3, dir = Math.cos(t * 0.4 + i * 1.9) < 0, sp = PP.FISHDEX.sprite(id), sc = Math.max(1, Math.round(L.u * 0.22)), x = scrU(uf, v), y = scrV(uf, v, z);
-        ctx.save(); ctx.translate(Math.round(x), Math.round(y)); if (!dir) ctx.scale(-1, 1); ctx.imageSmoothingEnabled = false; ctx.drawImage(sp, -sp.width * sc / 2, -sp.height * sc / 2, sp.width * sc, sp.height * sc); ctx.restore(); });
-      if (Math.random() < 0.05) { const v = v0 + Math.random() * (v1 - v0); fxs2.push({ x: scrU(uf, v), y: scrV(uf, v, z0), t: 0 }); }
-      for (const b of fxs2) { b.t += 1 / 60; ctx.fillStyle = 'rgba(230,248,255,.8)'; ctx.fillRect(Math.round(b.x), Math.round(b.y - b.t * 18 * L.u * 0.3), s, s); }
-      for (let i = fxs2.length - 1; i >= 0; i--) if (fxs2[i].t > 1.4) fxs2.splice(i, 1);
     }
   }
-  const fxs2 = [];
-  // 被窝：睡觉时被子盖在身上（画在动物上面）
   function quilt(ctx, p) {
     const S2 = G.S * (p.scaleMul || 1), w = 30 * S2, h = 9 * S2, x = p.x - w / 2, y = p.y - h - S2 + Math.sin(performance.now() / 700) * S2 * 0.4;
     ctx.fillStyle = '#3a2630'; ctx.fillRect(Math.round(x - S2), Math.round(y - S2), Math.round(w + 2 * S2), Math.round(h + 2 * S2));
     for (let j = 0; j < 3; j++) for (let i = 0; i < 6; i++) { ctx.fillStyle = (i + j) % 2 ? '#f2c6d2' : '#fbe4ec'; ctx.fillRect(Math.round(x + i * w / 6), Math.round(y + j * h / 3), Math.ceil(w / 6), Math.ceil(h / 3)); }
     ctx.fillStyle = '#fffaf2'; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(2 * S2));
   }
-  // ---------- 布置小屋：拖动家具 / 转向 / 收起 / 添加 ----------
-  const FLOORS = [[R0 + 0.2, R0 + 0.2, HU1 - 0.2, HV1 - 0.2], [R0 + 0.2, R0 + 0.2, 22 - 0.2, 18 - 0.2]];
+
+  // ---------- 家具：起居室和卧室里，你摆的 ----------
+  const FROOMS = { living: '起居室', bedroom: '卧室' };
   const ovl = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
-  // 这件家具摆在这儿行不行：在地板里、不压墙边固定的东西、不跟别的家具（地毯 / 靠垫除外）叠在一起、不堵门和楼梯
+  // 门口要留出来：每扇门往屋里 2.8 格
+  const doorKeep = (rid) => { const r = RM[rid]; return F.PASS.filter((p) => p.lv === r.lv && p.r[2] > r.r[0] && p.r[0] < r.r[2] && p.r[3] > r.r[1] && p.r[1] < r.r[3]).map((p) => [p.r[0] - 2.4, p.r[1] - 2.4, p.r[2] + 2.4, p.r[3] + 2.4]); };
   function fOK(it, i) {
-    const d = FURN.D[it.f], lv = it.lv || 0, r = FURN.rect(it), F = FLOORS[lv];
-    if (!d.lv.includes(lv) || r[0] < F[0] || r[1] < F[1] || r[2] > F[2] || r[3] > F[3]) return false;
+    const d = FURN.D[it.f], rid = it.room || 'living', R0 = RM[rid].r, r = FURN.rect(it);
+    if (r[0] < R0[0] + 0.35 || r[1] < R0[1] + 0.35 || r[2] > R0[2] - 0.35 || r[3] > R0[3] - 0.35) return false;
     if (d.walk) return true;
-    const fixed = AREAS.house.obst().slice(0, 6).map((o) => (o[1] === 'c' ? [o[0], o[2] - o[4], o[3] - o[4], o[2] + o[4], o[3] + o[4]] : o));
-    if (lv === 0) fixed.push([0, 4.2, 17.6, 7.8, HV1], [0, RDOOR.u - 3.2, HV1 - 4, RDOOR.u + 3.2, HV1]); // 楼梯、门口
-    for (const o of fixed) if (o[0] === lv && ovl(r, o.slice(1))) return false;
+    for (const f of F.FIX) if (f.room === rid) for (const b of f.ob) if (ovl(r, b)) return false;
+    if (rid === 'bedroom' && ovl(r, [28, 2.4, 31.6, 5])) return false; // 壁炉
+    for (const b of doorKeep(rid)) if (ovl(r, b)) return false;
     const L0 = FURN.layout(E());
-    for (let j = 0; j < L0.length; j++) { if (j === i) continue; const o = L0[j]; if ((o.lv || 0) !== lv || FURN.D[o.f].walk) continue; if (ovl(r, FURN.rect(o, -0.05))) return false; }
+    for (let j = 0; j < L0.length; j++) { if (j === i) continue; const o = L0[j]; if ((o.room || 'living') !== rid || FURN.D[o.f].walk) continue; if (ovl(r, FURN.rect(o, -0.05))) return false; }
     return true;
   }
-  // 找一个能放的空地（添加 / 换楼层时用）
   function fFree(it, i) {
-    const lv = it.lv || 0, F = FLOORS[lv], cu = (F[0] + F[2]) / 2, cv = (F[1] + F[3]) / 2, c = Object.assign({}, it);
-    for (let rad = 0; rad < 30; rad += 0.5) for (let a = 0; a < 16; a++) { c.u = Math.round((cu + Math.cos(a / 8 * Math.PI) * rad) * 2) / 2; c.v = Math.round((cv + Math.sin(a / 8 * Math.PI) * rad) * 2) / 2; for (const r of [it.r, (it.r + 1) % 4]) { c.r = r; if (fOK(c, i)) return Object.assign({}, c); } }
+    const rid = it.room || 'living', R0 = RM[rid].r, cu = (R0[0] + R0[2]) / 2, cv = (R0[1] + R0[3]) / 2, c = Object.assign({}, it);
+    for (let rad = 0; rad < 14; rad += 0.5) for (let a = 0; a < 16; a++) { c.u = Math.round((cu + Math.cos(a / 8 * Math.PI) * rad) * 2) / 2; c.v = Math.round((cv + Math.sin(a / 8 * Math.PI) * rad) * 2) / 2; for (const r of [it.r, (it.r + 1) % 4]) { c.r = r; if (fOK(c, i)) return Object.assign({}, c); } }
     return null;
   }
-  function fChanged() { dirty(); houseKey = ''; PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.ip.sc = 'house'; p.y = p.floor; } } }
+  // 老存档：原来的小屋（楼下 + 阁楼）→ 城堡的起居室和卧室，按比例搬过去，放不下的收起来
+  function migrateFurn() {
+    const e = E(); if (!e || e.layoutV === 2) return;
+    const L0 = FURN.layout(e), out = [];
+    const map = (it) => { const bed = !!it.lv, rid = bed ? 'bedroom' : 'living', R0 = RM[rid].r, src = bed ? [4, 4, 22, 18] : [4, 4, 37.8, 32.6]; return Object.assign({}, it, { room: rid, lv: undefined, u: R0[0] + 1 + ((it.u - src[0]) / (src[2] - src[0])) * (R0[2] - R0[0] - 2), v: R0[1] + 1 + ((it.v - src[1]) / (src[3] - src[1])) * (R0[3] - R0[1] - 2) }); };
+    e.layout = []; for (const it of L0) { const n = map(it); delete n.lv; e.layout.push(n); const i = e.layout.length - 1; if (!fOK(n, i)) { const f = fFree(n, i); if (f) e.layout[i] = f; else e.layout.pop(); } }
+    e.layoutV = 2; dirty(); PP.save.soon();
+  }
+  function fChanged() { dirty(); PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.y = p.floor; } } }
   function fStart(i, x, y) {
     const L0 = FURN.layout(E()), it = L0[i]; if (!it) return;
-    fsel = i; const z = it.lv ? LOFT : 0, [gu, gv] = toUV(x, y, z);
+    fsel = i; const z = Z[F.roomLv(it.room || 'living')], [gu, gv] = toUV(x, y, z);
     fdrag = { i, it: Object.assign({}, it), orig: Object.assign({}, it), du: it.u - gu, dv: it.v - gv, ok: true };
     G.uiDrag = true; PP.refreshInteractive(); fBar();
     const mv = (ev) => { if (!fdrag) return; const [u, v] = toUV(ev.clientX, ev.clientY, z); fdrag.it.u = Math.round((u + fdrag.du) * 2) / 2; fdrag.it.v = Math.round((v + fdrag.dv) * 2) / 2; fdrag.ok = fOK(fdrag.it, i); document.body.style.cursor = 'grabbing'; };
@@ -499,50 +452,74 @@
     window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   }
   function fAct(a, arg) {
-    const e = E(), L0 = FURN.layout(e), it = L0[fsel];
+    const e = E(), L0 = FURN.layout(e), it = L0[fsel], here = cut === 3 ? 'bedroom' : 'living';
     if (a === 'rot' && it) { const c = Object.assign({}, it, { r: (it.r + 1) % 4 }); if (fOK(c, fsel)) it.r = c.r; else { const f = fFree(c, fsel); if (f) Object.assign(it, f); else PP.ui.toast('转不过来，旁边太挤了'); } }
     if (a === 'stash' && it) { L0.splice(fsel, 1); fsel = -1; }
-    if (a === 'lv' && it) { const d = FURN.D[it.f], to = (it.lv || 0) ? 0 : 1; if (!d.lv.includes(to)) { PP.ui.toast('这个只能放在' + (d.lv[0] ? '阁楼' : '楼下')); } else { const f = fFree(Object.assign({}, it, { lv: to }), fsel); if (f) Object.assign(it, f); else PP.ui.toast((to ? '阁楼' : '楼下') + '没地方了'); } }
-    if (a === 'add') { const d = FURN.D[arg], it2 = { f: arg, u: 0, v: 0, r: 0, lv: d.lv[0] }; const f = fFree(it2, -1); if (f) { L0.push(f); fsel = L0.length - 1; } else PP.ui.toast('屋里没地方了，先收起一件吧'); }
-    if (a === 'reset') { e.layout = FURN.defaultLayout(e); fsel = -1; }
+    if (a === 'lv' && it) { const to = (it.room || 'living') === 'living' ? 'bedroom' : 'living'; const f = fFree(Object.assign({}, it, { room: to }), fsel); if (f) { Object.assign(it, f); setCut(F.roomLv(to)); } else PP.ui.toast(FROOMS[to] + '没地方了'); }
+    if (a === 'add') { const it2 = { f: arg, u: 0, v: 0, r: 0, room: here }; const f = fFree(it2, -1); if (f) { L0.push(f); fsel = L0.length - 1; } else PP.ui.toast(FROOMS[here] + '没地方了，先收起一件吧'); }
+    if (a === 'reset') { e.layout = FURN.defaultLayout(e); e.layoutV = 0; migrateFurn(); fsel = -1; }
     fChanged(); fBar();
   }
-  // 布置条：放在小岛框的上面
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function fBar() {
-    if (!fedit || inside !== 'house') { if (fbar) { fbar.remove(); fbar = null; PP.refreshInteractive(); } return; }
-    const e = E(), L0 = FURN.layout(e), it = L0[fsel], placed = new Set(L0.map((q) => q.f)), spare = FURN.owned(e).filter((k) => !placed.has(k));
+    if (!fedit || (cut !== 2 && cut !== 3)) { if (fbar) { fbar.remove(); fbar = null; PP.refreshInteractive(); } return; }
+    const e = E(), L0 = FURN.layout(e), it = L0[fsel], placed = new Set(L0.map((q) => q.f)), spare = FURN.owned(e).filter((k) => !placed.has(k)), here = cut === 3 ? '卧室' : '起居室';
     if (!fbar) {
       fbar = document.createElement('div'); fbar.className = 'furnbar'; document.getElementById('ui').appendChild(fbar);
       fbar.addEventListener('mousedown', (ev) => ev.stopPropagation());
       fbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; if (b.dataset.a === 'done') { furnEdit(false); return; } fAct(b.dataset.a, b.dataset.f); });
     }
     const d = it && FURN.D[it.f];
-    fbar.innerHTML = `<b>布置小屋</b><span class="muted">${it ? esc(d.name) : '按住家具拖到想放的地方'}</span>`
-      + (it ? `<button data-a="rot" title="转 90°">转向</button>${d.lv.length > 1 ? `<button data-a="lv">${it.lv ? '搬到楼下' : '搬上阁楼'}</button>` : ''}<button data-a="stash">收起</button>` : '')
-      + (spare.length ? `<span class="add">添加：${spare.map((k) => `<button data-a="add" data-f="${k}">${esc(FURN.D[k].name)}</button>`).join('')}</span>` : '')
+    fbar.innerHTML = `<b>布置${here}</b><span class="muted">${it ? esc(d.name) : '按住家具拖到想放的地方'}</span>`
+      + (it ? `<button data-a="rot" title="转 90°">转向</button><button data-a="lv">${(it.room || 'living') === 'living' ? '搬去卧室' : '搬去起居室'}</button><button data-a="stash">收起</button>` : '')
+      + (spare.length ? `<span class="add">添加到${here}：${spare.map((k) => `<button data-a="add" data-f="${k}">${esc(FURN.D[k].name)}</button>`).join('')}</span>` : '')
       + `<button data-a="reset" title="回到最开始的摆法">恢复默认</button><button data-a="done" class="primary">完成</button>`;
     fbPlace(); PP.refreshInteractive();
   }
-  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function fbPlace() { if (!fbar || !L) return; fbar.style.left = Math.max(4, L.x0) + 'px'; fbar.style.top = Math.max(4, L.y0 - fbar.offsetHeight - 6) + 'px'; fbar.style.maxWidth = Math.max(260, L.w) + 'px'; }
   function furnEdit(on) {
     if (on && !G.isle) return;
-    if (on && inside !== 'house') setInside('house');
-    fedit = !!on; fsel = -1; fdrag = null; fBar();
-    if (on) PP.ui.toast('布置小屋：按住家具拖动；选中后可以转向、收起、搬上阁楼'); else PP.save.soon();
+    if (on && cut !== 2 && cut !== 3) setCut(2);
+    fedit = !!on; fsel = -1; fdrag = null; fBar(); cBar();
+    if (on) PP.ui.toast('布置家具：按住家具拖动；选中后可以转向、收起、搬去另一间'); else PP.save.soon();
   }
-  // 布置时在地上画出每件家具的占地框（选中的高亮；拖着的放不下就变红）
   function fOverlay(ctx) {
-    if (!fedit || inside !== 'house') return;
+    if (!fedit || (cut !== 2 && cut !== 3)) return;
     fbPlace();
-    const L0 = FURN.layout(E()), u = L.u;
-    const draw = (it, col, w) => { const r = FURN.rect(it), z = it.lv ? LOFT : 0; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].forEach(([a, b], k) => { const X = scrU(a, b), Y = scrV(a, b, z + 0.1); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); };
+    const L0 = FURN.layout(E()), u = L.u, rid = cut === 3 ? 'bedroom' : 'living';
+    const draw = (it, col, w) => { const r = FURN.rect(it), z = Z[F.roomLv(it.room || 'living')]; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].forEach(([a, b], k) => { const X = scrU(a, b), Y = scrV(a, b, z + 0.1); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); };
     ctx.save();
-    L0.forEach((it, i) => { if (fdrag && fdrag.i === i) return; draw(it, i === fsel ? 'rgba(255,230,120,.95)' : 'rgba(255,255,255,.35)', i === fsel ? u * 0.5 : u * 0.25); });
+    L0.forEach((it, i) => { if ((it.room || 'living') !== rid || (fdrag && fdrag.i === i)) return; draw(it, i === fsel ? 'rgba(255,230,120,.95)' : 'rgba(255,255,255,.35)', i === fsel ? u * 0.5 : u * 0.25); });
     if (fdrag) draw(fdrag.it, fdrag.ok ? 'rgba(120,230,120,.95)' : 'rgba(255,90,90,.95)', u * 0.6);
     ctx.restore();
   }
-  // 遮挡：宠物画完以后，把挡在它前面的房子 / 树 / 家具再画一遍盖上去（只画宠物周围那一小块，很快）
+
+  // ---------- 剖切：进到哪一层 ----------
+  function setCut(lv, quiet) {
+    lv = lv == null ? null : U.clamp(lv, 0, 3);
+    if (cut === lv) return;
+    cut = lv; hover = null; smoke = []; drops = []; cells = {};
+    if ((lv !== 2 && lv !== 3) && fedit) { fedit = false; fsel = -1; fdrag = null; fBar(); }
+    if (lv != null && G.save.flags) G.save.flags.isleIn = 1;
+    for (const p of G.pets) { if (p.held) continue; p.isleHide = hidden(p); }
+    layout(); cBar(); PP.placeOrb && PP.placeOrb();
+    if (!quiet && lv != null) PP.ui.toast(`${F.NAME[lv]}：${roomsOn(lv)}`, 1.6);
+  }
+  const roomsOn = (lv) => [...new Set(ROOMS.filter((r) => r.lv === lv).map((r) => r.nm).concat(F.OPEN.filter((o) => o[0] === lv).map((o) => o[5])))].join(' · ');
+  // 剖切条：在城堡框的左下角：第几层、上一层 / 下一层 / 回到外面
+  function cBar() {
+    if (!G.isle || cut == null || !L) { if (cbar) { cbar.remove(); cbar = null; PP.refreshInteractive(); } return; }
+    if (!cbar) {
+      cbar = document.createElement('div'); cbar.className = 'cutbar'; document.getElementById('ui').appendChild(cbar);
+      cbar.addEventListener('mousedown', (ev) => ev.stopPropagation());
+      cbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a; if (a === 'up') setCut(Math.min(3, cut + 1)); else if (a === 'down') setCut(cut - 1); else if (a === 'out') setCut(null); else if (a === 'furn') furnEdit(!fedit); });
+    }
+    const k = [cut, fedit].join('|');
+    if (cbar.dataset.k !== k) { cbar.dataset.k = k; cbar.innerHTML = `<button data-a="up" ${cut >= 3 ? 'disabled' : ''} title="上一层">▲</button><span class="lv"><b>${F.NAME[cut]}</b><small>${esc(roomsOn(cut))}</small></span><button data-a="down" ${cut <= 0 ? 'disabled' : ''} title="下一层">▼</button>${cut === 2 || cut === 3 ? `<button data-a="furn" class="${fedit ? 'on' : ''}">${fedit ? '布置中' : '布置家具'}</button>` : ''}<button data-a="out" class="primary" title="回到外面看整座城堡">看外面</button>`; }
+    cbar.style.left = Math.max(4, L.x0 + 4) + 'px'; cbar.style.top = Math.min(G.H - 40, L.y1 - 34) + 'px'; PP.refreshInteractive();
+  }
+
+  // ---------- 遮挡、前景 ----------
   let occCv = null;
   function occlude(ctx) {
     if (!glOK || !lastScenes || !g3.ok()) return;
@@ -560,22 +537,23 @@
     try { fOverlay(ctx); } catch (e) { PP.oops && PP.oops(e, 'isle.furn'); }
     const u = L.u, now = performance.now();
     ctx.save();
-    for (const p of G.pets) { if (p.fishing) drawFishing(ctx, p, now); if (p.tool) drawTool(ctx, p, now); if (p.inBed) { if (p.action !== 'isleUse') p.inBed = null; else quilt(ctx, p); } }
-    const fx = wfx(); if (!inside && (fx.rain || fx.snow || flash > 0)) weatherTick(ctx, { x: L.x0, y: L.y0, w: L.w, h: L.h });
-    if (!inside && PP.econ.unread()) { const x = scrU(MAILB.u, MAILB.v), y = scrV(MAILB.u, MAILB.v, T.zAt(MAILB.u, MAILB.v) + 11 + Math.sin(now / 400) * 0.8); ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#3a2630'; ctx.lineWidth = u * 0.4; ctx.beginPath(); ctx.rect(x - 2.6 * u, y - 2 * u, 5.2 * u, 4 * u); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#e8705a'; ctx.beginPath(); ctx.moveTo(x - 2.6 * u, y - 2 * u); ctx.lineTo(x, y + 0.3 * u); ctx.lineTo(x + 2.6 * u, y - 2 * u); ctx.stroke(); }
+    for (const p of G.pets) { if (p.isleHide) continue; if (p.fishing) drawFishing(ctx, p, now); if (p.tool) drawTool(ctx, p, now); if (p.inBed) { if (p.action !== 'isleUse') p.inBed = null; else quilt(ctx, p); } }
+    const fx = wfx(); if (cut == null && (fx.rain || fx.snow || flash > 0)) weatherTick(ctx, { x: L.x0, y: L.y0, w: L.w, h: L.h });
+    if ((cut == null || cut >= 1) && PP.econ.unread()) { const x = scrU(MAILB.u, MAILB.v), y = scrV(MAILB.u, MAILB.v, 11 + Math.sin(now / 400) * 0.8); ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#3a2630'; ctx.lineWidth = u * 0.4; ctx.beginPath(); ctx.rect(x - 2.6 * u, y - 2 * u, 5.2 * u, 4 * u); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#e8705a'; ctx.beginPath(); ctx.moveTo(x - 2.6 * u, y - 2 * u); ctx.lineTo(x, y + 0.3 * u); ctx.lineTo(x + 2.6 * u, y - 2 * u); ctx.stroke(); }
     ctx.restore();
     if (hover && hover.k !== 'ground' && hover.k !== 'hull' && !G.hoverPet && !press) { const t = hoverText(hover); if (t) PP.drawPixelLabel(ctx, t, Math.round(hover.lx), Math.round(Math.max(10, hover.ly)), { size: 12 }); }
+    if (cbar) cBar();
   }
   const fmtLeft = (ms) => { const m = Math.ceil(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} 小时 ${m % 60} 分` : `${m} 分钟`; };
   function hoverText(h) {
     if (h.label) return h.label;
-    if (h.k === 'plot') { const inf = PP.econ.plotInfo(h.i); if (!inf) return '空菜箱：点一下选种子'; const n = PP.econ.ITEMS[PP.econ.CROPS[inf.crop].item].name; return inf.stage === 3 ? `${n}熟了：点一下收` : `${n}：还有 ${fmtLeft(inf.left)}${(E().farm[h.i].water || 0) < 3 ? '（点一下浇水）' : ''}`; }
+    if (h.k === 'plot') { const inf = PP.econ.plotInfo(h.i); if (!inf) return '空种植箱：点一下选种子'; const n = PP.econ.ITEMS[PP.econ.CROPS[inf.crop].item].name; return inf.stage === 3 ? `${n}熟了：点一下收（秸秆会拿去当柴）` : `${n}：还有 ${fmtLeft(inf.left)}${(E().farm[h.i].water || 0) < 3 ? '（点一下浇水）' : ''}`; }
     return '';
   }
 
-  // ---------- 鼠标手型：不同的事不同的手 ----------
+  // ---------- 鼠标手型 ----------
   const HAND = ['....kk......', '...kwwk.....', '...kwwk.....', '...kwwk.....', '...kwwkkk...', '...kwwkwwkk.', '.kkkwwkwwkwk', 'kwwkwwwwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwwk', '..kwwwwwwwk.', '..kwwwwwwwk.', '...kkkkkkk..'];
-  const OPEN = ['...k.k.k....', '..kwkwkwk.k.', '..kwkwkwkkwk', '..kwkwkwkwwk', 'k.kwwwwwwwwk', 'kwkwwwwwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwwk', '.kwwwwwwwwk.', '..kwwwwwwwk.', '..kwwwwwwwk.', '...kkkkkkk..'];
+  const OPENH = ['...k.k.k....', '..kwkwkwk.k.', '..kwkwkwkkwk', '..kwkwkwkwwk', 'k.kwwwwwwwwk', 'kwkwwwwwwwwk', 'kwwwwwwwwwwk', '.kwwwwwwwwwk', '.kwwwwwwwwk.', '..kwwwwwwwk.', '..kwwwwwwwk.', '...kkkkkkk..'];
   const BADGE = {
     enter: ['kkkkkkk', 'knnnnnk', 'knnnnnk', 'knnnynk', 'knnnnnk', 'knnnnnk', 'kkkkkkk'], fish: ['...k...', '...k...', '...k...', '...k...', 'k..k...', 'k..k...', '.kk....'], sow: ['.......', '..g.g..', '..ggg..', '...g...', '.nnnnn.', 'nnnnnnn', '.......'],
     water: ['.......', '..b....', '..b....', '.bbb...', '.bbb...', 'bbbbb..', '.bbb...'], harvest: ['..rr...', '.rrrr..', '.rrrr..', '..rr...', 'kkkkkk.', 'koooook', '.kkkkk.'], rest: ['kkkk...', '..k....', '.k.....', 'kkkk...', '...kkk.', '....k..', '...kkk.'],
@@ -586,53 +564,34 @@
   function cursor(kind) {
     if (curCache[kind]) return curCache[kind];
     const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d'), px = (rows, ox, oy, s, pad) => rows.forEach((row, j) => [...row].forEach((ch, i) => { if (ch !== '.') { x.fillStyle = CCOL[ch]; x.fillRect(ox + i * s - (pad || 0), oy + j * s - (pad || 0), s + 2 * (pad || 0), s + 2 * (pad || 0)); } }));
-    px(kind === 'grab' ? OPEN : HAND, 0, 0, 2);
+    px(kind === 'grab' ? OPENH : HAND, 0, 0, 2);
     const b = BADGE[kind]; if (b) { x.fillStyle = '#fff6e0'; x.strokeStyle = '#231c20'; x.lineWidth = 1.5; x.beginPath(); x.arc(23, 23, 8.2, 0, 6.3); x.fill(); x.stroke(); px(b, 16, 16, 2); }
     return (curCache[kind] = `url(${c.toDataURL()}) ${kind === 'grab' ? '12 12' : '9 1'}, pointer`);
   }
 
   // ---------- 能互动的东西 ----------
-  // id: 模型上的拾取号；at: 站哪儿 [u, v, 层]；spot: 跳上去的位置；cur: 手型
-  const P = (id, o) => Object.assign({ id }, o);
-  // 只留做了有结果的事：做饭（得到饼干 / 吃饱）、睡觉（体力）、坐一会儿（体力）、弹琴（心情）、花房的水桶（喝水）、照看花草（每天一朵郁金香）
-  const PROPS = {
-    deck: [],
-    castle: PP.castleIn.PROPS,
-    house: [
-      P(PICK.kitchen, { at: [ku - 0.6, R0 + 4.6, 0], do: 'kitchen', label: '厨房：做点吃的', cur: 'cook' }),
-    ],
-    gh: [
-      P(PICK.gbarrel, { at: [22.4, 19.8, 0], do: 'drink', label: '水桶：喝口水', cur: 'water' }), P(PICK.bench, { at: [14, R0 + 4.4, 0], do: 'tend', label: '花架：照看花草', cur: 'water' }),
-    ],
-  };
-  // 花房：水桶、花架 + 四个大花盆、暖气阀门（标签跟着花盆里的情况变）
-  const GH_BASE = PROPS.gh;
-  Object.defineProperty(PROPS, 'gh', { get() {
-    const L0 = PP.LIFE, TN = L0 ? L0.TEMPN : {};
-    const pots = K.GPOTS.map(([u, v], i) => { const f = L0 && L0.potInfo(i); return { id: 160 + i, i, at: [u, v + 2.3, 0], do: 'pot', cur: 'water', label: f ? `${f.name}：${['种子', '发芽了', '开花了', '可以收获了'][f.stage]}${f.wet ? '' : ' · 该浇水了'}${f.stage === 2 && !f.pol ? ' · 等授粉' : ''}${f.tempOk ? '' : ' · 想要' + TN[f.temp]}（点开花房面板）` : `花盆 ${i + 1}：空着，种一颗稀有种子` }; });
-    const e = E(), t = e && e.gh ? e.gh.temp : 'mild';
-    return GH_BASE.concat(pots, [{ id: 165, at: [R0 + 2.6, 14, 0], do: 'valve', cur: 'use', label: `暖气阀门：现在是「${TN[t] || '温和'}」（点开调）` }]);
-  } });
-  // 小屋里能用的东西 = 厨房（固定）+ 摆着的每一件家具（位置跟着你摆的走）
-  const KITCHEN = PROPS.house[0];
+  // 固定陈设（fort.js 的 FIX）+ 你摆的家具（每件一个），宠物站在 at 用它
   const USE_LABEL = { sit: '坐一会儿（回体力）', rock: '摇一摇，打个盹', lamp: '摸一摸', climb: '爬上去看看', play: '玩毛线', warm: '窝一会儿', rug: '在上面打滚', sleep: '睡一觉（回体力）', write: '写日记', rummage: '翻一翻（说不定有小鱼干）', sniff: '闻一闻', table: '坐一坐，喝口热可可', book: '看书', piano: '弹一曲（心情变好）', nap: '窝进去打个盹', music: '放一张唱片，跳个舞', look: '看一看' };
-  let houseKey = '', houseProps = null;
-  Object.defineProperty(PROPS, 'house', { get() {
-    const L0 = FURN.layout(E()), k = JSON.stringify(L0) + dirtyK; if (k === houseKey && houseProps) return houseProps;
-    houseKey = k;
-    houseProps = [KITCHEN].concat(L0.map((it, i) => {
-      const d = FURN.D[it.f], lv = it.lv || 0, z0 = lv ? LOFT : 0, fr = FURN.front(it), st = FURN.seat(it);
-      return { id: FURN.PICK0 + i, f: it.f, it, at: [fr[0], fr[1], lv], spot: st ? { u: st.u, v: st.v, z: z0 + st.z } : undefined, do: d.use, label: d.name + '：' + (USE_LABEL[d.use] || '看一看'), cur: ['sit', 'rock', 'warm', 'sleep', 'nap', 'rug'].includes(d.use) ? 'rest' : 'use' };
-    }));
-    return houseProps;
-  } });
-  const FURN_LABEL = { table: '小书桌：坐一坐', lamp: '台灯：摸一摸', plant: '大盆栽：看一看', shelf: '书架：看书', piano: '钢琴：弹一曲', rocker: '摇椅：摇一摇' };
-  const FIX = { // 固定的东西：拾取号 → 是什么、什么手
-    [PICK.door]: { k: 'door', label: '进小屋', cur: 'enter' }, [PICK.green]: { k: 'green', label: '进玻璃花房', cur: 'enter' }, [PICK.exit]: { k: 'exit', label: '出门', cur: 'enter' },
-    [PICK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PICK.barrel]: { k: 'barrel', label: '水井：打水喝（解渴）', cur: 'water' },
-    [PICK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PICK.fish]: { k: 'fish', label: '水塘：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PICK.river]: { k: 'river', label: '小河：走到河边看看', cur: 'look' }, [PICK.kdoor]: { k: 'kdoor', label: '厨房的后门：进城堡做菜', cur: 'cook' }, [PICK.bdoor]: { k: 'bath', label: '浴室：洗个澡', cur: 'use' },
-    [PICK.tree]: { k: 'tree', label: '老橡树：摇一摇（会掉果子）', cur: 'use' }, [PICK.coop]: { k: 'coop', label: '鸡舍：捡鸡蛋', cur: 'use' }, [PICK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' },
-  };
+  let propKey = '', propList = null;
+  function props() {
+    const L0 = FURN.layout(E()), k = JSON.stringify(L0) + dirtyK; if (k === propKey && propList) return propList;
+    propKey = k;
+    const fix = F.FIX.map((f) => { const o = { id: f.id, at: [f.at[0], f.at[1], f.lv], do: f.do, label: f.label, cur: f.cur, room: f.room, i: f.i }; if (f.spot) o.spot = { u: f.spot.u, v: f.spot.v, z: Z[f.lv] + f.spot.dz }; return o; });
+    const fur = L0.map((it, i) => { const d = FURN.D[it.f], lv = F.roomLv(it.room || 'living'), R0 = RM[it.room || 'living'].r, f0 = FURN.front(it), fr = d.walk ? [U.clamp(it.u, R0[0] + 1.2, R0[2] - 1.2), U.clamp(it.v, R0[1] + 1.2, R0[3] - 1.2)] : [U.clamp(f0[0], R0[0] + 1, R0[2] - 1), U.clamp(f0[1], R0[1] + 1, R0[3] - 1)], st = FURN.seat(it); return { id: FURN.PICK0 + i, f: it.f, it, room: it.room || 'living', at: [fr[0], fr[1], lv], spot: st ? { u: st.u, v: st.v, z: Z[lv] + st.z } : undefined, do: d.use, label: d.name + '：' + (USE_LABEL[d.use] || '看一看'), cur: ['sit', 'rock', 'warm', 'sleep', 'nap', 'rug'].includes(d.use) ? 'rest' : 'use' }; });
+    return (propList = fix.concat(fur));
+  }
+  // 花房的花盆、阀门：标签跟着花盆里的情况变
+  function propLabel(pr) {
+    const L0 = PP.LIFE, TN = L0 ? L0.TEMPN : {};
+    if (pr.do === 'pot') { const f = L0 && L0.potInfo(pr.i); return f ? `${f.name}：${['种子', '发芽了', '开花了', '可以收获了'][f.stage]}${f.wet ? '' : ' · 该浇水了'}${f.stage === 2 && !f.pol ? ' · 等授粉' : ''}${f.tempOk ? '' : ' · 想要' + TN[f.temp]}（点开花房面板）` : `花盆 ${pr.i + 1}：空着，种一颗稀有种子`; }
+    if (pr.do === 'valve') { const e = E(), t = e && e.gh ? e.gh.temp : 'mild'; return `暖气阀门：现在是「${TN[t] || '温和'}」${fort().fuel < 10 ? '（锅炉没柴了，暖气不热）' : ''}（点开调）`; }
+    if (pr.do === 'stoke') return `锅炉：柴还剩 ${Math.round(fort().fuel)}%（点一下去柴房抱柴来添）`;
+    if (pr.do === 'nest') return eggOut() ? '鸟巢：里面有一个蛋！' : '鸟巢：今天的蛋已经捡过了';
+    return pr.label;
+  }
+  // 门：外部视角点门 → 剖切进那一层
+  const doorFor = (u, v, lv) => F.ENTRIES.find((d) => d.lv === lv && u > d.r[0] - 0.8 && u < d.r[2] + 0.8 && v > d.r[1] - 0.8 && v < d.r[3] + 0.8);
+  const doorName = (d) => (d.room ? d.room.nm : '屋里');
   let pickC = { x: -1, y: -1, t: 0, id: 0 };
   function pickAt(x, y) {
     const now = performance.now(); if (pickC.x === x && pickC.y === y && now - pickC.t < 120) return pickC.id;
@@ -640,46 +599,48 @@
     pickC = { x, y, t: now, id }; return id;
   }
   function groundAt(x, y) { // 鼠标底下是哪块能走的地（先看高的）
-    const a = area(), order = a.z.map((z, i) => i).sort((m, n) => a.z[n] - a.z[m]);
-    for (const lv of order) {
-      if (a.zf && !lv) { let z = 0, gu = 0, gv = 0; for (let it = 0; it < 4; it++) { [gu, gv] = toUV(x, y, z); z = a.zf(gu, gv); } if (free(a, gu, gv, 0)) return { k: 'ground', u: gu, v: gv, z, lv: 0 }; continue; } const [gu, gv] = toUV(x, y, a.z[lv]); if (free(a, gu, gv, lv)) return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
+    const a = area(), order = a.z.map((z, i) => i).filter((lv) => seenLv(lv)).sort((m, n) => n - m);
+    for (const lv of order) { const [gu, gv] = toUV(x, y, a.z[lv]); if (!free(a, gu, gv, lv)) continue; if (cut == null && F.roomAt(gu, gv, lv)) continue; return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
     return null;
   }
+  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '蓄水池：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' } };
   function hot(x, y) {
     hover = null;
     if (!G.isle || !L || G.editing || !want()) return null;
     if (x < L.x0 || x > L.x1 || y < L.y0 || y > L.y1) return null;
-    if (fedit && inside === 'house') { // 布置模式：只认家具
+    if (fedit && (cut === 2 || cut === 3)) {
       if (fdrag) { hover = { k: 'furn', i: fdrag.i, cur: 'grabbing', isle: true }; return hover; }
       const id = pickAt(x, y), i = id - FURN.PICK0, it = FURN.layout(E())[i];
-      hover = it ? { k: 'furn', i, label: FURN.D[it.f].name + '：按住拖动', cur: 'grab', isle: true, lx: x, ly: y - 12 * Math.min(2.5, L.u) } : { k: 'hull', cur: 'default', isle: true };
+      hover = it && F.roomLv(it.room || 'living') === cut ? { k: 'furn', i, label: FURN.D[it.f].name + '：按住拖动', cur: 'grab', isle: true, lx: x, ly: y - 12 * Math.min(2.5, L.u) } : { k: 'hull', cur: 'default', isle: true };
       return hover;
     }
     let h = null; const p = mainP();
-    if (!inside && p && p.fishing && p.fishing.ph === 'bite' && Math.hypot(x - scrU(BOB.u, BOB.v), y - scrV(BOB.u, BOB.v, POND.z)) < 16 * L.u) h = { k: 'fish', label: '快点！收竿', cur: 'fish' };
+    if (p && p.fishing && p.fishing.ph === 'bite' && Math.hypot(x - scrU(BOB.u, BOB.v), y - scrV(BOB.u, BOB.v, POOL.z)) < 16 * L.u) h = { k: 'fish', label: '快点！收竿', cur: 'fish' };
     if (!h) {
       const id = pickAt(x, y);
-      if (id < 0) return null; // 这一点上什么都没有：鼠标穿过去
-      if (FIX[id]) h = Object.assign({}, FIX[id]);
-      else if (id >= CA.PICK_DEN && id < CA.PICK_DEN + 6) { const i = id - CA.PICK_DEN, q = denList()[i]; if (q) h = { k: 'den', i, label: `${q.name}的${K.DEN_NAME[q.d.species] || '小窝'}：${q === mainP() || G.pets.includes(q) ? '回窝里睡一觉' : '它不在家'}`, cur: 'rest' }; }
-      else if (id >= PICK.plot && id < PICK.plot + 6) { const i = id - PICK.plot, inf = PP.econ.plotInfo(i); h = { k: 'plot', i, cur: !inf ? 'sow' : inf.stage === 3 ? 'harvest' : 'water' }; }
-      else if (id >= PICK.deco && id < PICK.deco + 6) { const i = id - PICK.deco, d = (E().isleDeco || [])[i]; if (['bench', 'swing', 'hay'].includes(d)) h = { k: 'deco', i, id: d, label: { bench: '长椅：坐一会儿', swing: '秋千：荡一荡', hay: '干草垛：趴一会儿' }[d], cur: 'rest' }; }
-      else { const pr = (PROPS[inside || 'deck'] || []).find((q) => q.id === id); if (pr) h = { k: 'prop', pr, label: pr.label, cur: pr.cur }; }
+      if (id < 0) return null;
+      if (FIXK[id]) h = Object.assign({}, FIXK[id]);
+      else if (id >= PK.plot && id < PK.plot + 6) { const i = id - PK.plot, inf = PP.econ.plotInfo(i); h = { k: 'plot', i, cur: !inf ? 'sow' : inf.stage === 3 ? 'harvest' : 'water' }; }
+      else if (id >= PK.deco && id < PK.deco + 6) { const i = id - PK.deco, d = (E().isleDeco || [])[i]; if (['bench', 'swing', 'hay'].includes(d)) h = { k: 'deco', i, id: d, label: { bench: '长椅：坐一会儿', swing: '秋千：荡一荡', hay: '干草垛：趴一会儿' }[d], cur: 'rest' }; }
+      else { const pr = props().find((q) => q.id === id); if (pr && seenLv(pr.at[2]) && (cut != null || pr.room === 'garden')) h = { k: 'prop', pr, label: propLabel(pr), cur: pr.cur }; }
+      if (!h && cut == null) { // 外部视角：指到门 → 进去
+        for (const lv of [3, 2, 1]) { for (const dz of [5, 3, 7]) { const [gu, gv] = toUV(x, y, Z[lv] + dz), d = doorFor(gu, gv, lv); if (d) { h = { k: 'door', d, label: `进${doorName(d)}（${F.NAME[lv]}）`, cur: 'enter' }; break; } } if (h) break; }
+      }
       if (!h) h = groundAt(x, y) || { k: 'hull' };
     }
     h.isle = true; h.lx = x; h.ly = y - 12 * Math.min(2.5, L.u);
-    h.cur = h.k === 'ground' || h.k === 'hull' ? 'default' : cursor(h.cur || 'use'); // 只有能互动的东西才变手；空地和墙还是普通箭头（按住照样能拖）
+    h.cur = h.k === 'ground' || h.k === 'hull' ? 'default' : cursor(h.cur || 'use');
     hover = h; return h;
   }
   function mainP() { const p = PP.F.main(); return p && G.pets.includes(p) && !p.held ? p : null; }
   function down(h, x, y) {
-    if (fedit && inside === 'house') { if (h && h.k === 'furn') fStart(h.i, x, y); else { fsel = -1; fBar(); } return; }
+    if (fedit && (cut === 2 || cut === 3)) { if (h && h.k === 'furn') fStart(h.i, x, y); else { fsel = -1; fBar(); } return; }
     press = { h, x, y, moved: false, ox: L.x1, oy: L.y1 };
     G.uiDrag = true; PP.refreshInteractive();
     const mv = (ev) => {
       if (!press) return;
       if (!press.moved && Math.hypot(ev.clientX - press.x, ev.clientY - press.y) > 6) press.moved = true;
-      if (press.moved) { const dx = L.x0, dy = L.y0; S().islePos = { x: (press.ox + ev.clientX - press.x) / G.W, y: (press.oy + ev.clientY - press.y) / safeB() }; layout(); G.ground = groundY(); for (const p of G.pets) if (!p.held) { p.x += L.x0 - dx; p.y += L.y0 - dy; } PP.placeOrb && PP.placeOrb(); document.body.style.cursor = 'grabbing'; }
+      if (press.moved) { const dx = L.x0, dy = L.y0; S().islePos = { x: (press.ox + ev.clientX - press.x) / G.W, y: (press.oy + ev.clientY - press.y) / safeB() }; layout(); G.ground = groundY(); for (const p of G.pets) if (!p.held) { p.x += L.x0 - dx; p.y += L.y0 - dy; } PP.placeOrb && PP.placeOrb(); cBar(); document.body.style.cursor = 'grabbing'; }
     };
     const up = (ev) => {
       window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
@@ -689,36 +650,31 @@
     };
     window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   }
+  // 房间中心附近一个能站的点
+  const roomSpot = (rid) => { const r = RM[rid]; const c = nearFree(area(), (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1, r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
   function click(h, x, y) {
     if (!h) return;
     const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); } };
     if (h.k === 'ground') { mark = { u: h.u, v: h.v, z: h.z, t: performance.now() }; go('isleGo', A.isleGo, h.u, h.v, h.lv); return; }
     if (h.k === 'hull') return;
-    if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (h.pr.do === 'living' && !p) { setInside('house'); return; } go('isleUse', A.isleUse, h.pr); return; }
+    if (h.k === 'door' && !h.d) { setCut(2); if (p) go('isleHouse', A.isleHouse, 'house'); return; } // 菜单里的“进屋”：去起居室
+    if (h.k === 'door') { const d = h.d, r = d.room, c = r.c ? [r.c[0] + (d.inP[0] - r.c[0]) * 0.6, r.c[1] + (d.inP[1] - r.c[1]) * 0.6] : [d.inP[0] + (d.inP[0] - d.outP[0]) * 0.8, d.inP[1] + (d.inP[1] - d.outP[1]) * 0.8]; setCut(d.lv); go('isleGo', A.isleGo, c[0], c[1], d.lv); return; }
+    if (h.k === 'exit') { setCut(null); return; } // 兼容：菜单里的“出门”
+    if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (cut == null && h.pr.at[2] !== 1) setCut(h.pr.at[2], true); go('isleUse', A.isleUse, h.pr); return; }
     if (h.k === 'deco') { go('isleSit', A.isleSit, { id: h.id, i: h.i, u: SLOTS[h.i][0], v: SLOTS[h.i][1] }); return; }
-    if (h.k === 'door' || h.k === 'green') { const w = h.k === 'door' ? 'castle' : 'gh'; if (p) go('isleHouse', A.isleHouse, w); else setInside(w); return; }
-    if (h.k === 'exit') { const to = inside === 'house' ? 'castle' : false; if (p) go('isleHouse', A.isleHouse, to); else setInside(to); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }
-    if (h.k === 'kdoor') { PP.econ.openPanel('cook'); if (p) go('isleHouse', A.isleHouse, 'castle'); else setInside('castle'); return; }
-    if (h.k === 'den') { const q = denList()[h.i]; if (!q || !G.pets.includes(q) || q.held) { PP.ui.toast(q ? `${q.name}现在不在家` : '空着的窝'); return; } q.interrupt(true); q.fishing = null; q.tool = null; q.run('isleDen', A.isleDen, h.i); return; }
-    if (h.k === 'bath') { go('isleBath', A.isleBath); return; }
-    if (h.k === 'river') { // 点小河：就近走到点的那段河岸，蹲下看水，不会跑去水塘钓鱼
-      const a = area(); let [gu, gv] = toUV(x, y, 0); const c = nearFree(a, gu, gv, 0); mark = { u: c[0], v: c[1], z: 0, t: performance.now() }; go('isleRiver', A.isleRiver, c[0], c[1], gu, gv); return; }
     if (h.k === 'fish') { if (p && p.fishing) { if (p.fishing.ph === 'bite') p.fishing.helped = true; return; } go('isleFish', A.isleFish); return; }
     if (h.k === 'balloon') { PP.econ.openPanel('trip'); return; }
-    if (h.k === 'tree') { go('isleUse', A.isleUse, { do: 'shake', at: [TREE.u - 2.6, TREE.v + 3.4, 0] }); return; }
-    if (h.k === 'coop') { go('isleCoop', A.isleCoop); return; }
     if (h.k === 'hive') { go('isleHive', A.isleHive); return; }
-    const ACT = { barrel: 'isleDrink' };
-    if (ACT[h.k]) { go(ACT[h.k], A[ACT[h.k]]); return; }
+    if (h.k === 'tap') { go('isleDrink', A.isleDrink); return; }
+    if (h.k === 'door0' || h.k === 'home') { setCut(2); if (p) go('isleGo', A.isleGo, ...Object.values(roomSpot('living'))); return; } // 菜单里的“进屋”：去起居室
     if (h.k === 'plot') {
       const inf = PP.econ.plotInfo(h.i);
-      if (inf && inf.stage === 3) { if (p) go('isleHarvest', A.isleHarvest, h.i); else PP.econ.harvest(h.i); return; }
+      if (inf && inf.stage === 3) { if (p) go('isleHarvest', A.isleHarvest, h.i); else { PP.econ.harvest(h.i); fort().fuel = Math.min(100, fort().fuel + 4); } return; }
       if (inf) { if (p && (E().farm[h.i].water || 0) < 3) go('isleWater', A.isleWater, h.i); else PP.ui.toast(hoverText(h)); return; }
       seedPicker(h.i, x, y);
     }
   }
-  // 作物小图标（选种子的小窗用）
   const cropCache = {}, CROP_COL = { carrot: '#f08a3a', berry: '#e8405a', corn: '#ffd36a', sunflower: '#f6c43a', pumpkin: '#f2832a', tomato: '#e0402a', cabbage: '#9ad070', melon: '#3f8a44', tulip: '#f2a6c2' };
   function cropSpr(crop) {
     if (PP.LIFE && PP.LIFE.PL[crop]) return PP.LIFE.art(crop, 3);
@@ -726,12 +682,12 @@
     const a = PP.ART, s = a.spr(13, 13), C = CROP_COL[crop] || '#f08a3a';
     s.ell(6.5, 9, 5, 3.4, (nx, ny) => (ny < -0.3 ? '#86cc6a' : '#5aa64e')); s.vl(6, 2, 6, '#3f8a44');
     if (crop === 'corn') { s.rect(5, 1, 3, 8, C); s.vl(5, 1, 8, '#fff0a0'); } else if (crop === 'sunflower') { s.ell(6.5, 3.5, 3.6, 3.2, (nx, ny) => (nx * nx + ny * ny < 0.25 ? '#7a4a2a' : C)); } else if (crop === 'tulip') { s.rect(5, 1, 3, 3, C); s.rect(2, 3, 2, 3, '#ffd36a'); s.rect(9, 3, 2, 3, '#e8705a'); }
-    else if (crop === 'carrot') { s.rect(3, 9, 3, 3, C); s.rect(8, 9, 3, 3, C); } else s.ell(6.5, 8.5, crop === 'berry' || crop === 'tomato' ? 2.6 : 4.6, crop === 'berry' || crop === 'tomato' ? 2.6 : 3.4, (nx, ny) => (ny < -0.4 ? mix(C, '#ffffff', 0.35) : C));
+    else if (crop === 'carrot') { s.rect(3, 9, 3, 3, C); s.rect(8, 9, 3, 3, C); } else s.ell(6.5, 8.5, crop === 'berry' || crop === 'tomato' ? 2.6 : 4.6, crop === 'berry' || crop === 'tomato' ? 2.6 : 3.4, (nx, ny) => (ny < -0.4 ? PP.ART.mix(C, '#ffffff', 0.35) : C));
     return (cropCache[crop] = s.outline('#2a3a22').canvas());
   }
   PP.cropSpr = cropSpr;
   function seedPicker(i, x, y) {
-    const e = E(), I = PP.econ.ITEMS, seeds = Object.keys(I).filter((k) => I[k].kind === 'seed').map((k) => [k, (e.bag[k] ? 2 : 0) + (PP.cropSpeed && PP.cropSpeed(I[k].crop) < 1 ? 1 : 0)]).sort((a, b) => b[1] - a[1]).map((x) => x[0]); // 有的、当季的排前面
+    const e = E(), I = PP.econ.ITEMS, seeds = Object.keys(I).filter((k) => I[k].kind === 'seed').map((k) => [k, (e.bag[k] ? 2 : 0) + (PP.cropSpeed && PP.cropSpeed(I[k].crop) < 1 ? 1 : 0)]).sort((a, b) => b[1] - a[1]).map((x) => x[0]);
     const el = document.createElement('div'); el.className = 'seedpick';
     el.innerHTML = `<div class="sp-head"><b>种点什么？</b><span class="muted">小鱼干 ${e.fish}</span></div><div class="sp-list">${seeds.map((k) => { const it = I[k], c = PP.econ.CROPS[it.crop], crop = I[c.item], have = e.bag[k] || 0; return `<button class="sp" data-k="${k}" ${!have && e.fish < it.price ? 'disabled' : ''}><canvas data-crop="${it.crop}"></canvas><b>${crop.name}</b><small>${c.min >= 60 ? c.min / 60 + ' 小时' : c.min + ' 分钟'} · 卖 ${crop.sell}</small><em>${have ? '有 ' + have + ' 颗' : it.price + ' 小鱼干'}</em></button>`; }).join('')}</div>`;
     el.querySelectorAll('canvas[data-crop]').forEach((cv) => { const s = cropSpr(cv.dataset.crop); cv.width = s.width * 3; cv.height = s.height * 3; const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(s, 0, 0, cv.width, cv.height); });
@@ -743,43 +699,29 @@
     if (PP.hud) PP.hud.pop(el, { x, y });
   }
   function cmd(a, b, c) { if (a === 'plant') { const p = mainP(); if (p) { p.interrupt(true); p.run('isleSow', A.isleSow, +b, c); } else if (PP.econ.plant(+b, c)) PP.ui.toast('种下了'); } }
-  function setInside(v) {
-    v = v === true ? 'house' : v || false;
-    if (inside === v) return;
-    const from = inside; fromIn = from; inside = v; hover = null; smoke = []; drops = []; rips = [];
-    if (v !== 'house' && fedit) { fedit = false; fsel = -1; fdrag = null; fBar(); }
-    if (v && G.save.flags) G.save.flags.isleIn = 1;
-    layout(); G.ground = groundY();
-    const at = v ? start() : from === 'gh' ? { u: GDOOR.u, v: GDOOR.v + 2.8, lv: 0 } : { u: DOOR.u, v: HOUSE.v1 + 1.8, lv: 0 };
-    for (const q of G.pets) { q.interrupt(true); q.held = false; q.airborne = false; q.isleSpot = null; q.fishing = null; q.tool = null; q.iw = null; q.inHouse = !!v; setIp(q, at.u + U.rand(-0.4, 0.4), at.v, at.lv); q.ip.sc = inside || 'deck'; q.y = q.floor; q.facing = mir() ? -1 : 1; }
-    roomT = 0; PP.placeOrb && PP.placeOrb();
-  }
+  // 兼容老接口：setInside('house') = 进起居室；false = 回到外面
+  function setInside(v) { if (v === 'house' || v === true) setCut(2); else if (v === 'gh') setCut(1); else if (typeof v === 'number') setCut(v); else setCut(null); }
 
-  // ---------- 主角在岛上过日子 ----------
-  let roomT = 0;
-  const day = () => { const e = E(); const d = new Date().toDateString(); if (!e.isleDay || e.isleDay.d !== d) e.isleDay = { d, fish: 0, cook: 0 }; return e.isleDay; };
+  // ---------- 主角在城堡里过日子 ----------
+  const day = () => { const e = E(); const d = today(); if (!e.isleDay || e.isleDay.d !== d) e.isleDay = { d, fish: 0, cook: 0 }; return e.isleDay; };
   const say = (p, t, d = 2.6) => { p._forceSay = true; p.say(Array.isArray(t) ? U.pick(t) : t, d); p._forceSay = false; };
-  const zzAt = (u, v, z) => PP.fx({ x: scrU(u, v) + U.rand(-4, 4), y: scrV(u, v, z), vx: 8, vy: -14, icon: 'zzz', life: 2.2, s: Math.max(1, G.S - 1) });
   const bubble = (u, v, z) => PP.fx({ kind: 'dot', x: scrU(u, v), y: scrV(u, v, z), vx: U.rand(-8, 8), vy: U.rand(-30, -16), life: 1.4, col: U.pick(['#ffffff', '#cfeaf8', '#e8f6ff']), size: Math.max(2, L.u * 0.8) });
-  const face = (p, u, v) => { const [a, b] = uvOf(p), d = ((u - a) - (v - b)) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
+  const face = (p, u, v) => { const [a, b] = uvOf(p), r1 = rotUV(a, b), r2 = rotUV(u, v), d = ((r2[0] - r1[0]) - (r2[1] - r1[1])) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
   const gain = (p, txt) => PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } });
   const fxAt = (u, v, z, o) => PP.fx(Object.assign({ x: scrU(u, v), y: scrV(u, v, z), s: 1 }, o));
-  // 走过去；走不到（被挡住 / 在别的层上下不来）就返回 false，调用的地方别在原地硬做（比如在楼上钓鱼）
-  function* walkTo(p, u, v, run, lv = 0) { if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; const q = p.ip; return !!q && (q.lv || 0) === (area().z[lv] != null ? lv : 0) && Math.hypot(q.u - u, q.v - v) < 2.2; }
+  function* walkTo(p, u, v, run, lv = 1) { if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; const q = p.ip; return !!q && (q.lv || 0) === lv && Math.hypot(q.u - u, q.v - v) < 2.2; }
   const stuck = (p) => { p.tool = null; p.fishing = null; say(p, U.pick(['过不去……', '那边走不过去', '咦，路被挡住了']), 2); p.anim = 'idle'; };
-  // 跳上去 / 跳下来：一道小弧线，落地时身子一压（不再是平移）
   function* hop(p, to, T = 0.34) {
     const [u0, v0] = uvOf(p), z0 = p.isleSpot ? p.isleSpot.z : ipOf(p).z, hh = 2.2 + Math.abs(to.z - z0) * 0.25; face(p, to.u, to.v);
     p.anim = 'idle'; p.jolt(0, 2); yield 0.1;
     for (let t = 0; t < T; t += 1 / 60) { const k = t / T; p.isleSpot = { u: u0 + (to.u - u0) * k, v: v0 + (to.v - v0) * k, z: z0 + (to.z - z0) * k + Math.sin(k * Math.PI) * hh }; p.x = scrU(p.isleSpot.u, p.isleSpot.v); p.anim = k < 0.5 ? 'jump' : 'fall'; yield 1 / 60; }
     p.isleSpot = { u: to.u, v: to.v, z: to.z }; p.x = scrU(to.u, to.v); p.anim = 'land'; p.jolt(0, 2.4); yield 0.12; p.anim = 'idle';
   }
-  function* hopOff(p, at) { const a = area(), lv = at[2] || 0; yield* hop(p, { u: at[0], v: at[1], z: Zf(a, lv, at[0], at[1]) }); p.isleSpot = null; setIp(p, at[0], at[1], lv); p.ip.sc = inside || 'deck'; }
-  A.isleGo = function* (u, v, lv) { const p = this; yield* walkTo(p, u, v, null, lv || 0); p.anim = 'idle'; p.look = [0, 1]; if (Math.random() < 0.3) p.think(U.pick(['heart', 'note', 'sparkle']), 1.2); yield U.rand(2, 4); };
-  A.isleOut = function* () { const p = this; p.anim = 'idle'; p.eyes = 'happy'; p.jolt(0, -3); yield 0.4; yield* walkTo(p, DOOR.u + U.rand(-2, 3), HOUSE.v1 + U.rand(4, 7)); p.eyes = 'open'; };
-  const plotStand = (i) => [PLOTS[i][0] + PS / 2, PLOTS[i][1] + PS + 0.85];
-  const plotC = (i) => [PLOTS[i][0] + PS / 2, PLOTS[i][1] + PS / 2, (K.PLOTZ ? K.PLOTZ[i] : 0) + PH[i] * 0.6];
-  // 浇水：提着水壶走过去 → 壶一歪，水一道弧线洒到土里 → 土变深色
+  function* hopOff(p, at) { const lv = at[2] != null ? at[2] : 1; yield* hop(p, { u: at[0], v: at[1], z: Z[lv] }); p.isleSpot = null; setIp(p, at[0], at[1], lv); }
+  A.isleGo = function* (u, v, lv) { const p = this; yield* walkTo(p, u, v, null, lv == null ? 1 : lv); p.anim = 'idle'; p.look = [0, 1]; if (Math.random() < 0.3) p.think(U.pick(['heart', 'note', 'sparkle']), 1.2); yield U.rand(2, 4); };
+  A.isleOut = function* () { const p = this; p.anim = 'idle'; p.eyes = 'happy'; p.jolt(0, -3); yield 0.4; yield* walkTo(p, HALL_OUT.u + U.rand(-2, 3), HALL_OUT.v + U.rand(1, 4)); p.eyes = 'open'; };
+  const plotStand = (i) => [PLOTS[i][0] + PS / 2, PLOTS[i][1] + PS + 1.1];
+  const plotC = (i) => [PLOTS[i][0] + PS / 2, PLOTS[i][1] + PS / 2, 2.4];
   A.isleWater = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
     p.tool = { k: 'can', t0: performance.now() }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'idle'; p.eyes = 'happy'; yield 0.2;
@@ -787,7 +729,6 @@
     for (let k = 0; k < 14; k++) { fxAt(cu + U.rand(-1.2, 1.2), cv + U.rand(-1.2, 1.2), cz + 4.5, { vy: 46, icon: 'drop', life: 0.45 }); if (k % 4 === 0) p.jolt(0, 1); yield 0.11; }
     if (PP.econ.waterPlot(i)) p.think('heart', 1); p.tool = null; p.jolt(0, -2); yield 0.5;
   };
-  // 播种：蹲下刨两下土 → 撒种子 → 拍一拍 → 浇水
   A.isleSow = function* (i, seed) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
     if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'eat';
@@ -796,41 +737,17 @@
     p.anim = 'idle'; p.jolt(0, 2); yield 0.3; p.jolt(0, 2); yield 0.3;
     yield* A.isleWater.call(p, i);
   };
-  // 收获：挎着篮子过去 → 弯腰拔三下 → 菜飞进篮子
   A.isleHarvest = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i), inf = PP.econ.plotInfo(i), col = inf && CROP_COL[inf.crop];
     p.tool = { k: 'basket', t0: performance.now(), col }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2);
     for (let k = 0; k < 3; k++) { p.anim = 'eat'; p.jolt(k % 2 ? 2 : -2, 1.5); yield 0.28; p.anim = 'idle'; p.jolt(0, -2.5); fxAt(cu + (k - 1), cv, cz + 3, { vy: -70, vx: (p.x - scrU(cu, cv)) * 1.5, icon: 'sparkle', life: 0.5 }); yield 0.22; }
-    PP.econ.harvest(i); p.tool.full = true; p.anim = 'jump'; p.jolt(0, -4); p.eyes = 'happy'; p.think('heart', 1.4); yield 0.5; p.anim = 'idle'; yield 0.9; p.tool = null;
+    PP.econ.harvest(i); fort().fuel = Math.min(100, fort().fuel + 4); p.tool.full = true; p.anim = 'jump'; p.jolt(0, -4); p.eyes = 'happy'; p.think('heart', 1.4); yield 0.5; p.anim = 'idle'; yield 0.9; p.tool = null;
   };
-  A.isleMail = function* () { const p = this; if (!(yield* walkTo(p, MAILB.u, MAILB.v + 1.5))) { stuck(p); return; } face(p, MAILB.u, MAILB.v - 2); p.anim = 'jump'; p.jolt(0, -3); yield 0.35; p.anim = 'idle'; p.think('excl', 1.5); yield 1; if (PP.econ.unread()) say(p, '信箱里有信哦～', 3); yield 1.5; };
-  A.isleDrink = function* () { const p = this, wz = T.zAt(TANK.u, TANK.v); if (!(yield* walkTo(p, TANK.u, TANK.v + 2.4))) { stuck(p); return; } face(p, TANK.u, TANK.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TANK.u, TANK.v + 1, wz + 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
-  // 回自己的窝：走到门口 → 门开 → 钻进去（看不见了）→ 门关上，窝里冒 zZ → 睡够了开门出来，伸个懒腰
-  A.isleDen = function* (i) {
-    const p = this, d = CA.DENS[i]; if (!d || inside) return;
-    const lv = d[0], f = CA.denFront(d), du = f.u, dv = f.v, cu = (d[1] + d[3]) / 2, cv = (d[2] + d[4]) / 2;
-    yield* walkTo(p, du, dv, null, lv); if (!p.ip || p.ip.lv !== lv || Math.hypot(p.ip.u - du, p.ip.v - dv) > 1.6) { say(p, '走不过去……'); return; }
-    face(p, cu, cv); p.anim = 'idle'; yield 0.3;
-    denOpen[i] = true; yield 0.5; p.inDen = true; yield 0.4; denOpen[i] = false;
-    const t0 = performance.now(), dur = U.rand(8, 14);
-    while ((performance.now() - t0) / 1000 < dur) { yield 1.6; if (!p.inDen) return; p.n.energy = Math.min(100, (p.n.energy || 0) + 3); if (Math.random() < 0.7) zzAt(cu, cv, CA.denZ(d) + 6); }
-    denOpen[i] = true; yield 0.4; p.inDen = false; p.anim = 'stretch'; yield 0.5; denOpen[i] = false; p.anim = 'idle'; p.think('heart', 1.2); say(p, ['睡得好香', '还是自己的窝最舒服', '伸个懒腰～']); yield 1;
-  };
-  // 洗澡：走到浴室门口 → 进去 → 里面冒泡泡 → 出来甩甩水
-  A.isleBath = function* () {
-    const p = this, B = CA.BATH; if (inside) return; const du = B.door, dv = B.v1 + 0.9;
-    yield* walkTo(p, du, dv, null, 1); if (!p.ip || p.ip.lv !== 1 || Math.hypot(p.ip.u - du, p.ip.v - dv) > 1.6) { say(p, '走不过去……'); return; }
-    p.inDen = true; const t0 = performance.now(); while (performance.now() - t0 < 6000) { yield 0.5; if (!p.inDen) return; bubble(du + U.rand(-1, 1), B.v0 + 1.5, CA.Z[1] + B.h + 0.5); }
-    p.inDen = false; p.anim = 'idle'; p.jolt(1.5, 0); yield 0.3; p.jolt(-1.5, 0); yield 0.3; p.anim = 'idle'; say(p, ['洗得香喷喷', '甩甩水～', '好舒服！']); yield 1.2;
-  };
-  A.isleRiver = function* (u, v, wu, wv) {
-    const p = this; if (!(yield* walkTo(p, u, v))) { stuck(p); return; } face(p, wu, wv); p.anim = 'sit'; ripple(wu, wv); yield 0.8;
-    const r = Math.random(); if (r < 0.4) { p.think('heart', 1.2); say(p, ['河水好凉', '有小鱼游过去了', '水里有片叶子']); } else if (r < 0.7) { p.anim = 'drink'; yield 1.2; } else { p.jolt(0, -2); ripple(wu, wv); say(p, ['啪嗒～', '溅了自己一脸水']); }
-    yield 1.4; p.anim = 'idle';
-  };
+  A.isleMail = function* () { const p = this; if (!(yield* walkTo(p, MAILB.u - 1.6, MAILB.v + 1.2))) { stuck(p); return; } face(p, MAILB.u, MAILB.v); p.anim = 'jump'; p.jolt(0, -3); yield 0.35; p.anim = 'idle'; p.think('excl', 1.5); yield 1; if (PP.econ.unread()) say(p, '信箱里有信哦～', 3); yield 1.5; };
+  A.isleDrink = function* () { const p = this; if (!(yield* walkTo(p, TAP.u - 1.8, TAP.v + 0.6))) { stuck(p); return; } face(p, TAP.u, TAP.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TAP.u, TAP.v - 0.9, 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
   A.isleFish = function* () {
     const p = this;
-    if (!(yield* walkTo(p, FISH.u, FISH.v, null, 0))) { stuck(p); return; } face(p, BOB.u, BOB.v + 6); p.anim = 'sit';
+    if (!(yield* walkTo(p, FISH.u, FISH.v, null, 1))) { stuck(p); return; } face(p, BOB.u, BOB.v); p.anim = 'sit';
     const set = (ph) => { p.fishing = Object.assign(p.fishing || {}, { ph, t0: performance.now() }); };
     set('cast'); p.jolt(0, -2); yield 0.8; ripple(BOB.u, BOB.v); yield 0.6; set('wait'); yield U.rand(3, 7); set('nibble'); ripple(BOB.u, BOB.v); yield U.rand(0.9, 1.6);
     set('bite'); ripple(BOB.u, BOB.v); p.eyes = 'wide'; p.think('excl', 0.8); yield () => !p.fishing || p.fishing.helped || performance.now() - p.fishing.t0 > 1500;
@@ -849,41 +766,21 @@
     p.eyes = 'happy'; p.n.fun = Math.min(100, p.n.fun + 15); yield 1.6; p.eyes = 'open';
   };
   function* cookJiggle(p) { p.anim = 'idle'; cooking = true; p.think(U.pick(['cake', 'bowl', 'bread']), 3); for (let k = 0; k < 9; k++) { p.jolt(k % 2 ? 1.5 : -1.5, k % 3 ? 0 : -1); yield 0.42; } cooking = false; }
-  // 在菜谱里点「做」：主角跑到灶台前做菜（城堡里 / 起居室的厨房角都行）
+  // 在菜谱里点「做」：主角跑到厨房灶台前做菜
   function cookAnim(p, name) {
     if (!G.isle || !p || !G.pets.includes(p) || p.held) return;
-    const pr = inside === 'castle' ? Object.assign({}, PROPS.castle.find((q) => q.do === 'cookp'), { user: true }) : null;
+    const pr = Object.assign({}, props().find((q) => q.do === 'cookp'), { user: true });
     p.interrupt(true); p.fishing = null; p.tool = null;
-    p.run('isleCookDish', function* () { if (pr) { if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, 0))) { stuck(p); return; } face(p, pr.at[0], 0); } else if (inside === 'house') { if (!(yield* walkTo(p, ku - 0.6, R0 + 4.6))) { stuck(p); return; } face(p, ku, R0 - 2); } yield* cookJiggle(p); say(p, `「${name}」做好啦！`, 2.5); p.eyes = 'happy'; yield 1.2; p.eyes = 'open'; });
+    p.run('isleCookDish', function* () { if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, pr.at[2]))) { stuck(p); return; } face(p, pr.at[0], 0); yield* cookJiggle(p); say(p, `「${name}」做好啦！`, 2.5); p.eyes = 'happy'; yield 1.2; p.eyes = 'open'; });
   }
-  A.isleCook = function* () {
-    const p = this;
-    if (!(yield* walkTo(p, ku - 0.6, R0 + 4.6))) { stuck(p); return; } face(p, ku, R0 - 2); p.anim = 'idle'; cooking = true; p.think(U.pick(['cake', 'bowl', 'bread']), 3);
-    for (let k = 0; k < 9; k++) { p.jolt(k % 2 ? 1.5 : -1.5, k % 3 ? 0 : -1); yield 0.42; }
-    cooking = false; const d = day(); if (PP.quest) PP.quest.on('cook');
-    if (d.cook < 4 && Math.random() < 0.5) { d.cook++; PP.econ.give('biscuit', 1); PP.ui.toast(`${p.name}烤了一块小饼干，放进背包了`); }
-    else { p.n.hunger = Math.min(100, p.n.hunger + 30); say(p, '做了点好吃的，自己先吃啦～', 2.5); p.anim = 'eat'; yield 1.5; }
-    p.anim = 'idle'; p.eyes = 'happy'; yield 1; p.eyes = 'open';
-  };
-  // 鸡舍：走到小梯子前，弯腰摸一摸，捡到今天的鸡蛋（一天最多 3 个）
-  A.isleCoop = function* () {
-    const p = this, d = day(); if (!(yield* walkTo(p, COOP.u + 0.4, COOP.v + 4.8))) { stuck(p); return; } face(p, COOP.u, COOP.v);
-    for (let k = 0; k < 3; k++) { p.anim = 'eat'; p.jolt(k % 2 ? 1.5 : -1.5, 1); yield 0.3; p.anim = 'idle'; yield 0.2; }
-    chickT = performance.now();
-    if ((d.egg || 0) < 3) { d.egg = (d.egg || 0) + 1; PP.econ.give('henegg', 1); p.think('heart', 1.4); say(p, ['热乎乎的鸡蛋！', '捡到一个蛋～', '母鸡咯咯哒'], 2); if (PP.quest) PP.quest.on('egg'); }
-    else say(p, ['今天的蛋都捡完啦', '母鸡说明天再来'], 2);
-    p.eyes = 'happy'; yield 1.2; p.eyes = 'open';
-  };
-  // 蜂箱：戴上小网兜，掀开盖子，蜜蜂绕着飞；收一罐蜂蜜（一天 1 罐）
   A.isleHive = function* () {
-    const p = this, d = day(); if (!(yield* walkTo(p, HIVE.u - 0.4, HIVE.v + 3))) { stuck(p); return; } face(p, HIVE.u, HIVE.v);
+    const p = this, d = day(), [hu, hv] = HIVES[0]; if (!(yield* walkTo(p, hu + 1.6, hv + 2.8))) { stuck(p); return; } face(p, hu, hv);
     beeBoost = performance.now(); p.eyes = 'wide'; yield 0.6;
     for (let k = 0; k < 4; k++) { p.jolt(k % 2 ? 2 : -2, 0); yield 0.3; }
     if (!d.honey) { d.honey = 1; PP.econ.give('honeyjar', 1); p.anim = 'jump'; p.jolt(0, -4); say(p, ['一罐金黄的蜂蜜！', '好香好甜'], 2.2); if (PP.quest) PP.quest.on('honey'); yield 0.5; p.anim = 'idle'; }
     else { say(p, ['蜜蜂还在酿，明天再来', '嗡嗡嗡……先不打扰它们'], 2.2); }
     p.eyes = 'happy'; yield 1; p.eyes = 'open';
   };
-  // 上床睡觉：打个哈欠 → 爬上床 → 原地转一圈 → 钻进被窝（被子盖到身上）→ 冒 zZ → 睡饱了伸个懒腰跳下床
   A.isleBedSleep = function* (pr) {
     const p = this;
     p.eyes = 'sleepy'; say(p, ['困了……', '要睡觉觉了', '呼——好困'], 1.6); p.anim = 'idle'; yield 1;
@@ -891,67 +788,64 @@
     p.facing = -p.facing; yield 0.3; p.facing = -p.facing; yield 0.3;
     p.anim = 'lie'; yield 0.6; p.anim = 'sleep'; p.eyes = 'closed'; p.sleeping = true; p.inBed = { t0: performance.now() };
     let t = 0, zz = 0; const dur = U.rand(18, 34);
-    while (t < dur && p.n.energy < 100) { yield 0.5; t += 0.5; zz += 0.5; p.n.energy = Math.min(100, p.n.energy + 2.5); if (zz >= 2) { zz = 0; PP.fx({ x: p.x + p.facing * 6 * G.S, y: p.y - 14 * G.S, vx: 10, vy: -16, icon: 'zzz', life: 2.2, s: Math.max(1, G.S - 1) }); } }
+    while ((t < dur && p.n.energy < 100) || (PP.sleepTime && PP.sleepTime())) { yield 0.5; t += 0.5; zz += 0.5; p.n.energy = Math.min(100, p.n.energy + 2.5); if (zz >= 2) { zz = 0; PP.fx({ x: p.x + p.facing * 6 * G.S, y: p.y - 14 * G.S, vx: 10, vy: -16, icon: 'zzz', life: 2.2, s: Math.max(1, G.S - 1) }); } }
     p.inBed = null; p.sleeping = false; p.anim = 'lie'; p.eyes = 'sleepy'; yield 0.8;
     p.anim = 'idle'; p.eyes = 'open'; p.jolt(0, -2); yield 0.3; p.jolt(0, -3); say(p, ['睡饱啦！', '早上好～', '精神满满'], 2); p.eyes = 'happy';
     gain(p, '体力满了'); yield 1; p.eyes = 'open';
   };
-  const prop = (sc, id) => PROPS[sc].find((q) => q.id === id);
-  const propUse = (uses) => U.pick(PROPS.house.filter((q) => uses.includes(q.do))) || null;
+  const propUse = (uses) => U.pick(props().filter((q) => uses.includes(q.do))) || null;
   A.isleBed = function* () { const pr = propUse(['sleep']) || propUse(['nap', 'warm']); if (pr) yield* A.isleUse.call(this, pr); };
   A.isleChair = function* () { const pr = propUse(['sit', 'rock']); if (pr) yield* A.isleUse.call(this, pr); };
-  A.isleGarden = function* () { yield* A.isleUse.call(this, prop('gh', PICK.bench)); };
+  A.isleGarden = function* () { const pr = propUse(['tend']); if (pr) yield* A.isleUse.call(this, pr); };
   A.isleSit = function* (sl) {
-    const p = this, lv = 0, z = T.zAt(sl.u, sl.v), at = [sl.u + 0.4, sl.v + 2, lv];
+    const p = this, lv = 1, z = 0, at = [sl.u + 0.4, sl.v + 2, lv];
     if (!(yield* walkTo(p, at[0], at[1], null, lv))) { stuck(p); return; }
     if (sl.id === 'hay') { yield* hop(p, { u: sl.u, v: sl.v, z: z + 3.2 }); p.anim = 'lie'; p.eyes = 'sleepy'; yield U.rand(5, 10); p.n.energy = Math.min(100, p.n.energy + 12); gain(p, '+体力'); p.eyes = 'open'; yield* hopOff(p, at); }
     else if (sl.id === 'swing') { p.n.fun = Math.min(100, p.n.fun + 4); yield* hop(p, { u: sl.u, v: sl.v + 0.1, z: z + 3.4 }); p.anim = 'sit'; const x0 = p.x; for (let t = 0; t < 8; t += 1 / 30) { p.x = x0 + Math.sin(t * 2.4) * 2.4 * L.u; p.isleSpot.z = z + 3.4 + (1 - Math.cos(t * 4.8)) * 0.5; p.facing = Math.cos(t * 2.4) > 0 ? 1 : -1; yield 1 / 30; } p.x = x0; p.n.fun = Math.min(100, p.n.fun + 12); gain(p, '+心情'); yield* hopOff(p, at); }
     else { yield* hop(p, { u: sl.u, v: sl.v + 0.1, z: z + 2.6 }); p.anim = 'sit'; p.eyes = Math.random() < 0.5 ? 'happy' : 'open'; yield U.rand(5, 9); p.n.energy = Math.min(100, p.n.energy + 10); gain(p, '+体力'); p.eyes = 'open'; yield* hopOff(p, at); }
     p.anim = 'idle';
   };
-  // 进进出出：小岛 ⇄ 城堡里（门厅）⇄ 起居室；小岛 ⇄ 花房
-  A.isleHouse = function* (go) {
-    const p = this; if (go === true) go = 'house';
-    const living = () => PROPS.castle.find((q) => q.do === 'living');
-    if (inside === 'house') { if (!(yield* walkTo(p, RDOOR.u, HV1 - 2.4, null, 0))) { stuck(p); return; } yield 0.2; setInside('castle'); return; }
-    if (inside === 'castle') {
-      if (go === 'house') { yield* A.isleUse.call(p, living()); return; }
-      if (go === 'castle') return;
-      if (!(yield* walkTo(p, PP.castleIn.START.u, PP.castleIn.START.v, null, 0))) { stuck(p); return; } yield 0.2; setInside(false); return;
-    }
-    if (inside === 'gh') { if (go === 'gh') return; const s = start(); yield* walkTo(p, s.u, s.v + 1, null, 0); yield 0.2; setInside(false); return; }
-    if (go === 'gh') { if (!(yield* walkTo(p, GDOOR.u, GDOOR.v + 2.6, null, 0))) { stuck(p); return; } face(p, GDOOR.u, 0); yield 0.2; setInside('gh'); return; }
-    if (go === 'castle' || go === 'house') { if (!(yield* walkTo(p, DOOR.u, HOUSE.v1 + 1.6))) { stuck(p); return; } face(p, DOOR.u, 0); yield 0.2; setInside('castle'); if (go === 'house') { yield 0.6; yield* A.isleUse.call(p, living()); } }
-  };
-  A.isleFurn = function* (k) { const pr = PROPS.house.find((q) => q.f === k); if (pr) yield* A.isleUse.call(this, pr); };
+  // 兼容：去某个地方（'house' 起居室 / 'gh' 花房 / false 庭院）
+  A.isleHouse = function* (go) { const p = this; const t = go === 'house' || go === true ? roomSpot('living') : go === 'gh' ? roomSpot('green') : go === 'bed' ? roomSpot('bedroom') : { u: HALL_OUT.u + U.rand(-2, 4), v: HALL_OUT.v + U.rand(1, 5), lv: 1 }; if (!(yield* walkTo(p, t.u, t.v, null, t.lv))) { stuck(p); return; } yield U.rand(1, 3); };
+  A.isleFurn = function* (k) { const pr = props().find((q) => q.f === k); if (pr) yield* A.isleUse.call(this, pr); };
+  // 抱柴：去柴房抱一捆，下楼到锅炉房添进去
+  function* fetchWood(p) {
+    const wood = props().find((q) => q.do === 'wood'), boiler = props().find((q) => q.do === 'stoke');
+    if (!(yield* walkTo(p, wood.at[0], wood.at[1], null, 1))) { stuck(p); return false; }
+    face(p, 2, 25); p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; p.tool = { k: 'wood', t0: performance.now() }; say(p, ['抱一捆柴！', '嘿咻'], 1.4); yield 0.4;
+    if (!(yield* walkTo(p, boiler.at[0], boiler.at[1], null, 0))) { stuck(p); return false; }
+    face(p, 12, 15); p.tool = null; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? -2 : 2); fxAt(12 + U.rand(-1, 1), 12.6, Z[0] + 3, { vy: -40, icon: 'sparkle', life: 0.5 }); yield 0.3; }
+    const f = fort(); f.fuel = Math.min(100, f.fuel + 35); gain(p, `锅炉 ${Math.round(f.fuel)}%`); say(p, ['火旺起来了！', '翅膀要扇得有劲啦', '热水马上就好'], 2); yield 1;
+    return true;
+  }
+  A.isleStoke = function* () { yield* fetchWood(this); };
   A.isleUse = function* (pr) {
-    const p = this, d = day(), S2 = () => G.S, k = pr.do, a = area();
+    const p = this, d = day(), S2 = () => G.S, k = pr.do;
     const spark = (ic, n = 4, up = 20) => { for (let i = 0; i < n; i++) PP.fx({ x: p.x + U.rand(-12, 12) * S2(), y: p.y - up * S2(), vy: -30, icon: ic, life: 0.9, s: 1 }); };
-    if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, pr.at[2] || 0))) { stuck(p); return; }
+    if (k === 'stoke' || k === 'wood') { yield* fetchWood(p); return; }
+    if (!(yield* walkTo(p, pr.at[0], pr.at[1], null, pr.at[2] != null ? pr.at[2] : 1))) { stuck(p); return; }
     if (pr.spot) yield* hop(p, pr.spot);
     p.anim = 'idle';
     if (k === 'sleep') { yield* A.isleBedSleep.call(p, {}); }
-    else if (k === 'living') { face(p, pr.at[0], 0); yield 0.25; setInside('house'); return; }
-    else if (k === 'cookp') { face(p, pr.at[0], 0); yield* cookJiggle(p); if (!pr.user && d.cook < 4 && Math.random() < 0.5) { d.cook++; PP.econ.give('biscuit', 1); PP.ui.toast(`${p.name}在城堡厨房烤了一块小饼干，放进背包了`); } else if (!pr.user) { p.n.hunger = Math.min(100, p.n.hunger + 25); say(p, '偷吃了一口锅里的～'); } }
+    else if (k === 'cookp') { face(p, pr.at[0], 0); yield* cookJiggle(p); if (!pr.user && d.cook < 4 && Math.random() < 0.5) { d.cook++; PP.econ.give('biscuit', 1); PP.ui.toast(`${p.name}在厨房烤了一块小饼干，放进背包了`); } else if (!pr.user) { p.n.hunger = Math.min(100, p.n.hunger + 25); say(p, '偷吃了一口锅里的～'); } }
     else if (k === 'dine') { const ds = Object.keys(E().bag).filter((id) => PP.econ.ITEMS[id] && PP.econ.ITEMS[id].kind === 'dish' && E().bag[id] > 0); p.anim = 'sit'; yield 0.5; if (ds.length) { PP.econ.feedItem(p, ds[0]); return; } say(p, ['肚子饿了……厨房还没做菜', '想吃好吃的！（去灶台做菜）']); p.think('bowl', 2); yield 2.5; }
-    else if (k === 'bath') { face(p, pr.at[0], pr.at[1] - 3); p.anim = 'sit'; for (let i = 0; i < 12; i++) { bubble(pr.at[0] + U.rand(-3, 3), pr.at[1] - 4, ipOf(p).z + 5); if (i % 3 === 0) p.jolt(i % 2 ? 1 : -1, 0); yield 0.45; } p.anim = 'idle'; p.jolt(2, 0); yield 0.25; p.jolt(-2, 0); say(p, ['洗得香喷喷！', '泡泡好多～', '甩甩水！']); p.n.fun = Math.min(100, p.n.fun + 10); yield 1.2; }
+    else if (k === 'bath') { face(p, pr.at[0], pr.at[1] - 3); p.anim = 'sit'; const hot = fort().fuel > 8; for (let i = 0; i < 12; i++) { bubble(pr.at[0] + U.rand(-3, 3), pr.at[1] - 4, ipOf(p).z + 5); if (i % 3 === 0) p.jolt(i % 2 ? 1 : -1, 0); yield 0.45; } p.anim = 'idle'; p.jolt(2, 0); yield 0.25; p.jolt(-2, 0); say(p, hot ? ['洗得香喷喷！', '热水好舒服～', '甩甩水！'] : ['水是凉的……锅炉没柴了', '冷冷冷！快去添柴']); p.n.fun = Math.min(100, p.n.fun + (hot ? 10 : 2)); yield 1.2; }
     else if (k === 'dex' || k === 'read') { p.anim = 'sit'; p.think('book', 3); yield U.rand(3.5, 6); say(p, U.pick(['原来月光蕨在森林最深处', '这本书里有好多鱼', '记下来：雪绒花喜欢凉快', '下次去探险带种子回来！'])); p.n.fun = Math.min(100, p.n.fun + 8); yield 1.5; }
     else if (k === 'craft') { face(p, pr.at[0], pr.at[1] - 3); for (let i = 0; i < 8; i++) { p.anim = i % 2 ? 'idle' : 'crouch'; p.jolt(0, i % 2 ? -1.5 : 1); PP.fx({ kind: 'dot', x: p.x + p.facing * 10, y: p.y - 14 * G.S, vx: U.rand(-30, 30), vy: U.rand(-40, -10), life: 0.5, col: '#e8c890', size: 2 }); yield 0.3; } p.anim = 'idle'; say(p, ['叮叮当当～', '做好一个小鸟屋！', '锯木头真好玩']); p.n.fun = Math.min(100, p.n.fun + 10); yield 1.2; }
     else if (k === 'store') { p.anim = 'eat'; for (let i = 0; i < 5; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 0); yield 0.3; } p.anim = 'idle'; say(p, ['种子都分好格子了', '这个抽屉里是向日葵种子']); yield 1.5; }
     else if (k === 'tele') { p.look = [0, -1]; p.anim = 'sit'; const fx = wfx(); yield 1.5; say(p, night() ? ['看到好多星星！', '那颗最亮的是什么星？', '月亮好圆'] : fx.rain ? ['云好厚……'] : ['看到远处的热气球了', '那边的云像一条鱼', '天好蓝']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2.5; }
+    else if (k === 'helm') { face(p, 12, 18); p.anim = 'idle'; for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 2 : -2, 0); yield 0.35; } const pw = power(); say(p, pw > 0.7 ? ['翅膀扇得好有劲！', '往云少的地方飘一点'] : pw > 0.2 ? ['慢慢飘～', '锅炉的柴还够'] : ['翅膀没劲了……得去添柴', '蒸汽不够了']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2; }
+    else if (k === 'pump') { face(p, 37, 4); p.look = [0, -1]; yield 1.4; const wet = wfx().rain > 0.3; say(p, wet ? ['下雨了，屋顶的水槽在往水塔里灌水', '水塔满满的'] : ['水泵咕嘟咕嘟，把池子的水抽上去烧', '水塔的水是雨水和云里的雾接来的']); yield 2.4; }
+    else if (k === 'nest') { face(p, NEST.u, NEST.v); p.anim = 'eat'; yield 0.6; if (eggOut()) { fort().egg = today(); dirty(); PP.econ.give('henegg', 1); p.tool = { k: 'egg', t0: performance.now() }; p.anim = 'jump'; p.jolt(0, -3); say(p, ['鸟巢里有个蛋！', '野鸟留下一个蛋～'], 2); if (PP.quest) PP.quest.on('egg'); yield 1.2; p.tool = null; } else { say(p, ['今天的蛋已经捡过了', '小鸟飞走了'], 2); yield 1; } p.anim = 'idle'; }
     else if (k === 'pot' || k === 'valve') { p.tool = { k: 'can', t0: performance.now(), pour: true }; for (let i = 0; i < 6; i++) { PP.fx({ x: p.x + p.facing * 14 * S2(), y: p.y - 12 * S2(), vy: 30, icon: 'drop', life: 0.4, s: 1 }); yield 0.25; } p.tool = null; if (k === 'pot' && pr.i != null && PP.LIFE) { const f = PP.LIFE.potInfo(pr.i); if (f && !f.wet) { PP.LIFE.potWater(pr.i); dirty(); gain(p, '浇好水了'); } else if (f && f.stage === 2 && !f.pol) { PP.LIFE.potPollinate(pr.i); gain(p, '授粉了'); } } p.think('flower', 1.4); yield 0.8; }
     else if (k === 'sit') { p.anim = 'sit'; p.eyes = 'sleepy'; p.think(U.pick(['book', 'note', 'heart']), 2.5); yield U.rand(5, 9); p.n.energy = Math.min(100, p.n.energy + 15); gain(p, '+体力'); p.eyes = 'open'; }
     else if (k === 'piano') { p.anim = 'sit'; for (let i = 0; i < 10; i++) { PP.fx({ x: p.x + U.rand(-10, 10), y: p.y - 24 * S2(), vy: -24, icon: 'note', life: 1, s: 1 }); p.jolt(0, i % 2 ? -1 : 1); yield 0.4; } p.n.fun = Math.min(100, p.n.fun + 15); gain(p, '+心情'); }
-    else if (k === 'shake') { face(p, TREE.u, TREE.v); for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 2.5 : -2.5, 0); fxAt(TREE.u + U.rand(-2.6, 2.6), TREE.v + U.rand(-2.6, 2.6), 17, { vy: 50, vx: U.rand(-10, 10), icon: 'leaf', life: 1 }); yield 0.22; } if ((d.tree || 0) < 3 && season() !== 'winter' && Math.random() < 0.7) { d.tree = (d.tree || 0) + 1; const it = U.pick(['apple', 'apple', 'berry']); PP.econ.give(it, 1); fxAt(TREE.u - 1, TREE.v + 1, 14, { vy: 60, icon: it === 'apple' ? 'apple' : 'berry', life: 0.9 }); say(p, it === 'apple' ? '掉下来一个苹果！' : '掉下来一颗浆果！'); if (PP.quest) PP.quest.on('shake'); } else say(p, d.tree >= 3 ? ['今天的果子都摇完啦'] : ['掉了一头叶子', '树上的鸟被吓跑了']); yield 1.6; }
     else if (k === 'lamp') { p.anim = 'jump'; p.jolt(0, -4); spark('sparkle', 3, 26); yield 0.5; p.anim = 'idle'; say(p, night() ? ['亮晶晶的', '有它就不怕黑'] : ['晚上它会亮哦']); yield 1.4; }
-    else if (k === 'clock') { const t = new Date(); p.look = [0, -1]; yield 0.8; say(p, `现在是 ${t.getHours()} 点 ${String(t.getMinutes()).padStart(2, '0')} 分`); yield 2; }
     else if (k === 'warm') { p.anim = 'sit'; p.eyes = 'happy'; spark('heart', 1); yield U.rand(5, 8); p.n.energy = Math.min(100, p.n.energy + 6); p.eyes = 'open'; }
-    else if (k === 'kitchen') { yield* A.isleCook.call(p); }
     else if (k === 'write') { p.anim = 'sit'; p.think('book', 2.5); for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 0.8 : -0.8, 0); yield 0.4; } say(p, ['今天也是开心的一天', '写下：钓到一条鱼', '日记：主人今天摸了我']); yield 2; }
     else if (k === 'rummage') { p.anim = 'eat'; for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 1.5 : -1.5, i % 3 ? 0 : -1); yield 0.3; } p.anim = 'idle'; if ((d.rum || 0) < 3 && Math.random() < 0.5) { d.rum = (d.rum || 0) + 1; PP.econ.addFish(1, `${p.name}翻到一条小鱼干`); spark('sparkle', 3); say(p, '翻到一条小鱼干！'); } else say(p, ['只有灰尘……', '找到一只旧袜子', '空的']); yield 1.6; }
     else if (k === 'water' || k === 'tend') { p.tool = { k: 'can', t0: performance.now(), pour: true }; for (let i = 0; i < 8; i++) { PP.fx({ x: p.x + p.facing * 14 * S2(), y: p.y - 12 * S2(), vy: 30, icon: 'drop', life: 0.4, s: 1 }); yield 0.25; } p.tool = null; p.think('flower', 1.4); p.n.fun = Math.min(100, p.n.fun + 8); if (k === 'tend' && !d.gh && Math.random() < 0.35) { d.gh = 1; PP.econ.give('tulip', 1); PP.ui.toast(`${p.name}在花房里剪了一朵郁金香，放进背包了`); } yield 1; }
     else if (k === 'look') { p.look = [0, -1]; p.anim = 'sit'; const fx = wfx(); p.think(fx.rain ? 'drop' : fx.snow ? 'sparkle' : night() ? 'moon' : 'note', 2.2); yield 2.4; say(p, pr.say || ['风景真好']); p.n.fun = Math.min(100, p.n.fun + 8); yield 2.4; }
-    else if (k === 'pick') { p.anim = 'jump'; p.jolt(0, -4); yield 0.45; p.anim = 'eat'; yield 1.2; p.n.thirst = Math.min(100, p.n.thirst + 30); say(p, ['柠檬好酸！', '酸得眼睛都眯起来了']); p.eyes = 'closed'; p.anim = 'idle'; yield 1.5; p.eyes = 'open'; }
     else if (k === 'drink') { p.anim = 'eat'; yield 2; p.n.thirst = 100; gain(p, '不渴了'); spark('heart', 1); p.anim = 'idle'; yield 0.8; }
     else if (k === 'sniff') { p.look = [0, -1]; p.think('flower', 2); yield 2.4; p.eyes = 'happy'; yield 1; p.eyes = 'open'; }
     else if (k === 'rock') { p.anim = 'sit'; p.eyes = 'sleepy'; for (let t = 0; t < 7; t += 0.2) { p.jolt(Math.sin(t * 3) * 1.5, 0); yield 0.2; } p.n.energy = Math.min(100, p.n.energy + 12); gain(p, '+体力'); p.eyes = 'open'; }
@@ -962,67 +856,51 @@
     else if (k === 'climb') { p.look = [0, -1]; p.anim = 'sit'; say(p, ['好高！', '这里看得好远', '我是山大王']); yield 3; p.n.fun = Math.min(100, p.n.fun + 8); }
     else if (k === 'nap') { p.anim = 'sleep'; p.eyes = 'closed'; p.think('zzz', 2.5); yield U.rand(6, 10); p.n.energy = Math.min(100, p.n.energy + 20); gain(p, '+体力'); p.eyes = 'open'; }
     else if (k === 'music') { p.anim = 'dance'; for (let i = 0; i < 12; i++) { PP.fx({ x: p.x + U.rand(-14, 14), y: p.y - 26 * S2(), vy: -24, icon: 'note', life: 1, s: 1 }); yield 0.35; } p.n.fun = Math.min(100, p.n.fun + 15); gain(p, '+心情'); }
-    else if (k === 'furn') {
-      const id = (E().room || {})[pr.f];
-      if (pr.f === 'rug') { p.anim = Math.random() < 0.5 ? 'knead' : 'roll'; yield U.rand(3, 6); }
-      else if (id === 'shelf') { p.anim = 'sit'; p.think('book', 3); yield 4; } else if (id === 'table') { p.anim = 'sit'; p.think('cake', 2.5); yield 3; }
-      else if (id === 'piano') { p.anim = 'sit'; for (let i = 0; i < 10; i++) { PP.fx({ x: p.x + U.rand(-10, 10), y: p.y - 24 * S2(), vy: -24, icon: 'note', life: 1, s: 1 }); p.jolt(0, i % 2 ? -1 : 1); yield 0.4; } }
-      else if (id === 'rocker') { p.anim = 'sit'; p.eyes = 'sleepy'; for (let t = 0; t < 6; t += 0.2) { p.jolt(Math.sin(t * 3) * 1.5, 0); yield 0.2; } }
-      else { p.look = [0, -1]; yield 2; }
-    }
+    else { p.look = [0, -1]; yield 2; }
     if (pr.spot) yield* hopOff(p, pr.at);
     p.anim = 'idle'; p.eyes = 'open'; p.look = [0, 0];
   };
   const baseEnter = A.enterDoor, baseEmerge = A.emerge;
-  A.enterDoor = function* (done) { if (!G.isle) { yield* baseEnter.call(this, done); return; } const p = this; if (!inside) { yield* walkTo(p, DOOR.u, HOUSE.v1 + 1.6); yield 0.2; } p.inDoor = true; done && done(); };
-  A.emerge = function* () { if (!G.isle) { yield* baseEmerge.call(this); return; } const p = this; p.inDoor = false; p.ip = null; p.iw = null; p.isleSpot = null; ipOf(p); p.y = p.floor; if (!inside) yield* A.isleOut.call(p); };
+  const baseSleep = A.sleep;
+  A.sleep = function* (...args) { const p = this; if (G.isle && G.pets.includes(p) && !p.d.trip) { const bed = props().find((x) => x.do === 'sleep'); if (bed) { p._bedSleep = true; try { yield* A.isleUse.call(p, bed); } finally { p._bedSleep = false; } return; } } yield* baseSleep.apply(p, args); };
+  A.enterDoor = function* (done) { if (!G.isle) { yield* baseEnter.call(this, done); return; } const p = this; yield* walkTo(p, HALL_OUT.u - 1, HALL_OUT.v - 1); yield 0.2; p.inDoor = true; done && done(); };
+  A.emerge = function* () { if (!G.isle) { yield* baseEmerge.call(this); return; } const p = this; p.inDoor = false; p.ip = null; p.iw = null; p.isleSpot = null; setIp(p, HALL_OUT.u - 1, HALL_OUT.v - 1, 1); p.y = p.floor; yield* A.isleOut.call(p); };
+  // 自己决定做什么：整座城堡就是家。下雨下雪往屋里躲；晚上、累了去卧室睡；锅炉没柴了去抱柴
   const baseDecide = PP.Pet.prototype.decide;
   PP.Pet.prototype.decide = function () {
-    if (G.isle && this.isleSpot && !this.sleeping && !this.fishing) { const s = this.isleSpot, a = area(), q = ipOf(this); this.isleSpot = null; if (Math.hypot(s.u - q.u, s.v - q.v) > 6) { const c = nearFree(a, s.u, s.v, q.lv); setIp(this, c[0], c[1], q.lv); this.ip.sc = inside || 'deck'; } }
+    if (G.isle && this.isleSpot && !this.sleeping && !this.fishing) { const s = this.isleSpot, a = area(), q = ipOf(this); this.isleSpot = null; if (Math.hypot(s.u - q.u, s.v - q.v) > 6) { const c = nearFree(a, s.u, s.v, q.lv); setIp(this, c[0], c[1], q.lv); } }
     if (G.isle && this.tool && !this.gen) this.tool = null;
+    // 睡觉时间：回卧室的床上睡，不在甲板上随地一躺
+    if (G.isle && G.pets.includes(this) && !this.held && PP.sleepTime && PP.sleepTime() && !this.sleeping) { const bed = props().find((x) => x.do === 'sleep'); if (bed) { this.run('isleUse', A.isleUse, bed); return; } }
     if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {
-      const e = E(), p = this, PR = (PROPS[inside || 'deck'] || []).slice(), useAny = (ch) => (PR.length && Math.random() < ch ? (p.run('isleUse', A.isleUse, U.pick(PR)), true) : false), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; };
-      const roam = () => { const cs = cellList(); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
-      if (inside === 'castle') {
-        roomT++;
-        if (p.n.energy < 50 && Math.random() < 0.5) return R('isleUse', A.isleUse, PROPS.castle.find((q) => q.do === 'sleep'));
-        if (roomT > (wet ? 10 : 5) && Math.random() < (wet ? 0.1 : 0.3)) return R('isleHouse', A.isleHouse, false);
-        if (Math.random() < 0.12) return R('isleUse', A.isleUse, PROPS.castle.find((q) => q.do === 'living'));
-        if (useAny(0.55)) return true;
-        return roam();
-      } else if (inside === 'house') {
-        roomT++;
-        if (p.n.energy < 55 && Math.random() < 0.6) return R('isleBed', A.isleBed);
-        if (roomT > (wet ? 9 : 4) && Math.random() < (wet ? 0.12 : 0.35)) return R('isleHouse', A.isleHouse, false);
-        if (useAny(0.6)) return true;
-        return roam();
-      } else if (inside === 'gh') {
-        roomT++;
-        if (roomT > 3 && Math.random() < 0.4) return R('isleHouse', A.isleHouse, false);
-        if (useAny(0.6)) return true;
-        return roam();
-      } else {
-        if (wet && Math.random() < 0.45) return R('isleHouse', A.isleHouse, Math.random() < 0.75 ? 'castle' : 'gh');
+      const e = E(), p = this, q = ipOf(p), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; }, PR = props();
+      const indoor = !!F.roomAt(q.u, q.v, q.lv), use = (list, ch) => (list.length && Math.random() < ch ? R('isleUse', A.isleUse, U.pick(list)) : false);
+      const roam = (lv) => { const cs = cellList().filter((c) => lv == null || c[4] === lv); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
+      if (p.n.energy < 40 || (night() && Math.random() < 0.5)) { const bed = PR.find((x) => x.do === 'sleep'); if (bed && Math.random() < 0.7) return R('isleUse', A.isleUse, bed); }
+      if (fort().fuel < 15 && Math.random() < 0.35) return R('isleStoke', A.isleStoke);
+      if (wet && !indoor && Math.random() < 0.6) return R('isleHouse', A.isleHouse, U.pick(['house', 'house', 'gh']));
+      if (!wet) {
         const grow = PLOTS.map((_, i) => i).filter((i) => { const inf = PP.econ.plotInfo(i); return inf && inf.stage < 3 && (e.farm[i].water || 0) < 3; });
-        if (grow.length && !fx.rain && Math.random() < 0.3) return R('isleWater', A.isleWater, U.pick(grow));
-        if (PP.econ.unread() && Math.random() < 0.25) return R('isleMail', A.isleMail);
+        if (grow.length && !fx.rain && Math.random() < 0.25) return R('isleWater', A.isleWater, U.pick(grow));
+        if (PP.econ.unread() && Math.random() < 0.2) return R('isleMail', A.isleMail);
         if (p.n.thirst < 60 && Math.random() < 0.5) return R('isleDrink', A.isleDrink);
         const sl = (e.isleDeco || []).map((id, i) => ({ id, i, u: SLOTS[i] && SLOTS[i][0], v: SLOTS[i] && SLOTS[i][1] })).filter((s) => ['bench', 'swing', 'hay'].includes(s.id));
-        if (sl.length && Math.random() < 0.25) return R('isleSit', A.isleSit, U.pick(sl));
-        if (Math.random() < 0.2) return R('isleFish', A.isleFish);
-        if (useAny(0.2)) return true;
-        if (Math.random() < 0.1) return R('isleHouse', A.isleHouse, 'gh');
-        if (((night() || p.n.energy < 40) && Math.random() < 0.5) || Math.random() < 0.08) return R('isleHouse', A.isleHouse, 'castle');
-        if (Math.random() < 0.6) return roam();
+        if (sl.length && Math.random() < 0.15) return R('isleSit', A.isleSit, U.pick(sl));
+        if (Math.random() < 0.15) return R('isleFish', A.isleFish);
+        if (eggOut() && Math.random() < 0.1) return R('isleUse', A.isleUse, PR.find((x) => x.do === 'nest'));
       }
+      if (p.n.thirst < 50 && Math.random() < 0.5) return R('isleUse', A.isleUse, PR.find((x) => x.do === 'drink'));
+      if (use(PR.filter((x) => !['stoke', 'wood', 'sleep', 'nest', 'pot', 'valve'].includes(x.do)), wet ? 0.6 : 0.4)) return true;
+      if (Math.random() < 0.6) return roam(wet ? q.lv : null);
     }
     return baseDecide.call(this);
   };
   setInterval(() => { try { if (!G.save || !PP.econ) return; if (wfx().rain > 0.3) (E().farm || []).forEach((pl) => { if (pl && (pl.water || 0) < 3) pl.water = (pl.water || 0) + 1; }); } catch (err) {} }, 10 * 60000);
 
-  function dirty() { dirtyK++; }
-  setInterval(() => { if (PP.started && G.save) sync(); }, 1500);
-  const doorX = () => { if (!L) layout(); const s = start(); return scrU(s.u, s.v); };
-  function furnAdd(f) { const e = E(), L0 = FURN.layout(e); if (!FURN.D[f] || L0.some((q) => q.f === f)) return false; const d = FURN.D[f], q = fFree({ f, u: 0, v: 0, r: 0, lv: d.lv[0] }, -1); if (!q) return false; L0.push(q); fChanged(); return true; }
-  PP.isle = { cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props: () => PROPS, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: () => inside, setInside, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: AREAS, free: (u, v, lv) => free(area(), u, v, lv) };
+  function dirty() { dirtyK++; propKey = ''; }
+  setInterval(() => { if (PP.started && G.save) sync(); if (G.isle) for (const p of G.pets) if (p.action === 'sleep' && !p._bedSleep && !p.held && !p.d.trip) { p.interrupt(true); p.run('sleep', A.sleep); } }, 1500);
+  const doorX = () => { if (!L) layout(); return scrU(HALL_OUT.u - 1, HALL_OUT.v - 1); };
+  function furnAdd(f) { const e = E(), L0 = FURN.layout(e); if (!FURN.D[f] || L0.some((q) => q.f === f)) return false; const q = fFree({ f, u: 0, v: 0, r: 0, room: 'living' }, -1) || fFree({ f, u: 0, v: 0, r: 0, room: 'bedroom' }, -1); if (!q) return false; L0.push(q); fChanged(); return true; }
+  const insideV = () => (cut == null ? false : cut === 2 ? 'house' : 'in');
+  PP.isle = { cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();

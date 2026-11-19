@@ -118,7 +118,7 @@
 
     bodyH() { const S = G.S * (this.scaleMul || 1); return (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx(); }
     hit(mx, my) {
-      if (this.inDoor || this.outing || this.inDen) return false;
+      if (this.inDoor || this.outing || this.inDen || this.isleHide) return false;
       const S = G.S * (this.scaleMul || 1);
       const top = (this.anim === 'sleep' || this.anim === 'lie' ? 21 : 28) * S - this.sinkPx();
       const half = ((PP.QUAD && PP.QUAD.has(this.d.species)) || (PP.VOX && PP.VOX.has(this.d.species)) ? 14 : 10) * S;
@@ -522,7 +522,7 @@
 
     // ---------- 渲染 ----------
     render(ctx) {
-      if (this.inDoor || this.outing || this.inDen) return;
+      if (this.inDoor || this.outing || this.inDen || this.isleHide) return;
       const S = G.S;
       let eyes = this.eyes, mouth = this.mouth;
       if (this.expr) { eyes = this.expr.eyes || eyes; mouth = this.expr.mouth || mouth; }
