@@ -491,3 +491,11 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .cutbar button.on { background: #ffe9a8; }
 .cutbar .lv { display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 64px; }
 .cutbar .lv small { color: var(--muted); font-size: 10px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 布置家具：房间 / 分类 / 家具库 */
+.furnbar { flex-direction: column; align-items: stretch; max-width: 560px; }
+.furnbar .frow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.furnbar .frow .sp { flex: 1; }
+.furnbar .frow button.on { background: #ffe9a8; }
+.furnbar .frow.cats button { font-size: 11px; padding: 1px 7px; }
+.furnbar .frow.lib { max-height: 96px; overflow-y: auto; padding-top: 2px; border-top: 1px dashed var(--muted); }
+.furnbar .frow.lib button { font-size: 11px; padding: 1px 6px; }
