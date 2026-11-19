@@ -483,3 +483,11 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .pots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .pot { border: 2px solid rgba(0,0,0,.12); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .pot canvas { align-self: center; }
+/* 城堡剖面：切到哪一层 */
+.cutbar { position: fixed; z-index: 45; display: flex; align-items: center; gap: 5px; padding: 4px 6px; background: var(--paper); border: 2px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); border-radius: 8px; font-size: 12px; }
+.cutbar button { font-size: 11px; padding: 2px 8px; min-width: 26px; }
+.cutbar button:disabled { opacity: .35; cursor: default; }
+.cutbar button.primary { background: var(--accent); }
+.cutbar button.on { background: #ffe9a8; }
+.cutbar .lv { display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 64px; }
+.cutbar .lv small { color: var(--muted); font-size: 10px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
