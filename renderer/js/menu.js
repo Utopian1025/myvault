@@ -228,8 +228,20 @@
       PP.save.soon(); syncTray(true);
     }
   };
+  // 老板键：一键收成极简。
+  // 窗口有焦点（你正点着城堡 / 风景）时按一下 Esc；在别的软件里干活时连按两下 Esc（只是“听到”，不拦截，那个软件照样收到 Esc）
+  let escT = 0;
+  PP.panic = function () {
+    const v = PP.curView && PP.curView(); if ((v === 'top' || v === 'in') && !PP.fpOn) return false;
+    try { PP.ui.closeAll && PP.ui.closeAll(); } catch (e) {}
+    try { PP.isle && PP.isle.fpStop && PP.isle.fpStop(true); } catch (e) {}
+    if (G.save.settings.mode === 'full' && PP.exitFull) PP.exitFull();
+    PP.setView(G.save.settings.lastMini || 'top'); return true;
+  };
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.repeat) { if (PP.panic()) e.preventDefault(); escT = 0; } }, true);
   if (api && api.onHotkey) api.onHotkey((k) => {
-    if (k === 'exitFull') { PP.exitFull && PP.exitFull(); return; }
+    if (k === 'escTap') { if (document.hasFocus()) return; const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
+    if (k === 'exitFull') { PP.panic() || (PP.exitFull && PP.exitFull()); return; }
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });
 

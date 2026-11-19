@@ -107,7 +107,7 @@
     [2, ['forest', 'meadow', 'farm', 'lake']],
     [5, ['mountain', 'cave', 'beach', 'desert', 'savanna', 'jungle', 'snow']],
     [7, ['sea', 'antarctic']],
-    [8, ['skyisle', 'academy', 'undergrove']],
+    [8, ['academy', 'undergrove']],
   ];
   const TRIP_DUR = [[15, 2], [30, 2], [60, 5], [120, 8]]; // [分钟, 需要的等级]
   // 升级解锁

@@ -291,7 +291,7 @@
     const B = (on, attrs, txt, tip) => `<button class="small ${on ? 'on' : ''}" ${attrs} title="${tip || ''}">${txt}</button>`;
     pop = $(`<div class="orb-pop view-pop">
       <div class="vrow"><span>极简</span>${B(v === 'top', 'data-v="top"', '任务栏上', '主角在任务栏上面溜达，别的都收起来')}${B(v === 'in', 'data-v="in"', '任务栏中', '主角住进任务栏里：只待在没有图标的空白处，点击都穿透给任务栏')}</div>
-      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '只看起居室：镜头推近，像以前的小屋')}${B(v === 'isle', 'data-v="isle"', '城堡', '一座漂浮的城堡：能进每个房间，种地、钓鱼')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
+      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '只看起居室：镜头推近，像以前的小屋')}${B(v === 'isle', 'data-v="isle"', '城堡', '上帝视角：整座城堡能转能剖开，进每个房间，种地、钓鱼')}${B(false, 'data-fp="1"', '第一人称', '用主角的眼睛在城堡里走：方向键走，鼠标拖动转头，E 互动')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
       ${s.isle && s.mode === 'mini' ? `<div class="vrow"><span>城堡大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动城堡可以放到任何地方">放回右下角</button></div><div class="vrow"><span>朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}<button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住按住 Ctrl + 左键拖动转视角；按住城堡拖动可以挪位置</div>` : ''}
       ${v === 'band' ? `<div class="hint">在风景上滚滚轮可以放大缩小</div>` : ''}
       ${v === 'in' ? `<div class="vrow"><span>住在</span>${B(s.barSide !== 'right', 'data-side="left"', '左边')}${B(s.barSide === 'right', 'data-side="right"', '右边')}</div>` : ''}</div>`);
@@ -300,6 +300,7 @@
       const b = e.target.closest('button'); if (!b) return;
       const d = b.dataset;
       if (d.v) { hidePop(); setView(d.v); return; }
+      if (d.fp) { hidePop(); if (curView() !== 'isle') setView('isle'); setTimeout(() => PP.isle.fpStart(), 200); return; }
       if (d.side) { hidePop(); S().barSide = d.side; PP.save.soon(); for (const p of G.pets) { const [a, c] = barZone(); p.x = U.clamp(p.x, a, c); } return; }
       if (d.isz) { PP.isle.setSize(+d.isz); showPop(); return; }
       if (d.izo) { PP.isle.setZoom((S().isleZ || PP.isle.Z0) * (d.izo > 0 ? 1.15 : 1 / 1.15), true); showPop(); return; }
@@ -430,7 +431,8 @@
     const s = S(), cur = PP.scene.active() ? PP.scene.view() : null, c = PP.wild ? PP.wild.census() : {};
     const regionOf = {}; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k]) => (regionOf[k] = r)));
     const all = []; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k, n]) => all.push([k, n, r])));
-    const pins = all.map(([k, n]) => { const p = MAP_POS[k] || [0.5, 0.5], cnt = c[k] ? Object.values(c[k]).reduce((a, b) => a + (b.n || 0), 0) : 0; return `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="${k}"></i><span>${esc(n)}</span>${cnt ? `<em>${cnt}</em>` : ''}</button>`; }).join('');
+    const castlePin = (() => { const p = MAP_POS.skyisle, on = !!(G.isle); return `<button class="pin castle ${on ? 'on' : ''}" data-s="castle" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="castle"></i><span>飞行城堡</span></button>`; })();
+    const pins = castlePin + all.map(([k, n]) => { const p = MAP_POS[k] || [0.5, 0.5], cnt = c[k] ? Object.values(c[k]).reduce((a, b) => a + (b.n || 0), 0) : 0; return `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="${k}"></i><span>${esc(n)}</span>${cnt ? `<em>${cnt}</em>` : ''}</button>`; }).join('');
     const tabs = [['map', '地图'], ['sound', '声音'], ['set', '设置']].map(([k, n]) => `<button class="tab ${popTab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('');
     let body = '';
     if (popTab === 'map') body = `<div class="mapwrap"><canvas class="worldmap" width="${MAP_W}" height="${MAP_H}"></canvas>${pins}<div class="pv"></div></div><div class="hint">按住地球拖动可以转 · 点旗子就过去 · 鼠标停在旗子上先看一眼 <button class="small" data-a="hide">${s.sceneHidden ? '显示场景画面' : '藏起场景画面'}</button></div>`;
@@ -452,6 +454,7 @@
     if (pv) pop.querySelectorAll('.pin').forEach((b) => {
       b.addEventListener('mouseenter', () => {
         const k = b.dataset.s; pv.innerHTML = '';
+        if (k === 'castle') { pv.innerHTML = '<div><b>飞行城堡</b><br><span>你的家：一座飘在天上的城堡（就是浮空岛）。点一下进去</span></div>'; pv.style.left = b.style.left; pv.style.top = b.style.top; pv.classList.add('show'); pv.classList.toggle('up', false); pv.classList.toggle('left', true); return; }
         try { const t = PP.scene.thumb(k, 132, 120), im = document.createElement('canvas'); im.width = 132; im.height = 120; im.getContext('2d').drawImage(t, 0, 0); pv.appendChild(im); } catch (err) {}
         const r = regionOf[k], nm = PP.SCENES[k] ? PP.SCENES[k].name : k, who = PP.wild ? PP.wild.censusText(k, c[k]) : '';
         pv.insertAdjacentHTML('beforeend', `<div><b>${esc((r && r.subs.length > 1 ? r.name + ' · ' : '') + nm)}</b>${PP.NEST && PP.NEST[k] ? '<small>（在' + esc(PP.SCENES[PP.NEST[k]].name) + '里）</small>' : ''}<br><span>${esc(who || '现在没人')}</span></div>`);
@@ -466,6 +469,7 @@
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.tab) { popTab = b.dataset.tab; showScenePop(); return; }
       if (b.dataset.size) { S().popSize = b.dataset.size; PP.save.soon(); showScenePop(); return; }
+      if (b.dataset.s === 'castle') { hidePop(); setView('isle'); return; }
       if (b.dataset.s) { S().sceneHidden = false; if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }
       if (b.dataset.off) { const o = S().ambOff = S().ambOff || {}; o[b.dataset.off] = !o[b.dataset.off]; PP.save.soon(); showScenePop(); return; }
@@ -720,6 +724,6 @@
 
   PP.modes = {
     init() { applyMenuScale(); buildHud(); window.addEventListener('keydown', (e) => { if (e.key === 'Escape') hidePop(); }); setInterval(barTick, 50); setInterval(menuWatch, 300); setFullFlag(); },
-    drawOrb, hideBar, placeOrb,
+    drawOrb, hideBar, placeOrb, showMap: () => showScenePop(),
   };
 })();

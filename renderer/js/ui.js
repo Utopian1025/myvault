@@ -58,8 +58,9 @@
     // ---------- 面板 ----------
     panel(title, body, opts = {}) {
       ui.closeAll();
-      const el = $(`<div class="panel ${opts.wide ? 'wide' : ''}"><div class="bar"><span>${esc(title)}</span><button class="x">×</button></div><div class="body"></div></div>`);
-      el.querySelector('.x').onclick = () => ui.closePanel();
+      const el = $(`<div class="panel ${opts.wide ? 'wide' : ''} ${opts.corner ? 'corner' : ''}"><div class="bar"><span>${esc(title)}</span>${opts.onMin ? '<button class="x mn" title="最小化：收到右下角的小条">－</button>' : ''}<button class="x">×</button></div><div class="body"></div></div>`);
+      el.querySelector('.x:not(.mn)').onclick = () => ui.closePanel();
+      if (opts.onMin) el.querySelector('.mn').onclick = () => { ui.closePanel(); opts.onMin(); };
       const b = el.querySelector('.body');
       if (typeof body === 'string') b.innerHTML = body; else b.appendChild(body);
       root.appendChild(el);
@@ -67,7 +68,7 @@
       // 拖动标题栏
       const bar = el.querySelector('.bar');
       bar.onmousedown = (e) => {
-        if (e.target.classList.contains('x')) return;
+        if (e.target.classList.contains('x')) return; el.classList.remove('corner');
         const r = el.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
         G.uiDrag = true;
         const mv = (ev) => { el.style.left = ev.clientX - ox + 'px'; el.style.top = ev.clientY - oy + 'px'; el.style.transform = 'none'; };

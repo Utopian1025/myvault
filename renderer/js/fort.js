@@ -111,8 +111,8 @@
     { id: 'courtA', name: '门前小院', lv: 1, r: [9.6, 19, 25.5, 28.4], rot: -4, kind: 'court' },
     { id: 'courtB', name: '门前小院', lv: 1, r: [24, 21, 33.4, 28.8], rot: 5, kind: 'court', tone: 1 },
     { id: 'courtC', name: '楼梯口', lv: 1, r: [31.4, 21.6, 39.4, 29.4], rot: -9, kind: 'court', tone: 2 },
-    { id: 'farmA', name: '菜园', lv: 1, r: [16.5, 27.2, 34.5, 35.8], rot: 9, kind: 'farm' },
-    { id: 'farmB', name: '菜园', lv: 1, r: [14.5, 35.2, 34.4, 43.4], rot: -7, kind: 'farm' },
+    { id: 'farmA', name: '菜园', lv: 1, r: [16.5, 27.2, 34.5, 35.6], rot: 0, kind: 'farm' },
+    { id: 'farmB', name: '菜园', lv: 1, r: [16.5, 35.2, 34.5, 43.4], rot: 0, kind: 'farm' },
     { id: 'gplat', name: '花房', lv: 1, r: [2.8, 30.6, 17.6, 44.4], fr: 'green', kind: 'gplat' },
     { id: 'cistern', name: '蓄水池', lv: 0, r: [33, 30.5, 48, 42.5], rot: -8, kind: 'pool' },
     { id: 'hives', name: '蜂箱台', lv: 2, r: [39.4, 15.2, 46.8, 23], fr: 'garden', kind: 'hive' },
@@ -272,6 +272,7 @@
 
   // ---------- 画 ----------
   const showLv = (cut, lv) => !cut || lv <= cut.lv;
+  const LOW = (cut) => (cut && cut.low != null ? cut.low : 2.2); // 朝镜头那面墙压到多高（详细视图里几乎全拆掉）
   const facing = (cut, nu, nv) => !!cut && nu * cut.vu + nv * cut.vv > 0.01;
   const roomH = (r) => (r.h || WH);
   function wallPiece(m, ax, at, a0, a1, z0, z1, side, col, mat, holes) {
@@ -305,7 +306,7 @@
     for (const [ax, at, a0, a1, nu, nv] of [['v', v0, u0, u1, 0, -1], ['v', v1, u0, u1, 0, 1], ['u', u0, v0, v1, -1, 0], ['u', u1, v0, v1, 1, 0]]) {
       const sg = ax === 'v' ? nv : nu, ext = exteriorParts(r, ax, at, a0, a1), doors = sideHoles(r.lv, ax, at, a0, a1, fr).map(([s, e]) => [s, e, 0, DOOR_H]);
       const wins = r.glass ? [] : ext.flatMap(([s, e]) => windowsOn(r, ax, at, s, e, doors)), holes = doors.concat(wins);
-      const back = !fac(nu, nv), lowZ = z + 2.2, fullZ = z + h;
+      const back = !fac(nu, nv), lowZ = z + LOW(cut), fullZ = z + h;
       if (r.glass) { glassWall(m, ax, at, a0, a1, z, cutHere && !back ? lowZ : z + h, doors); continue; }
       const allExt = ext.length === 1 && ext[0][0] <= a0 + 0.01 && ext[0][1] >= a1 - 0.01;
       const topIn = cutHere && !(allExt && back) ? lowZ : fullZ;
@@ -314,7 +315,7 @@
       for (const hh of holes) { if (cutHere && z + hh[3] > topIn) continue; frame(m, ax, at, hh, z, hh[2] === 0, r); }
       if (!cutHere || back) for (const hh of wins) if (r.shut && (Math.round(hh[0] * 7) % 2)) shutters(m, ax, at + sg * (WT / 2 + 0.02), hh, z, sg, r.shut);
     }
-    if (!r.glass) for (const [cu, cv] of [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? 2.2 : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
+    if (!r.glass) for (const [cu, cv] of [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? LOW(cut) : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
     if (!r.glass) { m.box(u0 + 0.25, v0 + 0.25, z, u1 - 0.25, v0 + 0.35, z + 0.6, shade(r.in, 0.7), 0); m.box(u0 + 0.25, v0 + 0.25, z, u0 + 0.35, v1 - 0.25, z + 0.6, shade(r.in, 0.7), 0); }
   }
   function roundRoom(m, r, cut, o) {
@@ -328,7 +329,7 @@
     for (let i = 0; i < n; i++) {
       const a = (i / n) * 6.2832, b = ((i + 1) / n) * 6.2832, am = (a + b) / 2, nu = Math.cos(am), nv = Math.sin(am), fc = cutHere && facing(cut, nu, nv);
       if (ringGap(r, i)) { if (!fc) { const p = pi(am, rad); m.box(p[0] - 0.3, p[1] - 0.3, z + DOOR_H, p[0] + 0.3, p[1] + 0.3, z + h, r.out, r.om); } continue; }
-      const top = fc ? z + 2.2 : z + h;
+      const top = fc ? z + LOW(cut) : z + h;
       const ri = rad - WT / 2, ro = rad + WT / 2, A0 = pi(a, ri), A1 = pi(b, ri), B0 = pi(a, ro), B1 = pi(b, ro);
       m.quad([A0[0], A0[1], z], [A1[0], A1[1], z], [A1[0], A1[1], top], [A0[0], A0[1], top], r.in, r.im);
       m.quad([B0[0], B0[1], z], [B1[0], B1[1], z], [B1[0], B1[1], top], [B0[0], B0[1], top], i % 3 ? r.out : shade(r.out, 0.88), r.om);
@@ -373,7 +374,7 @@
     if (!p.walls) return;
     const sides = p.walls === 'v' ? [['v', v0, u0, u1, 0, -1], ['v', v1, u0, u1, 0, 1]] : [['u', u0, v0, v1, -1, 0], ['u', u1, v0, v1, 1, 0]];
     const h = p.lv === 0 ? 11 : 11.5, cIn = p.lv === 0 ? '#7a7280' : '#d8c4a0', cOut = p.lv === 0 ? C.IRON2 : C.WOOD2, mat = p.lv === 0 ? M.metal : M.plank;
-    for (const [ax, at, a0, a1, nu, nv] of sides) { const sg = ax === 'v' ? nv : nu, top = cutHere && facing(cut, ...rotN(p.F, nu, nv)) ? z + 2.2 : z + h, win = p.lv > 0 && top > z + 6 ? [[(a0 + a1) / 2 - 0.6, (a0 + a1) / 2 + 0.6, 4.6, 8.6]] : []; wallPiece(m, ax, at, a0, a1, z, top, sg, cOut, mat, win); wallPiece(m, ax, at, a0, a1, z, top, -sg, cIn, mat, win); for (const hh of win) frame(m, ax, at, hh, z, false, { om: M.plank }); }
+    for (const [ax, at, a0, a1, nu, nv] of sides) { const sg = ax === 'v' ? nv : nu, top = cutHere && facing(cut, ...rotN(p.F, nu, nv)) ? z + LOW(cut) : z + h, win = p.lv > 0 && top > z + 6 ? [[(a0 + a1) / 2 - 0.6, (a0 + a1) / 2 + 0.6, 4.6, 8.6]] : []; wallPiece(m, ax, at, a0, a1, z, top, sg, cOut, mat, win); wallPiece(m, ax, at, a0, a1, z, top, -sg, cIn, mat, win); for (const hh of win) frame(m, ax, at, hh, z, false, { om: M.plank }); }
     if (!cutHere) {
       if (p.lv > 0) m.gable(u0, v0, u1, v1, z + h, 1.8, p.walls === 'v' ? 'u' : 'v', o.snow ? '#e4ecf4' : C.SHING, o.snow ? M.snow : M.tile, 0.3, C.WOOD2, M.plank);
       else m.box(u0, v0, z + h, u1, v1, z + h + 0.6, C.IRON2, M.metal);
@@ -686,7 +687,7 @@
       m.cyl(31, 15, Zg, Zg + 7, 0.12, 0.12, C.TIMBER, M.plank, 5); m.cyl(31, 21, Zg, Zg + 7, 0.12, 0.12, C.TIMBER, M.plank, 5); m.box(30.95, 15, Zg + 6.8, 31.05, 21, Zg + 6.9, '#f4f0e6', 0); for (let k = 0; k < 3; k++) m.box(30.9, 15.8 + k * 1.8, Zg + 4.6, 31.1, 17 + k * 1.8, Zg + 6.8, ['#e0604a', '#5aa6d8', '#ffd36a'][k], M.cloth);
       m.pk(PK.nest); m.cyl(NEST_L.u, NEST_L.v, Zg, Zg + 1.2, 0.9, 1.1, '#a8784a', M.plank, 10); m.cyl(NEST_L.u, NEST_L.v, Zg + 1.2, Zg + 1.6, 1.15, 1, '#8a6a40', M.cloth, 10); if (o.egg) m.ball(NEST_L.u + 0.2, NEST_L.v, Zg + 1.9, 0.36, 0.7, '#f8f0e0', 0, 4, 8); m.pk(0);
       const Bb = BAL_L; m.box(Bb.u - 2.4, Bb.v - 2.4, Zg, Bb.u + 2.4, Bb.v + 2.4, Zg + 0.4, C.PLANK, M.plank);
-      if (!o.tripping) { m.pk(PK.balloon); m.box(Bb.u - 1.1, Bb.v - 1.1, Zg + 0.4, Bb.u + 1.1, Bb.v + 1.1, Zg + 3, '#a8784a', M.plank); for (const [du, dv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.box(Bb.u + du - 0.06, Bb.v + dv - 0.06, Zg + 3, Bb.u + du + 0.06, Bb.v + dv + 0.06, Zg + 9, '#5a3a28', 0); m.ball(Bb.u, Bb.v, Zg + 15, 3.6, 7.6, '#e8705a', M.cloth, 8, 16, 0, 3); for (let i = 0; i < 8; i += 2) { const a = (i / 8) * 6.2832; m.quad([Bb.u + Math.cos(a) * 3.62, Bb.v + Math.sin(a) * 3.62, Zg + 13], [Bb.u + Math.cos(a + 0.4) * 3.62, Bb.v + Math.sin(a + 0.4) * 3.62, Zg + 13], [Bb.u + Math.cos(a + 0.4) * 3.62, Bb.v + Math.sin(a + 0.4) * 3.62, Zg + 17], [Bb.u + Math.cos(a) * 3.62, Bb.v + Math.sin(a) * 3.62, Zg + 17], '#ffd36a', M.cloth); } m.pk(0); }
+      if (!o.tripping) { m.pk(PK.balloon); m.box(Bb.u - 1.1, Bb.v - 1.1, Zg + 0.4, Bb.u + 1.1, Bb.v + 1.1, Zg + 3, '#a8784a', M.plank); for (const [du, dv] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.box(Bb.u + du - 0.06, Bb.v + dv - 0.06, Zg + 3, Bb.u + du + 0.06, Bb.v + dv + 0.06, Zg + 9, '#5a3a28', 0); m.ball(Bb.u, Bb.v, Zg + 15, 3.6, 7.6, '#e8705a', M.cloth, 12, 24, 0, 3); for (let i = 0; i < 8; i += 2) { const a = (i / 8) * 6.2832; m.quad([Bb.u + Math.cos(a) * 3.62, Bb.v + Math.sin(a) * 3.62, Zg + 13], [Bb.u + Math.cos(a + 0.4) * 3.62, Bb.v + Math.sin(a + 0.4) * 3.62, Zg + 13], [Bb.u + Math.cos(a + 0.4) * 3.62, Bb.v + Math.sin(a + 0.4) * 3.62, Zg + 17], [Bb.u + Math.cos(a) * 3.62, Bb.v + Math.sin(a) * 3.62, Zg + 17], '#ffd36a', M.cloth); } m.pk(0); }
     });
     if (showLv(cut, 3)) inFrame(m, frameOf('balcony'), () => { const Zb = Z[3]; for (let k = 0; k < 4; k++) m.pot(22.4 + k * 2.2, 18, Zb, 0.4, '#c8705a', o.snow ? null : ['#5aa64e', '#f2a6c2'][k % 2], k); });
   }
@@ -764,17 +765,22 @@
     vine(m, o, pts, seed, 0.85); if (H(seed, 40) < 0.75) vine(m, o, pts.slice(2).map((q, i) => [q[0] + along[0] * (1 + i * 0.4), q[1] + along[1] * (1 + i * 0.4), q[2]]), seed + 5, 0.45);
   }
   function tree(m, o, u, v, z, h, seed, lean = 0.3) {
-    // 一棵树：树干分三四根枝，每根枝头一簇叶子，簇和簇之间能看到枝干；根部往外张开扎进土里
-    const cols = LEAF(o), bark = '#6a4a2e', bark2 = '#4e3622', R = (k) => H(seed, k), th = h * 0.5, top = [u + lean * 1.2, v, z + th];
-    const limb = (a, b, r0, r1) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(...d), n = 5; for (let k = 0; k < n; k++) { const t0 = k / n, t1 = (k + 1) / n, rr = r0 + (r1 - r0) * t0; const P0 = [a[0] + d[0] * t0, a[1] + d[1] * t0, a[2] + d[2] * t0], P1 = [a[0] + d[0] * t1, a[1] + d[1] * t1, a[2] + d[2] * t1]; for (let s = 0; s < 4; s++) { const f0 = s * 1.5708, f1 = f0 + 1.5708, e = (P, f, r) => [P[0] + Math.cos(f) * r, P[1] + Math.sin(f) * r, P[2]]; m.quad(e(P0, f0, rr), e(P0, f1, rr), e(P1, f1, rr * 0.92), e(P1, f0, rr * 0.92), s % 2 ? bark : bark2, M.plank); } } return L; };
-    limb([u, v, z - 0.3], top, 0.5 * Math.min(1.4, h / 8), 0.34 * Math.min(1.4, h / 8));
-    for (let k = 0; k < 4; k++) { const a = k * 1.57 + R(k) * 0.8; m.quad([u, v, z + 0.6], [u + 0.15, v, z + 0.6], [u + Math.cos(a) * 1.5, v + Math.sin(a) * 1.5, z - 0.3], [u + Math.cos(a) * 1.35, v + Math.sin(a) * 1.35, z - 0.3], bark2, 0); }
-    const nb = h > 7 ? 4 : 3, tips = [];
-    for (let k = 0; k < nb; k++) { const a = (k / nb) * 6.2832 + R(k + 10) * 1.1, out = h * (0.2 + R(k + 20) * 0.12), up = h * (0.22 + R(k + 30) * 0.2), from = [top[0] - lean * 0.4 * (k / nb), top[1], top[2] - h * 0.1 * (k % 2)], tip = [from[0] + Math.cos(a) * out + lean * 0.8, from[1] + Math.sin(a) * out, from[2] + up];
-      limb(from, tip, 0.26 * Math.min(1.4, h / 8), 0.1); tips.push(tip); }
-    tips.push([top[0] + lean * 0.8, top[1], top[2] + h * 0.42]); limb(top, tips[tips.length - 1], 0.22, 0.1);
-    if (o.snow) { for (const t of tips) m.ball(t[0], t[1], t[2] + 0.5, h * 0.1, h * 0.06, '#eef4fa', M.snow, 3, 7); return; }
-    tips.forEach((t, k) => { const rr = h * (k === tips.length - 1 ? 0.2 : 0.16 + R(k + 40) * 0.05); m.foliage(t[0], t[1], t[2] + rr * 0.25, rr, rr * 0.8, cols, 40, seed * 3 + k, 0.62); });
+    // 一棵树：树干分三四根枝，每根枝再分两根小枝；叶子一簇一簇包住枝头（簇压在枝上，不会飘在空中）；冬天是光秃秃的枝，雪积在枝的上面
+    const cols = LEAF(o), bark = '#6a4a2e', bark2 = '#4e3622', R = (k) => H(seed, k), th = h * 0.48, top = [u + lean * 1.2, v, z + th], g = Math.min(1.3, h / 8);
+    const limb = (a, b, r0, r1, c1 = bark, c2 = bark2) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], n = 4; for (let k = 0; k < n; k++) { const t0 = k / n, t1 = (k + 1) / n, rr = r0 + (r1 - r0) * t0, rr1 = r0 + (r1 - r0) * t1; const P0 = [a[0] + d[0] * t0, a[1] + d[1] * t0, a[2] + d[2] * t0], P1 = [a[0] + d[0] * t1, a[1] + d[1] * t1, a[2] + d[2] * t1]; for (let s2 = 0; s2 < 5; s2++) { const f0 = s2 * 1.2566, f1 = f0 + 1.2566, e = (P, f, r) => [P[0] + Math.cos(f) * r, P[1] + Math.sin(f) * r, P[2]]; m.quad(e(P0, f0, rr), e(P0, f1, rr), e(P1, f1, rr1), e(P1, f0, rr1), s2 % 2 ? c1 : c2, M.plank); } } };
+    limb([u, v, z - 0.3], top, 0.5 * g, 0.3 * g);
+    for (let k = 0; k < 4; k++) { const a = k * 1.57 + R(k) * 0.8; m.quad([u, v, z + 0.6], [u + 0.15, v, z + 0.6], [u + Math.cos(a) * 1.3 * g, v + Math.sin(a) * 1.3 * g, z - 0.3], [u + Math.cos(a) * 1.15 * g, v + Math.sin(a) * 1.15 * g, z - 0.3], bark2, 0); }
+    const nb = h > 7 ? 4 : 3, tips = [], snow = !!o.snow, segs = [];
+    for (let k = 0; k < nb; k++) { const a = (k / nb) * 6.2832 + R(k + 10) * 1.1, out = h * (0.15 + R(k + 20) * 0.08), up = h * (0.18 + R(k + 30) * 0.14), from = [top[0] - lean * 0.3 * (k / nb), top[1], top[2] - h * 0.08 * (k % 2)], mid = [from[0] + Math.cos(a) * out, from[1] + Math.sin(a) * out, from[2] + up];
+      limb(from, mid, 0.24 * g, 0.12 * g); segs.push([from, mid]);
+      for (const s2 of [-0.6, 0.6]) { const b2 = a + s2 + (R(k + 40) - 0.5) * 0.4, tip = [mid[0] + Math.cos(b2) * h * 0.1, mid[1] + Math.sin(b2) * h * 0.1, mid[2] + h * (0.06 + R(k + 50) * 0.08)]; limb(mid, tip, 0.11 * g, 0.05 * g); segs.push([mid, tip]); tips.push(tip); } }
+    const crown = [top[0] + lean * 0.6, top[1], top[2] + h * 0.42]; limb(top, crown, 0.22 * g, 0.08 * g); segs.push([top, crown]); tips.push(crown);
+    if (snow) { // 雪积在每根枝的上面一条，枝杈里窝一小团
+      for (const [a, b] of segs) limb([a[0], a[1], a[2] + 0.16 * g], [b[0], b[1], b[2] + 0.12 * g], 0.12 * g, 0.05 * g, '#eef4fa', '#dfe8f2');
+      for (const [a] of segs) m.ball(a[0], a[1], a[2] + 0.18 * g, 0.26 * g, 0.16 * g, '#eef4fa', M.snow, 3, 6);
+      return tips.map((t) => [t[0], t[1], t[2], 0]); }
+    // 叶簇：中心压在枝头往下一点，半径盖过小枝，所以簇和枝连在一起
+    return tips.map((t, k) => { const last = k === tips.length - 1, rr = h * (last ? 0.2 : 0.14 + R(k + 60) * 0.04); m.foliage(t[0], t[1], t[2] - rr * 0.15, rr, rr * 0.82, cols, 40, seed * 3 + k, 0.5); return [t[0], t[1], t[2] - rr * 0.15, rr]; });
   }
   // 垂下去的根 / 藤：从一个点往下荡
   function dangle(m, o, u, v, z, len, seed, green = true) {
@@ -822,8 +828,9 @@
   function yard(m, cut, o) {
     if (!showLv(cut, 1)) return;
     for (const [u, v, h, l] of [[12.6, 2.2, 7, 0.3], [16.4, 1.6, 6, -0.25], [19.6, 3.2, 7.5, 0.2], [42.6, 22.4, 6, 0.4]]) {
-      tree(m, o, u, v, HT, h, u * 7 + v, l);
-      if (!o.snow) for (let k = 0; k < 6; k++) { const a = k * 1.05 + u, r = h * 0.22; m.ball(u + l * 1.4 + Math.cos(a) * r, v + Math.sin(a) * r, HT + h * (0.82 + H(k, u) * 0.18), 0.32, 0.32, o.season === 'autumn' ? '#e8a040' : '#d8483a', 0, 3, 6); }
+      const cl = tree(m, o, u, v, HT, h, u * 7 + v, l);
+      // 果子挂在叶簇的表面上（下半圈），不会飘在外面
+      if (!o.snow && cl) cl.forEach((c, j) => { for (let k = 0; k < 2; k++) { const a = H(j, k + u) * 6.28, e = -0.15 - H(k, j + v) * 0.5, r = c[3] * 0.92; m.ball(c[0] + Math.cos(a) * r * Math.cos(e), c[1] + Math.sin(a) * r * Math.cos(e), c[2] + Math.sin(e) * c[3] * 0.8, 0.3, 0.3, o.season === 'autumn' ? '#e8a040' : '#d8483a', 0, 3, 6); } });
     }
     // 堆肥箱：三格木条箱
     { const u = 33, v = 0, z = HT; for (let i = 0; i < 3; i++) { const a = u - 2.4 + i * 1.6; m.box(a, v - 0.8, z, a + 1.5, v + 0.8, z + 1.4, i === 1 ? '#7a5636' : '#8a6040', M.plank); m.box(a + 0.15, v - 0.65, z + 1.2, a + 1.35, v + 0.65, z + 1.5, '#4a3424', 0); } }
@@ -932,9 +939,10 @@
   // ---------- 整体 ----------
   function build(o) {
     const m = new Mesh(), cut = o.cut || null;
-    deckAndHull(m, cut, o);
-    modules(m, cut, o);
-    for (const r of ROOMS) if (showLv(cut, r.lv)) { if (isRound(r)) roundRoom(m, r, cut, o); else inFrame(m, r.rot ? r : null, () => leanWrap(m, Z[r.lv], r.lean, () => rectRoom(m, r, cut, o))); }
+    // 详细视图：只看一个房间，外面的船体、甲板模块、植物都不用建（反正也被裁掉），转视角时重建得快
+    const F1 = o.focus && RM[o.focus];
+    if (!F1) { deckAndHull(m, cut, o); modules(m, cut, o); }
+    for (const r of ROOMS) if (showLv(cut, r.lv) && (!F1 || r === F1)) { if (isRound(r)) roundRoom(m, r, cut, o); else inFrame(m, r.rot ? r : null, () => leanWrap(m, Z[r.lv], r.lean, () => rectRoom(m, r, cut, o))); }
     for (const p of PASS) if (showLv(cut, p.lv)) inFrame(m, p.F, () => passage(m, p, cut, o));
     for (const op of OPEN) { if (!showLv(cut, op[0])) continue; const z = Z[op[0]]; inFrame(m, frameOf(op[6]), () => { m.box(op[1], op[2], z - 1, op[3], op[4], z, '#8a7e70', M.stone, o.snow ? '#eef4fa' : '#9a8a6e', o.snow ? M.snow : M.stone); for (let a = op[1] + 1.2; a < op[3] - 0.6; a += 2.6) for (const b of [op[2] + 1, op[4] - 1]) m.quad([a, b, z - 1], [a + 0.25, b, z - 1], [a + 0.25 + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], [a + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], C.TIMBER, M.plank); }); }
     for (const p of PARA) { if (!showLv(cut, p[0])) continue; const [lv, a, b, c, d] = p, z = Z[lv]; inFrame(m, frameOf(p[5]), () => { m.box(a, b, z, c, d, z + 1.4, C.STONE2, M.stone); const L = Math.max(c - a, d - b), n = Math.floor(L / 1.3); for (let i = 0; i < n; i += 2) { const t = i / n, t2 = (i + 1) / n; c - a > d - b ? m.box(a + (c - a) * t, b, z + 1.4, a + (c - a) * t2, d, z + 2.3, C.STONE, M.stone) : m.box(a, b + (d - b) * t, z + 1.4, c, b + (d - b) * t2, z + 2.3, C.STONE, M.stone); } }); }
@@ -942,7 +950,7 @@
     roofs(m, cut, o);
     interiors(m, cut, o);
     extras(m, cut, o);
-    plants(m, cut, o);
+    if (!F1) plants(m, cut, o);
     return m;
   }
   function dyn(o) {
@@ -957,5 +965,5 @@
   }
   const FALL = mW('cistern', (POOL_L.u0 + POOL_L.u1) / 2, MD.cistern.r[3] + 0.3);
   const DECK = { v1: DK.v1 };
-  PP.FORT = { roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();

@@ -13,9 +13,11 @@
   PP.mine = () => G.all.filter(mine);
 
   // 以前认养的：搬进小天地（离不开水的除外）
-  function moveInOld() { for (const p of G.all) if (!p.d.wild && !p.d.ownHome && PP.canMoveIn && PP.canMoveIn(p)) { p.d.ownHome = 'skyisle'; p.d.scene = 'skyisle'; p.d.inHome = false; } }
+  function moveInOld() { for (const p of G.all) if (!p.d.wild && !p.d.ownHome && PP.canMoveIn && PP.canMoveIn(p)) { p.d.ownHome = PP.MINE[0]; p.d.scene = PP.MINE[0]; p.d.inHome = false; } }
+  // 原来住在浮空岛的：浮空岛变成了你的城堡，它们搬到魔法学院（野外的回森林）
+  function fromSkyisle() { for (const p of G.all) { if (p.d.ownHome === 'skyisle') p.d.ownHome = PP.MINE[0]; if (p.d.scene === 'skyisle') { p.d.scene = p.d.wild ? 'forest' : p.d.ownHome || PP.MINE[0]; p.d.inHome = false; p.eco = null; } } }
   function populate() {
-    moveInOld();
+    fromSkyisle(); moveInOld();
     let made = 0;
     for (const sp of PP.SPECIES_LIST) {
       if (SKIP.has(sp) || !PP.HAB || !PP.HAB[sp]) continue;

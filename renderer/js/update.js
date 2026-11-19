@@ -78,9 +78,8 @@
       }
       if (a === 'auto') { G.save.settings.autoUpdate = b.checked; PP.save.soon(); }
     });
-    PP.ui.panel('关于 & 检查更新', box, { wide: true });
-    // 标题栏上的“－”：收到右下角的小条，检查 / 下载在后台继续
-    const bar = box.closest('.panel') && box.closest('.panel').querySelector('.bar');
+    PP.ui.panel('关于 & 检查更新', box, { wide: true, corner: true, onMin: () => { panelBody = null; if (st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying') bgChip(); else showChip(st.status === 'ready' ? `v${st.latest.version} 已下好 · 更新` : '关于 & 更新', about); } });
+    const bar = null;
     if (bar) { const mn = $('<button class="x" title="收到右下角，在后台继续" style="margin-left:auto;margin-right:2px">－</button>'); mn.onclick = () => { PP.ui.closePanel(); if (st.status === 'checking' || st.status === 'downloading' || st.status === 'verifying') bgChip(); else if (st.status === 'ready') { asked = ''; askInstall(); } else if (st.status === 'available') showChip(`有新版 v${st.latest.version}`, about, 60000); }; bar.insertBefore(mn, bar.querySelector('.x')); }
     manual = true;
     renderAbout();
@@ -110,11 +109,12 @@
   function whatsNew(from) {
     const list = cmp(ver, from) > 0 ? changelog.filter((v) => v.version === ver).slice(0, 1) : [];
     if (!list.length) return;
-    showChip(`已更新 v${ver} · 看看`, () => {
+    const open = () => {
       const box = $(`<div class="about"><p class="lead">已经更新到 <b>v${esc(ver)}</b>，这次有这些变化：</p><div class="upd-notes">${notesHTML(list)}</div><div class="row"><button class="primary" data-a="ok">知道啦</button></div></div>`);
       box.addEventListener('click', (e) => { if (e.target.closest('[data-a=ok]')) PP.ui.closePanel(); });
-      PP.ui.panel('更新好了', box, { wide: true });
-    }, 45000);
+      PP.ui.panel('更新好了', box, { wide: true, corner: true, onMin: () => showChip(`已更新 v${ver} · 看看`, open) });
+    };
+    showChip(`已更新 v${ver} · 看看`, open, 45000);
   }
 
   function auto() {

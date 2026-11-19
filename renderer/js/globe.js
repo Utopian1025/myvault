@@ -1,5 +1,5 @@
 // 地图：一颗可以拖着转的像素小地球。每个地方按真实的地理位置放（南极在南极、北极冰原在北边、沙漠在北非……），
-// 转到背面的地方旗子会藏起来；浮空岛绕着地球飘。按住拖动转地球，松手会慢慢停下，没人碰时自己慢慢转。
+// 转到背面的地方旗子会藏起来；你的飞行城堡绕着地球飘。按住拖动转地球，松手会慢慢停下，没人碰时自己慢慢转。
 (function () {
   const PP = (window.PP = window.PP || {});
   // 每个地方的 [纬度, 经度]
@@ -100,14 +100,14 @@
       // 云：一圈慢慢飘的白块
       for (let i = 0; i < 26; i++) { const lo = (i * 47 + now / 400) % 360 - 180, la = Math.sin(i * 1.7) * 55; const p = proj(la, lo); if (!p || p[2] < 0.15) continue; const k = (Math.round(p[1]) * W + Math.round(p[0])) * 4; for (const [ox, oy] of [[0, 0], [1, 0], [2, 0], [1, -1], [-1, 0]]) { const kk = k + (oy * W + ox) * 4; if (kk >= 0 && kk < d.length) { d[kk] = d[kk + 1] = d[kk + 2] = 240; } } }
       ctx.putImageData(img, 0, 0);
-      // 浮空岛：绕着地球飘的一个小岛
+      // 飞行城堡（就是浮空岛）：绕着地球飘
       const a = now / 4000, ix = cx + Math.cos(a) * (R + 22), iy = cy - R * 0.55 + Math.sin(a) * 10, front = Math.sin(a) > -0.2;
       drawIsle(ctx, ix, iy, now);
       // 旗子跟着转
       const r = cv.getBoundingClientRect(), kx = r.width / W || 1;
       for (const b of pins) {
         const key = b.dataset.s; let p = null;
-        if (key === 'skyisle') p = [ix, iy - 6, 1]; else if (GEO[key]) p = proj(...GEO[key]);
+        if (key === 'castle' || key === 'skyisle') p = [ix, iy - 6, 1]; else if (GEO[key]) p = proj(...GEO[key]);
         if (!p) continue;
         b.style.left = ((p[0] / W) * 100).toFixed(2) + '%'; b.style.top = ((p[1] / H) * 100).toFixed(2) + '%';
         const vis = p[2] > 0.08; b.classList.toggle('back', !vis); b.style.zIndex = vis ? String(2 + Math.round(p[2] * 10)) : '0';
@@ -124,7 +124,10 @@
       x = Math.round(x); y = Math.round(y + Math.sin(now / 700) * 1.5);
       const P = (a, b, w, h, col) => { c.fillStyle = col; c.fillRect(x + a, y + b, w, h); };
       P(-7, 0, 14, 2, '#80b84e'); P(-6, -1, 12, 1, '#98c65a'); P(-6, 2, 12, 2, '#886040'); P(-4, 4, 8, 2, '#74707e'); P(-2, 6, 4, 2, '#5e5a6a'); P(-1, 8, 2, 1, '#5e5a6a');
-      P(-4, -5, 3, 4, '#e8cc9c'); P(-5, -6, 5, 1, '#c66252'); P(-4, -7, 3, 1, '#c66252'); P(2, -5, 1, 4, '#5e3e2c'); P(0, -8, 5, 3, '#579642'); P(1, -9, 3, 1, '#80b84e');
+      // 你的飞行城堡：石墙 + 两座尖顶塔 + 小旗
+      P(-5, -5, 10, 4, '#d8c8b0'); P(-5, -2, 10, 1, '#b8a890'); P(-1, -4, 2, 3, '#6a4a32'); P(-4, -4, 1, 1, '#4a6a9a'); P(3, -4, 1, 1, '#4a6a9a');
+      P(-6, -9, 3, 5, '#e8dcc4'); P(-6, -10, 3, 1, '#c66252'); P(-5, -11, 1, 1, '#c66252'); P(3, -11, 3, 7, '#e8dcc4'); P(3, -12, 3, 1, '#c66252'); P(4, -13, 1, 1, '#c66252'); P(4, -16, 1, 3, '#5e3e2c'); P(5, -16, 2, 1, '#ffd23f');
+      P(-2, -7, 4, 2, '#e8dcc4'); P(-2, -8, 1, 1, '#e8dcc4'); P(1, -8, 1, 1, '#e8dcc4');
     }
     requestAnimationFrame(frame);
   }

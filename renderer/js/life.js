@@ -51,7 +51,7 @@
   pl('snowdrop', { name: '雪滴花', rare: true, shape: 'flower', bell: true, c: ['#4c8a5a', '#7cb88a', '#ffffff', '#d8e8f0'], from: 'snow', temp: 'cool', min: 110, about: '雪还没化就从雪里钻出来开花。' });
   pl('glowshroom', { name: '荧光蘑菇', rare: true, shape: 'shroom', c: ['#5a6a8a', '#8a9ab8', '#7af0d8', '#3ab8a8'], from: 'cave', temp: 'cool', min: 90, about: '山洞里的蘑菇，晚上会发出青绿色的光。' });
   pl('baobab', { name: '猴面包树苗', rare: true, shape: 'tree', c: ['#4c8a44', '#86cc6a', '#c8a07a', '#8a6a4a'], from: 'savanna', temp: 'warm', min: 200, about: '长大了树干又粗又胖，能存很多水。' });
-  pl('cloudflower', { name: '云朵花', rare: true, shape: 'flower', puff: true, c: ['#6a9ab8', '#a8c8e0', '#ffffff', '#d8e8f8'], from: 'skyisle', temp: 'mild', min: 130, about: '开出来像一小团云，会慢慢飘起来一点点。' });
+  pl('cloudflower', { name: '云朵花', rare: true, shape: 'flower', puff: true, c: ['#6a9ab8', '#a8c8e0', '#ffffff', '#d8e8f8'], from: 'farm', temp: 'mild', min: 130, about: '开出来像一小团云，会慢慢飘起来一点点。' });
   pl('starlily', { name: '星星百合', rare: true, shape: 'flower', star: true, c: ['#3f6a8a', '#6a9ab8', '#ffe070', '#f0a830'], from: 'academy', temp: 'mild', min: 160, about: '魔法学院后院的花，花心里有一颗小星星。' });
   pl('mossball', { name: '青苔球', rare: true, shape: 'shroom', moss: true, c: ['#3f7a3a', '#6aa858', '#86cc6a', '#4c8a44'], from: 'undergrove', temp: 'mild', min: 80, about: '地下森林里圆滚滚的青苔，摸起来软软的。' });
   const PLANTS = Object.keys(PL), CROPS_IDS = PLANTS.filter((k) => !PL[k].rare), RARE_IDS = PLANTS.filter((k) => PL[k].rare);

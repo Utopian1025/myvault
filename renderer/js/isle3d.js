@@ -107,7 +107,7 @@
       const big = Math.max(r, rz), nl = big > 1.3 ? Math.min(6, 2 + Math.floor(big * 0.9)) : 1, lobes = [];
       if (nl === 1) lobes.push([u, v, z, r, rz]);
       else { lobes.push([u, v, z + rz * 0.12, r * 0.62, rz * 0.62]); for (let k = 1; k < nl; k++) { const f = (k / (nl - 1)) * 6.2832 + R(k + 300) * 1.2, d = 0.42 + R(k + 310) * 0.18, hz = (R(k + 320) - 0.45) * 0.7; lobes.push([u + Math.cos(f) * r * d, v + Math.sin(f) * r * d, z + rz * hz, r * (0.48 + R(k + 330) * 0.16), rz * (0.5 + R(k + 340) * 0.16)]); } }
-      const o = this.sway; this.sway = 0.5; for (const [a, b, c, rr, rzz] of lobes) this.blob(a, b, c, rr * 0.8, rzz * 0.8, C(cols[0]).map((x) => x * 0.55), 8, seed + a, 4, 7); this.sway = o;
+      const o = this.sway; this.sway = 0.5; for (const [a, b, c, rr, rzz] of lobes) this.blob(a, b, c, rr * 0.9, rzz * 0.9, C(cols[0]).map((x) => x * 0.6), 8, seed + a, 4, 7); this.sway = o;
       const inside = (q, skip) => lobes.some((L, k) => k !== skip && ((q[0] - L[0]) / (L[3] * 0.92)) ** 2 + ((q[1] - L[1]) / (L[3] * 0.92)) ** 2 + ((q[2] - L[2]) / (L[4] * 0.92)) ** 2 < 1);
       let id = 0;
       lobes.forEach(([a, b, c, rr, rzz], k) => {
@@ -117,7 +117,7 @@
           if (nl > 1 && inside(q, k)) continue;
           const up = Math.cos(t), sh = (0.62 + 0.5 * Math.max(0, up)) * (0.85 + 0.3 * R(id + 33)), ci = up > 0.45 && cols.length > 1 ? 1 + Math.floor(R(id + 77) * (cols.length - 1)) : Math.floor(R(id + 77) * cols.length);
           const col = C(cols[ci]).map((x) => Math.min(1, x * sh));
-          this.leaf(q, f + (R(id + 5) - 0.5) * 1.2, 0.2 + (1 - t / 3.14) * 0.9, ls * (0.7 + 0.5 * R(id + 9)), col, 0.6 + 0.6 * R(id + 3));
+          this.leaf(q, f + (R(id + 5) - 0.5) * 1.2, 0.15 + (1 - t / 3.14) * 0.55, ls * (0.6 + 0.35 * R(id + 9)), col, 0.6 + 0.6 * R(id + 3));
         }
       });
       return this;
@@ -175,7 +175,7 @@
   const VS = `#version 300 es
   in vec3 aP; in vec3 aN; in vec3 aC; in float aM; in float aW;
   uniform float uTime; uniform float uWind; uniform float uMir;
-  uniform vec4 uView; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo; uniform vec4 uCam; uniform vec2 uPit;
+  uniform vec4 uView; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo; uniform vec4 uCam; uniform vec2 uPit; uniform vec4 uFP; uniform vec4 uFP2;
   out vec3 vW; out vec3 vN; out vec3 vC; out float vM; out vec3 vS; out float vD;
   void main(){ vW=aP; vN=aN; vC=aC; vM=aM;
     vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 l=(uL*m-uLo)*uLs; vS=vec3(l.xy,-l.z)*0.5+0.5;
@@ -183,7 +183,11 @@
     vec2 d=P.xy-uCam.zw, r=vec2(d.x*uCam.x-d.y*uCam.y, d.x*uCam.y+d.y*uCam.x)+uCam.zw; // 相机绕岛中心转
     vec2 d0=aP.xy-uCam.zw, r0=vec2(d0.x*uCam.x-d0.y*uCam.y, d0.x*uCam.y+d0.y*uCam.x)+uCam.zw; vD=r0.x+r0.y;
     float X=2.0*(r.x-r.y), Y=(r.x+r.y)*uPit.x-P.z*uPit.y;
-    gl_Position=vec4(uMir*((X+uView.x)*uView.z-1.0), 1.0-(Y+uView.y)*uView.w, -(r0.x+r0.y+2.0*aP.z*uPit.x/max(uPit.y,0.3))/700.0, 1.0); }`;
+    gl_Position=vec4(uMir*((X+uView.x)*uView.z-1.0), 1.0-(Y+uView.y)*uView.w, -(r0.x+r0.y+2.0*aP.z*uPit.x/max(uPit.y,0.3))/700.0, 1.0);
+    // 第一人称：真正的透视相机（眼睛位置 uFP.xyz，朝向 uFP2.x 偏航 / uFP2.y 俯仰，uFP2.z 焦距，uFP2.w 宽高比）
+    if(uFP.w>0.0){ vec3 m=vec3(P.xy*${MU}, P.z*${MZ})-uFP.xyz; float cy=cos(uFP2.x), sy=sin(uFP2.x), cp=cos(uFP2.y), sp=sin(uFP2.y);
+      float rx=-m.x*sy+m.y*cy, fw=m.x*cy+m.y*sy, up=m.z; float u2=up*cp-fw*sp, f2=up*sp+fw*cp; float nr=0.25, fr=600.0;
+      gl_Position=vec4(rx*uFP2.z/uFP2.w, u2*uFP2.z, (f2*(fr+nr)-2.0*fr*nr)/(fr-nr), f2); } }`;
   const VSS = `#version 300 es
   in vec3 aP; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
   void main(){ vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 s=(uL*m-uLo)*uLs; gl_Position=vec4(s.xy, -s.z, 1.0); }`;
@@ -191,7 +195,7 @@
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo;
+  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
@@ -204,7 +208,7 @@
       if(abs(gl_FragCoord.x-q.x)<q.z*0.66 && yy>q.y-q.z*1.2 && yy<q.y+q.z*0.15 && vD>q.w+0.6 && vW.z>uPetZ[i].x+0.5) keep=true; }
       if(!keep) discard; }
     if(uPick>0.5){ o=vec4(floor(vM/32.0+0.01)/255.0,0.0,0.0,1.0); return; }
-    vec3 n=normalize(vN); vec3 V=normalize(uVd); if(dot(n,V)<0.0) n=-n;
+    vec3 n=normalize(vN); vec3 V=normalize(uVd); if(uFP.w>0.0) V=normalize(uFP.xyz-vec3(vW.xy*${MU}, vW.z*${MZ})); if(dot(n,V)<0.0) n=-n;
     int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0;
     if(uCel>0.5){ if(m==1) m=21; else if(m==2) m=17; else if(m==3) m=16; else if(m==4) m=15; else if(m==7) m=18; else if(m==8) m=20; else if(m==14) m=23; }
     if(uMode>0.5){ float d=gl_FragCoord.z*255.0; float face=n.z>0.6?0.0:(abs(n.x)>abs(n.y)?1.0:2.0); if(n.z<-0.6) face=3.0; o=vec4(floor(d)/255.0, fract(d), (float(m)+32.0*face)/255.0, 1.0); return; }
@@ -340,7 +344,7 @@
       gl.uniform4f(u.uCam, c, s, cc[0], cc[1]); gl.uniform2f(u.uPit, A, B);
       // 看过来的方向（世界空间），双面光照时用来判断哪一面朝着相机
       gl.uniform3f(u.uVd, MU * (c + s), MU * (c - s), 2 * MZ * A / Math.max(0.3, B)); }
-    gl.uniform1f(u.uWind, o.wind || 0); gl.uniform1f(u.uMir, o.mirror ? -1 : 1); gl.uniform1f(u.uPick, o.pickAt ? 1 : 0); gl.uniform1f(u.uH, H);
+    { const f = o.fp; if (u.uFP) { gl.uniform4f(u.uFP, f ? f.eye[0] * MU : 0, f ? f.eye[1] * MU : 0, f ? f.eye[2] * MZ : 0, f ? 1 : 0); if (u.uFP2) gl.uniform4f(u.uFP2, f ? f.yaw : 0, f ? f.pitch : 0, f ? 1 / Math.tan((f.fov || 1.15) / 2) : 1, W / H); } } gl.uniform1f(u.uWind, o.wind || 0); gl.uniform1f(u.uMir, o.mirror ? -1 : 1); gl.uniform1f(u.uPick, o.pickAt ? 1 : 0); gl.uniform1f(u.uH, H);
     { const pa = new Float32Array(16), pz = new Float32Array(16), rp = new Float32Array(12); (o.pets || []).slice(0, 4).forEach((q, i) => { pa.set(q.slice(0, 4), i * 4); pz[i * 4] = q[4]; }); (o.rips || []).slice(0, 4).forEach((q, i) => rp.set(q, i * 3)); if (!(o.rips || []).length) for (let i = 0; i < 4; i++) rp[i * 3 + 2] = -99; else for (let i = (o.rips || []).length; i < 4; i++) rp[i * 3 + 2] = -99; if (u['uPet[0]']) gl.uniform4fv(u['uPet[0]'], pa); if (u['uPetZ[0]']) gl.uniform4fv(u['uPetZ[0]'], pz); if (u['uRip[0]']) gl.uniform3fv(u['uRip[0]'], rp); }
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
