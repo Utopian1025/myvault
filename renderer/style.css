@@ -407,7 +407,7 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .petring button.sys:hover { background: var(--accent); }
 .petring button.sys.new::before { content: ''; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; background: #e8405a; border: 2px solid var(--paper); border-radius: 50%; }
 
-.updchip { position: fixed; right: 8px; top: 8px; z-index: 40; display: flex; align-items: center; background: rgba(255, 253, 243, .82); border: 1px solid rgba(60, 50, 60, .35); border-radius: 10px; overflow: hidden; opacity: .55; transition: opacity .2s; position: fixed; }
+.updchip { position: fixed; right: 8px; bottom: 72px; z-index: 40; display: flex; align-items: center; background: rgba(255, 253, 243, .82); border: 1px solid rgba(60, 50, 60, .35); border-radius: 10px; overflow: hidden; opacity: .55; transition: opacity .2s; position: fixed; }
 .updchip:hover { opacity: 1; }
 .updchip button { border: 0; box-shadow: none; background: transparent; font-size: 10px; padding: 2px 7px; color: var(--muted); }
 .updchip button.go:hover { background: var(--accent); color: var(--ink); }
@@ -500,3 +500,21 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .furnbar .frow.lib { max-height: 96px; overflow-y: auto; padding-top: 2px; border-top: 1px dashed var(--muted); }
 .furnbar .frow.lib button { font-size: 11px; padding: 1px 6px; }
 .cutbar button.rm { background: #f4ecd8; }
+
+/* 更新窗格：放在右下角，不挡屏幕中间 */
+.panel.corner { left: auto; top: auto; right: 12px; bottom: 72px; transform: none; max-height: 60vh; }
+.panel .bar .x.mn { margin-left: auto; margin-right: 2px; }
+.rtags { position: fixed; left: 0; top: 0; width: 0; height: 0; z-index: 44; }
+.rtags button { position: fixed; transform: translate(-50%, -100%); white-space: nowrap; padding: .15em .6em; border: 2px solid var(--ink); background: rgba(255, 250, 236, .92); box-shadow: 2px 2px 0 var(--ink); font-weight: 700; cursor: pointer; }
+.rtags button.go { background: rgba(255, 233, 168, .95); }
+.rtags button:hover { background: var(--accent); }
+.cutbar.vert { flex-direction: column; flex-wrap: nowrap; max-width: none; gap: 3px; padding: 3px; background: rgba(255, 250, 236, .78); border-width: 1px; box-shadow: 2px 2px 0 rgba(42, 30, 48, .5); }
+.cutbar.vert button { width: 26px; height: 26px; min-width: 0; padding: 0; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.cutbar.vert .lv { min-width: 0; max-width: 30px; font-size: 9px; font-weight: 700; text-align: center; line-height: 1.1; word-break: break-all; }
+
+.cutbar.vert { overflow: visible; }
+.cutbar .vfly { position: absolute; left: calc(100% + 4px); top: 0; display: flex; align-items: center; gap: 4px; padding: 3px 5px; white-space: nowrap; background: rgba(255, 250, 236, .95); border: 1px solid var(--ink); box-shadow: 2px 2px 0 rgba(42, 30, 48, .5); border-radius: 8px; }
+.cutbar.vert .vfly button { width: auto; height: 24px; padding: 0 7px; font-size: 12px; }
+.cutbar.vert .vfly button:not(.wide) { width: 24px; padding: 0; }
+.cutbar .vfly .spd { font-size: 11px; color: var(--muted); margin-left: 4px; }
+.cutbar .vfly .spd.v { color: var(--ink); font-weight: 700; margin: 0; min-width: 30px; text-align: center; }
