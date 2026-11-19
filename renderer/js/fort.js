@@ -620,7 +620,7 @@
           for (const [e0, e1, e2, e3] of [[P.u0 - 0.7, P.v0 - 0.7, P.u1 + 0.7, P.v0], [P.u0 - 0.7, P.v1, P.u1 + 0.7, P.v1 + 0.7], [P.u0 - 0.7, P.v0, P.u0, P.v1], [P.u1, P.v0, P.u1 + 0.7, P.v1]]) m.box(e0, e1, zz, e2, e3, Q + 0.7, C.STONE, M.stone, snow ? '#eef4fa' : '#c8bca8', snow ? M.snow : M.stone);
           if (!snow) for (let k = 0; k < 4; k++) { const u = P.u0 + 1.6 + k * 1.8, v = P.v0 + 1.6 + (k % 2) * 5.6; m.cyl(u, v, Q + 0.02, Q + 0.06, 0.8, 0.8, '#5aa64e', 0, 10); if (k % 2) m.ball(u + 0.3, v, Q + 0.6, 0.35, 0.6, '#f2a6c2', 0, 4, 6); }
           // 满了就从外沿流下去
-          const wu = (P.u0 + P.u1) / 2; m.box(wu - 1, P.v1 + 0.7, Q - 0.1, wu + 1, d + 0.4, Q + 0.05, WC, WM); m.box(wu - 1, d + 0.1, -42, wu + 1, d + 0.5, Q, WC, WM);
+          const wu = (P.u0 + P.u1) / 2; m.box(wu - 1, P.v1 + 0.7, Q - 0.1, wu + 1, d + 0.4, Q + 0.05, WC, WM); m.box(wu - 1, d + 0.1, Q - 6, wu + 1, d + 0.5, Q, WC, WM); m.box(wu - 0.7, d + 0.15, Q - 9, wu + 0.7, d + 0.45, Q - 6, WC, WM); if (!snow) for (let k = 0; k < 7; k++) m.ball(wu + (H(k, 3) - 0.5) * 2.4, d + 0.3 + H(k, 5) * 0.4, Q - 9 - H(k, 7) * 1.6, 0.35 + H(k, 9) * 0.3, 0.3, '#e8f4fa', 0, 3, 6); // 落一小段就散成水雾，不再一直挂到底
           for (const [u, v] of [[a + 0.5, b + 0.5], [c - 0.5, b + 0.5], [a + 0.5, d - 0.5], [c - 0.5, d - 0.5]]) { m.cyl(u, v, zz, Z[1] - 1, 0.07, 0.07, '#3a3448', M.metal, 4); }
           for (const [u, v] of [[a + 2, b + 0.4], [c - 2, b + 0.4]]) m.quad([u - 0.2, v, zz - 2.8], [u + 0.2, v, zz - 2.8], [u + 0.2, v - 6, Z[1] - 3], [u - 0.2, v - 6, Z[1] - 3], '#3a3448', M.metal);
           fence(m, q, ['v1', 'u1'], 2.4);
@@ -957,5 +957,5 @@
   }
   const FALL = mW('cistern', (POOL_L.u0 + POOL_L.u1) / 2, MD.cistern.r[3] + 0.3);
   const DECK = { v1: DK.v1 };
-  PP.FORT = { joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();

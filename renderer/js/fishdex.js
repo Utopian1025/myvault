@@ -21,10 +21,10 @@
     { id: 'puffer', name: '河豚', rare: 2, size: [10, 18], season: ['summer'], look: ['#c8c070', '#f8f4d8', '#8a8040', 'spot', 'p'], eff: 'puff', n: 20, say: '一碰就鼓成一个球，把大家都逗笑了', tip: '夏天' },
     { id: 'catfish', name: '鲶鱼', rare: 2, size: [30, 70], when: 'night', rain: 1, look: ['#5a5a6a', '#9a9aa8', '#3a3a48', '', 'l'], eff: 'grow', n: 30, say: '大胡子鲶鱼，翻了翻塘底的泥，菜长得更快了', tip: '晚上、下雨天' },
     { id: 'trout', name: '虹鳟', rare: 3, size: [25, 45], season: ['autumn', 'winter'], when: 'dawn', look: ['#8aa0a8', '#f0e8e0', '#e07a8a', 'rainbow', 'l'], eff: 'funAll', n: 20, say: '身上一道彩虹，大家看了都好开心', tip: '秋冬的清晨' },
-    { id: 'glowfish', name: '萤光鱼', rare: 3, size: [6, 10], when: 'night', look: ['#6ad8c8', '#d8fff8', '#3aa8a0', 'glow', 'n'], eff: 'glow', n: 30, say: '会发光的小鱼！今晚小岛上飞满了萤火虫', tip: '晚上' },
+    { id: 'glowfish', name: '萤光鱼', rare: 3, size: [6, 10], when: 'night', look: ['#6ad8c8', '#d8fff8', '#3aa8a0', 'glow', 'n'], eff: 'glow', n: 30, say: '会发光的小鱼！今晚城堡上飞满了萤火虫', tip: '晚上' },
     { id: 'koi', name: '锦鲤', rare: 3, size: [30, 60], look: ['#f4f0e8', '#ffffff', '#e04a3a', 'koi', 'n'], eff: 'luck', n: 30, say: '锦鲤！接下来半小时运气超好', tip: '一年四季都有，很少见' },
     { id: 'icefish', name: '冰鱼', rare: 3, size: [8, 14], season: ['winter'], look: ['#d8eef8', '#ffffff', '#a8d0e8', 'clear', 'l'], eff: 'energyAll', n: 50, say: '透明得像冰一样，大家都精神了', tip: '冬天' },
-    { id: 'sakura', name: '樱花鱼', rare: 3, size: [8, 14], season: ['spring'], when: 'day', look: ['#f4b8c8', '#fff0f4', '#e88aa8', 'petal', 'r'], eff: 'petal', n: 25, say: '花瓣一样的鱼，小岛下了一场花瓣雨', tip: '春天的白天' },
+    { id: 'sakura', name: '樱花鱼', rare: 3, size: [8, 14], season: ['spring'], when: 'day', look: ['#f4b8c8', '#fff0f4', '#e88aa8', 'petal', 'r'], eff: 'petal', n: 25, say: '花瓣一样的鱼，城堡下了一场花瓣雨', tip: '春天的白天' },
     { id: 'bottle', name: '漂流瓶', rare: 3, size: [20, 22], look: ['#9ad4c8', '#e8fff8', '#5a8a7a', '', 'o'], eff: 'letter', n: 8, say: '瓶子里有一封信！', tip: '偶尔会漂过来' },
     { id: 'goldcarp', name: '金鳞鲤', rare: 4, size: [40, 80], when: 'dawn', look: ['#f0c030', '#fff0a0', '#d89020', 'scale', 'n'], eff: 'gold', n: 30, say: '传说中的金鳞鲤！闪闪发光', tip: '传说：清晨' },
     { id: 'mooneel', name: '月光鳗', rare: 4, size: [60, 100], when: 'night', look: ['#3a4a8a', '#a8b8f0', '#d8e0ff', 'glow', 'e'], eff: 'xpGlow', n: 150, say: '月光一样的鳗鱼，游过的地方都亮了', tip: '传说：深夜' },
@@ -124,8 +124,8 @@
   }
   const fmtEff = {
     gold: (f) => `换 ${f.n} 条小鱼干${f.rare >= 4 ? '，接下来 20 分钟好运' : ''}`, fun: (f) => `主角心情 +${f.n}`, funAll: (f) => `所有小伙伴心情 +${f.n}`, energy: (f) => `主角体力 +${f.n}`, energyAll: (f) => `所有小伙伴体力 +${f.n}`,
-    xp: (f) => `主角经验 +${f.n}`, xpGlow: (f) => `经验 +${f.n}，小岛上萤火虫飞 40 分钟`, grow: (f) => `菜地里的菜提前 ${f.n} 分钟长好`, cook: (f) => `得到 ${f.n} 个鱼罐头（放进背包）`, tank: () => '放进小屋的鱼缸里养着',
-    puff: (f) => `大家被逗笑，心情 +${f.n}`, luck: () => '30 分钟内更容易钓到稀有的鱼', glow: () => '今晚小岛上飞满萤火虫（40 分钟）', petal: (f) => `下一场花瓣雨，大家心情 +${f.n}`, letter: (f) => `${f.n} 条小鱼干 + 一封漂流来的信`, junk: () => '没什么用……但也算一种收藏',
+    xp: (f) => `主角经验 +${f.n}`, xpGlow: (f) => `经验 +${f.n}，城堡上萤火虫飞 40 分钟`, grow: (f) => `菜地里的菜提前 ${f.n} 分钟长好`, cook: (f) => `得到 ${f.n} 个鱼罐头（放进背包）`, tank: () => '放进小屋的鱼缸里养着',
+    puff: (f) => `大家被逗笑，心情 +${f.n}`, luck: () => '30 分钟内更容易钓到稀有的鱼', glow: () => '今晚城堡上飞满萤火虫（40 分钟）', petal: (f) => `下一场花瓣雨，大家心情 +${f.n}`, letter: (f) => `${f.n} 条小鱼干 + 一封漂流来的信`, junk: () => '没什么用……但也算一种收藏',
   };
   // 钓到：记进图鉴、给效果、弹一张小卡片
   function caught(p) {
@@ -150,7 +150,7 @@
   function html() {
     const d = D(), got = FISH.filter((f) => d[f.id]).length;
     const L = lucky() ? `<span class="good">好运中：还有 ${Math.ceil((E().luckUntil - Date.now()) / 60000)} 分钟</span>` : '';
-    return `<div class="sec">钓鱼图鉴 ${got}/${FISH.length} ${L}</div><p class="muted">在小岛的鱼塘钓鱼（点鱼塘，咬钩时点一下浮漂帮它收竿）。不同季节、时间、天气能钓到的鱼不一样。现在：${({ dawn: '清晨', day: '白天', dusk: '傍晚', night: '晚上' })[phase()]} · ${({ spring: '春', summer: '夏', autumn: '秋', winter: '冬' })[season()] || ''}${raining() ? ' · 下雨' : ''}</p>
+    return `<div class="sec">钓鱼图鉴 ${got}/${FISH.length} ${L}</div><p class="muted">在城堡的鱼塘钓鱼（点鱼塘，咬钩时点一下浮漂帮它收竿）。不同季节、时间、天气能钓到的鱼不一样。现在：${({ dawn: '清晨', day: '白天', dusk: '傍晚', night: '晚上' })[phase()]} · ${({ spring: '春', summer: '夏', autumn: '秋', winter: '冬' })[season()] || ''}${raining() ? ' · 下雨' : ''}</p>
       <div class="fishdex">${FISH.map((f) => { const r = d[f.id]; return `<div class="fd ${r ? '' : 'unk'}" title="${r ? f.say : '还没钓到过'}"><canvas data-fish="${f.id}" data-unk="${r ? '' : 1}" width="66" height="36"></canvas><b>${r ? f.name : '？？？'}</b><small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)}</small><small>${r ? `钓到 ${r.n} 次 · 最大 ${r.best} 厘米` : f.tip}</small>${r ? `<small class="eff">${fmtEff[f.eff](f)}</small>` : ''}</div>`; }).join('')}</div>`;
   }
   function bind(root) { root.querySelectorAll('canvas[data-fish]').forEach((cv) => { const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(sprite(cv.dataset.fish, !!cv.dataset.unk), 0, 0, cv.width, cv.height); }); }

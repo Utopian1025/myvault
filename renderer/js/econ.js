@@ -54,13 +54,13 @@
     beanbag: { kind: 'furn', name: '懒人沙发', price: 18, icon: 'heart', slot: 'free', desc: '小屋里：一坐就陷进去' },
     gramophone: { kind: 'furn', name: '留声机', price: 28, icon: 'note', slot: 'free', desc: '小屋里：放唱片，会跟着跳舞' },
 
-    bench: { kind: 'deco', name: '木长椅', price: 15, icon: 'friend', desc: '小岛上：会坐上去发呆' },
-    swing: { kind: 'deco', name: '木秋千', price: 30, icon: 'heart', desc: '小岛上：会去荡秋千' },
-    lampPost: { kind: 'deco', name: '小路灯', price: 12, icon: 'sun', desc: '小岛上：晚上亮灯' },
-    scarecrow: { kind: 'deco', name: '稻草人', price: 10, icon: 'hay', desc: '小岛上：守着菜地' },
-    hay: { kind: 'deco', name: '干草垛', price: 6, icon: 'hay', desc: '小岛上：可以趴上面晒太阳' },
-    lantern: { kind: 'deco', name: '南瓜灯', price: 8, icon: 'melon', desc: '小岛上：秋天的味道' },
-    flowers: { kind: 'deco', name: '花坛', price: 8, icon: 'flower', desc: '小岛上：一圈小花' },
+    bench: { kind: 'deco', name: '木长椅', price: 15, icon: 'friend', desc: '城堡上：会坐上去发呆' },
+    swing: { kind: 'deco', name: '木秋千', price: 30, icon: 'heart', desc: '城堡上：会去荡秋千' },
+    lampPost: { kind: 'deco', name: '小路灯', price: 12, icon: 'sun', desc: '城堡上：晚上亮灯' },
+    scarecrow: { kind: 'deco', name: '稻草人', price: 10, icon: 'hay', desc: '城堡上：守着菜地' },
+    hay: { kind: 'deco', name: '干草垛', price: 6, icon: 'hay', desc: '城堡上：可以趴上面晒太阳' },
+    lantern: { kind: 'deco', name: '南瓜灯', price: 8, icon: 'melon', desc: '城堡上：秋天的味道' },
+    flowers: { kind: 'deco', name: '花坛', price: 8, icon: 'flower', desc: '城堡上：一圈小花' },
 
     straw: { kind: 'hat', name: '草帽', price: 18, icon: 'sun', lv: 4, desc: '戴在头上（Lv4 解锁装扮）' },
     bow: { kind: 'hat', name: '蝴蝶结', price: 12, icon: 'heart', lv: 4, desc: '戴在头上' },
@@ -460,7 +460,7 @@
     } else if (tab === 'home') {
       const furn = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'furn'), deco = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'deco');
       const SLOT = [['bed', '床位'], ['rug', '地上'], ['wall', '墙上'], ['c1', '窗边'], ['c2', '右墙边'], ['c3', '钢琴 / 摇椅']];
-      h += `<p class="muted">小屋和小岛都在「小岛」视图里（视图按钮停留 → 收起时 → 小岛）。买来的家具会自动摆上，这里可以换着摆。</p>`;
+      h += `<p class="muted">小屋和城堡都在「城堡」视图里（视图按钮停留 → 收起时 → 城堡）。买来的家具会自动摆上，这里可以换着摆。</p>`;
       h += `<div class="sec">小屋里</div><p class="muted">家具可以随便摆：进小屋后点右边的「布置」按钮，按住家具拖动，选中后能转向、收起、搬上阁楼。</p><div class="row"><button class="chip" data-furnedit="1">去小屋布置</button></div>${SLOT.filter(([sl]) => sl === 'bed' || sl === 'wall').map(([sl, n]) => { const opts = furn.filter((k) => ITEMS[k].slot === sl); return opts.length ? `<div class="row"><span class="lab">${sl === 'bed' ? '床上用品' : n}</span>${['', ...opts].map((k) => `<button class="chip ${(e.room[sl] || '') === k ? 'on' : ''}" data-room="${sl}" data-f="${k}">${k ? esc(ITEMS[k].name) : '原来的'}</button>`).join('')}</div>` : ''; }).join('')}`;
       h += `<div class="sec">岛上的六个位置</div>${[0, 1, 2, 3, 4, 5].map((i) => `<div class="row"><span class="lab">${(PP.isle && PP.isle.SLOT_NAME || [])[i] || '位置' + (i + 1)}</span>${['', ...deco].map((k) => `<button class="chip ${(e.isleDeco[i] || '') === k ? 'on' : ''}" data-deco="${i}" data-f="${k}">${k ? esc(ITEMS[k].name) : '空着'}</button>`).join('')}</div>`).join('')}`;
       if (!furn.length && !deco.length) h += '<p class="muted">还没有家具：去商店的「家具」「摆设」看看。</p>';

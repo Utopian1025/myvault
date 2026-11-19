@@ -191,12 +191,14 @@
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc;
+  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
   void main(){
     if(uCut>-1e5 && vD<uCut) discard;
+    // 详细视图：只留一个房间（转了角度的房间按它自己的朝向裁），房间外面和上面的都不画
+    if(uClipS.x>0.0){ vec2 d=vW.xy-uClip.xy; if(uClipS.w>0.0){ if(length(d)>uClipS.w) discard; } else { vec2 l=vec2(d.x*uClip.z+d.y*uClip.w, -d.x*uClip.w+d.y*uClip.z); if(abs(l.x)>uClipS.x || abs(l.y)>uClipS.y) discard; } if(vW.z>uClipS.z || vW.z<uClipLo) discard; }
     // 遮挡层：只留下“挡在宠物前面、比它脚高”的那部分（房子、树、栏杆……），叠在宠物上面——走到房子后面就真的被房子挡住，不会像站在屋顶上
     if(uOcc>0.5){ bool keep=false; for(int i=0;i<4;i++){ vec4 q=uPet[i]; if(q.z<=0.0) continue; float yy=uH-gl_FragCoord.y;
       if(abs(gl_FragCoord.x-q.x)<q.z*0.66 && yy>q.y-q.z*1.2 && yy<q.y+q.z*0.15 && vD>q.w+0.6 && vW.z>uPetZ[i].x+0.5) keep=true; }
@@ -333,7 +335,7 @@
     const u = prog.u;
     gl.uniform4f(u.uView, o.ox, o.oy, 2 * o.k / W, 2 * o.k / H);
     gl.uniform3fv(u.uSun, lb.L); gl.uniform3fv(u.uSunCol, o.sunCol || [0.85, 0.8, 0.7]); gl.uniform3fv(u.uSkyCol, o.sky || [0.5, 0.56, 0.68]); gl.uniform3fv(u.uGndCol, o.gnd || [0.36, 0.33, 0.36]);
-    gl.uniform1f(u.uLit, o.lit || 0); gl.uniform1f(u.uTime, o.time || 0); gl.uniform1f(u.uCut, o.cut == null ? -1e6 : o.cut); gl.uniform1f(u.uRain, o.rain || 0); gl.uniform1f(u.uInside, o.inside ? 1 : 0); gl.uniform1f(u.uShadow, o.shadow === false ? 0 : 1); gl.uniform1f(u.uPost, o.posterize || 0); gl.uniform1f(u.uMode, o.mode || 0); gl.uniform1f(u.uCel, o.cel ? 1 : 0); if (u.uOcc) gl.uniform1f(u.uOcc, o.occ ? 1 : 0);
+    { const c = o.clip; if (u.uClip) { gl.uniform4f(u.uClip, c ? c[0] : 0, c ? c[1] : 0, c ? c[2] : 1, c ? c[3] : 0); gl.uniform4f(u.uClipS, c ? c[4] : 0, c ? c[5] : 0, c ? c[6] : 0, c ? c[7] : 0); if (u.uClipLo) gl.uniform1f(u.uClipLo, c ? c[8] : -1e6); } } gl.uniform1f(u.uLit, o.lit || 0); gl.uniform1f(u.uTime, o.time || 0); gl.uniform1f(u.uCut, o.cut == null ? -1e6 : o.cut); gl.uniform1f(u.uRain, o.rain || 0); gl.uniform1f(u.uInside, o.inside ? 1 : 0); gl.uniform1f(u.uShadow, o.shadow === false ? 0 : 1); gl.uniform1f(u.uPost, o.posterize || 0); gl.uniform1f(u.uMode, o.mode || 0); gl.uniform1f(u.uCel, o.cel ? 1 : 0); if (u.uOcc) gl.uniform1f(u.uOcc, o.occ ? 1 : 0);
     { const yaw = o.yaw || 0, A = o.pitch ? o.pitch[0] : 1, B = o.pitch ? o.pitch[1] : 1, c = Math.cos(yaw), s = Math.sin(yaw), cc = o.camC || [24, 23];
       gl.uniform4f(u.uCam, c, s, cc[0], cc[1]); gl.uniform2f(u.uPit, A, B);
       // 看过来的方向（世界空间），双面光照时用来判断哪一面朝着相机

@@ -39,7 +39,7 @@
     return list;
   }
 
-  const TRAY_ITEMS = [['view', '视图'], ['isle', '去小岛'], ['bag', '背包 · 商店'], ['pets', '我认养的'], ['quiet', '工作模式'], ['pomo', '番茄钟'], ['remind', '提醒'], ['weather', '天气和季节'], ['sound', '环境声音'], ['settings', '设置'], ['hide', '暂时隐藏全部']];
+  const TRAY_ITEMS = [['view', '视图'], ['isle', '去城堡'], ['bag', '背包 · 商店'], ['pets', '我认养的'], ['quiet', '工作模式'], ['pomo', '番茄钟'], ['remind', '提醒'], ['weather', '天气和季节'], ['sound', '环境声音'], ['settings', '设置'], ['hide', '暂时隐藏全部']];
   const TRAY_DEFAULT = ['view', 'bag', 'pomo', 'settings'];
   PP.menuModel = function (focus, forTray) {
     const s = G.save.settings;
@@ -85,8 +85,8 @@
     const ec = PP.econ && PP.econ.E();
     const econMenu = ec ? { label: '小鱼干 · 成长', hint: T(`${ec.fish} 条${PP.econ.unread() ? ' · 有信' : ''}`), sub: [
       { id: 'econ:bag', label: '背包（零食、收成、装扮）' }, { id: 'econ:shop', label: '商店' }, { id: 'econ:trip', label: '探险' },
-      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和小岛' },
-      '-', { id: 'mode:isle', label: '去小岛（种地、进小屋）' },
+      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和城堡' },
+      '-', { id: 'mode:isle', label: '去城堡（种地、进小屋）' },
     ] } : null;
     const viewMenu = { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
         ...modes, '-',
@@ -120,7 +120,7 @@
       const on = new Set(s.trayItems || TRAY_DEFAULT), pomoOn = PP.F && PP.F.pomo.phase !== 'off';
       const parts = {
         view: { label: `视图：${modeName}`, sub: modes },
-        isle: { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开小岛' : '去小岛' },
+        isle: { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开城堡' : '去城堡' },
         bag: econMenu ? { id: 'econ:bag', label: `背包 · 商店${PP.econ.unread() ? '（有信）' : ''}` } : null,
         pets: petsMenu, quiet: { id: 'quiet', label: '工作模式（安静）', type: 'checkbox', checked: !!s.quiet },
         pomo: { id: 'pomo', label: pomoOn ? '停止番茄钟' : `番茄钟 ${s.pomo.focus} 分钟` },

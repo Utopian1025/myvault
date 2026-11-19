@@ -11,6 +11,7 @@
   const S = () => G.save.settings, E = () => PP.econ.E();
   let beeBoost = 0;
   let fedit = false, fsel = -1, fdrag = null, fbar = null, cbar = null;
+  let focus = null; // 详细视图：只看一个房间（房间 id），镜头推近、别的都不画
   let L = null, cut = null, hover = null, dirtyK = 0, smoke = [], cooking = false, mark = null, drops = [], flash = 0, press = null, rips = [];
   let meshes = {}, dynMesh = null, glOK = true, lastScenes = null, lastLO = null;
   const mir = () => !!(G.save && S().isleMirror), org = () => (bnd() || { org: [0, 0] }).org;
@@ -24,7 +25,21 @@
   const quad = () => { const k = cam(); return (k.c + k.s > 0 ? 1 : 0) + (k.c - k.s > 0 ? 2 : 0); };
   // 外面的画框：按整座城堡（外部）算，进屋剖切时画框不跳
   let bndC = null, extPos = null, extKey = '';
-  function bnd() {
+  // 详细视图的画框：按这个房间（连墙、到屋顶）算
+  let fbC = null;
+  function bndFocus() {
+    const r = RM[focus], k = cam(), key = [focus, k.yaw.toFixed(3), k.A.toFixed(3)].join('|'); if (fbC && fbC.key === key) return fbC;
+    const z0 = Z[r.lv] - 1.5, z1 = Z[r.lv] + F.roomH(r) + 1, pts = [];
+    if (r.c) for (let a = 0; a < 6.28; a += 0.4) pts.push([r.c[0] + Math.cos(a) * (r.c[2] + 1), r.c[1] + Math.sin(a) * (r.c[2] + 1)]);
+    else { const [a, b, c, d] = r.r; for (const q of [[a - 1, b - 1], [c + 1, b - 1], [a - 1, d + 1], [c + 1, d + 1]]) pts.push(r.rot ? F.toW(r, ...q) : q); }
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (const [u, v] of pts) for (const z of [z0, z1]) { const du = u - CEN[0], dv = v - CEN[1], ru = du * k.c - dv * k.s + CEN[0], rv = du * k.s + dv * k.c + CEN[1], X = 2 * (ru - rv), Y = (ru + rv) * k.A - z * k.B; x0 = Math.min(x0, X); x1 = Math.max(x1, X); y0 = Math.min(y0, Y); y1 = Math.max(y1, Y); }
+    return (fbC = { key, IW: Math.ceil(x1 - x0 + 8), IH: Math.ceil(y1 - y0 + 6), org: [-x0 + 4, -y0 + 3] });
+  }
+  function bnd() { if (focus && RM[focus]) return bndFocus(); return bndExt(); }
+  // 详细视图里放大多少倍：让画框和看整座城堡时差不多大
+  function focusK() { if (!focus || !RM[focus]) return 1; const e = bndExt(), f = bndFocus(); return e && f ? U.clamp(Math.min(e.IW / f.IW, e.IH / f.IH), 1, 8) : 1; }
+  function bndExt() {
     if (!extPos) return null; const k = cam(), key = [k.yaw.toFixed(3), k.A.toFixed(3), extKey].join('|');
     if (bndC && bndC.key === key) return bndC;
     let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; const P = extPos;
@@ -113,7 +128,7 @@
   const ZMIN = 1.4, ZMAX = 18, Z0 = 3, zoomOf = () => U.clamp(+(G.save && S().isleZ) || Z0, ZMIN, ZMAX);
   function layout() {
     if (!extPos) ensureExt();
-    const u = zoomOf(), w = Math.round(IWf() * u), h = Math.round(IHf() * u), pos = G.save && S().islePos, sb = safeB();
+    const u = zoomOf() * focusK(), w = Math.round(IWf() * u), h = Math.round(IHf() * u), pos = G.save && S().islePos, sb = safeB();
     let x1 = pos ? pos.x * G.W : G.W - 4, y1 = pos ? pos.y * sb : sb - 2;
     x1 = U.clamp(x1, Math.min(w + 2, G.W - 2), Math.max(w + 2, G.W - 2)); y1 = U.clamp(y1, Math.min(h + 2, sb - 2), Math.max(h + 2, sb - 2));
     L = { u, x0: Math.round(x1 - w), y0: Math.round(y1 - h), x1: Math.round(x1), y1: Math.round(y1), w, h };
@@ -194,7 +209,7 @@
     const w = want();
     document.body.classList.toggle('isle', !!w);
     if (w && !G.isle) { G.isle = {}; cut = null; migrateFurn(); layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); }
-    else if (!w && G.isle) { G.isle = null; cut = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
+    else if (!w && G.isle) { G.isle = null; cut = null; focus = null; fbC = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
   }
   function fit(moveIn) {
     layout(); G.ground = groundY();
@@ -209,7 +224,7 @@
   function setZoom(z, quiet, ax, ay) {
     const o = L ? { x0: L.x0, y0: L.y0, u: L.u } : null; z = U.clamp(z, ZMIN, ZMAX);
     // 以鼠标所指的地方为中心缩放：那一点缩放前后在屏幕上不动
-    if (o && ax != null) { const r = z / o.u, nx0 = ax - (ax - o.x0) * r, ny0 = ay - (ay - o.y0) * r; S().islePos = { x: (nx0 + IWf() * z) / G.W, y: (ny0 + IHf() * z) / safeB() }; }
+    if (o && ax != null) { const r = (z * focusK()) / o.u, nx0 = ax - (ax - o.x0) * r, ny0 = ay - (ay - o.y0) * r; S().islePos = { x: (nx0 + IWf() * z * focusK()) / G.W, y: (ny0 + IHf() * z * focusK()) / safeB() }; }
     S().isleZ = z; PP.save.soon(); layout(); G.ground = groundY();
     for (const p of G.pets) { if (p.held) continue; const [u, v] = uvOf(p); p.x = scrU(u, v); p.y = p.floor; }
     PP.placeOrb && PP.placeOrb(); cBar();
@@ -222,13 +237,17 @@
   function camChanged() { bndC = null; cells = {}; layout(); G.ground = groundY(); for (const p of G.pets) { if (p.held) continue; const q = p.isleSpot || ipOf(p); p.x = scrU(q.u, q.v); p.y = p.floor; } PP.placeOrb && PP.placeOrb(); cBar(); }
   let camDrag = null;
   window.addEventListener('mousedown', (e) => {
-    if (!G.isle || !L || (e.button !== 2 && e.button !== 1) || G.hoverPet) return;
-    if (e.clientX < L.x0 || e.clientX > L.x1 || e.clientY < L.y0 || e.clientY > L.y1) return;
+    // 转视角：按住 Ctrl + 鼠标左键拖
+    if (!G.isle || !L || e.button !== 0 || !e.ctrlKey) return;
+    if (e.clientX < L.vx0 || e.clientX > L.vx1 || e.clientY < L.vy0 || e.clientY > L.vy1) return;
+    e.preventDefault(); e.stopPropagation();
     camDrag = { x: e.clientX, y: e.clientY, yaw: +S().isleYaw || 0, pitch: +S().islePitch || 45, moved: false }; G.uiDrag = true; PP.refreshInteractive();
     const mv = (ev) => { if (!camDrag) return; const dx = ev.clientX - camDrag.x, dy = ev.clientY - camDrag.y; if (Math.hypot(dx, dy) > 4) camDrag.moved = true; if (!camDrag.moved) return; S().isleYaw = camDrag.yaw + dx * 0.012; S().islePitch = U.clamp(camDrag.pitch - dy * 0.25, 22, 72); camChanged(); document.body.style.cursor = 'grabbing'; };
     const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); if (camDrag && camDrag.moved) { PP.save.soon(); window.__noCtx = performance.now(); } camDrag = null; G.uiDrag = false; document.body.style.cursor = 'default'; PP.refreshInteractive(); };
-    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+    const upC = (ev) => { window.removeEventListener('mouseup', upC, true); ev.stopPropagation(); ev.preventDefault(); up(); window.__noClick = performance.now(); };
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', upC, true);
   }, true);
+  window.addEventListener('click', (e) => { if (window.__noClick && performance.now() - window.__noClick < 400) { e.preventDefault(); e.stopPropagation(); } }, true);
   window.addEventListener('contextmenu', (e) => { if (window.__noCtx && performance.now() - window.__noCtx < 400) { e.preventDefault(); e.stopPropagation(); } }, true);
   window.addEventListener('wheel', (e) => { if (!G.isle || !L || !hover) return; if (e.target && e.target.closest && e.target.closest('.panel,.menu,.orb-pop,.hud,.cutbar,.furnbar')) return; e.preventDefault(); const dy = U.clamp(e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY, -240, 240); setZoom(zoomOf() * Math.exp(-dy * 0.0011), true, e.clientX, e.clientY); }, { passive: false });
 
@@ -265,7 +284,7 @@
     if (cut != null) { sky = sky.map((x, i) => x * 0.85 + [0.12, 0.1, 0.06][i]); if (ph === 'night') { sun = [0.42, 0.36, 0.3]; sky = [0.36, 0.3, 0.28]; } }
     return { sun: dir, sunCol: sun, sky, gnd, lit, skyTop: top, skyBot: bot, rain: fx.rain || 0, wind: Math.min(1, (fx.wind || 0) + (fx.storm ? 0.5 : 0)), inside: false, time: performance.now() / 1000, center: [28, 26, cut == null ? 10 : Z[cut] + 4], radius: 125 };
   }
-  const hidden = (p) => cut != null && p.ip && !p.held && p.ip.lv > cut;
+  const hidden = (p) => cut != null && p.ip && !p.held && (p.ip.lv > cut || (focus && RM[focus] && (p.ip.lv !== RM[focus].lv || !F.inRoom(RM[focus], p.ip.u, p.ip.v, -0.8))));
   function petCuts() {
     const out = [];
     for (const p of G.pets) { if (p.held || p.isleSpot || p.inDoor || p.inDen || p.isleHide) continue; const q = p.ip; if (!q) continue; const h = 30 * G.S * (p.scaleMul || 1); const pq = pixK(); out.push([(p.x - L.vx0) / pq, (p.y - L.vy0 - (p.hopY || 0)) / pq, h / pq, depth(q.u, q.v), q.z]); }
@@ -274,9 +293,15 @@
   const DPR = () => window.devicePixelRatio || 1;
   // 像素块最多 2 个屏幕点：放大时看得清细节，不会越放越糊
   const pixOn = () => !(G.save && S().islePix === false), pixD = () => (pixOn() ? Math.min(Math.max(2, Math.round(DPR() * 2)), Math.max(1, Math.round(L.u * DPR() * 0.3))) : 1), pixK = () => pixD() / DPR();
+  function clipOf() {
+    const r = focus && RM[focus]; if (!r) return null; const top = Z[r.lv] + F.roomH(r) + 0.6;
+    const lo = Z[r.lv] - 1.2; if (r.c) return [r.c[0], r.c[1], 1, 0, 1, 1, top, r.c[2] + 0.9, lo];
+    const a = r.rot || 0, [x0, y0, x1, y1] = r.r, c = r.rot ? F.toW(r, (x0 + x1) / 2, (y0 + y1) / 2) : [(x0 + x1) / 2, (y0 + y1) / 2];
+    return [c[0], c[1], Math.cos(a), Math.sin(a), (x1 - x0) / 2 + 0.9, (y1 - y0) / 2 + 0.9, top, 0, lo];
+  }
   function viewOpts() { const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
-    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn() }, lastLO); }
+    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf() }, lastLO); }
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
     const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed });
@@ -338,6 +363,7 @@
   // ---------- 画 ----------
   function renderBack(ctx) {
     for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
+    if (G.isle) followTick();
     if (!G.isle) return;
     if (!L) layout();
     const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0, pw = power();
@@ -348,7 +374,7 @@
     else { glOK = false; ctx.fillStyle = 'rgba(40,30,50,.8)'; ctx.fillRect(L.x0 + L.w * 0.1, L.y0 + L.h * 0.45, L.w * 0.8, 40); ctx.fillStyle = '#fff'; ctx.font = PP.FONT(12); ctx.fillText('这台电脑没法开启 3D 渲染（WebGL2），城堡画不出来', L.x0 + L.w * 0.12, L.y0 + L.h * 0.45 + 24); }
     if (cut == null) {
       CHIMS.forEach(([a, b, c], i) => { if (Math.random() < (i === 0 ? 0.04 + pw * 0.1 : cooking && i === 1 ? 0.12 : 0.02)) smoke.push({ x: cx(a, b), y: cy(a, b, c), t: 0 }); });
-      if (Math.random() < 0.5) smoke.push({ x: cx(F.FALL[0] + U.rand(-0.8, 0.8), F.FALL[1]), y: cy(F.FALL[0], F.FALL[1], -40), t: 0, mist: true }); // 瀑布落下去散成雾
+      if (Math.random() < 0.5) smoke.push({ x: cx(F.FALL[0] + U.rand(-0.8, 0.8), F.FALL[1]), y: cy(F.FALL[0], F.FALL[1], Z[0] - 8), t: 0, mist: true }); // 瀑布落下去散成雾
       for (const [a, b] of F.WING_ROOTS) if (Math.random() < pw * 0.06) smoke.push({ x: cx(a, b), y: cy(a, b, Z[2] + 13), t: 0 });
       if (nt || phase() === 'dusk') { for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, 10.6), 16 * u, 'rgba(255,214,140,', 0.34); (E().isleDeco || []).forEach((id, i) => { if (id === 'lampPost' || id === 'lantern') glow(ctx, scrU(SLOTS[i][0], SLOTS[i][1]), scrV(SLOTS[i][0], SLOTS[i][1], id === 'lampPost' ? 11 : 2), 18 * u); }); }
       if (nt && season() === 'summer' && !fx.rain) { ctx.fillStyle = '#fff6a0'; for (let i = 0; i < 9; i++) { const t = now / 1000 + i * 3.1; if (Math.sin(t * 2.3 + i) > 0) { const pu = 18 + ((i * 13 + Math.sin(t) * 4) % 30), pv = 24 + ((i * 7 + Math.cos(t * 0.8) * 4) % 22); ctx.beginPath(); ctx.arc(scrU(pu, pv), scrV(pu, pv, 4 + Math.sin(t * 2) * 3), u * 0.6, 0, 6.3); ctx.fill(); } } }
@@ -356,7 +382,7 @@
       if (cut === 0) glow(ctx, scrU(12, 13), scrV(12, 13, Z[0] + 3), (18 + fort().fuel / 6) * u, 'rgba(255,150,70,', 0.32 + Math.sin(now / 150) * 0.04);
       if (cut === 1 && cooking) glow(ctx, scrU(23, 10.6), scrV(23, 10.6, 7), 26 * u, 'rgba(255,170,90,', 0.36);
       if (nt || phase() === 'dusk') for (const it of FURN.layout(E())) { const d = FURN.D[it.f]; if (d.light && F.roomLv(it.room || 'living') === cut) glow(ctx, scrU(it.u, it.v), scrV(it.u, it.v, Z[cut] + d.light[2] * F.FS), 22 * u); }
-      if (cut >= 1 && (nt || phase() === 'dusk')) for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, 10.6), 14 * u, 'rgba(255,214,140,', 0.28);
+      if (cut >= 1 && !focus && (nt || phase() === 'dusk')) for (const [a, b] of LAMPS) glow(ctx, scrU(a, b), scrV(a, b, 10.6), 14 * u, 'rgba(255,214,140,', 0.28);
     }
     if (mark && now - mark.t < 700) { const k = (now - mark.t) / 700, x = scrU(mark.u, mark.v), y = scrV(mark.u, mark.v, mark.z); ctx.strokeStyle = `rgba(255,255,255,${1 - k})`; ctx.lineWidth = u; ctx.beginPath(); ctx.ellipse(x, y, (2 + k * 5) * u, (1 + k * 2.5) * u, 0, 0, Math.PI * 2); ctx.stroke(); }
     smoke = smoke.filter((m) => (m.t += 1 / 60) < (m.mist ? 1.6 : 3));
@@ -401,6 +427,7 @@
   // ---------- 会动的小东西：蜜蜂、萤火虫、花瓣 ----------
   const FCU = PLOTS.reduce((a, q) => a + q[0], 0) / PLOTS.length + PS / 2, FCV = PLOTS.reduce((a, q) => a + q[1], 0) / PLOTS.length + PS / 2;
   function lifeLayer(ctx) {
+    if (focus) return; // 详细视图只看屋里
     const now = performance.now(), t = now / 1000, s = Math.max(1, Math.round(L.u * 0.42)), e = E();
     if (cut == null || cut >= 2) {
       const nb = now - beeBoost < 4000 ? 9 : 4, [hu, hv] = HIVES[0], hx = scrU(hu, hv), hy = scrV(hu, hv, F.HIVE_Z + 4);
@@ -546,28 +573,57 @@
   }
 
   // ---------- 剖切：进到哪一层 ----------
-  function setCut(lv, quiet) {
+  function setCut(lv, quiet, keepFocus) {
     lv = lv == null ? null : U.clamp(lv, 0, 3);
+    if (!keepFocus && focus) { focus = null; fbC = null; bndC = null; if (cut === lv) { cells = {}; for (const p of G.pets) if (!p.held) p.isleHide = hidden(p); layout(); camFix(); cBar(); return; } }
     if (cut === lv) return;
     cut = lv; hover = null; smoke = []; drops = []; cells = {};
     if ((lv !== 2 && lv !== 3) && fedit) { fedit = false; fsel = -1; fdrag = null; fBar(); }
     if (lv != null && G.save.flags) G.save.flags.isleIn = 1;
     for (const p of G.pets) { if (p.held) continue; p.isleHide = hidden(p); }
-    layout(); cBar(); PP.placeOrb && PP.placeOrb();
+    layout(); camFix(); cBar(); PP.placeOrb && PP.placeOrb();
     if (!quiet && lv != null) PP.ui.toast(`${F.NAME[lv]}：${roomsOn(lv)}`, 1.6);
   }
   const roomsOn = (lv) => [...new Set(ROOMS.filter((r) => r.lv === lv).map((r) => r.nm).concat(F.OPEN.filter((o) => o[0] === lv).map((o) => o[5])))].join(' · ');
+  // 详细视图：进到一个房间。镜头推近到这个房间，别的房间都不画；从门、走廊、楼梯走到隔壁，镜头跟过去
+  function camFix() { for (const p of G.pets) { if (p.held) continue; const q = p.isleSpot || ipOf(p); p.x = scrU(q.u, q.v); p.y = p.floor; } PP.placeOrb && PP.placeOrb(); }
+  function setFocus(id, quiet) {
+    const r = id && RM[id]; if (!r) { setCut(cut, true); return; }
+    if (focus === id) return;
+    focus = id; fbC = null; bndC = null; cells = {}; hover = null;
+    if (cut !== r.lv) setCut(r.lv, true, true); else { for (const p of G.pets) if (!p.held) p.isleHide = hidden(p); }
+    layout(); camFix(); cBar();
+    if (!quiet) PP.ui.toast(r.nm, 1.2);
+  }
+  const roomOfP = (p) => { const q = p && p.ip; return q ? F.roomAt(q.u, q.v, q.lv) : null; };
+  // 隔壁：门洞、走廊连着的房间（同一层），楼梯连着的房间（上下层）
+  let nbC = null;
+  function neighbours(id) {
+    if (!nbC) { nbC = {}; const add = (a, b, how) => { if (!a || !b || a === b) return; (nbC[a.id] = nbC[a.id] || new Map()).set(b.id, how); (nbC[b.id] = nbC[b.id] || new Map()).set(a.id, how); };
+      for (const P of F.PASS) { const hit = new Set(); for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) { const x = P.r[0] - 0.6 + (P.r[2] - P.r[0] + 1.2) * i / 6, y = P.r[1] - 0.6 + (P.r[3] - P.r[1] + 1.2) * j / 6, w = P.F ? F.toW(P.F, x, y) : [x, y], r = F.roomAt(w[0], w[1], P.lv); if (r) hit.add(r); } const L2 = [...hit]; for (let i = 0; i < L2.length; i++) for (let j = i + 1; j < L2.length; j++) add(L2[i], L2[j], 'door'); }
+      for (const S2 of F.RAMPS) { const mid = S2.axis === 'u' ? (S2.v0 + S2.v1) / 2 : (S2.u0 + S2.u1) / 2, at = (t, lv) => { const P = S2.axis === 'u' ? [t, mid] : [mid, t]; return F.roomAt(P[0], P[1], lv); };
+        const ra = at(S2.lo - 0.8, S2.a) || at(S2.lo + 0.5, S2.a), rb = at(S2.hi + 0.8, S2.b) || at(S2.hi - 0.5, S2.b); add(ra, rb, 'stair'); } }
+    return [...(nbC[id] || new Map())].map(([k, how]) => ({ id: k, how, r: RM[k] }));
+  }
+  function goRoom(id) { const p = mainP(), r = RM[id]; setFocus(id); if (p && r) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; const q = roomSpot(id); p.run('isleGo', A.isleGo, q.u, q.v, q.lv); } }
+  // 主角从你正在看的房间走到隔壁，镜头跟过去
+  function followTick() {
+    if (!focus) return; const p = mainP(); if (!p || p.held) return; const r = roomOfP(p), was = p._rm; p._rm = r ? r.id : null;
+    if (r && was && was !== r.id && was === focus) setFocus(r.id, true);
+  }
   // 剖切条：在城堡框的左下角：第几层、上一层 / 下一层 / 回到外面
   function cBar() {
     if (!G.isle || cut == null || !L) { if (cbar) { cbar.remove(); cbar = null; PP.refreshInteractive(); } return; }
     if (!cbar) {
       cbar = document.createElement('div'); cbar.className = 'cutbar'; document.getElementById('ui').appendChild(cbar);
       cbar.addEventListener('mousedown', (ev) => ev.stopPropagation());
-      cbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a; if (a === 'up') setCut(Math.min(3, cut + 1)); else if (a === 'down') setCut(cut - 1); else if (a === 'out') setCut(null); else if (a === 'furn') furnEdit(!fedit); });
+      cbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a; if (a === 'up') setCut(Math.min(3, cut + 1)); else if (a === 'down') setCut(cut - 1); else if (a === 'out') setCut(null); else if (a === 'furn') furnEdit(!fedit); else if (a === 'room') { if (b.dataset.go) goRoom(b.dataset.r); else setFocus(b.dataset.r); } else if (a === 'level') setCut(cut); });
     }
-    const k = [cut, fedit].join('|');
-    if (cbar.dataset.k !== k) { cbar.dataset.k = k; cbar.innerHTML = `<button data-a="up" ${cut >= 3 ? 'disabled' : ''} title="上一层">▲</button><span class="lv"><b>${F.NAME[cut]}</b><small>${esc(roomsOn(cut))}</small></span><button data-a="down" ${cut <= 0 ? 'disabled' : ''} title="下一层">▼</button>${cut != null ? `<button data-a="furn" class="${fedit ? 'on' : ''}">${fedit ? '布置中' : '布置家具'}</button>` : ''}<button data-a="out" class="primary" title="回到外面看整座城堡">看外面</button>`; }
-    cbar.style.left = Math.max(4, L.x0 + 4) + 'px'; cbar.style.top = Math.min(G.H - 40, safeB() - 40, L.y1 - 34) + 'px'; PP.refreshInteractive();
+    const k = [cut, fedit, focus].join('|');
+    if (focus && RM[focus] && cbar.dataset.k !== k) { cbar.dataset.k = k; const r = RM[focus], nb = neighbours(focus);
+      cbar.innerHTML = `<span class="lv"><b>${esc(r.nm)}</b><small>${F.NAME[r.lv]}</small></span>${nb.map((n) => `<button data-a="room" data-go="1" data-r="${n.id}" title="${n.how === 'stair' ? '走楼梯过去' : '穿过门过去'}">${n.how === 'stair' ? (n.r.lv > r.lv ? '↑' : '↓') : '→'} ${esc(n.r.nm)}</button>`).join('')}${r.lv >= 1 ? `<button data-a="furn" class="${fedit ? 'on' : ''}">${fedit ? '布置中' : '布置家具'}</button>` : ''}<button data-a="level" title="看这一整层">整层</button><button data-a="out" class="primary" title="回到外面看整座城堡">看外面</button>`; }
+    if (cbar.dataset.k !== k) { cbar.dataset.k = k; cbar.innerHTML = `<button data-a="up" ${cut >= 3 ? 'disabled' : ''} title="上一层">▲</button><span class="lv"><b>${F.NAME[cut]}</b><small>点房间名进去看</small></span>${ROOMS.filter((r) => r.lv === cut && !r.hut).map((r) => `<button data-a="room" data-r="${r.id}" class="rm" title="进到${esc(r.nm)}里面看">${esc(r.nm)}</button>`).join('')}<button data-a="down" ${cut <= 0 ? 'disabled' : ''} title="下一层">▼</button>${cut != null ? `<button data-a="furn" class="${fedit ? 'on' : ''}">${fedit ? '布置中' : '布置家具'}</button>` : ''}<button data-a="out" class="primary" title="回到外面看整座城堡">看外面</button>`; }
+    cbar.style.left = Math.max(4, L.x0 + 4) + 'px'; cbar.style.top = Math.max(4, Math.min(G.H - 40, safeB() - 40, L.y1 - 34) - Math.max(0, cbar.offsetHeight - 30)) + 'px'; PP.refreshInteractive();
   }
 
   // ---------- 遮挡、前景 ----------
@@ -590,7 +646,7 @@
     ctx.save();
     for (const p of G.pets) { if (p.isleHide) continue; if (p.fishing) drawFishing(ctx, p, now); if (p.tool) drawTool(ctx, p, now); if (p.inBed) { if (p.action !== 'isleUse') p.inBed = null; else quilt(ctx, p); } }
     const fx = wfx(); if (cut == null && (fx.rain || fx.snow || flash > 0)) weatherTick(ctx, { x: L.vx0, y: L.vy0, w: L.vw, h: L.vh });
-    if ((cut == null || cut >= 1) && PP.econ.unread()) { const x = scrU(MAILB.u, MAILB.v), y = scrV(MAILB.u, MAILB.v, 11 + Math.sin(now / 400) * 0.8); ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#3a2630'; ctx.lineWidth = u * 0.4; ctx.beginPath(); ctx.rect(x - 2.6 * u, y - 2 * u, 5.2 * u, 4 * u); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#e8705a'; ctx.beginPath(); ctx.moveTo(x - 2.6 * u, y - 2 * u); ctx.lineTo(x, y + 0.3 * u); ctx.lineTo(x + 2.6 * u, y - 2 * u); ctx.stroke(); }
+    if ((cut == null || cut >= 1) && !focus && PP.econ.unread()) { const x = scrU(MAILB.u, MAILB.v), y = scrV(MAILB.u, MAILB.v, 11 + Math.sin(now / 400) * 0.8); ctx.fillStyle = '#fffaf0'; ctx.strokeStyle = '#3a2630'; ctx.lineWidth = u * 0.4; ctx.beginPath(); ctx.rect(x - 2.6 * u, y - 2 * u, 5.2 * u, 4 * u); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#e8705a'; ctx.beginPath(); ctx.moveTo(x - 2.6 * u, y - 2 * u); ctx.lineTo(x, y + 0.3 * u); ctx.lineTo(x + 2.6 * u, y - 2 * u); ctx.stroke(); }
     ctx.restore();
     if (hover && hover.k !== 'ground' && hover.k !== 'hull' && !G.hoverPet && !press) { const t = hoverText(hover); if (t) PP.drawPixelLabel(ctx, t, Math.round(hover.lx), Math.round(Math.max(10, hover.ly)), { size: 12 }); }
     if (cbar) cBar();
@@ -702,13 +758,13 @@
     window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   }
   // 房间中心附近一个能站的点
-  const roomSpot = (rid) => { const r = RM[rid]; const c = nearFree(area(), (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1, r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
+  const roomSpot = (rid) => { const r = RM[rid], m = r.c ? [r.c[0], r.c[1] + 1] : r.rot ? F.toW(r, (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2) : [(r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1]; const c = nearFree(area(), m[0], m[1], r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
   function click(h, x, y) {
     if (!h) return;
     const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); } };
     if (h.k === 'ground') { mark = { u: h.u, v: h.v, z: h.z, t: performance.now() }; go('isleGo', A.isleGo, h.u, h.v, h.lv); return; }
     if (h.k === 'hull') return;
-    if (h.k === 'door' && !h.d) { setCut(2); if (p) go('isleHouse', A.isleHouse, 'house'); return; } // 菜单里的“进屋”：去起居室
+    if (h.k === 'door' && !h.d) { setFocus('living', true); if (p) go('isleHouse', A.isleHouse, 'house'); return; } // 菜单里的“进屋”：去起居室
     if (h.k === 'door') { const d = h.d, r = d.room, c = r.c ? [r.c[0] + (d.inP[0] - r.c[0]) * 0.6, r.c[1] + (d.inP[1] - r.c[1]) * 0.6] : [d.inP[0] + (d.inP[0] - d.outP[0]) * 0.8, d.inP[1] + (d.inP[1] - d.outP[1]) * 0.8]; setCut(d.lv); go('isleGo', A.isleGo, c[0], c[1], d.lv); return; }
     if (h.k === 'exit') { setCut(null); return; } // 兼容：菜单里的“出门”
     if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (cut == null && h.pr.at[2] !== 1) setCut(h.pr.at[2], true); go('isleUse', A.isleUse, h.pr); return; }
@@ -718,7 +774,7 @@
     if (h.k === 'balloon') { PP.econ.openPanel('trip'); return; }
     if (h.k === 'hive') { go('isleHive', A.isleHive); return; }
     if (h.k === 'tap') { go('isleDrink', A.isleDrink); return; }
-    if (h.k === 'door0' || h.k === 'home') { setCut(2); if (p) go('isleGo', A.isleGo, ...Object.values(roomSpot('living'))); return; } // 菜单里的“进屋”：去起居室
+    if (h.k === 'door0' || h.k === 'home') { setFocus('living', true); if (p) go('isleGo', A.isleGo, ...Object.values(roomSpot('living'))); return; } // 菜单里的“进屋”：去起居室
     if (h.k === 'plot') {
       const inf = PP.econ.plotInfo(h.i);
       if (inf && inf.stage === 3) { if (p) go('isleHarvest', A.isleHarvest, h.i); else { PP.econ.harvest(h.i); fort().fuel = Math.min(100, fort().fuel + 4); } return; }
@@ -751,7 +807,7 @@
   }
   function cmd(a, b, c) { if (a === 'plant') { const p = mainP(); if (p) { p.interrupt(true); p.run('isleSow', A.isleSow, +b, c); } else if (PP.econ.plant(+b, c)) PP.ui.toast('种下了'); } }
   // 兼容老接口：setInside('house') = 进起居室；false = 回到外面
-  function setInside(v) { if (v === 'house' || v === true) setCut(2); else if (v === 'gh') setCut(1); else if (typeof v === 'number') setCut(v); else setCut(null); }
+  function setInside(v) {  if (v === 'house' || v === true) setFocus('living', true); else if (v === 'gh') setCut(1); else if (typeof v === 'number') setCut(v); else setCut(null); }
 
   // ---------- 主角在城堡里过日子 ----------
   const day = () => { const e = E(); const d = today(); if (!e.isleDay || e.isleDay.d !== d) e.isleDay = { d, fish: 0, cook: 0 }; return e.isleDay; };
@@ -953,6 +1009,6 @@
   setInterval(() => { if (PP.started && G.save) sync(); if (G.isle) for (const p of G.pets) if (p.action === 'sleep' && !p._bedSleep && !p.held && !p.d.trip) { p.interrupt(true); p.run('sleep', A.sleep); } }, 1500);
   const doorX = () => { if (!L) layout(); return scrU(HALL_OUT.u - 1, HALL_OUT.v - 1); };
   function furnAdd(f) { const e = E(), L0 = FURN.layout(e); if (!FURN.D[f] || L0.some((q) => q.f === f)) return false; const q = fFree({ f, u: 0, v: 0, r: 0, room: 'living' }, -1) || fFree({ f, u: 0, v: 0, r: 0, room: 'bedroom' }, -1); if (!q) return false; L0.push(q); fChanged(); return true; }
-  const insideV = () => (cut == null ? false : cut === 2 ? 'house' : 'in');
-  PP.isle = { cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
+  const insideV = () => (cut == null ? false : focus === 'living' ? 'house' : 'in'); // 「小屋」视图 = 起居室的详细视图
+  PP.isle = { setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();

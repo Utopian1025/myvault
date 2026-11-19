@@ -34,7 +34,7 @@
   // 每种动物的家在哪个场景
   PP.SCENE_FAV_OLD = { turtle: 'sea', crab: 'sea', octopus: 'sea', cat: 'farm', dog: 'farm', chick: 'farm', pig: 'farm', rabbit: 'meadow', hamster: 'meadow', fox: 'forest', hedgehog: 'forest', dragon: 'forest', frog: 'lake', duck: 'lake', capybara: 'lake', penguin: 'snow' };
   // 两大类：极简（只留主角）= 任务栏上 / 任务栏中；场景 = 小屋 / 小岛 / 风景
-  PP.MODES = [['mini', '任务栏上', '极简：主角在任务栏上面溜达'], ['bar', '任务栏中', '极简：主角住进任务栏里，不挡图标'], ['house', '小屋', '场景：小岛上那栋小屋的屋里'], ['isle', '小岛', '场景：一座漂浮的小岛，小屋、菜地、鱼塘'], ['band', '风景', '场景：各地的风景（森林、海边、雪原……），用地图换地方']];
+  PP.MODES = [['mini', '任务栏上', '极简：主角在任务栏上面溜达'], ['bar', '任务栏中', '极简：主角住进任务栏里，不挡图标'], ['house', '小屋', '场景：城堡里的小屋'], ['isle', '城堡', '场景：一座漂浮的城堡，能进每个房间，种地、钓鱼'], ['band', '风景', '场景：各地的风景（森林、海边、雪原……），用地图换地方']];
 
   // 装饰：k → [名字, 室内?]
   const DECOR = {

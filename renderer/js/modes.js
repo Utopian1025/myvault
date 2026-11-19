@@ -14,7 +14,7 @@
     // 收起时的三种样子：极简（右下角）/ 任务栏 / 小岛
     if (m === 'bar' || m === 'isle') {
       s.taskbar = m === 'bar'; s.isle = m === 'isle';
-      if (old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); if (!quiet && m === 'isle') PP.ui.toast('小岛：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动'); return; }
+      if (old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); if (!quiet && m === 'isle') PP.ui.toast('城堡：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动'); return; }
       m = 'mini';
     }
     if (refresh && old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); return; }
@@ -43,7 +43,7 @@
       }
       PP.eco.onView(PP.scene.view());
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '风景', mini: s.taskbar ? '任务栏中：主角住进任务栏里，只待在没有图标的空白处（停在它身上一会儿才能点它）' : s.isle ? '小岛：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动' : '极简：只留主角在右下角' }[m]);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '风景', mini: s.taskbar ? '任务栏中：主角住进任务栏里，只待在没有图标的空白处（停在它身上一会儿才能点它）' : s.isle ? '城堡：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动' : '极简：只留主角在右下角' }[m]);
     drawOrb(); placeOrb(); setFullFlag(); applyBar(); PP.isle && PP.isle.sync(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true); hideBar();
   };
   function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); applyOnTop(); }
@@ -116,7 +116,7 @@
     else if (v === 'isle' || v === 'house') {
       s.isle = true; s.taskbar = false; if (s.mode === 'mini') PP.setMode('mini', true, true); else PP.setMode('mini', true);
       const want = v === 'house' ? 'house' : false;
-      const go = () => { try { if (G.isle && PP.isle.inside && (PP.isle.inside() || false) !== want) PP.isle.setInside(want); } catch (e) {} };
+      const t0 = performance.now(), go = () => { try { if (performance.now() - t0 < 1500 && G.isle && PP.isle.inside && (PP.isle.inside() === 'house' ? 'house' : false) !== want) PP.isle.setInside(want); } catch (e) {} };
       go(); setTimeout(go, 60); s.lastScene = v;
     } else { s.lastScene = 'band'; PP.setMode('band'); }
     PP.save.soon(); hudKey = ''; hideBar();
@@ -242,11 +242,11 @@
     const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread(), p = PP.mainPet && PP.mainPet();
     return [
       ['mini', '极简：只留主角（任务栏上 / 任务栏中）'],
-      ['view', '换一种：小屋 / 小岛 / 风景'],
+      ['view', '换一种：小屋 / 城堡 / 风景'],
       ['map', '地图：去别的地方看风景'],
       ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
       ...(isle ? [[inside ? 'out' : 'home', inside ? '回到外面看整座城堡' : '进屋（起居室）']] : []),
-      ...(isle ? [['cam', '回到默认视角（按住右键拖动可以转视角，滚轮缩放）']] : []),
+      ...(isle ? [['cam', '回到默认视角（按住 Ctrl + 左键拖动转视角，滚轮缩放）']] : []),
       ...(isle && inside === 'house' ? [['furn', '布置家具：拖动、转向、收起、添加']] : []),
       ...(p && !anchorPet() && !p.held ? [['call', `叫${p.name}出来`]] : []),
     ];
@@ -291,8 +291,8 @@
     const B = (on, attrs, txt, tip) => `<button class="small ${on ? 'on' : ''}" ${attrs} title="${tip || ''}">${txt}</button>`;
     pop = $(`<div class="orb-pop view-pop">
       <div class="vrow"><span>极简</span>${B(v === 'top', 'data-v="top"', '任务栏上', '主角在任务栏上面溜达，别的都收起来')}${B(v === 'in', 'data-v="in"', '任务栏中', '主角住进任务栏里：只待在没有图标的空白处，点击都穿透给任务栏')}</div>
-      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '小岛上那栋小屋的屋里')}${B(v === 'isle', 'data-v="isle"', '小岛', '一座漂浮的小岛：小屋、花房、菜地、鱼塘')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
-      ${s.isle && s.mode === 'mini' ? `<div class="vrow"><span>小岛大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动小岛可以放到任何地方">放回右下角</button></div><div class="vrow"><span>朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}<button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住右键（或滚轮键）拖动转视角；按住小岛拖动可以挪位置</div>` : ''}
+      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '只看起居室：镜头推近，像以前的小屋')}${B(v === 'isle', 'data-v="isle"', '城堡', '一座漂浮的城堡：能进每个房间，种地、钓鱼')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
+      ${s.isle && s.mode === 'mini' ? `<div class="vrow"><span>城堡大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动城堡可以放到任何地方">放回右下角</button></div><div class="vrow"><span>朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}<button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住按住 Ctrl + 左键拖动转视角；按住城堡拖动可以挪位置</div>` : ''}
       ${v === 'band' ? `<div class="hint">在风景上滚滚轮可以放大缩小</div>` : ''}
       ${v === 'in' ? `<div class="vrow"><span>住在</span>${B(s.barSide !== 'right', 'data-side="left"', '左边')}${B(s.barSide === 'right', 'data-side="right"', '右边')}</div>` : ''}</div>`);
     openPop('view');
@@ -525,10 +525,10 @@
     if (dockOn()) return []; // 小场景 / 小岛：这些按钮在框旁边那一条里
     const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread();
     // 极简：换场景放最前面（最常用），其余只留背包、视图、退出极简
-    if (miniBar(p)) return [['view', '换到场景：小屋 / 小岛 / 风景'], ['map', '地图：去别的地方看风景'], ['bag', n ? `背包（${n} 封新信）` : '背包 · 商店']];
+    if (miniBar(p)) return [['view', '换到场景：小屋 / 城堡 / 风景'], ['map', '地图：去别的地方看风景'], ['bag', n ? `背包（${n} 封新信）` : '背包 · 商店']];
     return [
       [isPure() ? 'expand' : 'mini', isPure() ? '退出极简（回到刚才的样子）' : '极简：只留主角'],
-      ['view', '视图：任务栏上 / 任务栏中 · 小屋 / 小岛 / 风景'],
+      ['view', '视图：任务栏上 / 任务栏中 · 小屋 / 城堡 / 风景'],
       ...(s.mode !== 'mini' ? [['map', '地图 · 季节 · 声音']] : []),
       ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
       ...(isle ? [[inside ? 'out' : 'home', inside ? '回到外面' : '进屋']] : []),
