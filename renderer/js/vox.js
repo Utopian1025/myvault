@@ -342,7 +342,7 @@
   }
 
   // 只给做好的动物开 3D；设置里可以关（settings.vox === false 时全用 2D）
-  const READY = new Set(['hedgehog']);
+  const READY = new Set([]); // 刺猬改回 2D 像素版（3D 不好看）；以后哪只做好了再放进来
   const has = (sp) => READY.has(sp) && !(PP.G && PP.G.save && PP.G.save.settings && PP.G.save.settings.vox === false);
   PP.VOX = { Model, RES, has, drawPet, yawFor, poseOf, render, body, face, _cache: { bodies, frames } };
 })();
