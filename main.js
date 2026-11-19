@@ -271,7 +271,7 @@ app.whenReady().then(() => {
   if (uIOhook) {
     try {
       let lastKey = 0;
-      uIOhook.on('keydown', () => { const t = Date.now(); if (t - lastKey > 30) { lastKey = t; send('key', 1); } });
+      uIOhook.on('keydown', (e) => { const t = Date.now(); if (e && e.keycode === 1) send('hotkey', 'escTap'); if (t - lastKey > 30) { lastKey = t; send('key', 1); } }); // Esc：只“听”不拦截，别的软件照样收到
       uIOhook.on('wheel', (e) => send('wheel', (e.rotation || 1) * 40));
       // 全局鼠标按下：只用来“点别处时收起菜单”，不记录位置
       uIOhook.on('mousedown', () => send('gdown', 1));
@@ -379,6 +379,8 @@ ipcMain.handle('load', () => readSave());
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('tray-menu', (_e, json) => { try { trayModel = JSON.parse(json); rebuildTray(); } catch {} });
 ipcMain.on('hide-window', () => setHidden(true));
+// 第一人称要收键盘：点进城堡时让窗口拿到焦点
+ipcMain.on('focus-win', () => { try { if (win && !win.isDestroyed()) { win.setIgnoreMouseEvents(false); win.focus(); } } catch (e) {} });
 ipcMain.on('beat', () => { lastBeat = Date.now(); });
 ipcMain.on('log', (_e, m) => plog('[page]', String(m).slice(0, 2000)));
 ipcMain.handle('get-autostart', () => app.getLoginItemSettings({ name: 'PixelNest' }).openAtLogin);

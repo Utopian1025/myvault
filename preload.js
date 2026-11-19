@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('petAPI', {
   setInteractive: (v) => ipcRenderer.send('set-interactive', !!v),
+  focusWin: () => ipcRenderer.send('focus-win'),
   setOnTop: (v) => ipcRenderer.send('set-on-top', !!v),
   setBarMode: (v) => ipcRenderer.invoke('set-bar-mode', !!v),
   barScan: () => ipcRenderer.invoke('bar-scan'),
