@@ -102,12 +102,24 @@
     }
     // 一蓬叶子：n 片叶子贴在椭球面上，颜色深浅不一；里面垫一个暗色的芯，不会透
     foliage(u, v, z, r, rz, cols, n = 60, seed = 1, ls = 0.7) {
+      // 大一点的树冠不是一个球：拆成几团（团和团之间有凹进去的缝），叶子按面积铺满，上面亮、下面和里面暗
       const R = (i) => { const x = Math.sin(seed * 91.7 + i * 47.3) * 43758.5; return x - Math.floor(x); };
-      const o = this.sway; this.sway = 0.5; this.blob(u, v, z, r * 0.72, rz * 0.72, C(cols[0]).map((x) => x * 0.62), 8, seed, 4, 7); this.sway = o;
-      for (let i = 0; i < n; i++) {
-        const t = Math.acos(1 - 1.7 * R(i)), f = R(i + 500) * 6.2832, k = 0.86 + 0.24 * R(i + 900), col = C(cols[Math.floor(R(i + 77) * cols.length)]).map((x) => x * (0.82 + 0.36 * R(i + 33)) * (0.75 + 0.3 * Math.cos(t)));
-        this.leaf([u + Math.sin(t) * Math.cos(f) * r * k, v + Math.sin(t) * Math.sin(f) * r * k, z + Math.cos(t) * rz * k], f + (R(i + 5) - 0.5) * 1.2, 0.2 + (1 - t / 3.14) * 0.9, ls * (0.75 + 0.5 * R(i + 9)), col, 0.6 + 0.6 * R(i + 3));
-      }
+      const big = Math.max(r, rz), nl = big > 1.3 ? Math.min(6, 2 + Math.floor(big * 0.9)) : 1, lobes = [];
+      if (nl === 1) lobes.push([u, v, z, r, rz]);
+      else { lobes.push([u, v, z + rz * 0.12, r * 0.62, rz * 0.62]); for (let k = 1; k < nl; k++) { const f = (k / (nl - 1)) * 6.2832 + R(k + 300) * 1.2, d = 0.42 + R(k + 310) * 0.18, hz = (R(k + 320) - 0.45) * 0.7; lobes.push([u + Math.cos(f) * r * d, v + Math.sin(f) * r * d, z + rz * hz, r * (0.48 + R(k + 330) * 0.16), rz * (0.5 + R(k + 340) * 0.16)]); } }
+      const o = this.sway; this.sway = 0.5; for (const [a, b, c, rr, rzz] of lobes) this.blob(a, b, c, rr * 0.8, rzz * 0.8, C(cols[0]).map((x) => x * 0.55), 8, seed + a, 4, 7); this.sway = o;
+      const inside = (q, skip) => lobes.some((L, k) => k !== skip && ((q[0] - L[0]) / (L[3] * 0.92)) ** 2 + ((q[1] - L[1]) / (L[3] * 0.92)) ** 2 + ((q[2] - L[2]) / (L[4] * 0.92)) ** 2 < 1);
+      let id = 0;
+      lobes.forEach(([a, b, c, rr, rzz], k) => {
+        const area = 4.2 * Math.PI * Math.pow(rr * rr * rzz, 2 / 3), want = Math.round(Math.min(220, Math.max(nl === 1 ? n : n / nl, area / (ls * ls * 0.42))));
+        for (let i = 0; i < want; i++, id++) {
+          const t = Math.acos(1 - 1.8 * R(id)), f = R(id + 500) * 6.2832, kk = 0.9 + 0.2 * R(id + 900), q = [a + Math.sin(t) * Math.cos(f) * rr * kk, b + Math.sin(t) * Math.sin(f) * rr * kk, c + Math.cos(t) * rzz * kk];
+          if (nl > 1 && inside(q, k)) continue;
+          const up = Math.cos(t), sh = (0.62 + 0.5 * Math.max(0, up)) * (0.85 + 0.3 * R(id + 33)), ci = up > 0.45 && cols.length > 1 ? 1 + Math.floor(R(id + 77) * (cols.length - 1)) : Math.floor(R(id + 77) * cols.length);
+          const col = C(cols[ci]).map((x) => Math.min(1, x * sh));
+          this.leaf(q, f + (R(id + 5) - 0.5) * 1.2, 0.2 + (1 - t / 3.14) * 0.9, ls * (0.7 + 0.5 * R(id + 9)), col, 0.6 + 0.6 * R(id + 3));
+        }
+      });
       return this;
     }
     // 草丛：一撮细长的草叶
@@ -151,7 +163,12 @@
       for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const a = i * W + j, b = a + 1, c = a + W + 1, d = a + W; put(a); put(b); put(c); put(a); put(c); put(d); }
       return this;
     }
-    pot(u, v, z, r, col, plant, seed = 1) { this.cyl(u, v, z, z + r * 4.2, r * 0.7, r, col || '#c8705a', 0, 8); if (plant) this.blob(u, v, z + r * 6.5, r * 1.25, r * 3.6, plant, 8, seed, 4, 7); return this; }
+    pot(u, v, z, r, col, plant, seed = 1) { this.cyl(u, v, z, z + r * 4.2, r * 0.7, r, col || '#c8705a', 0, 8); if (plant) { const c = C(plant), green = c[1] >= c[0] && c[1] >= c[2], lf = green ? [plant, '#4e8a3e', '#7cbc5c'] : ['#3e7a3a', '#5aa64e', '#6aa858'];
+        // 盆里是一丛叶子（不是一个绿球），花色的盆栽上面再开几朵花
+        for (let i = 0; i < 9; i++) { const a = i * 2.4 + seed, t = 0.5 + (i % 3) * 0.35; this.leaf([u + Math.cos(a) * r * 0.5, v + Math.sin(a) * r * 0.5, z + r * (4.4 + t * 1.6)], a, 0.5 + t * 0.5, r * 1.5, lf[i % 3], 0.8); }
+        this.foliage(u, v, z + r * 6.2, r * 1.0, r * 1.5, lf, 10, seed, r * 1.1);
+        if (!green) for (let i = 0; i < 5; i++) { const a = i * 1.26 + seed * 0.7; this.ball(u + Math.cos(a) * r * 0.75, v + Math.sin(a) * r * 0.75, z + r * (7 + (i % 2)), r * 0.42, r * 0.36, plant, 0, 2, 5); } }
+      return this; }
   }
 
   // ---------- 着色器 ----------
