@@ -156,6 +156,8 @@
 
     // ---------- 行为调度 ----------
     run(name, genFn, ...args) {
+      // 第一人称：主角归你操控，它自己想干的事（饿了去吃、到点去睡、到处逛）一律不做；只有你按 E / 点了东西才去
+      if (PP.fpOwns && PP.fpOwns(this) && name !== 'fp' && !PP.fpAllow) return;
       // 正在进出小门时不许被别的事打断（不然会卡在“电脑里”看不见）
       if (this.doorBusy() && name !== 'emerge' && name !== 'enterDoor') return;
       // 躲在屏幕边上只露头的时候：别的事（打招呼、陪打字、节日活动…）都不把它整只拽出来；只有你拖它 / 点它才出来
@@ -538,7 +540,7 @@
         jelly: { sy: 1 + this.jy, sx: 1 - this.jy * 0.55, skew: this.jsk + (this.purr > 0 ? Math.sin(this.t * 55) * 0.25 : 0), sway: this.tsw },
         heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
         scene: !this.held && G.save && (G.isle || (G.save.settings.mode === 'band' && !G.save.settings.sceneHidden)),
-        vyaw: PP.VOX && PP.VOX.has(this.d.species) ? PP.VOX.yawFor(this) : null, petting: this.petting,
+        vyaw: PP.VOX && PP.VOX.has(this.d.species) ? PP.VOX.yawFor(this) : null, petting: this.petting, back: !!this._backView,
       });
       if (buf.head) this._head = buf.head;
       const SS = S * (this.scaleMul || 1);

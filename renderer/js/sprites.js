@@ -279,7 +279,110 @@
     return out;
   }
 
+  // ---------- 拟人的刺猬（只在城堡里）：两条腿站着，像个小人儿一样在家里生活 ----------
+  // 比例按真人来：头约占三分之一，刺从头顶一直长到后背（像一头刺刺的头发），穿白衬衫 + 背带裤 + 小皮鞋
+  // 画布比普通的高：往上多留 16 行，宽 40（左右各多 4），脚底还在第 31 行，所以放在世界里位置不变
+  const HUMAN = new Set(['hedgehog']);
+  const _hcache = new Map();
+  function drawHumanHedgehog(p) {
+    const C = p.pal, f = p.facing >= 0 ? 1 : -1, t = p.t || 0, a = p.anim || 'idle';
+    const key = [C.spine, C.base, f, a, Math.floor(t * 8) % 8, p.eyes, p.mouth, p.blush ? 1 : 0, p.back ? 1 : 0].join('|');
+    let hb = _hcache.get(key); if (hb) return hb;
+    const b = new Buf(40, 32, 16); b.tx = 4;
+    const X = (x) => 20 + x * f; // 以身体中线为 0，朝向 f 那边为正
+    const SH = '#f4ece0', SH2 = '#d8ccb8', OV = '#4f73b8', OV2 = '#3a5690', SHOE = '#5a3a28', SK = C.paw || C.base;
+    // 姿势参数
+    let bob = Math.sin(t * 2.1) > 0.2 ? 0.5 : 0, lean = 0, legA = 0, armA = 0, sit = false, jump = false, eat = false, curl = false, arms = 'down';
+    if (a === 'walk') { const s = Math.sin(t * 9); legA = s * 2.2; armA = -s * 1.8; bob = Math.abs(Math.cos(t * 9)) * 0.8; }
+    else if (a === 'run') { const s = Math.sin(t * 14); legA = s * 3.4; armA = -s * 2.8; bob = Math.abs(Math.cos(t * 14)) * 1.2; lean = 1.5; }
+    else if (a === 'jump' || a === 'fall') { jump = true; arms = 'up'; }
+    else if (a === 'sit' || a === 'lie' || a === 'knead' || a === 'type' || a === 'think' || a === 'groom') sit = true;
+    else if (a === 'eat' || a === 'drink') eat = true;
+    else if (a === 'sleep' || a === 'curl' || a === 'roll' || a === 'held') curl = true;
+    if (curl) { // 睡觉 / 被拎起来：还是缩成一个刺球（刺猬的本色）
+      const cx = 20, cy = 23.5, r = 7.6;
+      spikes(b, cx, cy, r + 0.6, r - 0.2, C.spine, 0, Math.PI * 2, 20); ell(b, cx, cy, r, r - 0.6, C.spine);
+      for (let i = 0; i < 9; i++) { const an = i / 9 * 6.283 + 0.3; rect(b, Math.round(cx + Math.cos(an) * 4.5), Math.round(cy + Math.sin(an) * 4), 1, 1, C.tip || C.light); }
+      ell(b, X(3.2), cy + 2.5, 2.6, 2, C.base); rect(b, Math.round(X(5.2)), Math.round(cy + 2), 1, 1, C.nose || K);
+      volume(b); outlineSel(b); _hcache.set(key, b); if (_hcache.size > 300) _hcache.delete(_hcache.keys().next().value); return b;
+    }
+    if (p.back && !sit) return humanBack(b, p, C, t, a, legA, armA, bob, jump, key); // 第三人称从背后看：画背影
+    const top = sit ? 6 : 0; // 坐下：整个人往下矮 6 行
+    const hipY = 19 + top - bob * 0.5, shY = 8 + top - bob, headY = 0.5 + top - bob;
+    const lx = lean; // 前倾：上半身往前
+    // ---- 后面那条胳膊（远的一侧，颜色暗一点） ----
+    const arm = (side, swing) => { const sx = X(-0.5 + lx * 0.6) + side * f * 0, y0 = shY + 1.5;
+      let ex, ey, hx, hy;
+      if (arms === 'up') { ex = X(1 + side * 2.5); ey = y0 - 4; hx = X(1.5 + side * 3); hy = y0 - 8; }
+      else if (eat && side > 0) { ex = X(3.5); ey = y0 + 3; hx = X(5); hy = headY + 5; }
+      else if (sit) { ex = X(1.5 + side); ey = y0 + 4.5; hx = X(3.5 + side); hy = y0 + 7; }
+      else { ex = X(swing * 0.6 + side * 0.4 + lx * 0.4); ey = y0 + 4.5; hx = X(swing + side * 0.4 + lx * 0.5); hy = y0 + 8.5; }
+      return { sx, y0, ex, ey, hx, hy }; };
+    const drawArm = (A, dark) => { const col = dark ? SH2 : SH, sk = dark ? tone(SK, -0.12) : SK;
+      poly(b, [[A.sx - 1.4, A.y0], [A.sx + 1.4, A.y0], [A.ex + 1.3, A.ey], [A.ex - 1.3, A.ey]], col);
+      poly(b, [[A.ex - 1.2, A.ey], [A.ex + 1.2, A.ey], [A.hx + 1, A.hy], [A.hx - 1, A.hy]], col);
+      ell(b, A.hx, A.hy + 0.6, 1.5, 1.4, sk); };
+    const far = arm(-1, -armA), near = arm(1, armA);
+    drawArm(far, true);
+    // ---- 腿：背带裤 + 鞋 ----
+    const leg = (side, sw, dark) => { const col = dark ? OV2 : OV, hx0 = X(side * 1.6 + lx * 0.3);
+      if (sit) { const ky = hipY + 1; poly(b, [[hx0 - 1.8, hipY - 1], [hx0 + 1.8, hipY - 1], [X(6 + side * 0.5), ky + 1.5], [X(6 + side * 0.5), ky - 1.5]], col); rect(b, Math.round(Math.min(X(6), X(8))), Math.round(ky - 1.5), 3, 3, dark ? tone(SHOE, -0.2) : SHOE); return; }
+      if (jump) { const ky = hipY + 4; poly(b, [[hx0 - 1.8, hipY], [hx0 + 1.8, hipY], [X(side * 1.6 + 2) + 1.6, ky], [X(side * 1.6 + 2) - 1.6, ky]], col); poly(b, [[X(side * 1.6 + 2) - 1.6, ky], [X(side * 1.6 + 2) + 1.6, ky], [X(side * 1.6 - 0.5) + 1.6, ky + 5], [X(side * 1.6 - 0.5) - 1.6, ky + 5]], col); rect(b, Math.round(X(side * 1.6 - 0.5) - 1.5), Math.round(ky + 5), 3, 2, SHOE); return; }
+      const fx = X(side * 1.2 + sw), kx = X(side * 1.4 + sw * 0.5 + lx * 0.15), ky = hipY + 5.5;
+      poly(b, [[hx0 - 1.9, hipY], [hx0 + 1.9, hipY], [kx + 1.7, ky], [kx - 1.7, ky]], col);
+      poly(b, [[kx - 1.7, ky], [kx + 1.7, ky], [fx + 1.5, 29.5], [fx - 1.5, 29.5]], col);
+      const sx0 = Math.round(Math.min(fx - 1.5, fx + f * 3)), sw2 = 4; rect(b, sx0, 29, sw2, 2, dark ? tone(SHOE, -0.2) : SHOE); rect(b, sx0, 31, sw2, 1, tone(SHOE, -0.35)); };
+    leg(-1, -legA, true); leg(1, legA, false);
+    // ---- 身子：衬衫 + 背带裤 ----
+    ell(b, X(lx * 0.5), (shY + hipY) / 2 + 0.5, 5.2, (hipY - shY) / 2 + 1.2, SH);
+    poly(b, [[X(-4.6 + lx * 0.3), hipY - 4.5], [X(4.6 + lx * 0.3), hipY - 4.5], [X(4.8), hipY + 1.5], [X(-4.8), hipY + 1.5]], OV); // 裤腰到胯
+    rect(b, Math.round(X(lx * 0.4) - 2), Math.round(hipY - 8), 4, 4, OV); // 胸前的兜
+    for (const s of [-1, 1]) poly(b, [[X(s * 2.4 + lx * 0.4) - 0.6, shY + 0.5], [X(s * 2.4 + lx * 0.4) + 0.6, shY + 0.5], [X(s * 1.7 + lx * 0.4) + 0.6, hipY - 7.5], [X(s * 1.7 + lx * 0.4) - 0.6, hipY - 7.5]], OV); // 背带
+    rect(b, Math.round(X(1.6 + lx * 0.4)), Math.round(hipY - 7.5), 1, 1, '#ffd36a'); // 扣子
+    // ---- 后背的刺（从后脑勺一直到腰） ----
+    for (let k = 0; k < 6; k++) { const y = shY - 1 + k * 2.1, x = X(-4.6 - (k < 3 ? 0.6 : 0) + lx * 0.4 * (1 - k / 6)); poly(b, [[x, y - 1.4], [X(-7.4 - (k % 2) * 0.8 + lx * 0.3), y + 0.6], [x, y + 1.4]], k % 2 ? C.spine : tone(C.spine, -0.1)); }
+    // ---- 头 ----
+    const hx = X(0.6 + lx), hy = headY + 6.2;
+    spikes(b, X(-0.8 + lx), hy - 0.6, 7.6, 7.2, C.spine, f > 0 ? Math.PI * 0.55 : -Math.PI * 0.95, f > 0 ? Math.PI * 1.95 : Math.PI * 0.45, 11); // 头顶和后脑勺一圈刺尖
+    ell(b, X(-0.8 + lx), hy - 0.6, 7.2, 6.8, C.spine); // 刺刺的“头发”
+    ell(b, X(1.8 + lx), hy + 1.2, 5.6, 5.4, C.base); // 脸
+    ell(b, X(6.2 + lx), hy + 2.8, 2.6, 1.9, C.base); // 小尖嘴
+    for (const k of [-1, 0, 1]) { const x = X(2.6 + k * 1.6 + lx); poly(b, [[x - 1, hy - 3.6], [x + 1, hy - 3.6], [x, hy - 2.2]], C.spine); } // 刘海
+    ell(b, X(-1.6 + lx), hy - 4.4, 1.6, 1.5, C.base); rect(b, Math.round(X(-1.6 + lx)), Math.round(hy - 4.6), 1, 1, C.inner || '#e8a8a8'); // 耳朵
+    // ---- 前面那条胳膊 ----
+    drawArm(near, false);
+    volume(b); outlineSel(b);
+    // ---- 轮廓里的细节：眼睛、鼻子、嘴、腮红 ----
+    const ex = X(3.3 + lx), ey = hy + 0.2, eyes = p.eyes || 'open';
+    if (eyes === 'closed' || eyes === 'happy' || eyes === 'sleepy') { rect(b, Math.round(ex - 1), Math.round(ey + (eyes === 'happy' ? -0.5 : 0.5)), 3, 1, K); }
+    else { rect(b, Math.round(ex - 1), Math.round(ey - 1.5), 3, 4, '#ffffff'); rect(b, Math.round(ex - (f > 0 ? 0 : 1) + (f > 0 ? 0 : 0)), Math.round(ey - 0.5), 2, 3, K); b.set(Math.round(ex + (f > 0 ? 0 : -1)), Math.round(ey - 0.5), '#ffffff'); }
+    const fx2 = X(0.2 + lx); rect(b, Math.round(fx2), Math.round(ey), 1, 2, K); // 远处那只眼（侧着看只露一条）
+    rect(b, Math.round(X(8.2 + lx) - (f > 0 ? 1 : 0)), Math.round(hy + 2), 2, 2, C.nose || K); // 鼻头
+    if (p.mouth === 'open' || p.mouth === 'o' || eat) rect(b, Math.round(X(5.8 + lx)), Math.round(hy + 4), 2, 1, '#8a3a4a'); else rect(b, Math.round(X(5.4 + lx)), Math.round(hy + 4), 2, 1, tone(C.base, -0.45));
+    rect(b, Math.round(X(2.6 + lx)), Math.round(hy + 3), 2, 1, p.blush ? '#ff8aa0' : tone(C.inner || '#e8a8a8', 0.2)); // 腮红
+    _hcache.set(key, b); if (_hcache.size > 300) _hcache.delete(_hcache.keys().next().value);
+    return b;
+  }
+
+  // 背影：满头满背都是刺，看不到脸；背带裤在背后交叉；左右两只胳膊对称摆
+  function humanBack(b, p, C, t, a, legA, armA, bob, jump, key) {
+    const SH = '#f4ece0', OV = '#4f73b8', OV2 = '#3a5690', SHOE = '#5a3a28', SK = C.paw || C.base, hipY = 19 - bob * 0.5, shY = 8 - bob, hy = 6.7 - bob;
+    for (const s of [-1, 1]) { const sw = s * armA; poly(b, [[20 + s * 4.2, shY + 1], [20 + s * 6.2, shY + 1], [20 + s * 6.6 + sw * 0.3, shY + 8], [20 + s * 4.8 + sw * 0.3, shY + 8]], SH); ell(b, 20 + s * 5.8 + sw * 0.3, shY + 9, 1.4, 1.3, SK); }
+    for (const s of [-1, 1]) { const sw = s * legA, y1 = jump ? hipY + 7 : 29.5; poly(b, [[20 + s * 0.4, hipY], [20 + s * 3.6, hipY], [20 + s * 3.2, y1], [20 + s * 0.8, y1]], s > 0 ? OV : OV2); rect(b, Math.round(20 + s * 2 - 1.8), Math.round(y1 - 0.5 - Math.abs(sw) * 0.3), 4, 2, SHOE); }
+    ell(b, 20, (shY + hipY) / 2 + 0.5, 5.4, (hipY - shY) / 2 + 1.2, SH);
+    poly(b, [[15.2, hipY - 4.5], [24.8, hipY - 4.5], [25, hipY + 1.5], [15, hipY + 1.5]], OV);
+    poly(b, [[16.4, shY + 0.5], [17.6, shY + 0.5], [23.6, hipY - 4.5], [22.4, hipY - 4.5]], OV); poly(b, [[22.4, shY + 0.5], [23.6, shY + 0.5], [17.6, hipY - 4.5], [16.4, hipY - 4.5]], OV); // 背带交叉
+    for (let k = 0; k < 7; k++) { const y = shY + k * 1.7; for (const s of [-1, 1]) poly(b, [[20 + s * 1.5, y - 1.2], [20 + s * (4.6 + (k % 2) * 0.8), y + 0.7], [20 + s * 1.5, y + 1.6]], k % 2 ? C.spine : tone(C.spine, -0.1)); } // 背上的刺
+    spikes(b, 20, hy - 0.4, 7.4, 7, C.spine, Math.PI * 0.75, Math.PI * 2.25, 13); ell(b, 20, hy - 0.4, 7, 6.8, C.spine);
+    for (const s of [-1, 1]) ell(b, 20 + s * 4.6, hy - 4.6, 1.5, 1.4, C.base);
+    volume(b); outlineSel(b);
+    for (let i = 0; i < 10; i++) b.set(Math.round(16 + (i * 37) % 9), Math.round(hy - 4 + ((i * 53) % 9)), C.tip || C.light);
+    _hcache.set(key, b); if (_hcache.size > 300) _hcache.delete(_hcache.keys().next().value);
+    return b;
+  }
   function drawPet(p) {
+    // 城堡里：刺猬站起来，像个小人儿（头像、图标还是原来的样子）
+    if (HUMAN.has(p.species) && !p.portrait && !p.transform && !p.custom && PP.G && PP.G.isle) return drawHumanHedgehog(p);
     // 四条腿的动物走侧身模型（头像 / 图标仍用正脸）
     // 做好了 3D 体素版的动物（刺猬…）：直接用 3D（头像 / 图标也用它的正脸）。出错就退回 2D
     if (PP.VOX && PP.VOX.has(p.species) && !p.custom && !p.transform) { try { return PP.VOX.drawPet(p); } catch (e) { PP.oops && PP.oops(e, 'vox'); } }
@@ -1558,5 +1661,5 @@
   var HP = { ell, rect, poly, outline, K, OUT, RIM, drawEye, lookX, blobFit, FACES: null };
   const STAND_IDLE = new Set(['lion', 'tiger', 'snowleopard', 'polarbear', 'brownbear', 'zebra', 'antelope', 'deer', 'cow', 'yak', 'alpaca', 'sheep', 'hippo', 'pig', 'capybara']);
   const STAND_WALK = new Set([...STAND_IDLE, 'cat', 'dog', 'fox', 'arcticfox', 'fennec']);
-  PP.SPR = { STAND_IDLE, STAND_WALK, HP, customPal, tone, _h: { outline, outlineSel, sceneRim, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
+  PP.SPR = { HUMAN, STAND_IDLE, STAND_WALK, HP, customPal, tone, _h: { outline, outlineSel, sceneRim, ell, rect, poly, flipV, shift, rot90, mirrorX, buried, drawHat }, W, H, PAD, Buf, PAL, drawPet, blit, drawIcon, iconSize, drawItem, itemSize, ICONS };
 })();

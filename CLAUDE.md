@@ -21,7 +21,9 @@
 - `fort.js`：城堡的建筑模型。房间是矩形或圆形（可带 `rot`），`ROOMS / PASS（门洞走廊）/ RAMPS（楼梯）`，`build(o)` 生成几何；`cut={lv,vu,vv,low}` 剖切；`o.focus` 只画一个房间。树 `tree()`、果树院子 `yard()`、房子间缝隙 `joins()`。
 - `isle3d.js`：WebGL2 渲染。等距正交投影（`uCam/uPit`），第一人称透视（`uFP/uFP2`），剖切 `uClip*`，拾取用 1×1 viewport。
 - `island.js`：城堡的一切交互。网格寻路（GS 0.5，GN 144），缩放/旋转（Ctrl+左键），按层剖切、详细视图 `setFocus`、画面内标签 `.rtags`、左上角竖排按钮 `.cutbar.vert`、视角按钮 👁（`viewHTML/viewAct`）、第一人称（`fpStart/fpStop/fpTick`，`S().fpLast` 记位置，`S().fpSpeed` 速度）。
-- 第一人称 / 第三人称（`island.js` 里 `// ===== 第一人称` 那一段）：走路按「真的地面」算——`surf(u,v,zmax)` 取脚下最高的面（楼板、楼梯坡面、能站上去的东西；楼梯范围内没有楼板），`blocked(u,v,z)` 看身体会不会撞墙。障碍物带高度来自 `F.AREA.solid()`（墙、树挡死；栏杆 2.4 能跳过；菜地、家具能跳上去）。方向：yaw 变大 = 往右转，往右 = (-sin, cos)。`fp.q` 每帧同步到 `p.ip` 和 `p.x`（不同步会被 `floorY` 吸回旧位置）。滚轮 = `S().fpDist`（0 第一人称，>0 第三人称）。小地图 / 大地图（Tab，点哪儿 `fp.auto` 自己走）。测试接口 `PP.isle.fpDebug`（`tick/go/surf/blocked`）。
+- 第一人称 / 第三人称（`island.js` 里 `// ===== 第一人称` 那一段）：**碰撞就是画出来的模型**——`voxels()` 把城堡网格的三角面撒点进 0.25 的方块（1 实心；2 会摆的树叶草丛，人能穿过、镜头不钻进去；水面不算），第一次当场生成，之后在后台更新。`surf(u,v,zmax)` 取身体底面下最高的实心面，`blocked(u,v,z)` 查身子（脚上 STEP～BODYH）有没有碰到；头顶低就弯腰（`headroom`）。能迈 1 格，楼梯范围内 1.75。方向：yaw 变大 = 往右转，往右 = (-sin, cos)。`fp.q` 每帧同步到 `p.ip` 和 `p.x`。滚轮：第一人称调视野 `S().fpFov`，第三人称调距离 `S().fpDist`；V 切换。第一人称时主角只听玩家的（`PP.fpOwns`，`pet.run` 里拦住自己的念头）。小地图 / 大地图 / 自动走路用 `nav()`（每层 0.5 格「能站 / 挡着」，后台分批算）+ `fpPlan`。测试接口 `PP.isle.fpDebug`（`tick/go/surf/blocked/why/col/slice/triIn/who/nav/rebuild`；`who` 能查出某个位置的东西是哪行代码画的）。
+- 门洞：`fort.js` 的 `carveDoors()` 会把完全落在门洞里的三角面删掉；画装饰（横条、栅栏、柱子）时要避开 `PASS` / `ENTRIES`。地下室和楼梯井上方要真的开洞（船体顶面、圆房间地板都处理过了）。
+- 拟人：城堡里刺猬画成站立的小人（`sprites.js` 的 `drawHumanHedgehog`，`PP.SPR.HUMAN` 里的物种），第三人称从背后看时画背影（`p.back`）。
 - `modes.js`：模式切换（`setView`）、HUD、地图弹窗（地球 `globe.js`，旗子来自 `PP.REGIONS`；「飞行城堡」旗子单独加，点了 `setView('isle')`）。
 - `places.js`：地方和区域列表。浮空岛场景已去掉（城堡就是浮空岛），`PP.MINE = ['academy','undergrove']`。
 - `menu.js`：右键菜单、`PP.panic()`（老板键收成极简）。

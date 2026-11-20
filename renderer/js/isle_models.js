@@ -230,7 +230,7 @@
   // 灰铁圆顶：城垛箍一圈，顶上铆钉缝，伸出几根炮管和舷窗
   function dome(m, u, v, z, r, seed, cannons) {
     crenel(m, u, v, z + 0.6, r + 0.35, HW.STONEW, Math.round(r * 5));
-    m.ball(u, v, z, r, r * 3.6, HW.IRON, M.metal, 8, 18, 0.05, seed);
+    m.ball(u, v, z, r, r * 3.6, HW.IRON, M.metal, 4, 18, 0.05, seed, true); // 只要上半球：原来整个球画出来，下半截穿进驾驶室和工作间
     for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.2832 + seed; for (let k = 1; k < 6; k++) { const t = (k / 6) * Math.PI / 2, x = u + Math.cos(a) * Math.sin(t) * r * 1.01, y = v + Math.sin(a) * Math.sin(t) * r * 1.01, zz = z + Math.cos(t) * r * 3.6; m.box(x - 0.07, y - 0.07, zz - 0.15, x + 0.07, y + 0.07, zz + 0.15, '#3e3844', M.metal); } }
     (cannons || []).forEach(([a, h, len, rr], i) => { const t = Math.acos(Math.min(1, h)), x = u + Math.cos(a) * Math.sin(t) * r * 0.9, y = v + Math.sin(a) * Math.sin(t) * r * 0.9, zz = z + h * r * 3.6; pipeOut(m, x, y, zz, a, len, rr, i % 2 ? HW.IRON2 : '#4a4450', 0.15); });
   }

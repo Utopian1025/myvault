@@ -276,7 +276,7 @@
     const s = meshes.main;
     if (s && s.key === key) return s;
     const m = F.build(opts(cutO()));
-    const r = (meshes.main = { key, gpu: g3.upload(m, s && s.gpu) });
+    const r = (meshes.main = { key, gpu: g3.upload(m, s && s.gpu), cpu: m }); // cpu：第一人称拿它当碰撞（看得见的才挡）
     return r;
   }
   function lightOpts() {
@@ -641,7 +641,7 @@
     if (a === 'view') vOpen = !vOpen;
     else if (a === 'god') { vOpen = false; if (fp) fpStop(); }
     else if (a === 'reset') { vOpen = false; resetCam(); }
-    else if (a === 'fp' || a === 'third') { vOpen = false; S().fpDist = a === 'third' ? (fpDist() >= 0.5 ? fpDist() : 6) : 0; PP.save.soon(); if (!fp) fpStart(); }
+    else if (a === 'fp' || a === 'third') { vOpen = false; S().fpDist = a === 'third' ? (fpDist() >= 0.5 ? fpDist() : 8) : 0; PP.save.soon(); if (!fp) fpStart(); }
     else if (a === 'slow' || a === 'fast') { const i = SPDS.indexOf(fpSpd()) + (a === 'fast' ? 1 : -1); S().fpSpeed = SPDS[U.clamp(i, 0, SPDS.length - 1)]; PP.save.soon(); }
     else return;
     if (fp) fpBar(); else cBar();
@@ -704,12 +704,50 @@
   // 操作像 CS / 我的世界：WASD 走（A 左 D 右）、鼠标看、空格跳、Shift 跑、E 用、Tab 地图、滚轮拉远拉近（拉远就是第三人称）
   // 走路按“真的地面”算：脚下最高的那个面（楼板、楼梯的坡面、能站上去的家具），墙挡路，栏杆跳起来能翻过去，踩空就往下掉
   let fpBarEl = null, fpMenu = false, bigMap = null, fpHintT = 0;
-  const PH = 8, EYE = 7.2, FOV = 1.12, STEP = 0.65, BODY = 0.34, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
+  const PH = 8, EYE = 7.2, BODYH = 4.3, CROUCH = 3.9, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
   const fpQ = () => (S().fpQ === 'pixel' ? 'pixel' : 'fine');
   const fpK = () => (fpQ() === 'pixel' ? pixK() : 1 / Math.min(2, DPR())); // 精细：按屏幕实际像素画（高分屏最多 2 倍）
   const fpDist = () => U.clamp(+S().fpDist || 0, 0, 14);
+  // 视野（看得多广）：滚轮调，50°～110°，默认 78°
+  const fpFovD = () => U.clamp(+S().fpFov || 78, 50, 110), fpFov = () => fpFovD() * Math.PI / 180;
   const fpSens = () => U.clamp(+S().fpSens || 1, 0.3, 3);
   const SENS = [0.4, 0.6, 0.8, 1, 1.25, 1.5, 2, 2.5];
+  // ---- 碰撞：直接用画出来的模型 ----
+  // 把城堡的每个三角面撒点，落进 0.25 格的小方块里：有东西的方块就是实心的（像我的世界）。
+  // 看得见的才挡人，看不见的不挡；会随风摆的（树叶、草丛、灌木）和水面能穿过去
+  const VX = 0.25, VZ = 0.25, MAT_SKIP = new Set([g3.MAT.water, g3.MAT.pwater, g3.MAT.glow]);
+  let vox = null, voxB = null;
+  // 第一次当场生成（约一秒）；之后城堡有变化（菜长了、挪了家具……）就在后台一点点生成新的，生成好之前继续用旧的
+  function voxels() {
+    const sc = scene(), m = sc.cpu; if (!m) return vox; if (vox && vox.m === m) return vox;
+    if (!vox) { const B = voxStart(m); voxStep(B, null); vox = B.res; return vox; }
+    if (!voxB || voxB.m !== m) voxB = voxStart(m);
+    const now = performance.now(); if (now - (voxB.lastT || 0) > 12) { voxB.lastT = now; voxStep(voxB, 5); if (voxB.res) { vox = voxB.res; voxB = null; } }
+    return vox;
+  }
+  function voxStart(m) {
+    const P = m.p; let u0 = 1e9, v0 = 1e9, z0 = 1e9, u1 = -1e9, v1 = -1e9, z1 = -1e9;
+    for (let i = 0; i < P.length; i += 3) { const u = P[i], v = P[i + 1], z = P[i + 2]; if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v; if (z < z0) z0 = z; if (z > z1) z1 = z; }
+    u0 = Math.floor((Math.max(u0, -20) - 1) / VX) * VX; v0 = Math.floor((Math.max(v0, -20) - 1) / VX) * VX; z0 = Math.floor((Math.max(z0, -40) - 1) / VZ) * VZ; // 对齐到格子，边界不会平白多出半格
+    u1 = Math.min(u1, 80) + 1; v1 = Math.min(v1, 80) + 1; z1 = Math.min(z1, 70) + 1;
+    const nx = Math.ceil((u1 - u0) / VX), ny = Math.ceil((v1 - v0) / VX), nz = Math.ceil((z1 - z0) / VZ);
+    return { m, t: 0, res: null, V: { m, g: new Uint8Array(nx * ny * nz), u0, v0, z0, nx, ny, nz } };
+  }
+  function voxStep(B, budget) {
+    const { m, V } = B, P = m.p, W = m.w, MT = m.m, { g, u0, v0, z0, nx, ny, nz } = V, t0 = performance.now(), sp = VX * 0.6;
+    let val = 1; // 1 = 实心（挡人也挡镜头）；2 = 软的（树叶、草丛：人能穿过，镜头不往里钻）
+    const put = (u, v, z) => { const i = Math.floor((u - u0) / VX), j = Math.floor((v - v0) / VX), k = Math.floor((z - z0) / VZ); if (i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz) { const n = (k * ny + j) * nx + i; if (g[n] !== 1) g[n] = val; } };
+    for (let t = B.t; t < P.length; t += 9) {
+      if (budget != null && ((t / 9) & 255) === 0 && performance.now() - t0 > budget) { B.t = t; return; }
+      const vi = t / 3; if (MT && MAT_SKIP.has(MT[vi] % 32)) continue; val = W && (W[vi] > 0 || W[vi + 1] > 0 || W[vi + 2] > 0) ? 2 : 1;
+      const ax = P[t], ay = P[t + 1], az = P[t + 2] - 0.001, bx = P[t + 3] - ax, by = P[t + 4] - ay, bz = P[t + 5] - 0.001 - az, cx = P[t + 6] - ax, cy = P[t + 7] - ay, cz = P[t + 8] - 0.001 - az;
+      if (az < -40 || az > 70) continue;
+      const n = Math.min(400, Math.ceil(Math.max(Math.hypot(bx, by, bz), Math.hypot(cx, cy, cz), Math.hypot(bx - cx, by - cy, bz - cz)) / sp));
+      for (let a = 0; a <= n; a++) for (let b = 0; b <= n - a; b++) { const fa = a / n, fb = b / n; put(ax + bx * fa + cx * fb, ay + by * fa + cy * fb, az + bz * fa + cz * fb); }
+    }
+    B.res = V;
+  }
+  const vAt = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] === 1; };
   // ---- 地面、墙 ----
   let solidC = null;
   function solids() { const k = 's' + dirtyK; if (!solidC || solidC.k !== k) { const by = Z.map(() => []); for (const s of area().solid()) (by[s.o[0]] || []).push(s); solidC = { k, by }; } return solidC.by; }
@@ -719,19 +757,77 @@
   // 脚下最高的面（不高过 zmax）：{ z, lv, ramp }；什么都没有 → z = -Infinity
   function surf(u, v, zmax) {
     const a = area(); let z = -Infinity, lv = -1, ramp = null;
-    const well = a.ramps.some((r) => inRampF(r, u, v)); // 楼梯井：只有楼梯的坡面，没有楼板
-    if (!well) for (let L = 0; L < Z.length; L++) if (Z[L] <= zmax && Z[L] > z && a.inF(L, u, v)) { z = Z[L]; lv = L; }
-    for (const r of a.ramps) if (inRampF(r, u, v)) { const rz = rampZ(r, u, v); if (rz <= zmax && rz > z) { z = rz; lv = rz - Z[r.a] > (Z[r.b] - Z[r.a]) / 2 ? r.b : r.a; ramp = r; } }
-    const by = solids(); for (let L = 0; L < by.length; L++) for (const s of by[L]) { if (s.wall || s.rail) continue; const top = Z[L] + s.h; if (top <= zmax && top > z && hitO(s.o, u, v, BODY)) { z = top; lv = L; ramp = null; } }
+    const V = voxels(); // 楼梯也是真的台阶（楼梯上能迈的高度放宽，见 stepAt）
+    if (V) { // 脚下（身子中间一小圈）最高的实心方块的顶
+      const kmax = Math.min(V.nz - 1, Math.floor((zmax - V.z0) / VZ - 1 + 1e-6)); // 顶不高过 zmax 的那一格往下找
+      for (const [du, dv] of FOOT) { const i = Math.floor((u + du - V.u0) / VX), j = Math.floor((v + dv - V.v0) / VX); if (i < 0 || j < 0 || i >= V.nx || j >= V.ny) continue;
+        for (let k = kmax; k >= 0; k--) { const top = V.z0 + (k + 1) * VZ; if (top <= z) break; if (V.g[(k * V.ny + j) * V.nx + i] === 1) { if (top <= zmax + 1e-6) { z = top; ramp = null; } break; } } }
+      if (isFinite(z) && !ramp) lv = lvAt(z);
+    } else for (let L = 0; L < Z.length; L++) if (Z[L] <= zmax && Z[L] > z && a.inF(L, u, v)) { z = Z[L]; lv = L; }
     return { z, lv, ramp };
   }
   // 身体（脚在 z，高 PH）放在 (u, v) 会不会撞到东西
   function blocked(u, v, z) {
+    const V = voxels();
+    if (V) {
+      const st = stepAt(u, v);
+      for (const [du, dv] of BODYC) { const i = Math.floor((u + du - V.u0) / VX), j = Math.floor((v + dv - V.v0) / VX); if (i < 0 || j < 0 || i >= V.nx || j >= V.ny) continue;
+        for (let k = Math.max(0, Math.floor((z + st - V.z0) / VZ)), k1 = Math.min(V.nz - 1, Math.floor((z + BODYH - V.z0) / VZ)); k <= k1; k++) if (V.g[(k * V.ny + j) * V.nx + i] === 1) return true; } // 只算身子（脚到肩）；头顶低就弯腰钻过去
+      return false;
+    }
     const by = solids();
     for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z + PH < zb || z > zb + 16) continue; for (const s of by[L]) { if (z + STEP >= zb + s.h || z + PH <= zb) continue; if (hitO(s.o, u, v, BODY)) return true; } }
     for (const r of area().ramps) if (inRampF(r, u, v)) { const rz = rampZ(r, u, v); if (rz > z + STEP && rz < z + PH) return true; } // 楼梯的侧面
     return false;
   }
+  // ---- 第一人称的“能站的地图”：每层每个 0.5 格，按真实模型算能不能站、会不会撞（自动走路、大地图都用它）----
+  // 算一遍要一秒多：平时在后台分批算（每帧几毫秒），算好之前地图先用上一份；要自动走路时才当场算完
+  let navC = null, navB = null;
+  function navRow(B) { const a = area(), { lv, j } = B; for (let i = 0; i < GN; i++) navCell(a, B.g, B.h, lv, i, j); }
+  function navAdvance(B, budget) { const t0 = performance.now(); while (B.lv < Z.length) { navRow(B); if (++B.j >= GN) { B.j = 0; B.lv++; } if (budget != null && performance.now() - t0 > budget) break; } if (B.lv >= Z.length) { navC = { V: B.V, g: B.g, h: B.h }; navB = null; mapC = null; } }
+  function navReady() { const V = voxels(); if (navC && navC.V === V) return navC; if (!navB || navB.V !== V) navB = { V, lv: 0, j: 0, g: Z.map(() => new Uint8Array(GN * GN)), h: Z.map(() => new Float32Array(GN * GN)) }; navAdvance(navB, 4); return navC && navC.V === V ? navC : null; }
+  function nav() {
+    const V = voxels(); if (navC && navC.V === V) return navC;
+    if (!navB || navB.V !== V) navB = { V, lv: 0, j: 0, g: Z.map(() => new Uint8Array(GN * GN)), h: Z.map(() => new Float32Array(GN * GN)) };
+    navAdvance(navB, null); return navC;
+  }
+  function navCell(a, g, h, lv, i, j) {
+    { const u = gu(i), v = gu(j); if (a.ramps.some((r) => u > r.u0 - 0.3 && u < r.u1 + 0.3 && v > r.v0 - 0.3 && v < r.v1 + 0.3)) return;
+      const sf = surf(u, v, Z[lv] + STEP); if (!isFinite(sf.z) || sf.z < Z[lv] - 1 || sf.z > Z[lv] + STEP) return; // 只算贴着这层地面的（箱子顶、桌面不算路）
+      // 1 能站 2 有东西挡着：按中心点算（拉直路线时会沿线逐点查真实碰撞，不会擦着角走）
+      h[lv][j * GN + i] = sf.z; g[lv][j * GN + i] = blocked(u, v, sf.z) ? 2 : 1;
+    }
+  }
+  const navFree = (lv, u, v) => { const n = nav(), i = gi(u), j = gi(v); return i >= 0 && j >= 0 && i < GN && j < GN && n.g[lv] && n.g[lv][j * GN + i] === 1; };
+  function navNear(lv, u, v) { if (navFree(lv, u, v)) return [u, v]; let best = null, bd = 1e9; for (let r = 1; r < 30 && !best; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue; const uu = u + di * GS, vv = v + dj * GS; if (navFree(lv, uu, vv)) { const d = Math.hypot(di, dj); if (d < bd) { bd = d; best = [gu(gi(uu)), gu(gi(vv))]; } } } return best; }
+  const navH = (lv, u, v) => nav().h[lv][gi(v) * GN + gi(u)];
+  // 两点之间能不能直着走过去：沿线每 0.2 用真实的碰撞查一遍（不只看格子，免得擦着家具的角走）
+  const navLos = (lv, p, q) => { const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 0.2); let z = null; for (let k = 0; k <= n; k++) { const u = p[0] + (q[0] - p[0]) * k / n, v = p[1] + (q[1] - p[1]) * k / n; if (k > 0 && k < n && !navFree(lv, u, v)) return false; const g = surf(u, v, (z == null ? Z[lv] : z) + stepAt(u, v)); if (!isFinite(g.z) || (z != null && z - g.z > STEP + 0.01)) return false; if (blocked(u, v, g.z)) return false; z = g.z; } return true; };
+  function navPath(lv, s, t) {
+    s = navNear(lv, s[0], s[1]); t = navNear(lv, t[0], t[1]); if (!s || !t) return null; if (navLos(lv, s, t)) return [t];
+    const g = nav().g[lv], H = nav().h[lv], si = gi(s[0]) + gi(s[1]) * GN, ti = gi(t[0]) + gi(t[1]) * GN, cost = new Float32Array(GN * GN).fill(1e9), from = new Int32Array(GN * GN).fill(-1), done = new Uint8Array(GN * GN);
+    const hh = (k) => Math.hypot((k % GN) - (ti % GN), Math.floor(k / GN) - Math.floor(ti / GN)); const open = [si]; cost[si] = 0; let found = false, guard = 0, best = si, bestH = hh(si);
+    while (open.length && guard++ < 60000) { let bi = 0; for (let k = 1; k < open.length; k++) if (cost[open[k]] + hh(open[k]) < cost[open[bi]] + hh(open[bi])) bi = k; const c = open[bi]; open[bi] = open[open.length - 1]; open.pop(); if (done[c]) continue; done[c] = 1; if (c === ti) { found = true; break; } if (hh(c) < bestH) { bestH = hh(c); best = c; }
+      const ci = c % GN, cj = Math.floor(c / GN); for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { if (!di && !dj) continue; const ni = ci + di, nj = cj + dj; if (ni < 0 || nj < 0 || ni >= GN || nj >= GN) continue; const n = nj * GN + ni; if (g[n] !== 1 || done[n] || (di && dj && (g[cj * GN + ni] !== 1 || g[nj * GN + ci] !== 1)) || Math.abs(H[n] - H[c]) > STEP) continue; /* 一步迈不上去的不连 */ const nc = cost[c] + (di && dj ? 1.414 : 1); if (nc < cost[n]) { cost[n] = nc; from[n] = c; open.push(n); } } }
+    // 到不了（终点在家具后面、被围住了）：走到能到的离它最近的地方
+    const end = found ? ti : best; if (end === si) return found ? [t] : null; const raw = []; for (let c = end; c !== -1 && c !== si; c = from[c]) raw.unshift([gu(c % GN), gu(Math.floor(c / GN))]); if (found) raw[raw.length - 1] = t;
+    const out = []; let cur = s, k = 0; while (k < raw.length) { let far = k; for (let q = raw.length - 1; q > k; q--) if (navLos(lv, cur, raw[q])) { far = q; break; } out.push(raw[far]); cur = raw[far]; k = far + 1; } return out;
+  }
+  // 从这儿走到 (u,v,lv)：同一层直接找路；换层就先走到楼梯口、走楼梯、再接着走
+  function fpPlan(from, u, v, lv) {
+    const a = area(), pts = []; let cur = [from.u, from.v], cl = from.lv;
+    if (cl !== lv) for (const [r, to] of route(a, cl, lv)) { const [lo, hi] = rampEnds(r), [en, ex] = to === r.b ? [lo, hi] : [hi, lo]; const p1 = navPath(cl, cur, en); if (!p1) return null; for (const q of p1) pts.push({ u: q[0], v: q[1], lv: cl }); pts.push({ u: ex[0], v: ex[1], lv: to, ramp: r }); cur = ex; cl = to; }
+    const p2 = navPath(cl, cur, [u, v]); if (!p2) return null; for (const q of p2) pts.push({ u: q[0], v: q[1], lv: cl });
+    return pts;
+  }
+  // 脚底一小圈（站得住）、身体一圈（撞不撞）
+  const FOOT = (() => { const o = [[0, 0]]; for (let a = 0; a < 8; a++) o.push([Math.cos(a / 8 * 6.283) * 0.2, Math.sin(a / 8 * 6.283) * 0.2]); return o; })(); // 脚底 = 整个身体底面：身子有一部分在箱子上方，就算站在箱子上（不会落到箱子旁边、被箱子夹住）
+  // 检测半径比身子小一点：方块会把表面往外“撑”出最多一格（0.25），扣掉一半，贴墙走时不会比看上去更早撞到
+  const BODYC = (() => { const R = 0.2, o = []; for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * R, Math.sin(a / 12 * 6.283) * R]); o.push([0, 0]); return o; })();
+  // 头顶还有多高的空（身子正上方一小圈里最近的实心方块）：门框、雨棚、横梁低了就弯腰
+  function headroom(u, v, z) { const V = voxels(); if (!V) return 99; let best = 99; for (const [du, dv] of FOOT) { const i = Math.floor((u + du - V.u0) / VX), j = Math.floor((v + dv - V.v0) / VX); if (i < 0 || j < 0 || i >= V.nx || j >= V.ny) continue; for (let k = Math.max(0, Math.floor((z + BODYH - V.z0) / VZ)), k1 = Math.min(V.nz - 1, Math.floor((z + PH + 1 - V.z0) / VZ)); k <= k1; k++) if (V.g[(k * V.ny + j) * V.nx + i] === 1) { best = Math.min(best, V.z0 + k * VZ - z); break; } } return best; }
+  // 能迈上去多高：平地 1 格（一级台阶），楼梯上 1.75（城堡里的楼梯一级比较高）
+  const stepAt = (u, v) => (area().ramps.some((r) => u > r.u0 - 0.4 && u < r.u1 + 0.4 && v > r.v0 - 0.4 && v < r.v1 + 0.4) ? 1.75 : STEP);
   const lvAt = (z) => { let lv = 0; for (let L = 0; L < Z.length; L++) if (Z[L] <= z + STEP) lv = L; return lv; };
   // ---- 开始 / 结束 ----
   function fpStart() {
@@ -762,6 +858,7 @@
   // 主角的位置跟着镜头走（屏幕坐标也一起改，不然别的地方会按旧的屏幕位置把它“吸”回去）
   function fpSync() { const p = fp.p, q = fp.q; p.ip = { u: q.u, v: q.v, lv: q.lv, z: q.z }; p.isleLv = q.lv; if (L) p.x = scrU(q.u, q.v); }
   function fpRemember() { if (!fp || fp.air) return; const q = fp.q; S().fpLast = { u: +q.u.toFixed(2), v: +q.v.toFixed(2), lv: q.lv, yaw: +fp.yaw.toFixed(3), pitch: +fp.pitch.toFixed(3) }; PP.save.soon(); }
+  PP.fpOwns = (p) => !!fp && fp.p === p;
   A.fpCtl = function* () { const p = this; p.anim = 'idle'; while (fp && fp.p === p) yield 0.25; };
   // ---- 按钮：左上角一列三个小方块（☰ 菜单 / 🗺 地图 / ✕ 退出），菜单展开在画面里，不占外面的地方 ----
   function fpBar() {
@@ -769,19 +866,20 @@
       fpBarEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
       fpBarEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-a]'); if (b) fpAct(b.dataset.a, b); }); }
     const s = S(), on = (v) => (v ? 'class="on"' : ''), sp = fpSpd(), si = SPDS.indexOf(sp), d = fpDist(), se = fpSens();
-    const fk = [fpMenu, !!bigMap, sp, d, se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
+    const fk = [fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
     if (fpBarEl.dataset.k !== fk) { fpBarEl.dataset.k = fk;
       fpBarEl.innerHTML = `<button data-a="menu" ${on(fpMenu)} title="菜单：视角、镜头、鼠标、画质（Alt 先松开鼠标）">☰</button><button data-a="map" ${on(bigMap)} title="大地图（Tab）：点哪儿就自动走过去">🗺</button><button data-a="out" class="primary" title="回到上帝视角（Q）">✕</button>`
         + (fpMenu ? `<div class="fpmenu">
-          <div class="r"><span>视角</span><button data-a="god">上帝</button><button data-a="first" ${on(d < 0.5)}>第一人称</button><button data-a="third" ${on(d >= 0.5)}>第三人称</button></div>
-          <div class="r"><span>镜头远近</span><button data-a="dn" ${d <= 0 ? 'disabled' : ''}>−</button><b>${d < 0.5 ? '眼睛' : d.toFixed(0)}</b><button data-a="dp" ${d >= 14 ? 'disabled' : ''}>+</button><small>滚轮</small></div>
+          <div class="r"><span>视角</span><button data-a="god">上帝</button><button data-a="first" ${on(d < 0.5)}>第一人称</button><button data-a="third" ${on(d >= 0.5)}>第三人称</button><small>V 切换</small></div>
+          <div class="r"><span>视野</span><button data-a="fovn" ${fpFovD() <= 50 ? 'disabled' : ''}>窄</button><b>${fpFovD()}°</b><button data-a="fovp" ${fpFovD() >= 110 ? 'disabled' : ''}>广</button><small>第一人称滚轮</small></div>
+          ${d >= 0.5 ? `<div class="r"><span>镜头距离</span><button data-a="dn" ${d <= 2 ? 'disabled' : ''}>近</button><b>${d.toFixed(0)}</b><button data-a="dp" ${d >= 14 ? 'disabled' : ''}>远</button><small>第三人称滚轮</small></div>` : ''}
           <div class="r"><span>走路速度</span><button data-a="slow" ${si <= 0 ? 'disabled' : ''}>−</button><b>×${sp}</b><button data-a="fast" ${si >= SPDS.length - 1 ? 'disabled' : ''}>+</button></div>
           <div class="r"><span>鼠标转头 (M)</span><button data-a="mouse" ${on(lookPref())}>${lookPref() ? '开' : '关'}</button><small>${lookPref() ? '动鼠标就转头' : '按住拖动才转'}</small></div>
           <div class="r"><span>灵敏度</span><button data-a="sn" ${se <= SENS[0] ? 'disabled' : ''}>−</button><b>${se}</b><button data-a="sp" ${se >= SENS[SENS.length - 1] ? 'disabled' : ''}>+</button></div>
           <div class="r"><span>左右反过来</span><button data-a="invx" ${on(s.fpInvX)}>${s.fpInvX ? '开' : '关'}</button><span>上下反过来</span><button data-a="invy" ${on(s.fpInvY)}>${s.fpInvY ? '开' : '关'}</button></div>
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
-          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看 · 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · 滚轮 拉远拉近 · Alt 松开鼠标 · Q 退出 · Esc 老板键</div>
+          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看 · 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · Alt 松开鼠标 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4); fpBarEl.style.transformOrigin = 'left top'; fpBarEl.style.transform = `scale(${sc.toFixed(3)})`;
@@ -793,8 +891,9 @@
     else if (a === 'map') { toggleMap(); }
     else if (a === 'out' || a === 'god') { fpStop(); return; }
     else if (a === 'first') { s.fpDist = 0; sv(); }
-    else if (a === 'third') { s.fpDist = fpDist() >= 0.5 ? fpDist() : 6; sv(); }
-    else if (a === 'dn' || a === 'dp') { s.fpDist = U.clamp(fpDist() + (a === 'dp' ? 2 : -2), 0, 14); sv(); }
+    else if (a === 'third') { s.fpDist = fpDist() >= 0.5 ? fpDist() : 8; sv(); }
+    else if (a === 'dn' || a === 'dp') { s.fpDist = U.clamp(fpDist() + (a === 'dp' ? 2 : -2), 2, 14); sv(); }
+    else if (a === 'fovn' || a === 'fovp') { s.fpFov = U.clamp(fpFovD() + (a === 'fovp' ? 10 : -10), 50, 110); sv(); }
     else if (a === 'slow' || a === 'fast') { const i = SPDS.indexOf(fpSpd()) + (a === 'fast' ? 1 : -1); s.fpSpeed = SPDS[U.clamp(i, 0, SPDS.length - 1)]; sv(); }
     else if (a === 'mouse') { lookToggle(); return; }
     else if (a === 'sn' || a === 'sp') { const cur = SENS.reduce((b, x) => (Math.abs(x - fpSens()) < Math.abs(b - fpSens()) ? x : b), 1), i = SENS.indexOf(cur) + (a === 'sp' ? 1 : -1); s.fpSens = SENS[U.clamp(i, 0, SENS.length - 1)]; sv(); }
@@ -819,6 +918,7 @@
     if (e.code === 'Tab') { toggleMap(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
     if (e.code === 'KeyM') { lookToggle(); e.preventDefault(); return; }
+    if (e.code === 'KeyV') { const s = S(); if (fpDist() >= 0.5) { s.fpDist3 = fpDist(); s.fpDist = 0; } else s.fpDist = s.fpDist3 || 8; PP.save.soon(); fpBar(); PP.ui.toast(fpDist() >= 0.5 ? '第三人称（滚轮拉远拉近，V 切回来）' : '第一人称（滚轮调视野，V 切第三人称）', 1.4); e.preventDefault(); return; }
     if (e.code === 'KeyQ') { fpStop(); e.preventDefault(); }
   });
   window.addEventListener('keyup', (e) => { if (!fp) return; const k = fpKeyMap[e.code]; if (k) fp.keys.delete(k); });
@@ -828,7 +928,9 @@
     if (!fp || (e.target && e.target.closest && e.target.closest('.panel,.menu,.fpmenu'))) return;
     e.preventDefault(); e.stopImmediatePropagation();
     if (bigMap) { bigMap.z = U.clamp((bigMap.z || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 4); return; }
-    S().fpDist = U.clamp(fpDist() + (e.deltaY > 0 ? 1 : -1), 0, 14); if (S().fpDist < 0.5) S().fpDist = 0; PP.save.soon(); fpBar();
+    // 第一人称：滚轮调视野（往下滚看得更广）；第三人称：滚轮拉远拉近（像原神）
+    if (fpDist() >= 0.5) S().fpDist = U.clamp(fpDist() + (e.deltaY > 0 ? 1 : -1), 2, 14); else S().fpFov = U.clamp(fpFovD() + (e.deltaY > 0 ? 5 : -5), 50, 110);
+    PP.save.soon(); fpBar();
   }, { capture: true, passive: false });
   function fpJump() { if (!fp || fp.air || fp.p.action !== 'fp') return; fp.vz = JUMP; fp.air = true; fp.fallZ = fp.q.z; }
   // ---- 鼠标：锁住（转头）/ 拖动 / 触屏滑 ----
@@ -880,10 +982,10 @@
   }
   // ---- 走路、跳、掉 ----
   function fpStepTo(nu, nv) {
-    const q = fp.q; if (blocked(nu, nv, q.z)) return false;
-    const g = surf(nu, nv, q.z + STEP); if (!isFinite(g.z)) return false; // 脚下什么都没有（城堡外面的天空）：过不去
+    const q = fp.q, st = stepAt(nu, nv); if (blocked(nu, nv, q.z)) return false;
+    const g = surf(nu, nv, q.z + st); if (!isFinite(g.z)) return false; // 脚下什么都没有（城堡外面的天空）：过不去
     q.u = nu; q.v = nv;
-    if (!fp.air) { if (q.z - g.z > STEP) { fp.air = true; fp.vz = 0; fp.fallZ = q.z; } else { q.z = g.z; q.lv = g.lv; } }
+    if (!fp.air) { if (q.z - g.z > st) { fp.air = true; fp.vz = 0; fp.fallZ = q.z; } else { q.z = g.z; q.lv = g.lv; } }
     return true;
   }
   function fpMove(du, dv) { const q = fp.q, n = Math.max(1, Math.ceil(Math.hypot(du, dv) / 0.3)); for (let i = 0; i < n; i++) { const a = du / n, b = dv / n; if (!fpStepTo(q.u + a, q.v + b) && !fpStepTo(q.u + a, q.v) && !fpStepTo(q.u, q.v + b)) return false; } return true; }
@@ -892,6 +994,7 @@
     const K = fp.keys, q = fp.q;
     let mv = (K.has('f') ? 1 : 0) - (K.has('b') ? 1 : 0), st = (K.has('r') ? 1 : 0) - (K.has('l') ? 1 : 0); const tn = (K.has('tr') ? 1 : 0) - (K.has('tl') ? 1 : 0);
     // 主角被派去干别的事（你点了床、菜地……）：镜头跟着它；你一按方向键就收回来
+    if (p.action !== 'fp' && !p.action) { fp.q = Object.assign({}, fp.q, (() => { const q0 = ipOf(p); return { u: q0.u, v: q0.v, lv: q0.lv, z: q0.z != null ? q0.z : Z[q0.lv] }; })()); p.isleSpot = null; p.run('fp', A.fpCtl); }
     if (p.action !== 'fp') {
       if (mv || st) { p.interrupt(true); p.iw = null; p.isleSpot = null; const q0 = ipOf(p); fp.q = { u: q0.u, v: q0.v, lv: q0.lv, z: q0.z != null ? q0.z : Z[q0.lv] }; fp.air = false; p.run('fp', A.fpCtl); }
       else { const q0 = p.isleSpot || ipOf(p); fp.q = { u: q0.u, v: q0.v, lv: p.isleLv != null ? p.isleLv : q.lv, z: q0.z != null ? q0.z : Z[p.isleLv || 1] }; fp.air = false; fp.vz = 0; return; }
@@ -905,7 +1008,9 @@
         if (d < 0.5) au.i++;
         else { const want = Math.atan2(dv, du); let dy = Math.atan2(Math.sin(want - fp.yaw), Math.cos(want - fp.yaw)); fp.yaw += U.clamp(dy, -6 * dt, 6 * dt);
           const sp = RUN * 0.8 * fpSpd() * dt, k = Math.min(1, sp / d), u0 = q.u, v0 = q.v; fpMove(du * k, dv * k); fp.bob += dt * 10;
-          au.prog = (au.prog || 0) + Math.hypot(q.u - u0, q.v - v0); au.t = (au.t || 0) + dt; if (au.t > 1.2) { if (au.prog < 0.6) { fp.auto = null; PP.ui.toast('前面过不去了，换个地方试试', 1.6); } au.t = 0; au.prog = 0; } } }
+          // 自动跳：被矮东西（低于 3 格，比如菜地的木框、箱子）挡住走不动，就跳过去（像我的世界）
+          if (!fp.air && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du / d * 0.45, nv = q.v + dv / d * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + STEP && !blocked(nu, nv, g2.z)) fpJump(); }
+          au.prog = (au.prog || 0) + Math.hypot(q.u - u0, q.v - v0); au.t = (au.t || 0) + dt; if (au.t > 1.2) { if (au.prog < 0.6) { const last = au.pts[au.pts.length - 1], np = (au.retry || 0) < 3 && fpPlan(q, last.u, last.v, last.lv); if (np && np.length) fp.auto = { pts: np, i: 0, retry: (au.retry || 0) + 1 }; else { fp.auto = null; PP.ui.toast('前面过不去了，换个地方试试', 1.6); } } else { au.t = 0; au.prog = 0; } } } }
     }
     if (mv || st) {
       const sp = (K.has('run') ? RUN : SPEED * 0.8) * fpSpd() * dt, c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), n = Math.hypot(mv, st) || 1;
@@ -913,13 +1018,17 @@
       fpMove((c * mv - s2 * st) / n * sp, (s2 * mv + c * st) / n * sp); if (!fp.air) fp.bob += dt * (K.has('run') ? 14 : 9);
     }
     // 竖直方向：跳起来 / 掉下去 / 落地
-    const g = surf(q.u, q.v, q.z + STEP);
+    const stH = stepAt(q.u, q.v), g = surf(q.u, q.v, q.z + stH);
     if (fp.air) {
       fp.vz = Math.max(-70, fp.vz - GRAV * dt); const nz = q.z + fp.vz * dt, g2 = surf(q.u, q.v, Math.max(nz, q.z) + STEP);
       if (fp.vz <= 0 && isFinite(g2.z) && nz <= g2.z) { q.z = g2.z; q.lv = g2.lv; fp.air = false; const h = fp.fallZ - q.z; fp.vz = 0; if (h > 8) { fp.land = performance.now(); p.jolt && p.jolt(0, -3); } }
       else if (!isFinite(g2.z) || nz < Z[0] - 30) { const s = fp.safe; if (s) { q.u = s.u; q.v = s.v; q.z = s.z; q.lv = s.lv; } fp.air = false; fp.vz = 0; PP.ui.toast('差点掉下去！回到刚才站的地方', 1.6); }
       else { q.z = nz; q.lv = lvAt(q.z); }
-    } else if (isFinite(g.z)) { if (q.z - g.z > STEP) { fp.air = true; fp.vz = 0; fp.fallZ = q.z; } else { q.z = g.z; q.lv = g.lv; if (!g.ramp) fp.safe = { u: q.u, v: q.v, z: q.z, lv: q.lv }; } }
+    } else if (isFinite(g.z)) { if (q.z - g.z > stH) { fp.air = true; fp.vz = 0; fp.fallZ = q.z; } else { q.z = g.z; q.lv = g.lv;
+        // 卡在缝里（站着却被墙夹住）超过半秒：回到刚才站稳的地方
+        const want = mv || st || fp.auto, movedNow = fp.lastP ? Math.hypot(q.u - fp.lastP[0], q.v - fp.lastP[1]) : 1; fp.lastP = [q.u, q.v];
+        if (blocked(q.u, q.v, q.z) && want && movedNow < 0.01) { fp.stuckT = (fp.stuckT || 0) + dt; if (fp.stuckT > 1 && fp.safe) { Object.assign(q, fp.safe); fp.stuckT = 0; fp.auto = null; PP.ui.toast('卡住了，回到刚才站的地方', 1.4); } } // 想走却一动不动 1 秒才救
+        else if (!blocked(q.u, q.v, q.z)) { fp.stuckT = 0; if (!g.ramp && q.z > Z[0] - 1 && (!fp.safeT || performance.now() - fp.safeT > 300)) { fp.safe = { u: q.u, v: q.v, z: q.z, lv: q.lv }; fp.safeT = performance.now(); } } } }
     p.anim = fp.air ? (fp.vz > 0 ? 'jump' : 'fall') : (mv || st || fp.auto) ? (K.has('run') || fp.auto ? 'run' : 'walk') : 'idle';
     fpSync();
     if ((fp.saveT += dt) > 3) { fp.saveT = 0; fpRemember(); }
@@ -929,18 +1038,22 @@
   function fpCam1() {
     const q = fp.q, walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto), b = walking ? Math.sin(fp.bob) * 0.16 : 0;
     const land = fp.land ? Math.max(0, 1 - (performance.now() - fp.land) / 260) * -0.9 : 0;
-    const head = [q.u, q.v, q.z + EYE + b + land];
+    // 弯腰：头顶空间不够就把眼睛放低（慢慢低下去、慢慢直起来）
+    const want = U.clamp(headroom(q.u, q.v, q.z) - 0.7, CROUCH, EYE); fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
+    fp.camZ = fp.camZ == null || Math.abs(fp.camZ - q.z) > 4 ? q.z : fp.camZ + (q.z - fp.camZ) * 0.3;
+    const head = [q.u, q.v, fp.camZ + fp.eyeH + b + land];
     // 第三人称：镜头往后拉，碰到墙、天花板就停在墙前面
     fp.camD += (fpDist() - fp.camD) * 0.2; const D = fp.camD;
-    if (D < 0.3) return { eye: head, yaw: fp.yaw, pitch: fp.pitch, fov: FOV, third: 0 };
+    if (D < 0.3) return { eye: head, yaw: fp.yaw, pitch: fp.pitch, fov: fpFov(), third: 0 };
     const cp = Math.cos(fp.pitch), du = -Math.cos(fp.yaw) * cp, dv = -Math.sin(fp.yaw) * cp, dz = -Math.sin(fp.pitch) * 2.45; // 距离按地面的格子算（竖直方向换算成同样长）
     let k = 0; const step = 0.25, lv = q.lv, ceil = ceilAt(q.u, q.v, lv);
     while (k < D) { const n = k + step, u = head[0] + du * n, v = head[1] + dv * n, z = head[2] + dz * n + 1.2 * (n / Math.max(D, 1));
       if (z < surfTop(u, v, z) + 0.8 || z > Math.min(ceil, ceilAt(u, v, lv)) - 0.6 || wallAt(u, v, z)) break; k = n; }
-    return { eye: [head[0] + du * k, head[1] + dv * k, head[2] + dz * k + 1.2 * (k / Math.max(D, 1))], yaw: fp.yaw, pitch: fp.pitch, fov: FOV, third: k };
+    return { eye: [head[0] + du * k, head[1] + dv * k, head[2] + dz * k + 1.2 * (k / Math.max(D, 1))], yaw: fp.yaw, pitch: fp.pitch, fov: fpFov(), third: k };
   }
   const surfTop = (u, v, z) => { const g = surf(u, v, z); return isFinite(g.z) ? g.z : -1e9; };
-  const wallAt = (u, v, z) => { const by = solids(); for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z < zb || z > zb + 15) continue; for (const s of by[L]) if (s.wall && hitO(s.o, u, v, 0.25)) return true; } return false; };
+  const vAny = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] > 0; };
+  const wallAt = (u, v, z) => { const V = voxels(); if (V) return vAny(V, u, v, z) || vAny(V, u, v, z + 0.4) || vAny(V, u, v, z - 0.4); /* 镜头：树叶也算（不钻进树冠） */ const by = solids(); for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z < zb || z > zb + 15) continue; for (const s of by[L]) if (s.wall && hitO(s.o, u, v, 0.25)) return true; } return false; };
   function ceilAt(u, v, lv) { const r = F.roomAt(u, v, lv); let c = r ? Z[lv] + F.roomH(r) : 1e9; for (let L = lv + 1; L < Z.length; L++) if (area().inF(L, u, v)) { c = Math.min(c, Z[L]); break; } return c; }
   function fpOpts(extra) { const k = fpK(), pix = fpQ() === 'pixel'; return Object.assign({}, viewOpts(), { w: Math.ceil(L.vw / k), h: Math.ceil(L.vh / k), posterize: pix ? 26 : 0, cel: pix, fp: fpCam(), cut: null, clip: null, mirror: false, pets: [], rips: [] }, extra || {}); }
   // 准星 / 点到的地方是什么
@@ -956,19 +1069,19 @@
     const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2, h = hotFromId(fpPick(x, y));
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
     const where = h.pr ? h.pr.at : h.k === 'plot' ? F.plotStand(h.i) : null;
-    if (where && Math.hypot(where[0] - fp.q.u, where[1] - fp.q.v) > 14) { PP.ui.toast('有点远，走近一点再用', 1.4); return; }
-    fp.auto = null; fpSync(); h.isle = true; click(h, at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y);
+    if (where && Math.hypot(where[0] - fp.q.u, where[1] - fp.q.v) > 5.5) { PP.ui.toast('够不着，走到跟前再用', 1.4); return; }
+    fp.auto = null; fpSync(); h.isle = true; PP.fpAllow = true; try { click(h, at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); } finally { PP.fpAllow = false; }
   }
   // ---- 地图：右上角小地图（点一下打开大地图）；大地图上点哪儿，主角自己走过去 ----
   let mapC = null;
   function mapData() {
-    const k = 'm' + dirtyK; if (mapC && mapC.k === k) return mapC;
-    const a = area(), N = GN, st = GS, lvl = Z.map(() => new Uint8Array(N * N)); let u0 = 1e9, v0 = 1e9, u1 = -1e9, v1 = -1e9;
-    for (let L = 0; L < Z.length; L++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const u = gu(i), v = gu(j); if (a.inF(L, u, v)) { lvl[L][j * N + i] = F.roomAt(u, v, L) ? 2 : 1; if (L >= 1) { u0 = Math.min(u0, u); v0 = Math.min(v0, v); u1 = Math.max(u1, u); v1 = Math.max(v1, v); } } }
-    const by = solids(); for (let L = 0; L < Z.length; L++) for (const s of by[L] || []) { if (!s.wall && !s.rail) continue; const o = s.o; const bb = o[1] === 'c' ? [o[2] - o[4], o[3] - o[4], o[2] + o[4], o[3] + o[4]] : o.slice(1, 5); for (let u = bb[0]; u <= bb[2] + 0.01; u += st / 2) for (let v = bb[1]; v <= bb[3] + 0.01; v += st / 2) { const i = gi(u), j = gi(v); if (i >= 0 && j >= 0 && i < N && j < N) lvl[L][j * N + i] = s.wall ? 3 : 4; } }
+    const n = navReady(); if (!n) return null; if (mapC && mapC.n === n) return mapC;
+    const N = GN, lvl = Z.map(() => new Uint8Array(N * N)); let u0 = 1e9, v0 = 1e9, u1 = -1e9, v1 = -1e9;
+    // 地图 = 第一人称真实能走的地方：浅色能站，深色有东西挡着（墙、家具、树……），楼梯另外画
+    for (let L = 0; L < Z.length; L++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const c = n.g[L][j * N + i]; if (!c) continue; const u = gu(i), v = gu(j); lvl[L][j * N + i] = c === 2 ? 3 : F.roomAt(u, v, L) ? 2 : 1; if (L >= 1) { u0 = Math.min(u0, u); v0 = Math.min(v0, v); u1 = Math.max(u1, u); v1 = Math.max(v1, v); } }
     const imgs = lvl.map((g, L) => { const c = document.createElement('canvas'); c.width = N; c.height = N; const x = c.getContext('2d'), d = x.createImageData(N, N); const col = { 1: [196, 214, 160, 235], 2: [238, 222, 192, 245], 3: [70, 58, 74, 255], 4: [150, 120, 90, 255] };
       for (let n = 0; n < N * N; n++) { const cc = col[g[n]]; if (!cc) continue; d.data.set(cc, n * 4); } x.putImageData(d, 0, 0); return c; });
-    const pad = 2; return (mapC = { k, imgs, box: [u0 - pad, v0 - pad, u1 + pad, v1 + pad] });
+    const pad = 2; return (mapC = { n, imgs, box: [u0 - pad, v0 - pad, u1 + pad, v1 + pad] });
   }
   const mapLabels = (lv) => {
     const out = [];
@@ -977,7 +1090,9 @@
     return out;
   };
   function drawMap(ctx, x, y, w, h, lv, big) {
-    const md = mapData(), [u0, v0, u1, v1] = md.box, sc = Math.min(w / (u1 - u0), h / (v1 - v0)) * (big && bigMap ? bigMap.z || 1 : 1);
+    const md = mapData();
+    if (!md) { ctx.fillStyle = 'rgba(28,24,40,.62)'; ctx.fillRect(x, y, w, h); ctx.fillStyle = '#fff6d8'; ctx.font = PP.FONT(12); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('地图准备中…', x + w / 2, y + h / 2); return null; }
+    const [u0, v0, u1, v1] = md.box, sc = Math.min(w / (u1 - u0), h / (v1 - v0)) * (big && bigMap ? bigMap.z || 1 : 1);
     let cu = (u0 + u1) / 2, cv = (v0 + v1) / 2; if (big && bigMap && (bigMap.z || 1) > 1) { cu = fp.q.u; cv = fp.q.v; }
     const X = (u) => x + w / 2 + (u - cu) * sc, Y = (v) => y + h / 2 + (v - cv) * sc;
     ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
@@ -1008,8 +1123,8 @@
     const r = m.r; if (x < r.x || x > r.x + r.w || y < r.y || y > r.y + r.h) { toggleMap(); return; }
     const u = r.cu + (x - r.x - r.w / 2) / r.sc, v = r.cv + (y - r.y - r.h / 2) / r.sc, a = area();
     if (!a.inF(m.lv, u, v)) { PP.ui.toast('那儿没有地面，点有颜色的地方', 1.4); return; }
-    const pts = plan(a, { u: fp.q.u, v: fp.q.v, lv: fp.q.lv }, u, v, m.lv);
-    if (!pts.length) { PP.ui.toast('走不过去，换个地方试试', 1.4); return; }
+    const pts = fpPlan(fp.q, u, v, m.lv);
+    if (!pts || !pts.length) { PP.ui.toast('那儿走不过去（被东西挡住了），换个地方试试', 1.6); return; }
     fp.auto = { pts, i: 0 }; if (fp.p.action !== 'fp') { fp.p.interrupt(true); fp.p.iw = null; fp.p.isleSpot = null; fp.p.run('fp', A.fpCtl); }
     bigMap = null; fpBar(); PP.ui.toast('自己走过去啦（按方向键可以停下）', 1.6);
   }
@@ -1026,7 +1141,7 @@
     const pix = fpQ() === 'pixel'; let cv = g3.draw(lastScenes, fpOpts()); if (cv && pix && pixOn()) cv = outline(cv);
     if (cv) { ctx.imageSmoothingEnabled = !pix; const k = fpK(); ctx.drawImage(cv, x0, y0, cv.width * k, cv.height * k); ctx.imageSmoothingEnabled = false; }
     // 动物：同一个房间（或者都在外面）才看得见，按远近画成立着的纸片；第三人称时也画出主角自己
-    const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(FOV / 2), myRoom = F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
+    const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(cam.fov / 2), myRoom = F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
     const vis = [];
     for (const o of G.pets) { if (o.held) continue; const me = o === fp.p; if (me && cam.third < 0.6) continue;
       const q = me ? fp.q : o.isleSpot ? { u: o.isleSpot.u, v: o.isleSpot.v, z: o.isleSpot.z, lv: o.isleLv } : o.ip; if (!q) continue;
@@ -1035,7 +1150,7 @@
       const rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; if (f2 < 1) continue;
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
     vis.sort((a, b) => b.d - a.d);
-    for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o.scaleMul = U.clamp(v.px / (28 * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); } catch (e) {} [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); } catch (e) {} o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
     // 准星 + 准星指着的东西
     if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(w / 2, h / 2)); fp.aim = hh && hh.label ? hh.label : null; }
     const cx0 = x0 + w / 2, cy0 = y0 + h / 2, us = Math.max(1, Math.round(Math.min(w, h) / 260));
@@ -1046,7 +1161,7 @@
     if (lookPref() && !lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('单击画面：用鼠标转头', 0.55);
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     const age = (now - fpHintT) / 1000;
-    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 鼠标看 · 空格跳 · Shift 跑 · E 用 · Tab 地图 · 滚轮 远近 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 鼠标看 · 空格跳 · Shift 跑 · E 用 · Tab 地图 · V 第三人称 · 滚轮 视野 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }
@@ -1451,6 +1566,15 @@
   const insideV = () => (cut == null ? false : focus === 'living' ? 'house' : 'in'); // 「小屋」视图 = 起居室的详细视图
   // 测试用：直接推着第一人称跑几帧、叫它自己走到某个地方
   const fpDebug = { tick: (dt) => fp && fpTick(dt), surf, blocked, cam: () => fp && fpCam(),
-    go: (u, v, lv) => { if (!fp) return false; const pts = plan(area(), { u: fp.q.u, v: fp.q.v, lv: fp.q.lv }, u, v, lv); if (!pts.length) return false; fp.auto = { pts, i: 0 }; return true; } };
+    slice: (u0, v0, u1, v1, z) => { const V = voxels(), o = []; for (let v = v0; v < v1; v += VX) { let r = ''; for (let u = u0; u < u1; u += VX) r += vAt(V, u + 0.01, v + 0.01, z) ? '#' : '.'; o.push(r); } return o; },
+    why: (u, v, z) => { const V = voxels(), o = []; for (const [du, dv] of BODYC) for (let zz = z + STEP; zz <= z + BODYH; zz += VZ) if (vAt(V, u + du, v + dv, zz)) { o.push([+du.toFixed(2), +dv.toFixed(2), +zz.toFixed(2)]); break; } return o; },
+    tris: (u, v, z, r = 0.3) => { const m = scene().cpu, P = m.p, out = {}; for (let t = 0; t < P.length; t += 9) { let hit = false; const cu = (P[t] + P[t + 3] + P[t + 6]) / 3, cv = (P[t + 1] + P[t + 4] + P[t + 7]) / 3, cz = (P[t + 2] + P[t + 5] + P[t + 8]) / 3; if (Math.abs(cu - u) < r + 1 && Math.abs(cv - v) < r + 1 && Math.abs(cz - z) < 1.5) hit = true; if (!hit) continue; const vi = t / 3, k = m.c.slice(vi * 3, vi * 3 + 3).map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('') + ' 材质' + m.m[vi] + ' 摆' + (m.w ? m.w[vi] : 0); out[k] = (out[k] || 0) + 1; } return out; },
+    who: (u0, v0, u1, v1, z0, z1) => { const cpu = scene().cpu, proto = Object.getPrototypeOf(cpu), orig = proto.tri, hits = new Map(); proto.tri = function (a, b, c, ...r) { for (let fa = 0; fa <= 1.001; fa += 0.1) for (let fb = 0; fb <= 1.001 - fa; fb += 0.1) { const x = a[0] + (b[0] - a[0]) * fa + (c[0] - a[0]) * fb + this.ox, y = a[1] + (b[1] - a[1]) * fa + (c[1] - a[1]) * fb + this.oy, z = a[2] + (b[2] - a[2]) * fa + (c[2] - a[2]) * fb + this.oz; if (x > u0 && x < u1 && y > v0 && y < v1 && z > z0 && z < z1) { const st = new Error().stack.split('\n').slice(2, 7).map((l) => l.trim().replace(/^at /, '').replace(/\(?file:.*\/js\//, '(').replace(/\)$/, '')).join(' < '); hits.set(st, (hits.get(st) || 0) + 1); fa = 9; break; } } return orig.call(this, a, b, c, ...r); }; try { F.build(opts(null)); } finally { proto.tri = orig; } return [...hits.entries()].map(([k, n]) => n + '× ' + k); },
+    triIn: (u0, v0, u1, v1, z0, z1) => { const m = scene().cpu, P = m.p, out = {}; for (let t = 0; t < P.length; t += 9) { let hit = false; for (let fa = 0; fa <= 1.001 && !hit; fa += 0.1) for (let fb = 0; fb <= 1.001 - fa; fb += 0.1) { const x = P[t] + (P[t + 3] - P[t]) * fa + (P[t + 6] - P[t]) * fb, y = P[t + 1] + (P[t + 4] - P[t + 1]) * fa + (P[t + 7] - P[t + 1]) * fb, z = P[t + 2] + (P[t + 5] - P[t + 2]) * fa + (P[t + 8] - P[t + 2]) * fb; if (x > u0 && x < u1 && y > v0 && y < v1 && z > z0 && z < z1) { hit = true; break; } } if (!hit) continue; const vi = t / 3, k = m.c.slice(vi * 3, vi * 3 + 3).map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('') + ' 材质' + (m.m[vi] % 32) + ' 点选' + Math.floor(m.m[vi] / 32) + ' 摆' + m.w[vi] + ' 三角[' + [0, 1, 2].map((q) => P.slice(t + q * 3, t + q * 3 + 3).map((x) => x.toFixed(1)).join(',')).join(' ') + ']'; out[k] = (out[k] || 0) + 1; } return out; },
+    rebuild: () => { vox = null; voxB = null; navC = null; navB = null; const t0 = performance.now(); voxels(); const t1 = performance.now(); return [Math.round(t1 - t0)]; },
+    col: (u, v, z0, z1) => { const V = voxels(), o = []; for (let z = z0; z <= z1; z += VZ) if (vAt(V, u, v, z + 0.01)) o.push(+z.toFixed(2)); return o; },
+    // 画一帧，数一数“什么都没画到”（透出去）的像素占多少
+    holes: () => { if (!fp) return -1; fp._cam = null; fp.last = performance.now(); const s0 = scene(); lastScenes = [s0.gpu, dynMesh]; lastLO = lightOpts(); const cv = g3.draw(lastScenes, fpOpts()); if (!cv) return -1; const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const x = c.getContext('2d'); x.drawImage(cv, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] < 10) n++; return n / (d.length / 16); },
+    nav: () => nav(), navFree, go: (u, v, lv) => { if (!fp) return false; const pts = fpPlan(fp.q, u, v, lv); if (!pts || !pts.length) return false; fp.auto = { pts, i: 0 }; return true; } };
   PP.isle = { fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();

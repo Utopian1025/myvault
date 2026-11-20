@@ -156,9 +156,9 @@
       return this;
     }
     // 光滑的球（顶点法线朝外）：像素画里一团叶子、一块圆石头，光照会是一圈圈干净的明暗
-    ball(u, v, z, r, rz, col, mat = 0, la = 6, lo = 12, bump = 0, seed = 1) {
+    ball(u, v, z, r, rz, col, mat = 0, la = 6, lo = 12, bump = 0, seed = 1, top = false) {
       col = C(col); const P = [], N = [];
-      for (let i = 0; i <= la; i++) for (let j = 0; j <= lo; j++) { const t = (i / la) * Math.PI, f = (j / lo) * 6.2832, k = 1 + bump * Math.sin(seed * 7.1 + i * 2.3 + (j % lo) * 1.7); const x = Math.sin(t) * Math.cos(f), y = Math.sin(t) * Math.sin(f), zz = Math.cos(t); P.push([u + x * r * k, v + y * r * k, z + zz * rz * k]); let nx = x / (r * MU), ny = y / (r * MU), nz = zz / (rz * MZ); const l = Math.hypot(nx, ny, nz) || 1; N.push([nx / l, ny / l, nz / l]); }
+      for (let i = 0; i <= la; i++) for (let j = 0; j <= lo; j++) { const t = (i / la) * (top ? Math.PI / 2 : Math.PI), /* top：只画上半个（穹顶），不往下穿进屋里 */ f = (j / lo) * 6.2832, k = 1 + bump * Math.sin(seed * 7.1 + i * 2.3 + (j % lo) * 1.7); const x = Math.sin(t) * Math.cos(f), y = Math.sin(t) * Math.sin(f), zz = Math.cos(t); P.push([u + x * r * k, v + y * r * k, z + zz * rz * k]); let nx = x / (r * MU), ny = y / (r * MU), nz = zz / (rz * MZ); const l = Math.hypot(nx, ny, nz) || 1; N.push([nx / l, ny / l, nz / l]); }
       const W = lo + 1, put = (a) => { const q = P[a], n = N[a]; this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(n[0], n[1], n[2]); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); };
       for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const a = i * W + j, b = a + 1, c = a + W + 1, d = a + W; put(a); put(b); put(c); put(a); put(c); put(d); }
       return this;
