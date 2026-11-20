@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('petAPI', {
   updateCheck: () => ipcRenderer.invoke('update-check'),
   updateDownload: () => ipcRenderer.invoke('update-download'),
   updateInstall: (later) => ipcRenderer.invoke('update-install', !!later),
+  updateStop: () => ipcRenderer.invoke('update-stop'),
+  updateQuiet: (v) => ipcRenderer.send('update-quiet', !!v),
   onUpdate: (fn) => ipcRenderer.on('update', (_e, s) => fn(s)),
   openExternal: (url) => ipcRenderer.send('open-external', url),
   setAppIcon: (o) => ipcRenderer.invoke('set-app-icon', o),

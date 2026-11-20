@@ -309,15 +309,34 @@ app.on('window-all-closed', () => app.quit());
 app.on('will-quit', () => { keepCopy('quit'); try { uIOhook && uIOhook.stop(); } catch {} try { globalShortcut.unregisterAll(); } catch {} });
 
 // ---------- 检查更新 ----------
-updater.init((st) => send('update', JSON.parse(JSON.stringify(st))));
+updater.init((st) => { if (installing && st.status === 'error') unhide(); send('update', JSON.parse(JSON.stringify(st))); });
 let installOnQuit = false;
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('changelog', () => { try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'changelog.json'), 'utf8')); } catch (e) { return []; } });
 ipcMain.handle('update-check', () => updater.check().then((s) => JSON.parse(JSON.stringify(s))));
 ipcMain.handle('update-download', () => updater.download().then((s) => JSON.parse(JSON.stringify(s))));
-ipcMain.handle('update-install', (_e, later) => { if (later) { installOnQuit = true; return true; } return updater.install(true); });
+ipcMain.handle('update-install', (_e, later) => { if (later) { installOnQuit = true; return true; } return installNow(true, '你点了立即更新'); });
+ipcMain.handle('update-stop', () => { installOnQuit = false; return updater.stop().then((s) => JSON.parse(JSON.stringify(s))); });
+ipcMain.on('update-quiet', (_e, v) => { quietUpdate = !!v; });
+// 装之前先把窗口瞬间藏起来，屏幕上不会留着东西等它慢慢退出
+function installNow(relaunch, why) {
+  if (updater.state.status !== 'ready' || installing) return false;
+  installing = true;
+  plog('[update] 安装', updater.state.latest && updater.state.latest.version, why);
+  try { if (win && !win.isDestroyed()) { win.setOpacity && win.setOpacity(0); win.hide(); } } catch (e) {}
+  const ok = updater.install(relaunch); if (!ok) unhide(); return ok;
+}
+// 安装程序没能启动：把宠物还回来
+function unhide() { installing = false; try { if (win && !win.isDestroyed() && !hidden) { win.setOpacity && win.setOpacity(1); win.showInactive(); } } catch (e) {} }
+// 无感更新：新版下好以后，等你锁屏、离开电脑 15 分钟、或者退出 / 关机时再悄悄装（装完自己打开，存档不动）
+let quietUpdate = true, installing = false;
+const quietOK = () => quietUpdate && updater.state.status === 'ready' && !updater.state.skip;
+app.whenReady().then(() => {
+  powerMonitor.on('lock-screen', () => { setTimeout(() => { if (quietOK()) installNow(true, '锁屏'); }, 8000); });
+  setInterval(() => { try { if (quietOK() && powerMonitor.getSystemIdleTime() >= 15 * 60) installNow(true, '离开 15 分钟'); } catch (e) {} }, 60000);
+});
 ipcMain.on('open-external', (_e, url) => { if (/^https:\/\//.test(url)) require('electron').shell.openExternal(url); });
-app.on('will-quit', () => { if (installOnQuit && updater.state.status === 'ready') { installOnQuit = false; updater.install(false); } });
+app.on('will-quit', () => { if (!installing && (installOnQuit || quietOK()) && updater.state.status === 'ready' && !updater.state.skip) { installOnQuit = false; installing = true; updater.install(false); } });
 
 // ---------- IPC ----------
 // 全屏场景时临时接管 Esc（退出全屏）；离开全屏马上还给其他程序

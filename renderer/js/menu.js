@@ -234,6 +234,7 @@
   PP.panic = function () {
     const v = PP.curView && PP.curView(); if ((v === 'top' || v === 'in') && !PP.fpOn) return false;
     try { PP.ui.closeAll && PP.ui.closeAll(); } catch (e) {}
+    try { PP.update && PP.update.hush && PP.update.hush(); } catch (e) {}
     try { PP.isle && PP.isle.fpStop && PP.isle.fpStop(true); } catch (e) {}
     if (G.save.settings.mode === 'full' && PP.exitFull) PP.exitFull();
     PP.setView(G.save.settings.lastMini || 'top'); return true;

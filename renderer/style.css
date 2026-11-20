@@ -413,6 +413,14 @@ canvas.card { width: 156px; height: 72px; image-rendering: pixelated; border: 2p
 .updchip button.go:hover { background: var(--accent); color: var(--ink); }
 .updchip .pg { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); pointer-events: none; }
 .updchip button.x { border-left: 1px solid rgba(60, 50, 60, .25); padding: 2px 6px; color: var(--muted); }
+.updchip { cursor: grab; user-select: none; }
+.updchip button.mn { border-left: 1px solid rgba(60, 50, 60, .25); padding: 2px 6px; color: var(--muted); }
+.updchip button.now { border-left: 1px solid rgba(60, 50, 60, .25); color: var(--ink); font-weight: bold; }
+.updchip button.now:hover, .updchip button.mn:hover, .updchip button.x:hover { background: var(--accent); color: var(--ink); }
+/* 缩小：只剩一根细细的进度线，点一下展开 */
+.updchip.min { width: 46px; height: 7px; border-radius: 4px; opacity: .45; cursor: pointer; background: rgba(255, 253, 243, .6); }
+.updchip.min button { display: none; }
+.updchip.min .pg { height: 100%; }
 
 /* 小场景 / 小岛旁边的按钮条 */
 .sdock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: calc(4px * var(--zs, 1)); transition: opacity .18s, transform .18s; }

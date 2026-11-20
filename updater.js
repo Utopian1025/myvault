@@ -36,12 +36,15 @@ function fetchT(url, ms = 9000) {
 let state = { status: 'idle', latest: null, progress: 0, file: null, error: '', route: 0 };
 const markFile = () => path.join(app.getPath('userData'), 'update-tried.json');
 let notify = () => {};
+// 停止更新：正在下的连接全部掐断，已经下好的分块留在硬盘上（下次接着下）
+let stopped = false; const live = new Set();
+const STOP = '已停止';
 
 async function check() {
   // 已经装上了：清掉“装过”的记号
   try { const mk = JSON.parse(fs.readFileSync(markFile(), 'utf8')); if (!mk || cmp(mk.version, app.getVersion()) <= 0) fs.rmSync(markFile(), { force: true }); } catch {}
   if (state.status === 'downloading' || state.status === 'verifying') return state;
-  state.status = 'checking'; state.error = ''; notify(state);
+  state.status = 'checking'; state.error = ''; state.stopped = false; notify(state);
   const results = await Promise.all(MANIFEST.map((u) => fetchT(u + '?t=' + Date.now(), 9000).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
   const ok = results.filter((m) => m && m.version);
   if (!ok.length) { state.status = 'error'; state.error = '连不上更新服务器（稍后会自动再试）'; notify(state); return state; }
@@ -60,7 +63,8 @@ async function check() {
 
 // 拉一个地址写进文件。不限总时长，只看“卡住”：连续 stallMs 没收到数据才算失败（网速慢不再被掐断）
 async function pullTo(url, file, onBytes, stallMs = 30000) {
-  const ctl = new AbortController(); let timer = null, n = 0;
+  if (stopped) throw new Error(STOP);
+  const ctl = new AbortController(); let timer = null, n = 0; live.add(ctl);
   const kick = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), stallMs); };
   kick();
   const fd = fs.openSync(file, 'w');
@@ -76,11 +80,21 @@ async function pullTo(url, file, onBytes, stallMs = 30000) {
     }
     if (want && !enc && n !== want) throw new Error('没下完整');
     return n;
-  } catch (e) { onBytes(-n); throw e; } finally { clearTimeout(timer); try { fs.closeSync(fd); } catch {} }
+  } catch (e) { onBytes(-n); throw stopped ? new Error(STOP) : e; } finally { live.delete(ctl); clearTimeout(timer); try { fs.closeSync(fd); } catch {} }
 }
 
 let downloading = null;
-function download() { if (!downloading) downloading = download1().finally(() => { downloading = null; }); return downloading; }
+function download() {
+  if (!downloading) { stopped = false; downloading = download1().catch((e) => { if (!stopped) throw e; }).then((r) => { if (stopped) return halt(); return r; }).finally(() => { downloading = null; }); }
+  return downloading;
+}
+function halt() { state.status = state.latest && cmp(state.latest.version, app.getVersion()) > 0 ? 'available' : 'idle'; state.progress = 0; state.error = ''; state.stopped = true; notify(state); return state; }
+// 停止：正在下就掐断；已经下好的就当这次不装
+function stop() {
+  if (downloading) { stopped = true; for (const c of live) { try { c.abort(); } catch {} } return downloading.then(() => state, () => state); }
+  if (state.status === 'ready') { state.skip = true; notify(state); }
+  return Promise.resolve(state);
+}
 async function download1() {
   const m = state.latest; if (!m) return state;
   const plat = process.platform === 'darwin' ? m.mac : m.win;
@@ -101,7 +115,7 @@ async function download1() {
   if (!dir) { state.status = 'error'; state.error = '电脑不让写入下载文件（可能是公司权限或杀毒软件）。可以点“去网页下载”手动安装'; notify(state); return state; }
   // 清掉以前版本留下的安装包和分块
   try { for (const f of fs.readdirSync(dir)) if (/^(MoyuZoo|Desktopia)-\d/.test(f) && !f.startsWith(base)) fs.rmSync(path.join(dir, f), { force: true }); } catch {}
-  state.status = 'downloading'; state.progress = 0; state.error = ''; state.route = 1; notify(state);
+  state.status = 'downloading'; state.progress = 0; state.error = ''; state.route = 1; state.stopped = false; state.skip = false; notify(state);
   const total = plat.size || 1; let got = 0, lastN = 0;
   const onBytes = (n) => { got += n; const p = Math.max(0, Math.min(0.99, got / total)); if (Math.abs(p - lastN) > 0.005) { lastN = p; state.progress = p; notify(state); } };
   const verifying = () => { state.status = 'verifying'; state.progress = 0.99; notify(state); };
@@ -122,7 +136,7 @@ async function download1() {
         for (let k = 0; k < JSD.length * 3 && !ok; k++) {
           const hosts = JSD.slice().sort((a, b) => (bad[a] || 0) - (bad[b] || 0)), host = hosts[(k + hostAt++) % (k < 2 ? 2 : hosts.length)];
           try { await pullTo(`https://${host}/gh/${REPO}@${p.ref}/${p.file}`, pf(i) + '.tmp', onBytes); fs.renameSync(pf(i) + '.tmp', pf(i)); ok = true; }
-          catch (e) { bad[host] = (bad[host] || 0) + 1; console.warn('part failed', i, host, e && e.message); try { fs.rmSync(pf(i) + '.tmp', { force: true }); } catch {} }
+          catch (e) { if (stopped) throw e; bad[host] = (bad[host] || 0) + 1; console.warn('part failed', i, host, e && e.message); try { fs.rmSync(pf(i) + '.tmp', { force: true }); } catch {} }
         }
         if (!ok) throw new Error('part ' + i);
       }
@@ -135,19 +149,20 @@ async function download1() {
       if (plat.sha256 && hash.digest('hex') !== plat.sha256) { for (let i = 0; i < N; i++) fs.rmSync(pf(i), { force: true }); fs.rmSync(dest, { force: true }); throw new Error('校验不一致'); }
       for (let i = 0; i < N; i++) { try { fs.rmSync(pf(i), { force: true }); } catch {} }
       return finish(dest, 'jsDelivr');
-    } catch (e) { console.warn('jsDelivr route failed', e && e.message); todo.length = 0; }
+    } catch (e) { console.warn('jsDelivr route failed', e && e.message); todo.length = 0; if (stopped) return halt(); }
   }
   // 线路 2：GitHub Releases + 加速镜像（整个文件）
   const gh = `https://github.com/${REPO}/releases/download/v${m.version}/${plat.asset || plat.name}`;
   let route = 1;
   for (const px of PROXIES) {
+    if (stopped) return halt();
     got = 0; lastN = -1; route++; state.status = 'downloading'; state.route = route; onBytes(0);
     try {
       await pullTo(px + gh, dest, onBytes, 30000);
       verifying();
       if (plat.sha256 && sha256File(dest) !== plat.sha256) throw new Error('校验不一致');
       return finish(dest, px || 'GitHub');
-    } catch (e) { try { fs.rmSync(dest, { force: true }); } catch {} console.warn('update source failed', px || 'GitHub', e && e.message); }
+    } catch (e) { try { fs.rmSync(dest, { force: true }); } catch {} if (stopped) return halt(); console.warn('update source failed', px || 'GitHub', e && e.message); }
   }
   state.status = 'error'; state.error = '网络太慢或线路不通，这次没下完。已经下好的部分留着了，再点一次会接着下'; notify(state);
   return state;
@@ -183,7 +198,7 @@ function install(relaunch = true) {
 
 module.exports = {
   init(fn) { notify = fn || notify; },
-  check, download, install,
+  check, download, install, stop,
   get state() { return state; },
   version: () => app.getVersion(),
   releasePage: () => `https://github.com/${REPO}/releases/latest`,
