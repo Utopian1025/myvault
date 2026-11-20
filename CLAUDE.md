@@ -21,6 +21,7 @@
 - `fort.js`：城堡的建筑模型。房间是矩形或圆形（可带 `rot`），`ROOMS / PASS（门洞走廊）/ RAMPS（楼梯）`，`build(o)` 生成几何；`cut={lv,vu,vv,low}` 剖切；`o.focus` 只画一个房间。树 `tree()`、果树院子 `yard()`、房子间缝隙 `joins()`。
 - `isle3d.js`：WebGL2 渲染。等距正交投影（`uCam/uPit`），第一人称透视（`uFP/uFP2`），剖切 `uClip*`，拾取用 1×1 viewport。
 - `island.js`：城堡的一切交互。网格寻路（GS 0.5，GN 144），缩放/旋转（Ctrl+左键），按层剖切、详细视图 `setFocus`、画面内标签 `.rtags`、左上角竖排按钮 `.cutbar.vert`、视角按钮 👁（`viewHTML/viewAct`）、第一人称（`fpStart/fpStop/fpTick`，`S().fpLast` 记位置，`S().fpSpeed` 速度）。
+- 第一人称 / 第三人称（`island.js` 里 `// ===== 第一人称` 那一段）：走路按「真的地面」算——`surf(u,v,zmax)` 取脚下最高的面（楼板、楼梯坡面、能站上去的东西；楼梯范围内没有楼板），`blocked(u,v,z)` 看身体会不会撞墙。障碍物带高度来自 `F.AREA.solid()`（墙、树挡死；栏杆 2.4 能跳过；菜地、家具能跳上去）。方向：yaw 变大 = 往右转，往右 = (-sin, cos)。`fp.q` 每帧同步到 `p.ip` 和 `p.x`（不同步会被 `floorY` 吸回旧位置）。滚轮 = `S().fpDist`（0 第一人称，>0 第三人称）。小地图 / 大地图（Tab，点哪儿 `fp.auto` 自己走）。测试接口 `PP.isle.fpDebug`（`tick/go/surf/blocked`）。
 - `modes.js`：模式切换（`setView`）、HUD、地图弹窗（地球 `globe.js`，旗子来自 `PP.REGIONS`；「飞行城堡」旗子单独加，点了 `setView('isle')`）。
 - `places.js`：地方和区域列表。浮空岛场景已去掉（城堡就是浮空岛），`PP.MINE = ['academy','undergrove']`。
 - `menu.js`：右键菜单、`PP.panic()`（老板键收成极简）。
@@ -32,6 +33,7 @@
 - 预置存档：`localStorage['pixelpets.save.v1']`。
 - 进城堡：`PP.setView('isle')`；剖层 `PP.isle.setCut(lv)`；进房间 `PP.isle.setFocus(id)`；第一人称 `PP.isle.fpStart()`；地图弹窗 `PP.modes.showMap()`。
 - 改了城堡布局后，要检查宠物能走到每块菜地、每个门（网格 BFS），并且房间之间不重叠。
+- 改了第一人称或城堡布局后：用 `PP.isle.fpDebug.go(u,v,lv)` + `tick` 让它自己走到每个房间 / 菜地 / 院子（都要到、层要对），再乱走乱跳几分钟，检查 `blocked` 始终为 false（不穿墙）。
 
 ## 下一步（用户已同意，还没做）
 - **风景的旋转**：要先给每个风景做寻路，动物在世界坐标里走，才能自由转。
