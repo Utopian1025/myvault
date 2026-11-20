@@ -183,7 +183,10 @@
   const BALLOON = wPt('garden', BAL_L), NEST = wPt('garden', NEST_L);
   const GPOTS = [[7.5, 36], [11.5, 36], [7.5, 40.4], [11.5, 40.4]];
   const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13 };
-  const FIXED = [...PLOTS_L.flatMap(([id, u, v]) => rectObs(mFrame(MD[id]), 1, [u, v, u + PS, v + PS])), ...HIVES.map(([u, v]) => [2, 'c', u, v, 1.2]), [1, 'c', MAILB.u, MAILB.v, 0.6], [1, 'c', TAP.u, TAP.v, 1.1], ...LAMPS.map(([u, v]) => [1, 'c', u, v, 0.35]), [2, 'c', NEST.u, NEST.v, 1.2], ...rectObs(frameOf('garden'), 2, [BAL_L.u - 2.6, BAL_L.v - 2.6, BAL_L.u + 2.6, BAL_L.v + 2.6])];
+  // 院子里的大树（模型和第一人称的挡路都用这一份）
+  const TREES_L = [['courtA', 10.6, 27.6, 10, 0.35], ['farmB', 31.6, 36, 11, -0.3], ['courtC', 38.6, 28.6, 9, 0.4], ['gplat', 3.6, 43.6, 20, -0.55], ['farmA', 33.6, 29, 8, 0.35]];
+  const PLOT_OB = PLOTS_L.flatMap(([id, u, v]) => rectObs(mFrame(MD[id]), 1, [u, v, u + PS, v + PS]));
+  const FIXED = [...PLOT_OB, ...HIVES.map(([u, v]) => [2, 'c', u, v, 1.2]), [1, 'c', MAILB.u, MAILB.v, 0.6], [1, 'c', TAP.u, TAP.v, 1.1], ...LAMPS.map(([u, v]) => [1, 'c', u, v, 0.35]), [2, 'c', NEST.u, NEST.v, 1.2], ...rectObs(frameOf('garden'), 2, [BAL_L.u - 2.6, BAL_L.v - 2.6, BAL_L.u + 2.6, BAL_L.v + 2.6])];
 
   // ---------- 屋里的固定陈设 ----------
   const FIX = [];
@@ -268,7 +271,18 @@
   // 栏杆（局部坐标，跟着花园 / 阳台转）
   const PARA = [[2, 46.8, 15.2, 47.3, 23.3, 'garden'], [2, 40.4, 22.8, 47.3, 23.3, 'garden'], [2, 40.4, 14.8, 47.3, 15.3, 'garden'], [2, 28.5, 23, 40.5, 23.5, 'garden'], [2, 28, 18.5, 28.5, 23.5, 'garden'], [3, 21.5, 18.5, 30.5, 19, 'balcony'], [3, 30, 15, 30.5, 19, 'balcony'], [3, 21, 15, 21.5, 19, 'balcony']];
   const PARA_OB = PARA.flatMap((q) => rectObs(frameOf(q[5]), q[0], q.slice(1, 5)));
-  const AREA = { z: Z, inF: floorAt, ramps: RAMPS, obst: (extra) => [...wallObs(0), ...wallObs(1), ...wallObs(2), ...wallObs(3), ...PARA_OB, ...FIXED, ...FIX.flatMap((f) => f.ob.map((b) => [f.lv, ...b])), ...(extra || [])] };
+  // 第一人称用：每个挡路的东西有多高（墙挡死；栏杆跳起来能翻过去；菜地、家具这类能跳上去站着）
+  const SOLID_H = (o) => (o[1] === 'c' && o[4] < 0.5 ? 9 : 3);
+  const solid = (extra) => [
+    ...[0, 1, 2, 3].flatMap((l) => wallObs(l).map((o) => ({ o, h: WH - 0.2, wall: 1 }))),
+    ...PARA_OB.map((o) => ({ o, h: 2.4, rail: 1 })),
+    ...FIXED.map((o, i) => ({ o, h: i < PLOT_OB.length ? 1.1 : SOLID_H(o) })),
+    ...FIX.flatMap((f) => f.ob.map((b) => ({ o: [f.lv, ...b], h: 3 }))),
+    ...TREES_L.map(([id, u, v]) => { const w = mW(id, u, v); return { o: [MD[id].lv, 'c', w[0], w[1], 0.75], h: 12, wall: 1 }; }),
+    ...(MD.pergola ? [{ o: [2, 'c', ...mW('pergola', 3.4, 15.4), 0.6], h: 7, wall: 1 }] : []),
+    ...(extra || []).map((o) => ({ o, h: SOLID_H(o) })),
+  ];
+  const AREA = { z: Z, inF: floorAt, ramps: RAMPS, solid, obst: (extra) => [...wallObs(0), ...wallObs(1), ...wallObs(2), ...wallObs(3), ...PARA_OB, ...FIXED, ...FIX.flatMap((f) => f.ob.map((b) => [f.lv, ...b])), ...(extra || [])] };
 
   // ---------- 画 ----------
   const showLv = (cut, lv) => !cut || lv <= cut.lv;
@@ -800,7 +814,7 @@
     }
     if (!showLv(cut, 1)) return;
     // 台子边上斜长出来的小树
-    const T = [['courtA', 10.6, 27.6, 10, 0.35], ['farmB', 31.6, 36, 11, -0.3], ['courtC', 38.6, 28.6, 9, 0.4], ['gplat', 3.6, 43.6, 20, -0.55], ['farmA', 33.6, 29, 8, 0.35]];
+    const T = TREES_L;
     for (const [id, u, v, h, l] of T) { const q = MD[id]; if (!showLv(cut, q.lv)) continue; inFrame(m, mFrame(q), () => tree(m, o, u, v, Z[q.lv], h, u * 3 + v, l)); }
     if (showLv(cut, 2) && MD.pergola) inFrame(m, mFrame(MD.pergola), () => tree(m, o, 3.4, 15.4, Z[2], 7, 21, 0.4));
     // 船体边上长出来的树，根垂在外面

@@ -526,3 +526,17 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .cutbar.vert .vfly button:not(.wide) { width: 24px; padding: 0; }
 .cutbar .vfly .spd { font-size: 11px; color: var(--muted); margin-left: 4px; }
 .cutbar .vfly .spd.v { color: var(--ink); font-weight: 700; margin: 0; min-width: 30px; text-align: center; }
+
+/* 第一人称：左上角三个小方块（☰ 菜单 / 🗺 地图 / ✕），菜单展开在画面里 */
+.cutbar.fpbar { overflow: visible; }
+.fpmenu { position: absolute; left: calc(100% + 5px); top: 0; width: 330px; display: flex; flex-direction: column; gap: 4px; padding: 7px 8px; background: rgba(255, 250, 236, .96); border: 1px solid var(--ink); box-shadow: 2px 2px 0 rgba(42, 30, 48, .5); border-radius: 8px; font-size: 12px; }
+.fpmenu .r { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.fpmenu .r > span { color: var(--muted); min-width: 64px; }
+.fpmenu .r > span + button + span, .fpmenu .r > button + span { min-width: 0; margin-left: 6px; }
+.fpmenu .r b { min-width: 34px; text-align: center; }
+.fpmenu .r small { color: var(--muted); font-size: 10px; }
+.cutbar.vert .fpmenu button { width: auto; min-width: 26px; height: 24px; padding: 0 7px; font-size: 12px; }
+.fpmenu .help { margin-top: 3px; padding-top: 5px; border-top: 1px dashed rgba(60, 50, 60, .3); font-size: 11px; line-height: 1.5; color: #4a4050; }
+/* 上帝视角的 👁：竖着展开，紧贴在按钮旁边 */
+.cutbar .vfly { flex-direction: column; align-items: stretch; gap: 3px; padding: 4px; }
+.cutbar .vfly .row { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 3px; margin: 0; padding: 0; }

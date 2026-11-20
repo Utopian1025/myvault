@@ -608,7 +608,7 @@
     const hm = L.homes.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1 && PP.eco && PP.eco.homeKnown(h.species));
     if (hm) { hover = { x0: hm.x0, x1: hm.x1, y0: hm.y0, y1: hm.y1, tip: PP.eco.homeTip(hm.species), home: hm.species }; return hover; }
     // 鼠标在小场景的画上（不是透明的地方）：接住鼠标，这样滚轮能缩放；点了什么都不做
-    if (x >= g.x0 && x <= g.x0 + g.W && y >= g.y0 && y <= g.y0 + g.H && opaqueAt(x, y)) return { pad: true, cur: 'default' };
+    if (x >= g.x0 && x <= g.x0 + g.W && y >= g.y0 && y <= g.y0 + g.H && opaqueAt(x, y)) return { pad: true, x, y, cur: onGround(y) ? 'pointer' : 'default', tip: onGround(y) && !pTip ? '点地面：主角走过去' : null };
     return null;
   }
   let opq = null, opqKey = null;
@@ -631,8 +631,21 @@
     if (!zTip) { zTip = true; PP.ui.toast('滚轮缩放风景（停一下就按新大小重画）'); }
     clearTimeout(zT); zT = setTimeout(() => { s.sceneZ = zPend; zPend = 0; key = ''; PP.save.soon(); PP.eco && PP.eco.onView && PP.eco.onView(view()); PP.placeOrb && PP.placeOrb(); }, 160);
   }, { passive: false });
+  // 点风景里的地面：主角走过去（左右 + 前后都算）
+  let pTip = false;
+  function onGround(y) { const g = geo(); if (!g || !L || !L.v || inside) return false; const front = G.ground, back = front - vdepth(); return y >= back - 8 * g.u && y <= front + 6 * g.u; }
+  function walkHere(x, y) {
+    const p = [PP.F && PP.F.main && PP.F.main(), PP.mainPet && PP.mainPet()].find((q) => q && G.pets.includes(q)) || G.pets.find((q) => !q.d.wild); if (!p || p.held || !onGround(y)) return;
+    if (p.sleeping) { PP.ui.toast(`${p.d.name}在睡觉，等它醒了再说`, 1.4); return; }
+    pTip = true;
+    const front = G.ground, vd = vdepth(), lane = vd > 0 ? U.clamp((y - (front - vd)) / vd, 0, 1) : null, far = Math.abs(x - p.x) > G.W * 0.25;
+    for (let i = 0; i < 5; i++) PP.fx({ kind: 'dot', x: x + U.rand(-6, 6), y: y + U.rand(-2, 2), vx: U.rand(-30, 30), vy: U.rand(-60, -20), grav: 260, life: 0.5, col: '#fff2b0', size: G.S });
+    p.interrupt(true);
+    p.run('goHere', function* () { const me = this; yield me.goto(x, far, lane); me.anim = 'idle'; yield U.rand(2, 4); });
+  }
   function click(h) {
-    if (!h || h.pad) return;
+    if (!h) return;
+    if (h.pad) { walkHere(h.x, h.y); return; }
     if (h.go) { go(h.go); return; }
     if (h.leave) { leave(); return; }
     if (h.home) { homeMenu(h); return; }

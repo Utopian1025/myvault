@@ -241,7 +241,7 @@
   };
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.repeat) { if (PP.panic()) e.preventDefault(); escT = 0; } }, true);
   if (api && api.onHotkey) api.onHotkey((k) => {
-    if (k === 'escTap') { if (document.hasFocus()) return; const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
+    if (k === 'escTap') { PP.lastEscTap = performance.now(); if (document.hasFocus()) { if (PP.lookLostRecently && PP.lookLostRecently()) PP.panic(); return; } const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
     if (k === 'exitFull') { PP.panic() || (PP.exitFull && PP.exitFull()); return; }
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });
