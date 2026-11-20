@@ -43,7 +43,7 @@
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);
     if (G.bar) { const k = G.hoverPet || G.hoverItem; if (k !== barK) { barK = k; barSince = performance.now(); } G.barDwell = !!k && performance.now() - barSince > 450; petHot = G.barDwell; }
-    setInteractive(!!(petHot || dragPet || dragItem || overUI || G.uiDrag || G.editing));
+    setInteractive(!!(petHot || dragPet || dragItem || overUI || G.uiDrag || G.editing || (PP.isle && PP.isle.looking && PP.isle.looking())));
   };
 
   function markActive() {
