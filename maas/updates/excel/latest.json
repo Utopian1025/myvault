@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "product": "maas-excel",
+  "version": "0.8.9.23",
+  "name": "Maas_Excel_v0.8.9.23.zip",
+  "size": 4226121,
+  "sha256": "8d5712d616a67052ef017ea564af8a35ca4129d03b1a66947aef0fb28dd13f3c",
+  "url": "https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9.23/Maas_Excel_v0.8.9.23.zip",
+  "notes": "改善日期筛选、多列联动、非连续区域处理与导航收藏；内含可选Word0.2配套包。",
+  "parts": [
+    {
+      "index": 0,
+      "size": 4226121,
+      "sha256": "8d5712d616a67052ef017ea564af8a35ca4129d03b1a66947aef0fb28dd13f3c",
+      "url": "https://raw.githubusercontent.com/Utopian1025/myvault/39550c4d6c1458025e6ac54f1c41a4b85d2c89b1/maas/updates/excel/0.8.9.23/parts/0000.bin"
+    }
+  ],
+  "commit": "39550c4d6c1458025e6ac54f1c41a4b85d2c89b1"
+}

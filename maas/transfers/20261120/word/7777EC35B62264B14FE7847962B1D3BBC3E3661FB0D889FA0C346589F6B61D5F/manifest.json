@@ -1,0 +1,16 @@
+{
+  "product": "word",
+  "version": "0.2.0",
+  "name": "Maas_Word_v0.2.0.zip",
+  "sha": "7777EC35B62264B14FE7847962B1D3BBC3E3661FB0D889FA0C346589F6B61D5F",
+  "bytes": 158122,
+  "encodedLength": 210832,
+  "parts": [
+    {
+      "index": 0,
+      "name": "part-00000.b64",
+      "chars": 210832,
+      "sha256": "73AB3B3F2F75171D274E0C2F968CBF30710ADD589290AD6EB719705DECBE5488"
+    }
+  ]
+}
