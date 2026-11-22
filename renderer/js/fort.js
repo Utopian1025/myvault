@@ -634,11 +634,11 @@
             const bd = ['#8a6040', '#7a5436', '#946a46', '#80583a'];
             m.box(u, v, z, u + PS, v + 0.25, z + 1.7, bd[i % 4], M.plank); m.box(u, v + PS - 0.25, z, u + PS, v + PS, z + 1.7, bd[(i + 1) % 4], M.plank);
             m.box(u, v + 0.25, z, u + 0.25, v + PS - 0.25, z + 1.7, bd[(i + 2) % 4], M.plank); m.box(u + PS - 0.25, v + 0.25, z, u + PS, v + PS - 0.25, z + 1.7, bd[(i + 3) % 4], M.plank);
-            for (const [pu, pv] of [[u, v], [u + PS, v], [u, v + PS], [u + PS, v + PS]]) { m.box(pu - 0.22, pv - 0.22, z, pu + 0.22, pv + 0.22, z + 2.1, '#5a3a24', M.plank); m.box(pu - 0.28, pv - 0.28, z + 2.1, pu + 0.28, pv + 0.28, z + 2.25, '#3a2618', M.plank); }
+            for (const [pu, pv] of [[u + 0.28, v + 0.28], [u + PS - 0.28, v + 0.28], [u + 0.28, v + PS - 0.28], [u + PS - 0.28, v + PS - 0.28]]) { /* 木桩收在菜畦边沿里面：不往外凸，菜地后面那条窄走道还走得过去 */ m.box(pu - 0.22, pv - 0.22, z, pu + 0.22, pv + 0.22, z + 2.1, '#5a3a24', M.plank); m.box(pu - 0.28, pv - 0.28, z + 2.1, pu + 0.28, pv + 0.28, z + 2.25, '#3a2618', M.plank); }
             for (let k = 0; k < 3; k++) { const rv = v + 0.75 + k * ((PS - 1.5) / 2); m.box(u + 0.5, rv - 0.32, z + 1.45, u + PS - 0.5, rv + 0.32, z + 1.62, ridge, M.soil); m.box(u + 0.55, rv - 0.18, z + 1.62, u + PS - 0.55, rv + 0.18, z + 1.72, ridge, M.soil); }
             for (let k = 0; k < 2; k++) { const fv = v + 0.75 + (k + 0.5) * ((PS - 1.5) / 2); m.box(u + 0.5, fv - 0.14, z + 1.45, u + PS - 0.5, fv + 0.14, z + 1.48, furrow, M.soil); }
             { const f0 = o.farm && o.farm[i], tag = f0 ? (CROP_TAG[f0.crop] || '#e0b060') : '#d8c4a0'; m.box(u + PS - 0.75, v + PS - 0.42, z + 1.45, u + PS - 0.63, v + PS - 0.32, z + 3.0, '#6a4a30', M.plank); m.box(u + PS - 1.05, v + PS - 0.44, z + 2.4, u + PS - 0.33, v + PS - 0.3, z + 3.1, '#e8d8b8', M.plank); m.box(u + PS - 0.95, v + PS - 0.46, z + 2.5, u + PS - 0.43, v + PS - 0.28, z + 3.0, tag, 0); }
-            m.pk(0); for (let k = 0; k < 3; k++) m.box(u + 0.4 + k * (PS - 1.4) / 2, v + PS + 0.35, z, u + 1.0 + k * (PS - 1.4) / 2, v + PS + 0.95, z + 0.12, ['#9a948a', '#a8a298', '#8e887e'][k], M.stone); m.pk(PK.plot + i);
+            m.pk(0); for (let k = 0; k < 3; k++) m.box(u + 0.4 + k * (PS - 1.4) / 2, v + PS + 0.35, z, u + 1.0 + k * (PS - 1.4) / 2, v + PS + 0.95, z + 0.06, ['#9a948a', '#a8a298', '#8e887e'][k], M.stone); m.pk(PK.plot + i);
             const f = o.farm && o.farm[i]; if (f && Pt.crop) for (let ka = 0; ka < 3; ka++) for (let kb = 0; kb < 3; kb++) Pt.crop(m, f.crop, f.stage, u + 0.9 + ka * 1.3, v + 0.9 + kb * 1.3, z + 1.7, i * 9 + ka * 3 + kb);
             m.pk(0);
             m.box(u + 0.2, v - 0.25, z + 1.6, u + PS - 0.2, v - 0.05, z + 1.85, C.COP, M.metal);

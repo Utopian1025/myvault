@@ -1004,6 +1004,15 @@
     try { window.petAPI && window.petAPI.focusWin && window.petAPI.focusWin(); } catch (e) {}
     try { const r = el.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
   }
+  /* 第一人称里弹出了要点的东西（选种子、菜单、面板）：先把鼠标松开让你点，点完关掉再锁回去 */
+  const uiOpen = () => !!document.querySelector('.seedpick,.orb-pop,.menu,.panel');
+  function popCheck() {
+    if (!fp) return; const o = uiOpen();
+    if (o && lookOn()) { fp.popFree = true; lookFree(); }
+    else if (!o && fp.popFree) { fp.popFree = false; if (lookPref() && !fp.freeMouse && lastPT !== 'touch') lookGrab(); }
+  }
+  window.addEventListener('click', () => { if (fp && fp.popFree) setTimeout(popCheck, 0); });
+  window.addEventListener('keydown', () => { if (fp && fp.popFree) setTimeout(popCheck, 0); });
   function lookFree() { if (document.pointerLockElement) { lookBye = true; try { document.exitPointerLock(); } catch (e) {} } }
   /* M：锁住 / 松开鼠标（锁住时移动鼠标就转头；松开时按住鼠标拖动转头，或者用 ← → 键） */
   function lookToggle() {
@@ -1013,7 +1022,7 @@
   }
   document.addEventListener('pointerlockchange', () => {
     const on = lookOn(), self = lookBye; lookBye = false;
-    if (document.pointerLockElement && (!fp || !lookPref() || fp.freeMouse || fpMenu || bigMap)) { lookFree(); return; } // 刚锁上时已经关掉 / 退出 / 开了菜单
+    if (document.pointerLockElement && (!fp || !lookPref() || fp.freeMouse || fpMenu || bigMap || uiOpen())) { if (fp && uiOpen()) fp.popFree = true; lookFree(); return; } // 刚锁上时已经关掉 / 退出 / 开了菜单
     if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标就转头 · 按 M 松开', 2.4); } else if (!self && fp) { lookLostT = performance.now(); if (performance.now() - (PP.lastEscTap || -1e9) < 600 && PP.panic) PP.panic(); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键 // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
     PP.refreshInteractive && PP.refreshInteractive(); if (fp) fpBar();
   });
@@ -1028,7 +1037,7 @@
     turnBy(U.clamp(e.movementX || 0, -150, 150), U.clamp(e.movementY || 0, -150, 150), 0.0024 * fpSens());
   }, true);
   for (const t of ['mousedown', 'mouseup', 'click', 'dblclick']) window.addEventListener(t, (e) => {
-    if (!lookOn()) return; e.stopImmediatePropagation(); e.preventDefault();
+    if (!lookOn() || fp.popFree) return; e.stopImmediatePropagation(); e.preventDefault();
     if (t === 'mousedown' && e.button === 0) fpUse(null);
     if (t === 'mousedown' && e.button === 2) fpJump();
   }, true);
@@ -1055,6 +1064,7 @@
   function fpMove(du, dv) { const q = fp.q, n = Math.max(1, Math.ceil(Math.hypot(du, dv) / 0.3)); for (let i = 0; i < n; i++) { const a = du / n, b = dv / n; if (!fpStepTo(q.u + a, q.v + b) && !fpStepTo(q.u + a, q.v) && !fpStepTo(q.u, q.v + b)) return false; } return true; }
   function fpTick(dt) {
     const p = fp.p; if (!G.pets.includes(p) || p.held) { fpStop(true); return; }
+    if (lookOn() && uiOpen()) popCheck();
     const K = fp.keys, q = fp.q;
     let mv = (K.has('f') ? 1 : 0) - (K.has('b') ? 1 : 0), st = (K.has('r') ? 1 : 0) - (K.has('l') ? 1 : 0); const tn = (K.has('tr') ? 1 : 0) - (K.has('tl') ? 1 : 0);
     // 主角被派去干别的事（你点了床、菜地……）：镜头跟着它；你一按方向键就收回来
@@ -1572,6 +1582,7 @@
       PP.hud && PP.hud.close(); cmd('plant', i, k);
     });
     if (PP.hud) PP.hud.pop(el, { x, y });
+    popCheck();
   }
   function cmd(a, b, c) { if (a === 'plant') { const p = mainP(); if (p) { p.interrupt(true); PP.fpAllow = true; try { p.run('isleSow', A.isleSow, +b, c); } finally { PP.fpAllow = false; } p._byYou = true; p._stayUntil = performance.now() + 25000; } else if (PP.econ.plant(+b, c)) PP.ui.toast('种下了'); } }
   // 兼容老接口：setInside('house') = 进起居室；false = 回到外面
