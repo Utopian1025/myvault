@@ -207,6 +207,9 @@
     if(uOcc>0.5){ bool keep=false; for(int i=0;i<4;i++){ vec4 q=uPet[i]; if(q.z<=0.0) continue; float yy=uH-gl_FragCoord.y;
       if(abs(gl_FragCoord.x-q.x)<q.z*0.66 && yy>q.y-q.z*1.2 && yy<q.y+q.z*0.15 && vD>q.w+0.6 && vW.z>uPetZ[i].x+0.5) keep=true; }
       if(!keep) discard; }
+    // 第一人称：玻璃是透明的（看得见外面），不再是一整块发光的黄玻璃，一动就闪
+    // 第一人称：玻璃画成很淡的一层（隔几个像素留一点浅蓝），看得见外面也看得出那儿有玻璃挡着；点东西时能点穿玻璃
+    if(uFP.w>0.0 && int(mod(vM+0.5,32.0))==5){ if(uPick>0.5 || uMode>0.5) discard; vec2 g=mod(floor(gl_FragCoord.xy),3.0); if(g.x+g.y>0.5) discard; o=vec4(mix(uSkyTop,vec3(0.86,0.95,1.0),0.6),1.0); return; }
     if(uPick>0.5){ o=vec4(floor(vM/32.0+0.01)/255.0,0.0,0.0,1.0); return; }
     vec3 n=normalize(vN); vec3 V=normalize(uVd); if(uFP.w>0.0) V=normalize(uFP.xyz-vec3(vW.xy*${MU}, vW.z*${MZ})); if(dot(n,V)<0.0) n=-n;
     int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0;

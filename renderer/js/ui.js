@@ -278,7 +278,7 @@
           <div class="muted">每个风景有自己的季节：沙漠、丛林一年都热，南极一直是冬天。</div>`,
         fp: () => `<div class="muted">在城堡里按 F 进第一人称。下面这些在第一人称的 ☰ 菜单里也能改。</div>
           ${chk('fpmouse', s.fpMouse !== false, '动鼠标就转头（关掉的话按住拖动才转）')}${chk('fpinvx', s.fpInvX, '左右反过来')}${chk('fpinvy', s.fpInvY, '上下反过来')}
-          ${chk('fpmap', s.fpMap !== false, '显示小地图')}${chk('fpfull', s.fpFull, '进去就全屏（游戏里按 F 切换）')}
+          ${chk('fpmap', s.fpMap !== false, '显示小地图')}${chk('fpajump', s.fpAutoJump !== false, '自动跳（碰到矮东西自己跳上去）')}${chk('fpfull', s.fpFull, '进去就全屏（游戏里按 F 切换）')}
           <label>画质 <select class="fpq">${opt([['fine', '精细'], ['pixel', '像素风']], s.fpQ || 'fine')}</select></label>
           <label>视野 <select class="fpfov">${(() => { const v = U.clamp(+s.fpFov || 78, 50, 110), L = [[60, '窄 60°'], [78, '适中 78°'], [90, '宽 90°'], [105, '很宽 105°']]; if (!L.some(([k]) => k === v)) L.push([v, '现在 ' + v + '°']); return opt(L.sort((a, b) => a[0] - b[0]), v); })()}</select></label>`,
       };
@@ -301,7 +301,7 @@
         on('.sleep', 'onchange', (e) => R(e.target.value === 'off' ? 'sleep:off' : 'sleep:' + e.target.value));
         on('.weather', 'onchange', (e) => R('weather:' + e.target.value)); on('.season', 'onchange', (e) => R('season:' + e.target.value));
         on('.fpmouse', 'onchange', (e) => { s.fpMouse = e.target.checked; sv(); }); on('.fpinvx', 'onchange', (e) => { s.fpInvX = e.target.checked; sv(); }); on('.fpinvy', 'onchange', (e) => { s.fpInvY = e.target.checked; sv(); });
-        on('.fpmap', 'onchange', (e) => { s.fpMap = e.target.checked; sv(); }); on('.fpfull', 'onchange', (e) => { s.fpFull = e.target.checked; sv(); });
+        on('.fpmap', 'onchange', (e) => { s.fpMap = e.target.checked; sv(); }); on('.fpajump', 'onchange', (e) => { s.fpAutoJump = e.target.checked; sv(); }); on('.fpfull', 'onchange', (e) => { s.fpFull = e.target.checked; sv(); });
         on('.fpq', 'onchange', (e) => { s.fpQ = e.target.value; sv(); }); on('.fpfov', 'onchange', (e) => { s.fpFov = +e.target.value; sv(); });
         b.querySelectorAll('[data-r]').forEach((x) => (x.onclick = () => R(x.dataset.r)));
       };

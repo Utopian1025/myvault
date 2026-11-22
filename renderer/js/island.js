@@ -714,7 +714,7 @@
   // 操作像 CS / 我的世界：WASD 走（A 左 D 右）、鼠标看、空格跳、Shift 跑、E 用、Tab 地图、滚轮拉远拉近（拉远就是第三人称）
   // 走路按“真的地面”算：脚下最高的那个面（楼板、楼梯的坡面、能站上去的家具），墙挡路，栏杆跳起来能翻过去，踩空就往下掉
   let fpBarEl = null, fpMenu = false, bigMap = null, fpHintT = 0;
-  const PH = 8, EYE = 7.2, BODYH = 4.3, CROUCH = 3.9, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
+  const PH = 8, EYE = 7.2, BODYH = 3.6, CROUCH = 3.0, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
   const fpQ = () => (S().fpQ === 'pixel' ? 'pixel' : 'fine');
   const fpK = () => (fpQ() === 'pixel' ? pixK() : 1 / Math.min(2, DPR())); // 精细：按屏幕实际像素画（高分屏最多 2 倍）
   const fpDist = () => U.clamp(+S().fpDist || 0, 0, 14);
@@ -803,7 +803,7 @@
   let navC = null, navB = null;
   function navRow(B) { const a = area(), { lv, j } = B; for (let i = 0; i < GN; i++) navCell(a, B.g, B.h, lv, i, j); }
   function navAdvance(B, budget) { const t0 = performance.now(); while (B.lv < Z.length) { navRow(B); if (++B.j >= GN) { B.j = 0; B.lv++; } if (budget != null && performance.now() - t0 > budget) break; } if (B.lv >= Z.length) { navC = { V: B.V, g: B.g, h: B.h }; navB = null; mapC = null; } }
-  function navReady() { const V = voxels(); if (navC && navC.V === V) return navC; if (!navB || navB.V !== V) navB = { V, lv: 0, j: 0, g: Z.map(() => new Uint8Array(GN * GN)), h: Z.map(() => new Float32Array(GN * GN)) }; navAdvance(navB, 4); return navC && navC.V === V ? navC : null; }
+  function navReady() { const V = voxels(); if (navC && navC.V === V) return navC; if (!navB || navB.V !== V) navB = { V, lv: 0, j: 0, g: Z.map(() => new Uint8Array(GN * GN)), h: Z.map(() => new Float32Array(GN * GN)) }; navAdvance(navB, fp ? 8 : 4); return navC && navC.V === V ? navC : null; }
   function nav() {
     const V = voxels(); if (navC && navC.V === V) return navC;
     if (!navB || navB.V !== V) navB = { V, lv: 0, j: 0, g: Z.map(() => new Uint8Array(GN * GN)), h: Z.map(() => new Float32Array(GN * GN)) };
@@ -865,7 +865,6 @@
     PP.fpOn = true; fpMenu = false; bigMap = null; fpHintT = performance.now();
     try { window.petAPI && window.petAPI.focusWin && window.petAPI.focusWin(); } catch (e) {}
     document.body.classList.add('fpon'); layout(); fpBar(); PP.refreshInteractive();
-    if (lookPref() && lastPT !== 'touch') lookGrab();
   }
   function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再按 F 回到小窗口）' : '小窗口（按 F 全屏）', 1.4); }
   function fpStop(quiet) {
@@ -873,7 +872,7 @@
     if (p && G.pets.includes(p)) { if (p.action === 'fp') p.interrupt(true); if (!p.iw) { const at = nearFree(area(), q.u, q.v, q.lv); setIp(p, at[0], at[1], q.lv); } }
     if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; }
     if (hotEl) { hotEl.remove(); hotEl = null; }
-    document.body.classList.remove('fpon'); layout(); camChanged(); PP.refreshInteractive(); if (!quiet) PP.ui.toast('回到上帝视角');
+    document.body.classList.remove('fpon'); layout(); camChanged(); try { window.petAPI && window.petAPI.blurWin && window.petAPI.blurWin(); } catch (e) {} PP.refreshInteractive(); if (!quiet) PP.ui.toast('回到上帝视角');
   }
   // 主角的位置跟着镜头走（屏幕坐标也一起改，不然别的地方会按旧的屏幕位置把它“吸”回去）
   function fpSync() { const p = fp.p, q = fp.q; p.ip = { u: q.u, v: q.v, lv: q.lv, z: q.z }; p.isleLv = q.lv; if (L) p.x = scrU(q.u, q.v); }
@@ -886,7 +885,7 @@
       fpBarEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
       fpBarEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-a]'); if (b) fpAct(b.dataset.a, b); }); }
     const s = S(), on = (v) => (v ? 'class="on"' : ''), sp = fpSpd(), si = SPDS.indexOf(sp), d = fpDist(), se = fpSens();
-    const fk = [s.fpFull, fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
+    const fk = [s.fpAutoJump, s.fpFull, fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
     if (fpBarEl.dataset.k !== fk) { fpBarEl.dataset.k = fk;
       fpBarEl.innerHTML = `<button data-a="menu" ${on(fpMenu)} title="菜单：视角、镜头、鼠标、画质（Alt 先松开鼠标）">☰</button><button data-a="map" ${on(bigMap)} title="大地图（Tab）：点哪儿就自动走过去">🗺</button><button data-a="full" ${on(s.fpFull)} title="${s.fpFull ? '回到小窗口（F）' : '全屏（F）'}">⛶</button><button data-a="out" class="primary" title="回到上帝视角（Q）">✕</button>`
         + (fpMenu ? `<div class="fpmenu">
@@ -899,6 +898,7 @@
           <div class="r"><span>左右反过来</span><button data-a="invx" ${on(s.fpInvX)}>${s.fpInvX ? '开' : '关'}</button><span>上下反过来</span><button data-a="invy" ${on(s.fpInvY)}>${s.fpInvY ? '开' : '关'}</button></div>
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
+          <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
           <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看 · 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · Alt 松开鼠标 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
@@ -924,6 +924,7 @@
     else if (a === 'drag') { s.fpDrag = s.fpDrag === 'grab' ? 'look' : 'grab'; sv(); }
     else if (a === 'qfine' || a === 'qpix') { s.fpQ = a === 'qpix' ? 'pixel' : 'fine'; sv(); }
     else if (a === 'mini') { s.fpMap = s.fpMap === false; sv(); }
+    else if (a === 'ajump') { s.fpAutoJump = s.fpAutoJump === false; sv(); }
     if (fp) fpBar();
   }
   // ---- 键盘 ----
@@ -979,7 +980,7 @@
   document.addEventListener('pointerlockchange', () => {
     const on = lookOn(), self = lookBye; lookBye = false;
     if (document.pointerLockElement && (!fp || !lookPref() || fpMenu || bigMap)) { lookFree(); return; } // 刚锁上时已经关掉 / 退出 / 开了菜单
-    if (on) lookT = performance.now(); else if (!self && fp) { lookLostT = performance.now(); if (performance.now() - (PP.lastEscTap || -1e9) < 600 && PP.panic) PP.panic(); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
+    if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标转头 · 按 Esc 或 Alt 松开', 2.4); } else if (!self && fp) { lookLostT = performance.now(); PP.ui.toast('鼠标松开了（单击画面继续转头 · 再按一次 Esc 是老板键）', 2.4); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
     PP.refreshInteractive && PP.refreshInteractive(); if (fp) fpBar();
   });
   PP.lookLostRecently = () => performance.now() - lookLostT < 600;
@@ -1043,7 +1044,10 @@
     if (mv || st) {
       const sp = (K.has('run') ? RUN : SPEED * 0.8) * fpSpd() * dt, c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), n = Math.hypot(mv, st) || 1;
       // 往前 = (cos, sin)；往右 = (-sin, cos)
-      fpMove((c * mv - s2 * st) / n * sp, (s2 * mv + c * st) / n * sp); if (!fp.air) fp.bob += dt * (K.has('run') ? 14 : 9);
+      const u0 = q.u, v0 = q.v, du = (c * mv - s2 * st) / n, dv = (s2 * mv + c * st) / n;
+      fpMove(du * sp, dv * sp); if (!fp.air) fp.bob += dt * (K.has('run') ? 14 : 9);
+      /* 自动跳（像我的世界）：被不高的东西（花盆边、长凳、箱子……不到 3 格）挡住、上面又站得下，就自己跳上去 */
+      if (!fp.air && S().fpAutoJump !== false && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du * 0.45, nv = q.v + dv * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + stepAt(q.u, q.v) && !blocked(nu, nv, g2.z) && headroom(nu, nv, g2.z) > CROUCH + 0.5) fpJump(); }
     }
     // 竖直方向：跳起来 / 掉下去 / 落地
     const stH = stepAt(q.u, q.v), g = surf(q.u, q.v, q.z + stH);
@@ -1123,8 +1127,9 @@
     const need = { 2: (h) => h && h.k === 'plot' && PP.econ.plotInfo(h.i), 3: (h) => h && h.k === 'plot' && !PP.econ.plotInfo(h.i), 4: (h) => h && h.k === 'fish' }[slot];
     if (need && !need(h)) { PP.ui.toast(SLOTS5[slot - 1][0] + '：' + SLOTS5[slot - 1][2] + '（按 1 换回手）', 1.8); return; }
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
-    const where = h.pr ? h.pr.at : h.k === 'plot' ? F.plotStand(h.i) : null;
-    if (where && Math.hypot(where[0] - fp.q.u, where[1] - fp.q.v) > 5.5) { PP.ui.toast('够不着，走到跟前再用', 1.4); return; }
+    if (h.k === 'plot' && !nearPlot(fp.q.u, fp.q.v, h.i)) { PP.ui.toast('离菜地远了点，走到菜地边上再用', 1.4); return; }
+    const where = h.pr ? h.pr.at : null;
+    if (where && Math.hypot(where[0] - fp.q.u, where[1] - fp.q.v) > REACH) { PP.ui.toast('够不着，走到跟前再用', 1.4); return; }
     fp.auto = null; fpSync(); h.isle = true; PP.fpAllow = true; try { click(h, at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); } finally { PP.fpAllow = false; }
   }
   // ---- 地图：右上角小地图（点一下打开大地图）；大地图上点哪儿，主角自己走过去 ----
@@ -1205,7 +1210,7 @@
       const rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; if (f2 < 1) continue;
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
     vis.sort((a, b) => b.d - a.d);
-    for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); } catch (e) {} o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
     // 准星 + 准星指着的东西
     if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(w / 2, h / 2)); fp.aim = hh && hh.label ? hh.label : null; }
     const cx0 = x0 + w / 2, cy0 = y0 + h / 2, us = Math.max(1, Math.round(Math.min(w, h) / 260));
@@ -1213,10 +1218,11 @@
     const fs = U.clamp(Math.min(w, h) / 34, 11, 18); ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     let ty = cy0 + 12 * us; const pill = (tx, a = 0.72) => { const tw = ctx.measureText(tx).width; ctx.fillStyle = `rgba(30,24,40,${a})`; ctx.fillRect(cx0 - tw / 2 - 8, ty, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, ty + 5); ty += fs + 16; };
     if (fp.aim) pill('[E] ' + fp.aim);
-    if (lookPref() && !lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('单击画面：用鼠标转头', 0.55);
+    if (lookPref() && !lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('单击画面：用鼠标转头（Esc / Alt 随时松开）', 0.62);
+    if (lookOn()) { const t2 = '鼠标已锁定 · 按 Esc 或 Alt 松开', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     const age = (now - fpHintT) / 1000;
-    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 鼠标看 · 空格跳 · Shift 跑 · E 用 · Tab 地图 · V 第三人称 · 滚轮 视野 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 单击画面锁定鼠标转头（Esc 松开）· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }
@@ -1372,7 +1378,10 @@
     const m = r.c ? [r.c[0], r.c[1] + 1] : r.rot ? F.toW(r, (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2) : [(r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1]; const c = nearFree(area(), m[0], m[1], r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
   function click(h, x, y) {
     if (!h) return;
-    const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); } };
+    const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); p._byYou = true; p._stayUntil = performance.now() + 25000; } };
+    /* 它正在干你让它干的活（种菜、浇水、收菜、钓鱼……）：点到地面不打断它，免得一不小心就跑走了 */
+    const WORK = ['isleSow', 'isleWater', 'isleHarvest', 'isleFish', 'isleHive', 'isleUse', 'isleDrink', 'isleMail'];
+    if (h.k === 'ground' && p && WORK.includes(p.action) && p._byYou) { PP.ui.toast(`${p.name}正在忙，等它做完再走（点地面不会打断它）`, 1.6); return; }
     if (h.k === 'ground') { mark = { u: h.u, v: h.v, z: h.z, t: performance.now() }; go('isleGo', A.isleGo, h.u, h.v, h.lv); return; }
     if (h.k === 'hull') return;
     if (h.k === 'door' && !h.d) { setFocus('living', true); if (p) go('isleHouse', A.isleHouse, 'house'); return; } // 菜单里的“进屋”：去起居室
@@ -1416,7 +1425,7 @@
     });
     if (PP.hud) PP.hud.pop(el, { x, y });
   }
-  function cmd(a, b, c) { if (a === 'plant') { const p = mainP(); if (p) { p.interrupt(true); p.run('isleSow', A.isleSow, +b, c); } else if (PP.econ.plant(+b, c)) PP.ui.toast('种下了'); } }
+  function cmd(a, b, c) { if (a === 'plant') { const p = mainP(); if (p) { p.interrupt(true); PP.fpAllow = true; try { p.run('isleSow', A.isleSow, +b, c); } finally { PP.fpAllow = false; } p._byYou = true; p._stayUntil = performance.now() + 25000; } else if (PP.econ.plant(+b, c)) PP.ui.toast('种下了'); } }
   // 兼容老接口：setInside('house') = 进起居室；false = 回到外面
   function setInside(v) {  if (v === 'house' || v === true) setFocus('living', true); else if (v === 'gh') setCut(1); else if (typeof v === 'number') setCut(v); else setCut(null); }
 
@@ -1427,7 +1436,10 @@
   const face = (p, u, v) => { const [a, b] = uvOf(p), r1 = rotUV(a, b), r2 = rotUV(u, v), d = ((r2[0] - r1[0]) - (r2[1] - r1[1])) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
   const gain = (p, txt) => PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } });
   const fxAt = (u, v, z, o) => PP.fx(Object.assign({ x: scrU(u, v), y: scrV(u, v, z), s: 1 }, o));
-  function* walkTo(p, u, v, run, lv = 1) { if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; const q = p.ip; return !!q && (q.lv || 0) === lv && Math.hypot(q.u - u, q.v - v) < 2.2; }
+  /* 第一人称时主角是你在操控：从不自己走路，够得着就原地用，够不着就提示 */
+  const REACH = 4.5;
+  function* walkTo(p, u, v, run, lv = 1) { if (fp && fp.p === p) { const ok = Math.hypot(fp.q.u - u, fp.q.v - v) < REACH; if (!ok) PP.ui.toast('离得有点远，走近一些再用', 1.4); return ok; }
+    if (walkPlan(p, u, v, lv, run)) yield () => !p.iw; const q = p.ip; return !!q && (q.lv || 0) === lv && Math.hypot(q.u - u, q.v - v) < 2.2; }
   const stuck = (p) => { p.tool = null; p.fishing = null; say(p, U.pick(['过不去……', '那边走不过去', '咦，路被挡住了']), 2); p.anim = 'idle'; };
   function* hop(p, to, T = 0.34) {
     const [u0, v0] = uvOf(p), z0 = p.isleSpot ? p.isleSpot.z : ipOf(p).z, hh = 2.2 + Math.abs(to.z - z0) * 0.25; face(p, to.u, to.v);
@@ -1436,20 +1448,27 @@
     p.isleSpot = { u: to.u, v: to.v, z: to.z }; p.x = scrU(to.u, to.v); p.anim = 'land'; p.jolt(0, 2.4); yield 0.12; p.anim = 'idle';
   }
   function* hopOff(p, at) { const lv = at[2] != null ? at[2] : 1; yield* hop(p, { u: at[0], v: at[1], z: Z[lv] }); p.isleSpot = null; setIp(p, at[0], at[1], lv); }
+  A.isleWait = function* () { const p = this; p.anim = 'idle'; p.look = [0, 1]; if (Math.random() < 0.3) p.think(U.pick(['heart', 'note']), 1.2); yield U.rand(2.5, 4); };
   A.isleGo = function* (u, v, lv) { const p = this; yield* walkTo(p, u, v, null, lv == null ? 1 : lv); p.anim = 'idle'; p.look = [0, 1]; if (Math.random() < 0.3) p.think(U.pick(['heart', 'note', 'sparkle']), 1.2); yield U.rand(2, 4); };
   A.isleOut = function* () { const p = this; p.anim = 'idle'; p.eyes = 'happy'; p.jolt(0, -3); yield 0.4; yield* walkTo(p, HALL_OUT.u + U.rand(-2, 3), HALL_OUT.v + U.rand(1, 4)); p.eyes = 'open'; };
   const plotStand = (i) => F.plotStand(i);
+  /* 去菜地：第一人称时站在菜地任意一边、够得着就行（不用走到固定的那个位置） */
+  function nearPlot(u, v, i) { const [cu, cv] = F.plotC(i); return Math.hypot(u - cu, v - cv) < PS * 0.72 + 2.4; }
+  function* goPlot(p, i) {
+    if (fp && fp.p === p) { if (!nearPlot(fp.q.u, fp.q.v, i)) { PP.ui.toast('离菜地远了点，走到菜地边上再用', 1.4); return false; } return true; }
+    const [su, sv] = plotStand(i); return yield* walkTo(p, su, sv);
+  }
   const plotC = (i) => F.plotC(i);
   A.isleWater = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
-    p.tool = { k: 'can', t0: performance.now() }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'idle'; p.eyes = 'happy'; yield 0.2;
+    p.tool = { k: 'can', t0: performance.now() }; if (!(yield* goPlot(p, i))) { p.tool = null; if (!fp) stuck(p); return; } face(p, cu, cv - 2); p.anim = 'idle'; p.eyes = 'happy'; yield 0.2;
     p.tool = { k: 'can', t0: performance.now(), pour: true };
     for (let k = 0; k < 14; k++) { fxAt(cu + U.rand(-1.2, 1.2), cv + U.rand(-1.2, 1.2), cz + 4.5, { vy: 46, icon: 'drop', life: 0.45 }); if (k % 4 === 0) p.jolt(0, 1); yield 0.11; }
     if (PP.econ.waterPlot(i)) p.think('heart', 1); p.tool = null; p.jolt(0, -2); yield 0.5;
   };
   A.isleSow = function* (i, seed) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i);
-    if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2); p.anim = 'eat';
+    if (!(yield* goPlot(p, i))) { if (!fp) stuck(p); return; } face(p, cu, cv - 2); p.anim = 'eat';
     for (let k = 0; k < 4; k++) { p.jolt(k % 2 ? 1.5 : -1.5, 1); fxAt(cu + U.rand(-1, 1), cv + 0.6, cz + 1, { vx: U.rand(-30, 30), vy: -50, icon: 'leaf', life: 0.4 }); yield 0.22; }
     if (PP.econ.plant(i, seed)) { for (let k = 0; k < 5; k++) fxAt(cu + U.rand(-1, 1), cv + U.rand(-1, 1), cz + 3, { vy: 30, icon: 'sparkle', life: 0.5 }); PP.ui.toast(`种下了${PP.econ.ITEMS[seed].name.replace('种子', '').replace('球茎', '')}`); }
     p.anim = 'idle'; p.jolt(0, 2); yield 0.3; p.jolt(0, 2); yield 0.3;
@@ -1457,7 +1476,7 @@
   };
   A.isleHarvest = function* (i) {
     const p = this, [su, sv] = plotStand(i), [cu, cv, cz] = plotC(i), inf = PP.econ.plotInfo(i), col = inf && CROP_COL[inf.crop];
-    p.tool = { k: 'basket', t0: performance.now(), col }; if (!(yield* walkTo(p, su, sv))) { stuck(p); return; } face(p, cu, cv - 2);
+    p.tool = { k: 'basket', t0: performance.now(), col }; if (!(yield* goPlot(p, i))) { p.tool = null; if (!fp) stuck(p); return; } face(p, cu, cv - 2);
     for (let k = 0; k < 3; k++) { p.anim = 'eat'; p.jolt(k % 2 ? 2 : -2, 1.5); yield 0.28; p.anim = 'idle'; p.jolt(0, -2.5); fxAt(cu + (k - 1), cv, cz + 3, { vy: -70, vx: (p.x - scrU(cu, cv)) * 1.5, icon: 'sparkle', life: 0.5 }); yield 0.22; }
     PP.econ.harvest(i); fort().fuel = Math.min(100, fort().fuel + 4); p.tool.full = true; p.anim = 'jump'; p.jolt(0, -4); p.eyes = 'happy'; p.think('heart', 1.4); yield 0.5; p.anim = 'idle'; yield 0.9; p.tool = null;
   };
@@ -1465,7 +1484,8 @@
   A.isleDrink = function* () { const p = this; if (!(yield* walkTo(p, ...F.tapStand()))) { stuck(p); return; } face(p, TAP.u, TAP.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TAP.u, TAP.v - 0.9, 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
   A.isleFish = function* () {
     const p = this;
-    if (!(yield* walkTo(p, FISH.u, FISH.v, null, FISH.lv))) { stuck(p); return; } face(p, BOB.u, BOB.v); p.anim = 'sit';
+    if (fp && fp.p === p) { if (Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 8 || fp.q.lv !== FISH.lv) { PP.ui.toast('走到蓄水池边上再钓', 1.4); return; } } /* 第一人称：池边哪儿都能钓 */
+    else if (!(yield* walkTo(p, FISH.u, FISH.v, null, FISH.lv))) { stuck(p); return; } face(p, BOB.u, BOB.v); p.anim = 'sit';
     const set = (ph) => { p.fishing = Object.assign(p.fishing || {}, { ph, t0: performance.now() }); };
     set('cast'); p.jolt(0, -2); yield 0.8; ripple(BOB.u, BOB.v); yield 0.6; set('wait'); yield U.rand(3, 7); set('nibble'); ripple(BOB.u, BOB.v); yield U.rand(0.9, 1.6);
     set('bite'); ripple(BOB.u, BOB.v); p.eyes = 'wide'; p.think('excl', 0.8); yield () => !p.fishing || p.fishing.helped || performance.now() - p.fishing.t0 > 1500;
@@ -1591,6 +1611,9 @@
   PP.Pet.prototype.decide = function () {
     if (G.isle && this.isleSpot && !this.sleeping && !this.fishing) { const s = this.isleSpot, a = area(), q = ipOf(this); this.isleSpot = null; if (Math.hypot(s.u - q.u, s.v - q.v) > 6) { const c = nearFree(a, s.u, s.v, q.lv); setIp(this, c[0], c[1], q.lv); } }
     if (G.isle && this.tool && !this.gen) this.tool = null;
+    this._byYou = false;
+    /* 你刚让它干完活：在原地待一会儿（你可能还要接着种、接着浇），不马上自己跑开 */
+    if (G.isle && G.pets.includes(this) && this._stayUntil && performance.now() < this._stayUntil && !(PP.sleepTime && PP.sleepTime())) { this.run('isleWait', A.isleWait); return; }
     // 睡觉时间：回卧室的床上睡，不在甲板上随地一躺
     if (G.isle && G.pets.includes(this) && !this.held && PP.sleepTime && PP.sleepTime() && !this.sleeping) { const bed = props().find((x) => x.do === 'sleep'); if (bed) { this.run('isleUse', A.isleUse, bed); return; } }
     if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {

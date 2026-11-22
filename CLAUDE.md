@@ -30,7 +30,7 @@
 - `onboard.js`：新手引导卡片（`PP.onboard.start/step`，进度在 `flags.onboard`，9 = 做完）。
 - 认养的伙伴住城堡：`d.ownHome === 'castle'`（`wild.js` 的 `toCastle()` 迁移老存档），`eco.js` 不再模拟它们，`world.js syncPets` 在城堡里把它们都显示出来。
 - `quest.js`：每日委托 + 新手任务（`econ.starter`：feed → plant → pat → trip），「带我去」调 `PP.isle.questGo(k)`。成长面板（`econ.js`）分四组 `GROUPS`。
-- 第一人称另有：F 全屏（`S().fpFull`，`layout()` 里把 `L.v*` 铺满）、快捷栏 1～5（`S().fpSlot`，`.fphot`）、C 坐 / Z 躺（`fp.pose`）、按视线看见别的动物（`sees()`，体素射线）、在城堡里后台预算碰撞和地图（`warmLoop`）。
+- 第一人称另有：F 全屏（`S().fpFull`，`layout()` 里把 `L.v*` 铺满）、快捷栏 1～5（`S().fpSlot`，`.fphot`）、C 坐 / Z 躺（`fp.pose`）、按视线看见别的动物（`sees()`，体素射线）、在城堡里后台预算碰撞和地图（`warmLoop`）。第一人称时主角从不自动走路：`walkTo` 只判断够不够得着（`REACH`），菜地用 `goPlot/nearPlot`（任意一边）。鼠标不自动锁，单击画面才锁；锁着时单按 Esc 只松开鼠标，再按才是老板键（`menu.js` 的 keydown 里判断 `PP.isle.looking()`）。玻璃在第一人称里画成稀疏的淡色（`isle3d.js`）。BODYH 3.6 / CROUCH 3.0；自动跳 `S().fpAutoJump`。
 - `eco.js / wild.js / econ.js / life.js`：生态、野生动物与认养、经济/探险、种植。
 - `dmaps.js / vmaps.js / worlds.js / dio.js`：各个风景的布景。
 
@@ -39,6 +39,7 @@
 - 预置存档：`localStorage['pixelpets.save.v1']`。
 - 进城堡：`PP.setView('isle')`；剖层 `PP.isle.setCut(lv)`；进房间 `PP.isle.setFocus(id)`；第一人称 `PP.isle.fpStart()`；地图弹窗 `PP.modes.showMap()`。
 - 改了城堡布局后，要检查宠物能走到每块菜地、每个门（网格 BFS），并且房间之间不重叠。
+- 测试环境（swiftshader）一秒只有几帧，游戏时间走得很慢：测动作要在页面里手动推进（`p.update(dt)` + `fpDebug.tick(dt)`），点东西前先等一帧让拾取用上新画面。
 - 改了第一人称或城堡布局后：用 `PP.isle.fpDebug.go(u,v,lv)` + `tick` 让它自己走到每个房间 / 菜地 / 院子（都要到、层要对），再乱走乱跳几分钟，检查 `blocked` 始终为 false（不穿墙）。
 
 ## 下一步（用户已同意，还没做）

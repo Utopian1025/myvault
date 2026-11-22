@@ -322,7 +322,7 @@
     if (!pop) return;
     const pr = pop.getBoundingClientRect(), sb = PP.safeB ? PP.safeB() : G.H;
     /* 大地图：放在屏幕正中间，看得清楚 */
-    if (pop.classList.contains('map2') && pop.classList.contains('size-L')) { pop.style.left = Math.round((G.W - pr.width) / 2) + 'px'; pop.style.top = Math.round(Math.max(8, (sb - pr.height) / 2)) + 'px'; return; }
+    if ((pop.classList.contains('map2') && pop.classList.contains('size-L')) || pop.classList.contains('seedpick')) { pop.style.left = Math.round((G.W - pr.width) / 2) + 'px'; pop.style.top = Math.round(Math.max(8, (sb - pr.height) / 2)) + 'px'; return; }
     let ax, ay0, ay1;
     if (popAt) { ax = popAt.x; ay0 = popAt.y - 8; ay1 = popAt.y + 8; }
     else { const b = (hud && hud.querySelector(`[data-h="${popKind}"]`)) || hud, r = b.getBoundingClientRect(); ax = r.left + r.width / 2; ay0 = r.top; ay1 = r.bottom; }
