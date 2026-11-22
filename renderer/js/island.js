@@ -620,7 +620,7 @@
         const ra = at(S2.lo - 0.8, S2.a) || at(S2.lo + 0.5, S2.a), rb = at(S2.hi + 0.8, S2.b) || at(S2.hi - 0.5, S2.b); add(ra, rb, 'stair'); } }
     return [...(nbC[id] || new Map())].map(([k, how]) => ({ id: k, how, r: RM[k] }));
   }
-  function goRoom(id) { const p = mainP(), r = RM[id]; setFocus(id); if (p && r) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; const q = roomSpot(id); p.run('isleGo', A.isleGo, q.u, q.v, q.lv); } }
+  function goRoom(id) { const p = mainP(), r = RM[id]; setFocus(id); if (p && r) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; const q = roomSpot(id); p.run('isleGo', A.isleGo, q.u, q.v, q.lv); p._byYou = true; p._stayUntil = performance.now() + 25000; } }
   // 主角从你正在看的房间走到隔壁，镜头跟过去
   function followTick() {
     if (!focus) return; const p = mainP(); if (!p || p.held) return; const r = roomOfP(p), was = p._rm; p._rm = r ? r.id : null;
@@ -675,10 +675,12 @@
     /* 按钮旁边的文字：前几次进城堡一直显示，之后鼠标停上去才显示 */
     cbar.querySelectorAll('button[title]').forEach((b) => { if (!b.dataset.l) b.dataset.l = b.title.split('（')[0]; });
     cbar.classList.toggle('tips', (S().cbarSeen || 0) < 4);
-    const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.5); cbar.style.transformOrigin = 'left top'; cbar.style.transform = `scale(${sc.toFixed(3)})`;
-    const h = cbar.offsetHeight * sc;
-    cbar.style.left = Math.max(2, L.vx0 + 6) + 'px'; cbar.style.top = Math.max(2, L.vy0 + 6) + 'px';
-    void h; tagsKey = ''; placeTags(); PP.refreshInteractive();
+    const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.5);
+    /* 每一帧都会来这里：只有按钮内容或位置真的变了才动 DOM，不然按钮一直被重建 → 点不动、一直闪 */
+    const pk = [cbar.dataset.k, sc.toFixed(3), L.vx0, L.vy0, cbar.classList.contains('tips')].join('|');
+    if (cbar.dataset.pk !== pk) { cbar.dataset.pk = pk; cbar.style.transformOrigin = 'left top'; cbar.style.transform = `scale(${sc.toFixed(3)})`;
+      cbar.style.left = Math.max(2, L.vx0 + 6) + 'px'; cbar.style.top = Math.max(2, L.vy0 + 6) + 'px'; tagsKey = ''; PP.refreshInteractive(); }
+    placeTags();
   }
   // 画面里的标签：整层看时每个房间头上一个名牌（点了进去）；详细视图里每个门口 / 楼梯口一个门牌（点了走过去）
   let tagsEl = null, tagsKey = '';
@@ -699,12 +701,15 @@
     if (!G.isle || !L || cut == null) { if (tagsEl) { tagsEl.remove(); tagsEl = null; } return; }
     const k = [cut, focus, fedit, L.x0, L.y0, L.u, S().isleYaw, S().islePitch, mir()].join('|'); if (k === tagsKey && tagsEl) return; tagsKey = k;
     if (!tagsEl) { tagsEl = document.createElement('div'); tagsEl.className = 'rtags'; document.getElementById('ui').appendChild(tagsEl);
-      tagsEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
-      tagsEl.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; if (b.dataset.go) goRoom(b.dataset.go); else if (b.dataset.room) setFocus(b.dataset.room); }); }
+      /* 按下就生效（不等 click）：镜头在动、牌子在挪时，click 常常落不到按钮上 → 以前点了没反应 */
+      tagsEl.addEventListener('mousedown', (ev) => { ev.stopPropagation(); if (ev.button !== 0) return; const b = ev.target.closest('button'); if (!b) return; ev.preventDefault(); if (b.dataset.go) goRoom(b.dataset.go); else if (b.dataset.room) setFocus(b.dataset.room); }); }
     const fs = U.clamp(Math.min(L.vw, L.vh) / 42, 10, 18), list = tagList(); let spare = 0;
-    tagsEl.innerHTML = list.map((t) => { let x, y; if (t.u == null) { x = L.vx1 - 10; y = L.vy0 + 10 + (spare++) * (fs + 14); } else { x = scrU(t.u, t.v); y = scrV(t.u, t.v, t.z); }
-      if (x < L.vx0 - 20 || x > L.vx1 + 20 || y < L.vy0 - 10 || y > L.vy1 + 10) return '';
-      return `<button class="${t.go ? 'go' : 'rm'}" style="left:${Math.round(x)}px;top:${Math.round(y)}px;font-size:${fs.toFixed(1)}px;${t.u == null ? 'transform:translate(-100%,0)' : ''}" ${t.go ? `data-go="${t.go}" title="走过去"` : `data-room="${t.room}" title="进到${esc(t.t)}里面看"`}>${esc(t.t)}</button>`; }).join('');
+    /* 牌子还是那几块：只挪位置，不重建按钮（镜头在动时重建会让按下去的按钮消失 → 点不动、一直闪） */
+    const ck = list.map((t) => (t.go || t.room) + ':' + t.t).join('|') + '|' + fs.toFixed(1);
+    const pos = list.map((t) => { let x, y; if (t.u == null) { x = L.vx1 - 10; y = L.vy0 + 10 + (spare++) * (fs + 14); } else { x = scrU(t.u, t.v); y = scrV(t.u, t.v, t.z); } return [x, y, !(x < L.vx0 - 20 || x > L.vx1 + 20 || y < L.vy0 - 10 || y > L.vy1 + 10)]; });
+    if (tagsEl.dataset.ck !== ck) { tagsEl.dataset.ck = ck;
+      tagsEl.innerHTML = list.map((t) => `<button class="${t.go ? 'go' : 'rm'}" style="font-size:${fs.toFixed(1)}px;${t.u == null ? 'transform:translate(-100%,0)' : ''}" ${t.go ? `data-go="${t.go}" title="走过去"` : `data-room="${t.room}" title="进到${esc(t.t)}里面看"`}>${esc(t.t)}</button>`).join(''); }
+    [...tagsEl.children].forEach((b, i) => { const q = pos[i]; if (!q) return; b.style.left = Math.round(q[0]) + 'px'; b.style.top = Math.round(q[1]) + 'px'; b.style.display = q[2] ? '' : 'none'; });
     PP.refreshInteractive();
   }
 
@@ -985,6 +990,10 @@
     PP.refreshInteractive && PP.refreshInteractive(); if (fp) fpBar();
   });
   PP.lookLostRecently = () => performance.now() - lookLostT < 600;
+  /* 不锁鼠标时：记住鼠标在哪（指着什么、要不要在边上转头） */
+  window.addEventListener('mousemove', (e) => { if (!fp || lookOn()) return; fp.mx = e.clientX; fp.my = e.clientY; fp.overUI = !!(e.target && e.target.closest && e.target.closest('.fphot,.fpbar,.cutbar,.panel,.orb-pop,.menu,.seedpick,.toast')); }, true);
+  document.addEventListener('mouseleave', () => { if (fp) fp.mx = null; });
+  window.addEventListener('blur', () => { if (fp) fp.mx = null; });
   const turnBy = (dx, dy, k) => { const s = S(); fp.yaw += dx * k * (s.fpInvX ? -1 : 1); fp.pitch = U.clamp(fp.pitch - dy * k * (s.fpInvY ? -1 : 1), -1.3, 1.3); };
   window.addEventListener('mousemove', (e) => {
     if (!lookOn()) return;
@@ -1026,6 +1035,10 @@
       else { const q0 = p.isleSpot || ipOf(p); fp.q = { u: q0.u, v: q0.v, lv: p.isleLv != null ? p.isleLv : q.lv, z: q0.z != null ? q0.z : Z[p.isleLv || 1] }; fp.air = false; fp.vz = 0; return; }
     }
     fp.yaw += tn * 2.4 * dt; // → 往右转，← 往左转
+    /* 不锁鼠标：鼠标移到画面左右边上就一直转头，上下边上抬头低头（越靠边转得越快） */
+    if (!lookOn() && fp.mx != null && !fp.overUI && !fpMenu && !bigMap && !G.uiDrag && L) { const bx = L.vw * 0.12, by = L.vh * 0.12, mx = fp.mx - L.vx0, my = fp.my - L.vy0;
+      if (mx >= 0 && mx <= L.vw && my >= 0 && my <= L.vh) { const kx = mx < bx ? -(1 - mx / bx) : mx > L.vw - bx ? 1 - (L.vw - mx) / bx : 0, ky = my < by ? 1 - my / by : my > L.vh - by ? -(1 - (L.vh - my) / by) : 0;
+        fp.yaw += kx * 2.2 * dt * fpSens(); fp.pitch = U.clamp(fp.pitch + ky * 1.1 * dt * fpSens(), -1.3, 1.3); } }
     /* 坐下（C）/ 躺下（Z）：一动就起来；坐着、躺着慢慢回体力 */
     if (fp.pose && (mv || st || fp.auto || fp.air)) { fp.pose = null; }
     if (fp.pose) { mv = 0; st = 0; p.n.energy = Math.min(100, p.n.energy + dt * (fp.pose === 'lie' ? 0.6 : 0.25)); }
@@ -1121,6 +1134,7 @@
     return (o._see = ok);
   }
   function fpUse(at) {
+    fp.useT = performance.now();
     const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2, slot = S().fpSlot || 1;
     if (slot === 5) { const e = E(), id = Object.keys(e.bag).find((k) => e.bag[k] > 0 && PP.econ.ITEMS[k] && ['snack', 'dish', 'crop'].includes(PP.econ.ITEMS[k].kind)); if (!id) { PP.ui.toast('背包里没有吃的了（商店能买零食，菜地能收菜）', 2); return; } PP.econ.feedItem(fp.p, id); return; }
     const h = hotFromId(fpPick(x, y));
@@ -1189,6 +1203,51 @@
     bigMap = null; fpBar(); PP.ui.toast('自己走过去啦（按方向键可以停下）', 1.6);
   }
   // ---- 每一帧 ----
+  /* 第一人称的手：右下角一直画着主角的爪子，拿着快捷栏里的东西；干活时有动作，准星上面显示「正在……」和进度条，做完闪一下 */
+  const WORK_KIND = { isleWater: ['water', '正在浇水', 3.2], isleSow: ['sow', '正在播种', 3.5], isleHarvest: ['harvest', '正在收菜', 2.6], isleFish: ['fish', '正在钓鱼', 10], isleHive: ['use', '正在收蜂蜜', 3], isleDrink: ['use', '正在喝水', 3], isleMail: ['use', '正在看信箱', 2], isleUse: ['use', '正在用', 4], fed: ['eat', '正在吃', 2.5], isleStoke: ['use', '正在添柴', 6] };
+  const SLOT_KIND = [null, 'hand', 'can', 'seed', 'rod', 'snack'];
+  function drawHands(ctx, x0, y0, w, h, now) {
+    const p = fp.p, a = p.action, wk = WORK_KIND[a], t = now / 1000;
+    if (fp._wa !== a) { if (fp._wa && WORK_KIND[fp._wa] && (!a || a === 'fp')) fp._done = { t: now, tx: WORK_KIND[fp._wa][1].replace('正在', '') + '完成' }; fp._wa = a; fp._wt = now; }
+    let kind = wk ? wk[0] : SLOT_KIND[S().fpSlot || 1] || 'hand'; const el = wk ? (now - fp._wt) / 1000 : 0;
+    if (wk && p.tool && p.tool.k === 'can') kind = 'water'; else if (wk && p.tool && p.tool.k === 'basket') kind = 'harvest';
+    const u = Math.max(4, Math.round(Math.min(w, h) / 55)), C = p.pal || {}, base = C.base || '#d9a066', light = C.light || '#f4dcb8', dark = C.dark || '#8a5a3a', K = '#2a2030';
+    const walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto);
+    const bob = walking ? Math.sin(fp.bob) * u * 1.6 : Math.sin(t * 1.8) * u * 0.5, swayX = walking ? Math.cos(fp.bob * 0.5) * u * 1.2 : 0;
+    const useT = fp.useT ? Math.max(0, 1 - (now - fp.useT) / 350) : 0; // 刚按 E：往前伸一下
+    let hx = x0 + w * 0.8 + swayX, hy = y0 + h - u * 9 + bob - useT * u * 10, rot = -0.15;
+    if (kind === 'water' && wk) { hx -= u * 6; hy -= u * 6; rot = -0.15 - Math.min(1, el * 2) * 0.75; }
+    if (kind === 'sow' && wk) { const k = (t * 2.2) % 1; hy -= Math.sin(k * Math.PI) * u * 8; hx -= u * 4 * Math.sin(k * Math.PI); }
+    if (kind === 'harvest' && wk) { const k = (t * 2.6) % 1; hy -= Math.abs(Math.sin(k * Math.PI)) * u * 7; rot = -0.15 + Math.sin(t * 9) * 0.12; }
+    if (kind === 'use' && wk) { hy -= u * 8 + Math.sin(t * 8) * u * 2; hx -= u * 6; }
+    if (kind === 'eat' && wk) { const k = Math.min(1, el / 0.6); hx -= (hx - (x0 + w * 0.55)) * k; hy -= u * 10 * k; }
+    const R = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(ww), Math.round(hh)); };
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(rot);
+    // 胳膊 + 爪子（主角自己的毛色）
+    R(-u * 4, 0, u * 8, h, K); R(-u * 3, 0, u * 6, h, base); R(-u * 1, 0, u * 2, h, dark);
+    R(-u * 5, -u * 6, u * 10, u * 7, K); R(-u * 4, -u * 5, u * 8, u * 6, base);
+    R(-u * 3, -u * 3, u * 2, u * 2, light); R(-u * 0.5, -u * 4, u * 2, u * 2, light); R(u * 2, -u * 3, u * 1.5, u * 2, light);
+    // 手里的东西
+    if (kind === 'can' || kind === 'water') { R(-u * 9, -u * 14, u * 12, u * 9, K); R(-u * 8, -u * 13, u * 10, u * 7, '#7fb8d8'); R(-u * 8, -u * 13, u * 10, u * 2, '#a8d4ec'); R(-u * 15, -u * 12, u * 7, u * 2, K); R(-u * 17, -u * 13, u * 3, u * 3, '#5a8aa8');
+      if (kind === 'water' && el > 0.4) for (let i = 0; i < 6; i++) { const k = (t * 1.6 + i / 6) % 1; R(-u * 17 - k * u * 4, -u * 11 + k * u * 26, u * 1.2, u * 2, 'rgba(140,200,255,.9)'); } }
+    else if (kind === 'seed' || kind === 'sow') { R(-u * 5, -u * 12, u * 9, u * 8, K); R(-u * 4, -u * 11, u * 7, u * 6, '#c8a070'); R(-u * 2, -u * 12, u * 3, u * 2, '#8a6a40');
+      if (kind === 'sow') for (let i = 0; i < 5; i++) { const k = (t * 1.4 + i / 5) % 1; R(-u * 4 - k * u * 18 + i * u, -u * 12 - Math.sin(k * Math.PI) * u * 10 + k * u * 16, u * 1.2, u * 1.2, '#6a4a2a'); } }
+    else if (kind === 'harvest') { R(-u * 9, -u * 13, u * 14, u * 9, K); R(-u * 8, -u * 12, u * 12, u * 7, '#c89a5a'); R(-u * 8, -u * 12, u * 12, u * 1.5, '#a87a3a');
+      if (el > 0.8) { R(-u * 6, -u * 15, u * 3, u * 4, '#f08a3a'); R(-u * 5.5, -u * 17, u * 2, u * 2, '#4c9a48'); } if (el > 1.6) { R(-u * 1, -u * 15, u * 3, u * 4, '#f08a3a'); R(-u * 0.5, -u * 17, u * 2, u * 2, '#4c9a48'); } }
+    else if (kind === 'rod' || kind === 'fish') { const bite = p.fishing && (p.fishing.ph === 'bite' || p.fishing.ph === 'nibble'), jig = bite ? Math.sin(t * 30) * 0.08 : 0;
+      ctx.save(); ctx.rotate(-0.9 + jig - (p.fishing && p.fishing.ph === 'reel' ? 0.4 : 0)); R(-u * 0.8, -u * 40, u * 1.6, u * 40, K); R(-u * 0.4, -u * 39, u * 0.8, u * 38, '#a87a4a'); R(-u * 2, -u * 4, u * 4, u * 3, '#5a4a3a');
+      if (kind === 'fish') { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -u * 40); ctx.quadraticCurveTo(-u * 6, -u * 20, -u * 10 + jig * u * 40, u * 4); ctx.stroke(); } ctx.restore(); }
+    else if (kind === 'snack' || kind === 'eat') { const sc = kind === 'eat' ? Math.max(0.2, 1 - el / 2.5) : 1; R(-u * 5 * sc, -u * 11 * sc - u * 2, u * 10 * sc, u * 8 * sc, K); R(-u * 4 * sc, -u * 10 * sc - u * 2, u * 8 * sc, u * 6 * sc, '#d8a05a'); R(-u * 2 * sc, -u * 9 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); R(u * 1 * sc, -u * 7 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); }
+    ctx.restore();
+    // 正在干什么 + 进度条（准星上方）；做完闪一下
+    const cx = x0 + w / 2, cy = y0 + h / 2, fs = U.clamp(Math.min(w, h) / 34, 11, 18);
+    ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    if (wk) { const k = Math.min(1, el / wk[2]), tx = wk[1] + '…', tw = Math.max(ctx.measureText(tx).width + 20, 120), by = cy - fs * 2.6;
+      ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx - tw / 2, by - fs - 6, tw, fs + 16); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx, by + 1);
+      ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(cx - tw / 2 + 6, by + 4, tw - 12, 4); ctx.fillStyle = '#ffd84a'; ctx.fillRect(cx - tw / 2 + 6, by + 4, (tw - 12) * k, 4); }
+    else if (fp._done && now - fp._done.t < 1300) { const a2 = 1 - (now - fp._done.t) / 1300, tx = '✓ ' + fp._done.tx, tw = ctx.measureText(tx).width + 20, by = cy - fs * 2.6 - (1 - a2) * 10;
+      ctx.globalAlpha = a2; ctx.fillStyle = 'rgba(40,120,60,.85)'; ctx.fillRect(cx - tw / 2, by - fs - 6, tw, fs + 12); ctx.fillStyle = '#fff'; ctx.fillText(tx, cx, by + 1); ctx.globalAlpha = 1; }
+  }
   function fpFrame(ctx) {
     const now = performance.now(), dt = Math.min(0.05, (now - fp.last) / 1000); fp.last = now;
     fpTick(dt); if (!fp) return;
@@ -1211,18 +1270,22 @@
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
     vis.sort((a, b) => b.d - a.d);
     for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) {} }
     // 准星 + 准星指着的东西
-    if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(w / 2, h / 2)); fp.aim = hh && hh.label ? hh.label : null; }
+    const cur = !lookOn() && fp.mx != null && !fp.overUI && fp.mx >= x0 && fp.mx <= x0 + w && fp.my >= y0 && fp.my <= y0 + h ? [fp.mx - x0, fp.my - y0] : null;
+    if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(cur ? cur[0] : w / 2, cur ? cur[1] : h / 2)); fp.aim = hh && hh.label ? hh.label : null; fp.aimAt = cur; }
     const cx0 = x0 + w / 2, cy0 = y0 + h / 2, us = Math.max(1, Math.round(Math.min(w, h) / 260));
-    ctx.fillStyle = 'rgba(20,16,30,.55)'; ctx.fillRect(cx0 - 7 * us, cy0 - us * 1.5, 14 * us, 3 * us); ctx.fillRect(cx0 - us * 1.5, cy0 - 7 * us, 3 * us, 14 * us); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(cx0 - 6 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 + 2 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 - us / 2, cy0 - 6 * us, us, 4 * us); ctx.fillRect(cx0 - us / 2, cy0 + 2 * us, us, 4 * us);
+    if (lookOn() || !cur) { /* 准星：锁着鼠标时才用；不锁时鼠标本身就是指针 */
+    ctx.fillStyle = 'rgba(20,16,30,.55)'; ctx.fillRect(cx0 - 7 * us, cy0 - us * 1.5, 14 * us, 3 * us); ctx.fillRect(cx0 - us * 1.5, cy0 - 7 * us, 3 * us, 14 * us); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(cx0 - 6 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 + 2 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 - us / 2, cy0 - 6 * us, us, 4 * us); ctx.fillRect(cx0 - us / 2, cy0 + 2 * us, us, 4 * us); }
     const fs = U.clamp(Math.min(w, h) / 34, 11, 18); ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     let ty = cy0 + 12 * us; const pill = (tx, a = 0.72) => { const tw = ctx.measureText(tx).width; ctx.fillStyle = `rgba(30,24,40,${a})`; ctx.fillRect(cx0 - tw / 2 - 8, ty, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, ty + 5); ty += fs + 16; };
-    if (fp.aim) pill('[E] ' + fp.aim);
-    if (!lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('按 M 锁定鼠标转头 · 或按住鼠标拖动转头', 0.62);
+    if (fp.aim && fp.aimAt) { const tx = '点一下：' + fp.aim, tw = ctx.measureText(tx).width, ax = U.clamp(x0 + fp.aimAt[0] + 16, x0 + 4, x0 + w - tw - 20), ay = U.clamp(y0 + fp.aimAt[1] + 14, y0 + 4, y0 + h - fs - 14); ctx.save(); ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(30,24,40,.78)'; ctx.fillRect(ax, ay, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, ax + 8, ay + 5); ctx.restore(); }
+    else if (fp.aim) pill('单击：' + fp.aim);
+    if (!lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('鼠标移到画面边上就转头 · 点东西就用 · M 锁定鼠标', 0.55);
     if (lookOn()) { const t2 = '鼠标已锁定 · 按 M 松开', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     const age = (now - fpHintT) / 1000;
-    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · M 锁定 / 松开鼠标 · 拖动也能转头· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 鼠标移到边上转头、点东西就用 · M 锁定鼠标· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }

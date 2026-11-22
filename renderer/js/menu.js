@@ -253,9 +253,11 @@
     if (G.save.settings.mode === 'full' && PP.exitFull) PP.exitFull();
     PP.setView(G.save.settings.lastMini || 'top'); return true;
   };
+  window.addEventListener('mousedown', () => { PP.lastUse = performance.now(); }, true);
+  window.addEventListener('wheel', () => { PP.lastUse = performance.now(); }, { capture: true, passive: true });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.repeat) { if (PP.panic()) e.preventDefault(); escT = 0; } }, true);
   if (api && api.onHotkey) api.onHotkey((k) => {
-    if (k === 'escTap') { PP.lastEscTap = performance.now(); if (document.hasFocus()) { if (PP.lookLostRecently && PP.lookLostRecently()) PP.panic(); return; } const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
+    if (k === 'escTap') { PP.lastEscTap = performance.now(); if (document.hasFocus()) { if (PP.lookLostRecently && PP.lookLostRecently()) PP.panic(); return; } /* 窗口没拿到键盘焦点，但你刚刚还在点它（15 秒内）：单按一下也收起来 */ if (performance.now() - (PP.lastUse || -1e9) < 15000) { escT = 0; PP.panic(); return; } const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
     if (k === 'exitFull') { PP.panic() || (PP.exitFull && PP.exitFull()); return; }
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });

@@ -580,7 +580,7 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .setall .sbody .row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* 第一人称时：跟着主角的那圈按钮先藏起来；面板总在城堡按钮上面 */
-body.fpon .hud, body.fpon .orb, body.fpon .dock { display: none !important; }
+body.fpon .hud, body.fpon .orb, body.fpon .dock, body.fpon .sdock, body.fpon .petring, body.fpon .isle-bar { display: none !important; }
 .panel { z-index: 50; }
 .menu { z-index: 60; }
 .toast { z-index: 70; }
