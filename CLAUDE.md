@@ -31,7 +31,8 @@
 - 认养的伙伴住城堡：`d.ownHome === 'castle'`（`wild.js` 的 `toCastle()` 迁移老存档），`eco.js` 不再模拟它们，`world.js syncPets` 在城堡里把它们都显示出来。
 - 城堡里的伙伴会自己干家务（`chore()`：收菜/种菜/浇水/添柴/捡蛋/蜂蜜/钓鱼/做饭，`_chore` 防止抢同一件），串门用城堡版 `A.social`，`watchdog()` 把卡太久的动作结束掉；你给主角的指令设 `_byYou/_stayUntil`，干完在原地待一会儿。
 - `quest.js`：每日委托 + 新手任务（`econ.starter`：feed → plant → pat → trip），「带我去」调 `PP.isle.questGo(k)`。成长面板（`econ.js`）分四组 `GROUPS`。
-- 第一人称另有：F 全屏（`S().fpFull`，`layout()` 里把 `L.v*` 铺满）、快捷栏 1～5（`S().fpSlot`，`.fphot`）、C 坐 / Z 躺（`fp.pose`）、按视线看见别的动物（`sees()`，体素射线）、在城堡里后台预算碰撞和地图（`warmLoop`）。第一人称时主角从不自动走路：`walkTo` 只判断够不够得着（`REACH`），菜地用 `goPlot/nearPlot`（任意一边）。鼠标：M 锁住 / 松开（Esc 永远是老板键）；不锁时鼠标移到画面边上转头（`fpTick` 里 `fp.mx/fp.my`），指着东西显示「点一下：…」，单击就用。右下角画主角的手（`drawHands`，跟着动作和快捷栏），准星上方显示「正在…」进度。玻璃在第一人称里画成稀疏的淡色（`isle3d.js`）。防闪烁：第一人称用 4 倍多重采样（`msaaFb`，`o.msaa`），着色器里按 `fwidth` 把远处细花纹淡成底色；不要再加高频、随时间闪的花纹。DOM 按钮（`.rtags` 门牌、`.cutbar`）不能每帧重建：内容没变只改位置，门牌在 mousedown 就生效。BODYH 3.6 / CROUCH 3.0；自动跳 `S().fpAutoJump`。
+- 第一人称另有：F 全屏（`S().fpFull`，`layout()` 里把 `L.v*` 铺满）、快捷栏 1～5（`S().fpSlot`，`.fphot`）、C 坐 / Z 躺（`fp.pose`）、按视线看见别的动物（`sees()`，体素射线）、在城堡里后台预算碰撞和地图（`warmLoop`）。第一人称时主角从不自动走路：`walkTo` 只判断够不够得着（`REACH`），菜地用 `goPlot/nearPlot`（任意一边）。鼠标：M 锁住 / 松开（Esc 永远是老板键）；不锁时鼠标移到画面边上转头（`fpTick` 里 `fp.mx/fp.my`），指着东西显示「点一下：…」，单击就用。右下角画主角的手（`drawHands`，跟着动作和快捷栏），准星上方显示「正在…」进度。玻璃在第一人称里画成稀疏的淡色（`isle3d.js`）。防闪烁：第一人称用 4 倍多重采样（`msaaFb`，`o.msaa`），着色器里按 `fwidth` 把远处细花纹淡成底色；不要再加高频、随时间闪的花纹。DOM 按钮（`.rtags` 门牌、`.cutbar`）不能每帧重建：内容没变只改位置，门牌在 mousedown 就生效。BODYH 3.6 / CROUCH 3.0 / STEP 1.3；跳起来时头顶碰天花板就停（`headroom`），不能穿楼板；自动跳 `S().fpAutoJump`。
+- 城堡外的世界：第一人称 `drawBelow()` 画城堡下面的大地（按 `S().scene` 的地形配色，慢慢后退）、云、远山；俯视时城堡底下画几朵云。家具的动作文字和台词在 `furn.js` 的 `act/say`。第一人称里主角说的话显示成字幕，`gain()` 的小字往上飘（`fp.pops`）。
 - `eco.js / wild.js / econ.js / life.js`：生态、野生动物与认养、经济/探险、种植。
 - `dmaps.js / vmaps.js / worlds.js / dio.js`：各个风景的布景。
 
