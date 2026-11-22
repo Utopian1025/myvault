@@ -573,3 +573,8 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .fphot button.on { border-color: #ffd84a; background: #fff6d0; box-shadow: 0 0 0 2px rgba(255,216,74,.6); }
 .fphot button i { position: absolute; left: 3px; top: 1px; font-style: normal; font-size: 9px; color: #6a5a74; }
 .fphot button small { font-size: 9px; margin-top: 2px; color: #3b2a4c; }
+
+/* 统一设置页 */
+.setall .stabs { flex-wrap: wrap; }
+.setall .sbody { display: flex; flex-direction: column; gap: 8px; min-height: 280px; }
+.setall .sbody .row { display: flex; gap: 6px; flex-wrap: wrap; }

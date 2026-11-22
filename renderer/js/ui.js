@@ -245,35 +245,69 @@
       ui.panel('彩蛋图鉴', box, { wide: true });
     },
 
-    settings() {
-      const s = G.save.settings;
-      const box = $(`<div class="settings">
-        <label>大小 <select class="size">${PP.SIZES.map(([v, n, d]) => `<option value="${v}">${n}（${d}）</option>`).join('')}</select></label>
-        <label>生活节奏 <select class="pace"><option value="0.6">慢（更贴近真实）</option><option value="1">正常</option><option value="1.6">快</option></select></label>
-        <label>名字牌 <select class="names"><option value="hover">鼠标经过时</option><option value="always">一直显示</option></select></label>
-        <label>它们怎么称呼你 <input class="owner" maxlength="6" placeholder="主人"></label>
-        <label><input type="checkbox" class="sound"> 声音（很小声的叫声和呼噜）</label>
-        <label><input type="checkbox" class="care"> 久坐提醒 每 <input class="brk" type="number" min="20" max="240" step="10" style="width:56px"> 分钟</label>
-        <label><input type="checkbox" class="quiet"> 工作模式（不说话、不找你、不乱动，只跟着你的操作动）</label>
-        ${window.petAPI ? '<label><input type="checkbox" class="autostart"> 开机自动启动</label>' : ''}
-        <div class="row"><button class="small reset">清空存档…</button></div></div>`);
-      const q = (c) => box.querySelector(c);
-      q('.size').value = s.size; q('.pace').value = s.pace; q('.names').value = s.names; q('.owner').value = s.ownerName || '';
-      q('.sound').checked = s.sound; q('.care').checked = s.care; q('.quiet').checked = s.quiet; q('.brk').value = s.breakMin;
-      q('.size').onchange = (e) => { s.size = +e.target.value; PP.save.soon(); };
-      q('.pace').onchange = (e) => { s.pace = +e.target.value; PP.save.soon(); };
-      q('.names').onchange = (e) => { s.names = e.target.value; PP.save.soon(); };
-      q('.owner').oninput = (e) => { s.ownerName = e.target.value.trim(); PP.save.soon(); };
-      q('.sound').onchange = (e) => { s.sound = e.target.checked; if (s.sound) PP.audio.unlock(); PP.save.soon(); };
-      q('.care').onchange = (e) => { s.care = e.target.checked; PP.save.soon(); };
-      q('.brk').onchange = (e) => { s.breakMin = U.clamp(+e.target.value || 90, 20, 240); PP.save.soon(); };
-      q('.quiet').onchange = (e) => { s.quiet = e.target.checked; PP.save.soon(); };
-      if (window.petAPI) { const a = q('.autostart'); window.petAPI.getAutostart().then((v) => (a.checked = v)); a.onchange = (e) => window.petAPI.setAutostart(e.target.checked); }
-      q('.reset').onclick = (e) => {
-        if (e.target.dataset.c !== '1') { e.target.dataset.c = '1'; e.target.textContent = '会删掉所有宠物和日记，再点一次确认'; return; }
-        PP.save.reset();
+    /* 统一的设置页：分成几页，所有设置都在这儿（右键菜单里的那些也还在） */
+    settings(tab) {
+      const s = G.save.settings, R = (id) => PP.menuRun(id);
+      const TABS = [['base', '基本'], ['sound', '声音'], ['rem', '提醒'], ['quiet', '勿扰'], ['weather', '天气'], ['fp', '第一人称']];
+      let cur = tab || ui._setTab || 'base';
+      const box = $('<div class="settings setall"><div class="ecotabs stabs"></div><div class="sbody"></div></div>');
+      const opt = (list, v) => list.map(([k, n]) => `<option value="${k}" ${String(k) === String(v) ? 'selected' : ''}>${esc(n)}</option>`).join('');
+      const chk = (cls, on, txt) => `<label><input type="checkbox" class="${cls}" ${on ? 'checked' : ''}> ${txt}</label>`;
+      const sleepV = s.sleepMode && s.sleepMode.on ? `${s.sleepMode.from}:${s.sleepMode.to}` : 'off';
+      const pages = {
+        base: () => `<label>宠物大小 <select class="size">${opt(PP.SIZES.map(([v, n, d]) => [v, `${n}（${d}）`]), s.size)}</select></label>
+          <label>菜单大小 <select class="ms">${opt(PP.MENU_SCALES || [], s.menuScale || 0.8)}</select></label>
+          <label>生活节奏 <select class="pace">${opt([[0.6, '慢（更贴近真实）'], [1, '正常'], [1.6, '快']], s.pace)}</select></label>
+          <label>名字牌 <select class="names">${opt([['hover', '鼠标经过时'], ['always', '一直显示']], s.names)}</select></label>
+          <label>它们怎么称呼你 <input class="owner" maxlength="6" placeholder="主人" value="${esc(s.ownerName || '')}"></label>
+          ${window.petAPI ? '<label><input type="checkbox" class="autostart"> 开机自动启动</label>' : ''}
+          <div class="row"><button class="small" data-r="appIcon">换软件图标…</button><button class="small" data-r="about">关于 & 检查更新${PP.APP_VERSION ? '（v' + PP.APP_VERSION + '）' : ''}</button></div>
+          <div class="row"><button class="small reset">清空存档…</button></div>`,
+        sound: () => `${chk('sound', s.sound, '宠物的声音（很小声的叫声和呼噜）')}${chk('amb', s.ambient, '环境声音（雨声、鸟叫、溪水……）')}
+          <label>环境声音量 <select class="avol" ${s.ambient ? '' : 'disabled'}>${opt([[0.25, '很轻'], [0.5, '适中'], [0.8, '大一点']], s.ambientVol != null ? s.ambientVol : 0.5)}</select></label>`,
+        rem: () => `<label>喝水提醒 每 <input type="number" class="water" min="0" max="240" step="5" style="width:64px" value="${s.rem.water}"> 分钟（0 = 关）</label>
+          <label>站立提醒 每 <input type="number" class="stretch" min="0" max="240" step="5" style="width:64px" value="${s.rem.stretch}"> 分钟（0 = 关）</label>
+          <label><input type="checkbox" class="care" ${s.care ? 'checked' : ''}> 久坐提醒 每 <input class="brk" type="number" min="20" max="240" step="10" style="width:56px" value="${s.breakMin}"> 分钟</label>
+          <div class="row"><button class="small" data-r="reminders">定时提醒（每天 / 每周）& 番茄钟…</button></div>`,
+        quiet: () => `${chk('autoq', s.autoQuiet !== false, '工作时自动安静（打字时不说话、不来找你、声音调小）')}${chk('quiet', s.quiet, '工作模式（不说话、不找你、不乱动，只跟着你的操作动）')}
+          <label>睡眠时间 <select class="sleep">${opt([['off', '关闭'], ['22:7', '22:00 – 7:00'], ['23:7', '23:00 – 7:00'], ['0:8', '0:00 – 8:00'], ['12:14', '12:00 – 14:00（午休）']].concat(sleepV !== 'off' && !['22:7', '23:7', '0:8', '12:14'].includes(sleepV) ? [[sleepV, sleepV.replace(':', ':00 – ') + ':00']] : []), sleepV)}</select> <button class="small" data-r="sleepCustom">自定义…</button></label>
+          <div class="muted">老板键：连按两下 Esc，马上收成最小。</div>`,
+        weather: () => `<label>天气 <select class="weather">${opt([['auto', s.city ? `跟随实时天气（${s.city.name}）` : '按季节模拟']].concat(PP.WEATHER.map(([k, n]) => [k, '一直' + n])), s.weather || 'auto')}</select></label>
+          <label>季节 <select class="season">${opt([['auto', '跟随日历和节气'], ['spring', '一直是春天'], ['summer', '一直是夏天'], ['autumn', '一直是秋天'], ['winter', '一直是冬天']], s.seasonFix || 'auto')}</select></label>
+          <div class="row"><button class="small" data-r="city">${s.city ? '换城市…（现在：' + esc(s.city.name) + '）' : '设置所在城市（实时天气）…'}</button></div>
+          <div class="muted">每个风景有自己的季节：沙漠、丛林一年都热，南极一直是冬天。</div>`,
+        fp: () => `<div class="muted">在城堡里按 F 进第一人称。下面这些在第一人称的 ☰ 菜单里也能改。</div>
+          ${chk('fpmouse', s.fpMouse !== false, '动鼠标就转头（关掉的话按住拖动才转）')}${chk('fpinvx', s.fpInvX, '左右反过来')}${chk('fpinvy', s.fpInvY, '上下反过来')}
+          ${chk('fpmap', s.fpMap !== false, '显示小地图')}${chk('fpfull', s.fpFull, '进去就全屏（游戏里按 F 切换）')}
+          <label>画质 <select class="fpq">${opt([['fine', '精细'], ['pixel', '像素风']], s.fpQ || 'fine')}</select></label>
+          <label>视野 <select class="fpfov">${(() => { const v = U.clamp(+s.fpFov || 78, 50, 110), L = [[60, '窄 60°'], [78, '适中 78°'], [90, '宽 90°'], [105, '很宽 105°']]; if (!L.some(([k]) => k === v)) L.push([v, '现在 ' + v + '°']); return opt(L.sort((a, b) => a[0] - b[0]), v); })()}</select></label>`,
       };
-      ui.panel('设置', box);
+      const draw = () => {
+        ui._setTab = cur;
+        box.querySelector('.stabs').innerHTML = TABS.map(([k, n]) => `<button class="tab ${cur === k ? 'on' : ''}" data-t="${k}">${n}</button>`).join('');
+        const b = box.querySelector('.sbody'); b.innerHTML = pages[cur]();
+        const q = (c) => b.querySelector(c), on = (c, ev, fn) => { const el = q(c); if (el) el[ev] = fn; };
+        const sv = () => PP.save.soon();
+        on('.size', 'onchange', (e) => R('size:' + e.target.value)); on('.ms', 'onchange', (e) => R('ms:' + e.target.value));
+        on('.pace', 'onchange', (e) => { s.pace = +e.target.value; sv(); }); on('.names', 'onchange', (e) => { s.names = e.target.value; sv(); });
+        on('.owner', 'oninput', (e) => { s.ownerName = e.target.value.trim(); sv(); });
+        if (q('.autostart') && window.petAPI) { const a = q('.autostart'); window.petAPI.getAutostart().then((v) => (a.checked = v)); a.onchange = (e) => window.petAPI.setAutostart(e.target.checked); }
+        on('.reset', 'onclick', (e) => { if (e.target.dataset.c !== '1') { e.target.dataset.c = '1'; e.target.textContent = '会删掉所有宠物和日记，再点一次确认'; return; } PP.save.reset(); });
+        on('.sound', 'onchange', (e) => { s.sound = e.target.checked; if (s.sound) PP.audio.unlock(); sv(); });
+        on('.amb', 'onchange', (e) => { if (!!s.ambient !== e.target.checked) R('ambient'); sv(); draw(); }); on('.avol', 'onchange', (e) => R('avol:' + e.target.value));
+        on('.water', 'onchange', (e) => R('rem:water:' + U.clamp(+e.target.value || 0, 0, 240))); on('.stretch', 'onchange', (e) => R('rem:stretch:' + U.clamp(+e.target.value || 0, 0, 240)));
+        on('.care', 'onchange', (e) => { s.care = e.target.checked; sv(); }); on('.brk', 'onchange', (e) => { s.breakMin = U.clamp(+e.target.value || 90, 20, 240); sv(); });
+        on('.autoq', 'onchange', (e) => { s.autoQuiet = e.target.checked; sv(); }); on('.quiet', 'onchange', (e) => { s.quiet = e.target.checked; sv(); });
+        on('.sleep', 'onchange', (e) => R(e.target.value === 'off' ? 'sleep:off' : 'sleep:' + e.target.value));
+        on('.weather', 'onchange', (e) => R('weather:' + e.target.value)); on('.season', 'onchange', (e) => R('season:' + e.target.value));
+        on('.fpmouse', 'onchange', (e) => { s.fpMouse = e.target.checked; sv(); }); on('.fpinvx', 'onchange', (e) => { s.fpInvX = e.target.checked; sv(); }); on('.fpinvy', 'onchange', (e) => { s.fpInvY = e.target.checked; sv(); });
+        on('.fpmap', 'onchange', (e) => { s.fpMap = e.target.checked; sv(); }); on('.fpfull', 'onchange', (e) => { s.fpFull = e.target.checked; sv(); });
+        on('.fpq', 'onchange', (e) => { s.fpQ = e.target.value; sv(); }); on('.fpfov', 'onchange', (e) => { s.fpFov = +e.target.value; sv(); });
+        b.querySelectorAll('[data-r]').forEach((x) => (x.onclick = () => R(x.dataset.r)));
+      };
+      box.querySelector('.stabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]'); if (t) { cur = t.dataset.t; draw(); } });
+      draw();
+      ui.panel('设置', box, { wide: true });
     },
 
     notePanel(p) {
