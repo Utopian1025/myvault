@@ -542,7 +542,7 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .cutbar .vfly .row { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 3px; margin: 0; padding: 0; }
 
 /* 第一次玩的引导卡片：指着一只动物，跟着它走 */
-.guide { position: fixed; z-index: 60; width: 270px; padding: 10px 12px 10px; background: #fffaf0; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); border-radius: 10px; font-size: 13px; line-height: 1.55; color: var(--ink); animation: guideIn .35s ease-out; }
+.guide { position: fixed; z-index: 9; width: 270px; padding: 10px 12px 10px; background: #fffaf0; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); border-radius: 10px; font-size: 13px; line-height: 1.55; color: var(--ink); animation: guideIn .35s ease-out; }
 .guide .t b { color: #b8502e; }
 .guide .x { position: absolute; right: 4px; top: 2px; border: 0; box-shadow: none; background: transparent; font-size: 14px; color: var(--muted); padding: 0 4px; }
 .guide .row { display: flex; gap: 6px; margin-top: 8px; }
@@ -550,3 +550,14 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .guide .arrow::after { content: ''; position: absolute; left: -7px; top: -12px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid #fffaf0; }
 .guide.noarrow .arrow { display: none; }
 @keyframes guideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* 大地图：屏幕中间，尽量大 */
+.scene-pop.map2.size-L { max-width: none; width: min(820px, 86vw); }
+.map2.size-L .mapwrap { width: min(796px, 84vw); height: min(504px, 53vw); }
+
+/* 成长面板：四个大分组 */
+.ecogroups { display: flex; gap: 6px; margin: 6px 0 6px; }
+.ecogroups .grp { flex: 1; position: relative; padding: 6px 4px; font-size: 13px; font-weight: 700; border: 2px solid var(--ink); border-radius: 8px; background: #fffaf0; box-shadow: 0 2px 0 rgba(0,0,0,.18); }
+.ecogroups .grp.on { background: #3b2a4c; color: #fff; }
+.ecogroups .grp .dot { position: absolute; right: 6px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #f05a7a; }
+.quest.starter { border-color: #f0a040 !important; background: #fff6e4 !important; }

@@ -11,7 +11,7 @@
   function randomTraits(species) {
     const bias = PP.SPECIES[species].bias;
     const t = {};
-    for (const [k] of PP.TRAITS) t[k] = U.clamp(0.5 + bias[k] + U.rand(-0.32, 0.32), 0.02, 0.98);
+    for (const [k] of PP.TRAITS) t[k] = U.clamp(0.5 + ((bias && bias[k]) || 0) + U.rand(-0.32, 0.32), 0.02, 0.98);
     return t;
   }
 
@@ -34,6 +34,9 @@
     }
     constructor(d) {
       this.d = d;
+      /* 修老存档：有的物种性格只写了一半，算出来是 NaN，它就不饿不困也不想玩 */
+      if (d.traits && PP.TRAITS) { const fresh = randomTraits(d.species); for (const [k] of PP.TRAITS) if (!Number.isFinite(d.traits[k])) d.traits[k] = fresh[k]; }
+      if (d.needs) { const def = { hunger: 75, thirst: 75, bladder: 85, energy: 92, fun: 60, social: 50, battery: 90 }; for (const k in def) if (!Number.isFinite(d.needs[k])) d.needs[k] = def[k]; }
       // 运行时状态
       this.x = d.x != null ? d.x : U.rand(G.W * 0.2, G.W * 0.8);
       this.y = G.ground; this.vx = 0; this.vy = 0;

@@ -321,6 +321,8 @@
   function placePop() {
     if (!pop) return;
     const pr = pop.getBoundingClientRect(), sb = PP.safeB ? PP.safeB() : G.H;
+    /* 大地图：放在屏幕正中间，看得清楚 */
+    if (pop.classList.contains('map2') && pop.classList.contains('size-L')) { pop.style.left = Math.round((G.W - pr.width) / 2) + 'px'; pop.style.top = Math.round(Math.max(8, (sb - pr.height) / 2)) + 'px'; return; }
     let ax, ay0, ay1;
     if (popAt) { ax = popAt.x; ay0 = popAt.y - 8; ay1 = popAt.y + 8; }
     else { const b = (hud && hud.querySelector(`[data-h="${popKind}"]`)) || hud, r = b.getBoundingClientRect(); ax = r.left + r.width / 2; ay0 = r.top; ay1 = r.bottom; }
@@ -445,7 +447,7 @@
         <div class="sound"><button class="small ${!s.bandBehind ? 'on' : ''}" data-a="top">${!s.bandBehind ? '风景：总在最前面' : '风景：可被其他窗口盖住'}</button><button class="small ${s.sceneInfo ? 'on' : ''}" data-a="info">${s.sceneInfo ? '场景信息：显示' : '场景信息：不显示'}</button><button class="small" data-a="decor">布置这个场景…</button></div>
         <div class="env">${esc(PP.env.label())}</div>`;
     }
-    const sz = s.popSize || 'S', sizes = [['S', '小'], ['M', '中'], ['L', '大']].map(([k, n]) => `<button class="tab ${sz === k ? 'on' : ''}" data-size="${k}" title="弹窗大小">${n}</button>`).join('');
+    const sz = (s.popSizeSet && s.popSize) || 'L', sizes = [['S', '小'], ['M', '中'], ['L', '大']].map(([k, n]) => `<button class="tab ${sz === k ? 'on' : ''}" data-size="${k}" title="弹窗大小">${n}</button>`).join('');
     pop = $(`<div class="orb-pop scene-pop map2 size-${sz}"><div class="maphead"><b>${cur && PP.SCENES[cur] ? esc(PP.SCENES[cur].name) : '地图'}</b><div class="tabs">${tabs}</div><div class="tabs sizes">${sizes}</div></div>${body}</div>`);
     pop.querySelectorAll('i[data-ico]').forEach((el) => el.replaceWith(icon((PP.SCENE_ICON || {})[el.dataset.ico], 14)));
     const cvs = pop.querySelector('canvas.worldmap'); if (cvs) { if (PP.GLOBE) PP.GLOBE.mount(pop.querySelector('.mapwrap')); else cvs.getContext('2d').drawImage(drawWorldMap(), 0, 0); }
@@ -468,7 +470,7 @@
     pop.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.dataset.tab) { popTab = b.dataset.tab; showScenePop(); return; }
-      if (b.dataset.size) { S().popSize = b.dataset.size; PP.save.soon(); showScenePop(); return; }
+      if (b.dataset.size) { S().popSize = b.dataset.size; S().popSizeSet = 1; PP.save.soon(); showScenePop(); return; }
       if (b.dataset.s === 'castle') { hidePop(); setView('isle'); return; }
       if (b.dataset.s) { S().sceneHidden = false; if (PP.scene.inside()) PP.scene.leave(); if (S().mode === 'mini') PP.setMode(S().lastMode && S().lastMode !== 'mini' ? S().lastMode : 'band'); PP.scene.go(b.dataset.s); hidePop(); return; }
       if (b.dataset.season) { S().seasonFix = b.dataset.season === 'auto' ? null : b.dataset.season; PP.save.soon(); PP.syncTray && PP.syncTray(true); showScenePop(); return; }

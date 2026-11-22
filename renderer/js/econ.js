@@ -194,6 +194,7 @@
     const before = { h: p.n.hunger, t: p.n.thirst };
     baseFeed(p, what);
     if (p.d.wild) return;
+    if (PP.quest) PP.quest.on('feed');
     const now = Date.now(), last = p.d.fedAt || 0;
     p.d.fedAt = now; p.d.nourish = now + 40 * 60000;
     const hungry = (what !== 'water' && before.h < 80) || (what !== 'food' && before.t < 80);
@@ -209,6 +210,7 @@
     p.d.nourish = Date.now() + 40 * 60000;
     if (G.pets.includes(p) && !p.held) { p.interrupt(true); p.run('fed', A.fed, it.thirst && !it.hunger ? 'water' : 'food'); }
     addXp(p, it.xp || 10);
+    if (PP.quest && !p.d.wild) PP.quest.on('feed');
     PP.ui.toast(`${p.name} 吃了${it.name}：+${it.xp || 10} 经验`);
     return true;
   }
@@ -289,6 +291,7 @@
     const now = Date.now();
     if (bento && !has(bento)) bento = null; if (bento) give(bento, -1);
     p.d.trip = { to, start: now, end: now + min * 60000, min, bento: bento || null };
+    if (PP.quest) PP.quest.on('trip');
     p.n.hunger = Math.max(0, p.n.hunger - 15); p.n.thirst = Math.max(0, p.n.thirst - 15);
     const go = () => { p.interrupt(true); p.held = false; PP.syncPets(); };
     if (G.pets.includes(p)) { p._forceSay = true; p.say(`我去${sceneName(to)}啦！`, 2); p._forceSay = false; setTimeout(() => (PP.petEnter ? PP.petEnter(p, go) : go()), 900); } else go();
@@ -339,6 +342,7 @@
     const e = E(), it = ITEMS[seedId]; if (!it || it.kind !== 'seed' || !has(seedId) || e.farm[i]) return false;
     give(seedId, -1);
     e.farm[i] = { crop: it.crop, t0: Date.now(), water: 0 };
+    if (PP.quest) PP.quest.on('plant');
     save(); return true;
   }
   function plotInfo(i) {
@@ -398,7 +402,7 @@
   const mine = () => G.all.filter((p) => !p.d.wild);
   const fmtLeft = (ms) => { const m = Math.ceil(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} 小时 ${m % 60} 分` : `${m} 分钟`; };
   function petPick(sel) {
-    const L = mine(); if (!L.length) return '<p class="muted">还没有认养的伙伴</p>';
+    const L = mine(); if (!L.length) return '<p class="muted">还没有认养的伙伴：在风景里右键一只动物，选「❤ 认养」。</p>';
     const cur = sel || (PP.F && PP.F.main() && !PP.F.main().d.wild ? PP.F.main().d.id : L[0].d.id);
     return `<div class="petpick">${L.map((p) => `<button class="chip ${p.d.id === cur ? 'on' : ''}" data-pet="${p.d.id}">${esc(p.name)} <small>Lv${lvOf(p)}${p.d.trip ? ' · 出门中' : ''}</small></button>`).join('')}</div>`;
   }
@@ -409,18 +413,21 @@
     const st = listless(p) ? '<span class="warn">没精神：肚子饿 / 口渴</span>' : (p.d.nourish || 0) > Date.now() ? '<span class="good">吃得好：经验翻倍</span>' : '<span class="muted">亲手喂它，经验翻倍 40 分钟</span>';
     return `<div class="lvrow"><b>${esc(p.name)}</b> Lv${lv}<div class="xpbar"><i style="width:${(k * 100).toFixed(0)}%"></i></div><small>${p.d.xp || 0}/${need(lv)}</small></div><div class="lvsub">${st}${nx ? ` · Lv${nx} 解锁：${esc(UNLOCK[nx])}` : ''}</div>`;
   }
+  /* 面板分成四组，每组里再分小页，不用在一排十几个按钮里找 */
+  const GROUPS = [['care', '照顾它', ['bag', 'shop', 'home', 'mail']], ['farm', '种地做饭', ['plant', 'cook', 'craft', 'gh']], ['out', '出门玩', ['quest', 'trip', 'fish']], ['col', '收藏图鉴', ['book']]];
   function render() {
     if (!open || !open.el.isConnected) { open = null; return; }
     const e = E(), tab = open.tab, body = open.el.querySelector('.body');
     const XT = PP.econTabs || [];
     const tabs = [['bag', '背包'], ['shop', '商店'], ['trip', '探险'], ['book', '图鉴'], ...XT.map((t) => [t.k, typeof t.n === 'function' ? t.n() : t.n]), ['fish', '钓鱼'], ['quest', `委托${PP.quest && PP.quest.todo() ? '·' + PP.quest.todo() : ''}`], ['mail', `信箱${unread() ? '·' + unread() : ''}`], ['home', '小窝']];
     let h = `<div class="ecohead"><span class="fishc">${'<i class="fishico"></i>'} ${e.fish} 小鱼干</span><small class="muted">认真干活每 10 分钟 +1（今天 ${e.today.fish}/36）· 番茄钟 +6 · 探险带回</small></div>
-      <div class="ecotabs">${tabs.map(([k, n]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('')}</div><div class="ecobody">`;
+      <div class="ecogroups">${GROUPS.map(([g, n, ks]) => { const dot = ks.some((k) => (k === 'quest' && PP.quest && (PP.quest.todo() || PP.quest.starter())) || (k === 'mail' && unread())); return `<button class="grp ${ks.includes(tab) ? 'on' : ''}" data-tab="${ks[0]}">${n}${dot ? '<i class="dot"></i>' : ''}</button>`; }).join('')}</div>
+      <div class="ecotabs">${tabs.filter(([k]) => (GROUPS.find((g) => g[2].includes(tab)) || GROUPS[0])[2].includes(k)).map(([k, n]) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('')}</div><div class="ecobody">`;
     const p = curPet();
     if (tab === 'bag') {
       const ids = Object.keys(e.bag).filter((k) => e.bag[k] > 0 && ITEMS[k]);
       h += (p ? lvBar(p) : '') + petPick(p && p.d.id);
-      h += ids.length ? `<div class="grid items">${ids.map((k) => { const it = ITEMS[k]; const acts = it.kind === 'snack' || it.kind === 'crop' || it.kind === 'dish' ? `<button class="small" data-feed="${k}">喂${p ? esc(p.name) : ''}</button>` : it.kind === 'seed' || it.kind === 'rseed' ? `<button class="small" data-goisle="1">去种</button>` : it.kind === 'egg' ? `<button class="small" data-incub="1" ${e.incub ? 'disabled' : ''}>孵蛋</button>` : ''; return `<div class="cell"><i data-ico="${it.icon}"></i><b>${esc(it.name)} ×${e.bag[k]}</b><small>${esc(it.desc || '')}</small><div>${acts}${it.sell ? `<button class="small" data-sell="${k}">卖 ${it.sell}</button>` : ''}</div></div>`; }).join('')}</div>` : '<p class="muted">背包空空的。去商店逛逛，或者派伙伴去探险。</p>';
+      h += ids.length ? `<div class="grid items">${ids.map((k) => { const it = ITEMS[k]; const acts = it.kind === 'snack' || it.kind === 'crop' || it.kind === 'dish' ? `<button class="small" data-feed="${k}">喂${p ? esc(p.name) : ''}</button>` : it.kind === 'seed' || it.kind === 'rseed' ? `<button class="small" data-goisle="1">去种</button>` : it.kind === 'egg' ? `<button class="small" data-incub="1" ${e.incub ? 'disabled' : ''}>孵蛋</button>` : ''; return `<div class="cell"><i data-ico="${it.icon}"></i><b>${esc(it.name)} ×${e.bag[k]}</b><small>${esc(it.desc || '')}</small><div>${acts}${it.sell ? `<button class="small" data-sell="${k}">卖 ${it.sell}</button>` : ''}</div></div>`; }).join('')}</div>` : '<p class="muted">背包空空的。去商店逛逛，或者派伙伴去探险。</p><div class="row"><button class="small" data-tab="shop">去商店看看</button><button class="small" data-tab="trip">去探险</button></div>';
       if (e.incub) h += `<p class="good">神秘蛋孵化中：还有 ${fmtLeft(e.incub.end - Date.now())}</p>`;
       const hats = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'hat');
       if (p && hats.length) h += `<div class="sec">装扮 ${esc(p.name)}</div><div class="row">${['', ...hats].map((k) => `<button class="chip ${(p.d.outfit || '') === k ? 'on' : ''}" data-wear="${k}">${k ? esc(ITEMS[k].name) : '不戴'}</button>`).join('')}</div>`;
@@ -435,7 +442,7 @@
       h += `<div class="sec">派谁出门</div>` + petPick(p && p.d.id);
       if (p) {
         const why = canTrip(p);
-        if (why && !p.d.trip) h += `<p class="warn">${esc(p.name)}：${esc(why)}</p>`;
+        if (why && !p.d.trip) h += `<p class="warn">${esc(p.name)}：${esc(why)}</p>${lvOf(p) < 2 ? '<p class="muted">做「出门玩 → 委托」里的新手任务，很快就能升到 Lv2。</p><button class="small" data-tab="quest">去看新手任务</button>' : ''}`;
         if (!why) {
           const places = tripPlaces(p), dur = open.dur || 30, to = places.includes(open.to) ? open.to : places[0];
           h += `<div class="sec">去哪儿</div><div class="row wrap">${places.map((k) => `<button class="chip ${to === k ? 'on' : ''}" data-to="${k}">${esc(sceneName(k))}</button>`).join('')}</div>`;
@@ -447,7 +454,7 @@
     } else if (tab === 'book') {
       const total = Object.values(SOUV).reduce((a, l) => a + l.length, 0), got = Object.keys(e.book).length;
       h += `<div class="sec">特产图鉴 ${got}/${total}</div><div class="book">${Object.entries(SOUV).filter(([k]) => PP.SCENES[k]).map(([k, l]) => `<div class="bk"><b>${esc(sceneName(k))}</b>${l.map(([id, n, ic, r]) => e.book[id] ? `<span class="sv r${r}" title="${esc(n)} ×${e.book[id]}"><i data-ico="${ic}"></i>${esc(n)}</span>` : `<span class="sv no" title="还没找到">？？？</span>`).join('')}</div>`).join('')}</div>`;
-      h += `<div class="sec">明信片 ${e.cards.length}</div><div class="cards">${e.cards.slice(0, 24).map((c) => `<canvas class="card" data-card="${c.id}" width="156" height="72" title="${esc(c.name)} 在${esc(sceneName(c.scene))} · ${new Date(c.t).toLocaleDateString()}"></canvas>`).join('') || '<p class="muted">派伙伴去探险，会寄明信片回来。</p>'}</div>`;
+      h += `<div class="sec">明信片 ${e.cards.length}</div><div class="cards">${e.cards.slice(0, 24).map((c) => `<canvas class="card" data-card="${c.id}" width="156" height="72" title="${esc(c.name)} 在${esc(sceneName(c.scene))} · ${new Date(c.t).toLocaleDateString()}"></canvas>`).join('') || '<p class="muted">派伙伴去探险，会寄明信片回来。</p><button class="small" data-tab="trip">去派伙伴出门</button>'}</div>`;
     } else if (XT.find((t) => t.k === tab)) {
       h += XT.find((t) => t.k === tab).html(open, p);
     } else if (tab === 'fish' && PP.FISHDEX) {
@@ -455,7 +462,7 @@
     } else if (tab === 'quest' && PP.quest) {
       h += PP.quest.html();
     } else if (tab === 'mail') {
-      h += e.mail.length ? e.mail.map((m) => `<div class="mailrow ${m.read ? '' : 'new'}"><b>${esc(m.from)}</b><small>${new Date(m.t).toLocaleString()}</small><p>${esc(m.text)}</p>${m.card ? `<canvas class="card" data-card="${m.card}" width="156" height="72"></canvas>` : ''}</div>`).join('') : '<p class="muted">信箱是空的。</p>';
+      h += e.mail.length ? e.mail.map((m) => `<div class="mailrow ${m.read ? '' : 'new'}"><b>${esc(m.from)}</b><small>${new Date(m.t).toLocaleString()}</small><p>${esc(m.text)}</p>${m.card ? `<canvas class="card" data-card="${m.card}" width="156" height="72"></canvas>` : ''}</div>`).join('') : '<p class="muted">信箱是空的。伙伴出门探险时会寄信和明信片回来。</p><button class="small" data-tab="trip">去派伙伴出门</button>';
       e.mail.forEach((m) => (m.read = true)); setTimeout(badge, 50); save();
     } else if (tab === 'home') {
       const furn = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'furn'), deco = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'deco');

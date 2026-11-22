@@ -159,7 +159,7 @@
     p.purr = 1.2;
     if (p.hitHead(G.mouse.x, G.mouse.y) && PP.F) PP.F.purr(p); // 摸头 → 呼噜
     p.jolt(-0.9, rub.dir * 2.2); // 被摸的方向，身体跟着软软地歪一下
-    if (!wasPetting && !['petted', 'landing', 'greet', 'handNap'].includes(p.action)) p.run('petted', PP.ACTIONS.petted);
+    if (!wasPetting && !['petted', 'landing', 'greet', 'handNap'].includes(p.action)) { p.run('petted', PP.ACTIONS.petted); if (PP.quest && !p.d.wild) PP.quest.on('pat'); }
     if (Math.random() < 0.35) { const [hx, hy] = p.headPos; PP.hearts(hx, hy - 6 * G.S, 1); }
     if (p.d.stats.pets % 100 === 0) { p.log(`主人已经摸了我 ${p.d.stats.pets} 次了。`, 'love'); }
     if (Math.random() < 0.04) p.line('happy');

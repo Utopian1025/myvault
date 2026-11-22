@@ -479,9 +479,11 @@
       ctx.fillStyle = 'rgba(20,14,10,.6)'; ctx.fillRect(tx, ty, tw, 18); ctx.fillStyle = '#fff'; ctx.fillText(txt, tx + 7, ty + 9); ctx.textAlign = 'center';
     }
     // 家门口的小牌子：谁在家、在干嘛（不用找了）
+    tagRects = [];
     if (PP.eco && PP.eco.homeTag) for (const h of L.homes) {
       const tag = PP.eco.homeTag(h.species); if (!tag) continue;
       const x = ((h.x0 + h.x1) / 2) * u, y = Math.max(y0 + 10, y0 + h.y0 * u - 9), w = ctx.measureText(tag).width + 10;
+      tagRects.push({ h, x0: x - w / 2, x1: x + w / 2, y0: y - 8, y1: y + 11 });
       ctx.fillStyle = 'rgba(20,14,10,.66)'; ctx.fillRect(x - w / 2, y - 8, w, 16); ctx.fillStyle = '#fff'; ctx.fillText(tag, x, y);
       ctx.fillStyle = 'rgba(20,14,10,.66)'; ctx.fillRect(x - 2, y + 8, 4, 3);
     }
@@ -597,6 +599,7 @@
   function flock(y) { const rows = Math.ceil(G.H / (geo() || { u: 4 }).u), dir = Math.random() < 0.5 ? 1 : -1; birds.push({ x: dir > 0 ? -20 : L.cols + 20, y: y != null ? y : rows * (0.08 + Math.random() * 0.25), dir, v: 18 + Math.random() * 10, n: 3 + Math.floor(Math.random() * 4) }); }
 
   // ---------- 热点：门、路牌；全屏模式下还能点树、湖、灯、天空…… ----------
+  let tagRects = [];
   function hot(x, y) {
     hover = null;
     if (G.editing || hidden()) return null;
@@ -605,7 +608,9 @@
     hover = L.hots.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1) || null;
     if (hover) return hover;
     // 动物的家：看看谁在里面，点一下叫它出来
-    const hm = L.homes.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1 && PP.eco && PP.eco.homeKnown(h.species));
+    /* 门口的小牌子也能点（牌子就是「谁在家」） */
+    const tr = tagRects.find((r) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1);
+    const hm = (tr && tr.h) || L.homes.find((h) => lx >= h.x0 && lx <= h.x1 && ly >= h.y0 && ly <= h.y1 && PP.eco && PP.eco.homeKnown(h.species));
     if (hm) { hover = { x0: hm.x0, x1: hm.x1, y0: hm.y0, y1: hm.y1, tip: PP.eco.homeTip(hm.species), home: hm.species }; return hover; }
     // 鼠标在小场景的画上（不是透明的地方）：接住鼠标，这样滚轮能缩放；点了什么都不做
     if (x >= g.x0 && x <= g.x0 + g.W && y >= g.y0 && y <= g.y0 + g.H && opaqueAt(x, y)) return { pad: true, x, y, cur: onGround(y) ? 'pointer' : 'default', tip: onGround(y) && !pTip ? '点地面：主角走过去' : null };

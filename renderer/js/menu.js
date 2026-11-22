@@ -208,7 +208,7 @@
       case 'snack': PP.econ.openPanel('bag', { pet: d.id }); break;
       case 'trip': PP.econ.openPanel('trip', { pet: d.id }); break;
       case 'water': PP.feedPet(p, 'water'); break;
-      case 'pat': if (G.pets.includes(p)) { p.run('petted', PP.ACTIONS.petted); if (PP.quest) PP.quest.on('pat'); } break;
+      case 'pat': if (G.pets.includes(p)) { p.run('petted', PP.ACTIONS.petted); if (PP.quest && !p.d.wild) PP.quest.on('pat'); } break;
       case 'adopt': PP.wild.adoptPanel(p); break;
       case 'move': PP.moveHome(p); break;
       case 'release': if (confirm(`让${p.name}回到野外吗？它还会在${PP.SCENES[PP.HAB[d.species].home].name}生活，只是不再是你认养的了。`)) PP.wild.release(p); break;

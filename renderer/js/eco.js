@@ -400,7 +400,9 @@
     const friend = G.all.filter((o) => o !== p && !o.d.hidden && !o.d.inHome && o.d.scene && livable(o.d.scene) && p.relWith(o) > 58 && hops(here, o.d.scene) <= 1).sort((a, b) => p.relWith(b) - p.relWith(a))[0];
     if (friend && n.social < 80) cands.push([{ scene: friend.d.scene, kind: 'visit', friend: friend.d.id, label: `去找${friend.name}玩`, dur: U.rand(20, 40) }, (0.3 + p.tr.extro * 0.6) * ((100 - n.social) / 100) * 1.4]);
     // 回家歇会儿
-    cands.push([home('rest', '在家里歇着', U.rand(25, 60)), 0.05 + p.tr.lazy * 0.15 + (n.battery < 35 ? 0.5 : 0) + Math.max(0, sleepy - 0.35) * 0.9]);
+    /* 白天醒着的时候少回家歇着，好让你看得见它们在外面玩 */
+    const dayOut = e.time.phase === 'day' && sleepy < 0.45 ? 0.35 : 1;
+    cands.push([home('rest', '在家里歇着', U.rand(25, 60)), (0.05 + p.tr.lazy * 0.15 + (n.battery < 35 ? 0.5 : 0) + Math.max(0, sleepy - 0.35) * 0.9) * dayOut]);
     if (!cands.length) return home('rest', '在家里歇着', 60);
     return U.weighted(cands.map(([t, w]) => [t, w * w + 0.01]));
   }

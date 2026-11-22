@@ -1582,5 +1582,25 @@
     // 画一帧，数一数“什么都没画到”（透出去）的像素占多少
     holes: () => { if (!fp) return -1; fp._cam = null; fp.last = performance.now(); const s0 = scene(); lastScenes = [s0.gpu, dynMesh]; lastLO = lightOpts(); const cv = g3.draw(lastScenes, fpOpts()); if (!cv) return -1; const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const x = c.getContext('2d'); x.drawImage(cv, 0, 0); const d = x.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 16) if (d[i] < 10) n++; return n / (d.length / 16); },
     nav: () => nav(), navFree, go: (u, v, lv) => { if (!fp) return false; const pts = fpPlan(fp.q, u, v, lv); if (!pts || !pts.length) return false; fp.auto = { pts, i: 0 }; return true; } };
-  PP.isle = { fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
+  /* 委托里的「带我去」：进城堡，主角自己走过去做 */
+  function questGo(k) {
+    const run = () => {
+      const P = props(), pr = (d) => P.find((q) => q.do === d);
+      if (k === 'fish') return click({ k: 'fish' });
+      if (k === 'honey') return click({ k: 'hive' });
+      if (k === 'egg' && pr('nest')) return click({ k: 'prop', pr: pr('nest') });
+      if (k === 'cook' && pr('cookp')) return click({ k: 'prop', pr: pr('cookp') });
+      if (k === 'water' || k === 'harvest') {
+        const inf = PLOTS.map((_, i) => PP.econ.plotInfo(i));
+        let i = k === 'harvest' ? inf.findIndex((x) => x && x.stage === 3) : -1;
+        if (i < 0) i = inf.findIndex((x, j) => x && x.stage < 3 && (E().farm[j].water || 0) < 3);
+        if (i >= 0) return click({ k: 'plot', i });
+        const empty = inf.findIndex((x) => !x);
+        if (empty >= 0) { PP.ui.toast(k === 'harvest' ? '菜还没种：先选一种种子种下，长好了再来收' : '先种点东西，才能浇水', 4); return seedPicker(empty, G.W / 2, G.H / 2); }
+        PP.ui.toast('菜地都种满了，等它们长一会儿', 3); return;
+      }
+    };
+    if (!G.isle) { PP.setView && PP.setView('isle'); setTimeout(run, 1400); } else run();
+  }
+  PP.isle = { questGo, fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();
