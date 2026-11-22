@@ -1,19 +1,19 @@
 {
   "schema": 1,
   "product": "maas-excel",
-  "version": "0.8.9.23",
-  "name": "Maas_Excel_v0.8.9.23.zip",
-  "size": 4226121,
-  "sha256": "8d5712d616a67052ef017ea564af8a35ca4129d03b1a66947aef0fb28dd13f3c",
-  "url": "https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9.23/Maas_Excel_v0.8.9.23.zip",
-  "notes": "改善日期筛选、多列联动、非连续区域处理与导航收藏；内含可选Word0.2配套包。",
+  "version": "0.8.9.46",
+  "name": "Maas_Excel_v0.8.9.46.zip",
+  "size": 5202098,
+  "sha256": "5c9214e98ea0edcdc97169d1a53164b91d89bf368d8e46699549956e0fcdebce",
+  "url": "https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9.46/Maas_Excel_v0.8.9.46.zip",
+  "notes": "WN 收藏与导航、QF 仅此项、SP 多区域高亮；SYN 对照 Excel 与 Word，显示差异及执行进度。内含可选 Word 0.3.21。",
   "parts": [
     {
       "index": 0,
-      "size": 4226121,
-      "sha256": "8d5712d616a67052ef017ea564af8a35ca4129d03b1a66947aef0fb28dd13f3c",
-      "url": "https://raw.githubusercontent.com/Utopian1025/myvault/39550c4d6c1458025e6ac54f1c41a4b85d2c89b1/maas/updates/excel/0.8.9.23/parts/0000.bin"
+      "size": 5202098,
+      "sha256": "5c9214e98ea0edcdc97169d1a53164b91d89bf368d8e46699549956e0fcdebce",
+      "url": "https://raw.githubusercontent.com/Utopian1025/myvault/be19d8541c95d4e9af784345286cfd7313fa0d04/maas/updates/excel/0.8.9.46/parts/0000.bin"
     }
   ],
-  "commit": "39550c4d6c1458025e6ac54f1c41a4b85d2c89b1"
+  "commit": "be19d8541c95d4e9af784345286cfd7313fa0d04"
 }
