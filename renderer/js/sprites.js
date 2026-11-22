@@ -588,7 +588,10 @@
       }
     }
 
-    if (!(X && X.face && X.face(b, p, g, HP))) drawFace(b, p, g, X);
+    /* 第三人称从背后看：不画脸（眼睛、鼻子、嘴），后脑勺上加一点暗色，看着就是背影 */
+    if (p.back && !p.portrait) { for (let y = Math.round(g.hy + 1); y <= Math.round(g.hy + g.hry - 1); y++) for (let x = Math.round(g.hx - g.hrx + 2); x <= Math.round(g.hx + g.hrx - 2); x++) { const c = b.get ? b.get(x, y) : null; if (c && c !== K) b.set(x, y, tone(C.base, -0.08)); }
+      for (let y = Math.round(g.by - g.bry + 1); y <= Math.round(g.by + g.bry - 1); y++) for (let x = Math.round(g.bx - g.brx + 1); x <= Math.round(g.bx + g.brx - 1); x++) { if (((x - g.bx) / g.brx) ** 2 + ((y - g.by) / g.bry) ** 2 > 0.8) continue; const c = b.get(x, y); if (c && c !== K) b.set(x, y, tone(C.base, -0.04)); } }
+    else if (!(X && X.face && X.face(b, p, g, HP))) drawFace(b, p, g, X);
     const q = p.__geo;
     if (p.hat && !(q && q.curl)) { if (q && q.hatX != null) drawHat(b, p.hat, q.hatX, q.hatY, f); else drawHat(b, p.hat, g.hx, g.hy - g.hry + 6.5, f); }
 

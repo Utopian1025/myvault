@@ -566,3 +566,10 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 .cutbar.vert > button { position: relative; }
 .cutbar.vert > button[data-l]::after { content: attr(data-l); position: absolute; left: calc(100% + 6px); top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 400; padding: 2px 6px; border-radius: 5px; background: rgba(42,30,48,.82); color: #fff; pointer-events: none; opacity: 0; transition: opacity .15s; }
 .cutbar.vert.tips > button[data-l]::after, .cutbar.vert > button[data-l]:hover::after { opacity: 1; }
+
+/* 第一人称快捷栏 */
+.fphot { position: fixed; transform: translate(-50%, -100%); display: flex; gap: 4px; padding: 4px; background: rgba(20,16,28,.55); border-radius: 10px; z-index: 6; }
+.fphot button { position: relative; width: 44px; height: 44px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 17px; line-height: 1; background: rgba(255,250,236,.85); border: 2px solid rgba(42,30,48,.6); border-radius: 8px; box-shadow: none; }
+.fphot button.on { border-color: #ffd84a; background: #fff6d0; box-shadow: 0 0 0 2px rgba(255,216,74,.6); }
+.fphot button i { position: absolute; left: 3px; top: 1px; font-style: normal; font-size: 9px; color: #6a5a74; }
+.fphot button small { font-size: 9px; margin-top: 2px; color: #3b2a4c; }
