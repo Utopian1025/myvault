@@ -234,7 +234,7 @@
       float cl=smoothstep(0.55,0.75, ns(vec2(hc*0.35+uTime*0.05, vW.z*0.12))); sky=mix(sky, vec3(1.0), cl*0.7*(1.0-uLit*0.8));
       if(uInside>0.5){ c=sky; float st=h1(floor(vec2(hc*3.0,vW.z*1.2))); if(uLit>0.5 && st>0.97) c+=0.8; if(uRain>0.0){ float rr=fract(hc*4.0+vW.z*0.3+uTime*3.0*h1(vec2(floor(hc*4.0),1.0))); c=mix(c, vec3(0.85,0.9,1.0), step(0.93,rr)*uRain*0.5);} emis=1.0; }
       else { c=mix(c*0.75+sky*0.35, vec3(1.0,0.86,0.5), uLit*0.9); c+=0.25*smoothstep(0.75,1.0,fract((hc+vW.z*0.5)*0.35)); emis=uLit; }
-    } else if(m==6){ emis=1.0; c*=0.9+0.2*sin(uTime*6.0+vW.x*3.0);
+    } else if(m==6){ emis=1.0; c*=0.97+0.03*sin(uTime*1.5+vW.x*3.0); // 灯：很慢很轻地呼吸，不再一闪一闪
     } else if(m==7){ float f=fract(vW.x*1.4); c*=0.72+0.4*smoothstep(0.0,0.5,abs(f-0.5)); c*=0.9+0.2*ns(vW.xy*3.0);
     } else if(m==8){ float a=ns(vW.xy*1.7+vW.z*0.5), b=ns(vW.xy*4.0+vW.z); c*=0.74+0.38*a+0.16*b; if(b>0.86) c*=1.25;
     } else if(m==9){ c*=0.93+0.1*ns(vec2(hc*1.3,vW.z*0.5)); c*=0.9+0.1*smoothstep(0.0,6.0,mod(vW.z,40.0));
@@ -244,7 +244,7 @@
       else { float w1=sin(q.x*2.1+q.y*1.3+t*1.4+ns(q*0.9+t*0.2)*3.0), w2=sin(-q.x*1.2+q.y*2.6-t*1.1+ns(q*1.3-t*0.15)*3.0), h=w1*0.5+w2*0.5;
         for(int i=0;i<4;i++){ float age=t-uRip[i].z; if(age<0.0||age>4.0) continue; float d=length(q-uRip[i].xy); h+=sin(d*6.0-age*7.5)*exp(-d*0.8)*exp(-age*0.9)*1.6*smoothstep(0.0,0.4,age*2.5-d+0.4); }
         vec3 deep=c*0.6, sh=c*1.12+vec3(0.04,0.09,0.1); c=mix(deep,sh,smoothstep(-0.7,0.9,h)); c+=0.4*pow(clamp(1.0-abs(h),0.0,1.0),7.0);
-        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.6*step(0.975,ns(q*6.0+vec2(t*0.7,-t*0.4)))*(1.0-uLit*0.6); emis=0.25; }
+        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.6*step(0.975,ns(q*6.0+vec2(t*0.7,-t*0.4)))*(1.0-uLit*0.6)*(1.0-uFP.w); emis=0.25; }
     } else if(m==11){ float t=floor(vW.x*0.7)+floor(vW.y*0.7+vW.z*0.2); c*=0.88+0.2*mod(t,2.0);
     } else if(m==12){ c*=0.85+0.25*ns(vec2(hc*0.5,vW.z*0.6)); c+=0.12*smoothstep(0.8,1.0,fract(vW.z*0.2+hc*0.1));
     } else if(m==13){ float s=mod(floor(hc*0.9),2.0); c*=0.94+0.08*s; vec2 g=vec2(hc*0.9, vW.z*0.22); if(length(fract(g)-0.5)<0.13) c=mix(c, mix(vec3(0.9,0.55,0.5),vec3(0.5,0.72,0.6),s),0.75);
@@ -274,6 +274,8 @@
       float row= wall? vW.z/1.6 : vW.y/0.8; float r=floor(row); float t=(wall?hc:vW.x)/1.4+mod(r,2.0)*0.5; float id=h1(vec2(floor(t),r)); c*=0.84+0.24*id; if(fract(t)>0.85||fract(row)>0.8) c=mix(c,vec3(0.78,0.74,0.66)*c.r*1.3,0.55);
     } else if(m==27){ // 茅草
       float t=wall? hc*1.6 : (vW.x+vW.y)*1.2; c*=0.88+0.22*h1(vec2(floor(t),floor(vW.z/2.5))); if(fract(vW.z/2.5)<0.25) c*=0.75; }
+    // 第一人称：离得远、一个像素盖住好几格花纹时，花纹（草点、木板缝、石缝、墙纸点……）慢慢淡成底色，不在像素间跳来跳去闪
+    if(uFP.w>0.0 && m!=5 && m!=6 && m!=10){ float wpp=max(length(dFdx(vW)),length(dFdy(vW))); c=mix(c, vC*0.96, smoothstep(0.18,0.6,wpp)); }
     float nl=max(dot(n,uSun),0.0);
     float sh=1.0; if(uShadow>0.5 && vS.x>0.0&&vS.x<1.0&&vS.y>0.0&&vS.y<1.0){ float s=0.0; for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) s+=texture(uSh, vec3(vS.xy+vec2(float(i),float(j))/2048.0*1.3, vS.z-0.0025)); sh=s/9.0; }
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
@@ -320,6 +322,20 @@
     return { L, m: [ax[0], ay[0], L[0], ax[1], ay[1], L[1], ax[2], ay[2], L[2]] };
   }
   // 画一帧。scenes: [上传好的网格]；o: {w,h, ox,oy,k（一个小岛像素 = k 个屏幕像素）, iw,ih, sun, sunCol, sky, gnd, lit, time, cut, skyTop, skyBot, rain, inside, center:[u,v,z], radius, scissor, shadow}
+  // 第一人称用 4 倍抗锯齿画到一张多重采样的画布上，再拷回来：细栏杆、窗格、树枝不再时有时无地闪
+  let msFb = null, msRb = null, msDb = null, msW = 0, msH = 0;
+  function msaaFb(W, H) {
+    const n = Math.min(4, gl.getParameter(gl.MAX_SAMPLES) || 0); if (n < 2) return null;
+    if (!msFb || msW !== W || msH !== H) {
+      if (!msFb) { msFb = gl.createFramebuffer(); msRb = gl.createRenderbuffer(); msDb = gl.createRenderbuffer(); }
+      gl.bindRenderbuffer(gl.RENDERBUFFER, msRb); gl.renderbufferStorageMultisample(gl.RENDERBUFFER, n, gl.RGBA8, W, H);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, msDb); gl.renderbufferStorageMultisample(gl.RENDERBUFFER, n, gl.DEPTH_COMPONENT24, W, H);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, msFb); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, msRb); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, msDb);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) { gl.bindFramebuffer(gl.FRAMEBUFFER, null); msFb = null; return null; }
+      msW = W; msH = H;
+    }
+    return msFb;
+  }
   function draw(scenes, o) {
     if (!init()) return null;
     const W = Math.max(2, Math.round(o.w)), H = Math.max(2, Math.round(o.h));
@@ -335,7 +351,7 @@
       gl.disable(gl.POLYGON_OFFSET_FILL); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     if (o.pickAt) { if (!pickFb) { pickFb = gl.createFramebuffer(); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); const rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, 1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, pickFb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); } gl.bindFramebuffer(gl.FRAMEBUFFER, pickFb); gl.viewport(-Math.round(o.pickAt[0]), -Math.round(H - 1 - o.pickAt[1]), W, H); }
-    else gl.viewport(0, 0, W, H);
+    else { gl.viewport(0, 0, W, H); var ms = o.fp && o.msaa && !o.mode && !o.cutPass ? msaaFb(W, H) : null; if (ms) gl.bindFramebuffer(gl.FRAMEBUFFER, ms); }
     if (o.scissor) { gl.enable(gl.SCISSOR_TEST); const s = o.scissor; gl.scissor(Math.floor(s[0]), Math.floor(H - s[1] - s[3]), Math.ceil(s[2]), Math.ceil(s[3])); } else gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(prog); setL(prog);
@@ -354,6 +370,7 @@
     for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
     gl.bindVertexArray(null);
     if (o.pickAt) { const px = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.FRAMEBUFFER, null); return px[3] ? px[0] : -1; }
+    if (typeof ms !== 'undefined' && ms) { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, ms); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null); gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST); gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
     return cv;
   }
   function alpha(x, y) { if (!gl) return 0; const px = new Uint8Array(4); gl.readPixels(Math.round(x), Math.round(cv.height - y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return px[3]; }

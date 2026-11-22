@@ -1100,7 +1100,7 @@
   const vAny = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] > 0; };
   const wallAt = (u, v, z) => { const V = voxels(); if (V) return vAny(V, u, v, z) || vAny(V, u, v, z + 0.4) || vAny(V, u, v, z - 0.4); /* 镜头：树叶也算（不钻进树冠） */ const by = solids(); for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z < zb || z > zb + 15) continue; for (const s of by[L]) if (s.wall && hitO(s.o, u, v, 0.25)) return true; } return false; };
   function ceilAt(u, v, lv) { const r = F.roomAt(u, v, lv); let c = r ? Z[lv] + F.roomH(r) : 1e9; for (let L = lv + 1; L < Z.length; L++) if (area().inF(L, u, v)) { c = Math.min(c, Z[L]); break; } return c; }
-  function fpOpts(extra) { const k = fpK(), pix = fpQ() === 'pixel'; return Object.assign({}, viewOpts(), { w: Math.ceil(L.vw / k), h: Math.ceil(L.vh / k), posterize: pix ? 26 : 0, cel: pix, fp: fpCam(), cut: null, clip: null, mirror: false, pets: [], rips: [] }, extra || {}); }
+  function fpOpts(extra) { const k = fpK(), pix = fpQ() === 'pixel'; return Object.assign({}, viewOpts(), { msaa: !pix, w: Math.ceil(L.vw / k), h: Math.ceil(L.vh / k), posterize: pix ? 26 : 0, cel: pix, fp: fpCam(), cut: null, clip: null, mirror: false, pets: [], rips: [] }, extra || {}); }
   // 准星 / 点到的地方是什么
   function hotFromId(id) {
     if (id == null || id < 0) return null;
