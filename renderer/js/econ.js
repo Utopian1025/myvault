@@ -439,6 +439,7 @@
     } else if (tab === 'trip') {
       const away = mine().filter((q) => q.d.trip);
       if (away.length) h += `<div class="sec">在外面的</div>${away.map((q) => `<div class="trip">${esc(q.name)} 在${esc(sceneName(q.d.trip.to))} · 还有 ${fmtLeft(q.d.trip.end - Date.now())}<div class="xpbar"><i style="width:${(Math.min(1, (Date.now() - q.d.trip.start) / (q.d.trip.end - q.d.trip.start)) * 100).toFixed(0)}%"></i></div></div>`).join('')}`;
+      { const sc = G.save.settings.scene, nm = PP.SCENES[sc] ? PP.SCENES[sc].name : ''; h += `<p class="muted">飞行城堡一直飘在天上${nm ? '（现在在' + esc(nm) + '上空）' : ''}。伙伴坐城堡上的热气球飞下去，到地面上的地方玩一圈，再飞回来，带回特产和明信片。</p>`; }
       h += `<div class="sec">派谁出门</div>` + petPick(p && p.d.id);
       if (p) {
         const why = canTrip(p);
