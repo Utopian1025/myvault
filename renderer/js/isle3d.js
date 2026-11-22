@@ -21,13 +21,17 @@
       for (const q of [a, b, c]) { this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(nx, ny, nz); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); }
       return this;
     }
-    quad(a, b, c, d, col, mat) { this.tri(a, b, c, col, mat); return this.tri(a, c, d, col, mat); }
+    quad(a, b, c, d, col, mat) { const s0 = this.sway; if (s0 === 0) { this._bk = ((this._bk || 0) + 1) % 13; this.sway = mat === MAT.snow ? -0.0001 : -(1 + this._bk); } this.tri(a, b, c, col, mat); this.tri(a, c, d, col, mat); this.sway = s0; return this; }
     box(u0, v0, z0, u1, v1, z1, col, mat = 0, top, topMat) {
+      // 每块方块一个先后号（存在摆动值里，用负数）：重合的面谁在前就固定了（见着色器）；积雪排最后，永远被地板盖住
+      const sw0 = this.sway, useK = !(sw0 > 0); if (useK) { this._bk = ((this._bk || 0) + 1) % 13; this.sway = -(1 + this._bk); }
       const q = (a, b, c, d, cl, mt) => this.quad(a, b, c, d, cl, mt);
-      q([u0, v0, z1], [u1, v0, z1], [u1, v1, z1], [u0, v1, z1], top || col, topMat != null ? topMat : mat);
+      const tm = topMat != null ? topMat : mat; if (useK && tm === MAT.snow) this.sway = -0.0001;
+      q([u0, v0, z1], [u1, v0, z1], [u1, v1, z1], [u0, v1, z1], top || col, tm);
+      if (useK) this.sway = mat === MAT.snow ? -0.0001 : -(1 + this._bk);
       q([u0, v1, z0], [u1, v1, z0], [u1, v1, z1], [u0, v1, z1], col, mat); q([u1, v0, z0], [u1, v1, z0], [u1, v1, z1], [u1, v0, z1], col, mat);
       q([u0, v0, z0], [u1, v0, z0], [u1, v0, z1], [u0, v0, z1], col, mat); q([u0, v0, z0], [u0, v1, z0], [u0, v1, z1], [u0, v0, z1], col, mat);
-      return q([u0, v0, z0], [u1, v0, z0], [u1, v1, z0], [u0, v1, z0], col, mat);
+      q([u0, v0, z0], [u1, v0, z0], [u1, v1, z0], [u0, v1, z0], col, mat); this.sway = sw0; return this;
     }
     // 圆柱 / 圆台 / 圆锥（r 以格为单位）
     cyl(u, v, z0, z1, r0, r1, col, mat = 0, n = 14, cap = true, capCol) {
@@ -187,7 +191,9 @@
     // 第一人称：真正的透视相机（眼睛位置 uFP.xyz，朝向 uFP2.x 偏航 / uFP2.y 俯仰，uFP2.z 焦距，uFP2.w 宽高比）
     if(uFP.w>0.0){ vec3 m=vec3(P.xy*${MU}, P.z*${MZ})-uFP.xyz; float cy=cos(uFP2.x), sy=sin(uFP2.x), cp=cos(uFP2.y), sp=sin(uFP2.y);
       float rx=-m.x*sy+m.y*cy, fw=m.x*cy+m.y*sy, up=m.z; float u2=up*cp-fw*sp, f2=up*sp+fw*cp; float nr=0.25, fr=600.0;
-      gl_Position=vec4(rx*uFP2.z/uFP2.w, u2*uFP2.z, (f2*(fr+nr)-2.0*fr*nr)/(fr-nr), f2); } }`;
+      gl_Position=vec4(rx*uFP2.z/uFP2.w, u2*uFP2.z, (f2*(fr+nr)-2.0*fr*nr)/(fr-nr), f2); }
+    // 叠在同一个平面上的两块（墙的断面和门框、地板和下层屋顶的积雪……）：按每块自带的先后号挪一丁点深度，谁在前面就固定了，不会两张面轮流抢着显示（闪烁）
+    if(aW<0.0) gl_Position.z-=(-aW)*0.7e-6*gl_Position.w; }`;
   const VSS = `#version 300 es
   in vec3 aP; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
   void main(){ vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 s=(uL*m-uLo)*uLs; gl_Position=vec4(s.xy, -s.z, 1.0); }`;
@@ -195,7 +201,7 @@
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
+  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
@@ -209,7 +215,8 @@
       if(!keep) discard; }
     // 第一人称：玻璃是透明的（看得见外面），不再是一整块发光的黄玻璃，一动就闪
     // 第一人称：玻璃画成很淡的一层（隔几个像素留一点浅蓝），看得见外面也看得出那儿有玻璃挡着；点东西时能点穿玻璃
-    if(uFP.w>0.0 && int(mod(vM+0.5,32.0))==5){ if(uPick>0.5 || uMode>0.5) discard; vec2 g=mod(floor(gl_FragCoord.xy),3.0); if(g.x+g.y>0.5) discard; o=vec4(mix(uSkyTop,vec3(0.86,0.95,1.0),0.6),1.0); return; }
+    // 第一人称：玻璃单独第二遍画，真正半透明（看得见外面，也看得出有玻璃）；第一遍先跳过玻璃
+    if(uFP.w>0.0){ bool gl5=int(mod(vM+0.5,32.0))==5; if(gl5){ if(uPick>0.5 || uMode>0.5 || uGP<0.5) discard; o=vec4(mix(uSkyTop,vec3(0.86,0.95,1.0),0.6),0.22); return; } else if(uGP>0.5) discard; }
     if(uPick>0.5){ o=vec4(floor(vM/32.0+0.01)/255.0,0.0,0.0,1.0); return; }
     vec3 n=normalize(vN); vec3 V=normalize(uVd); if(uFP.w>0.0) V=normalize(uFP.xyz-vec3(vW.xy*${MU}, vW.z*${MZ})); if(dot(n,V)<0.0) n=-n;
     int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0;
@@ -367,7 +374,11 @@
     { const pa = new Float32Array(16), pz = new Float32Array(16), rp = new Float32Array(12); (o.pets || []).slice(0, 4).forEach((q, i) => { pa.set(q.slice(0, 4), i * 4); pz[i * 4] = q[4]; }); (o.rips || []).slice(0, 4).forEach((q, i) => rp.set(q, i * 3)); if (!(o.rips || []).length) for (let i = 0; i < 4; i++) rp[i * 3 + 2] = -99; else for (let i = (o.rips || []).length; i < 4; i++) rp[i * 3 + 2] = -99; if (u['uPet[0]']) gl.uniform4fv(u['uPet[0]'], pa); if (u['uPetZ[0]']) gl.uniform4fv(u['uPetZ[0]'], pz); if (u['uRip[0]']) gl.uniform3fv(u['uRip[0]'], rp); }
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
+    if (u.uGP) gl.uniform1f(u.uGP, 0);
     for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
+    if (o.fp && !o.pickAt && !o.mode && u.uGP) { gl.uniform1f(u.uGP, 1); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.depthMask(false);
+      for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
+      gl.depthMask(true); gl.disable(gl.BLEND); gl.uniform1f(u.uGP, 0); }
     gl.bindVertexArray(null);
     if (o.pickAt) { const px = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.FRAMEBUFFER, null); return px[3] ? px[0] : -1; }
     if (typeof ms !== 'undefined' && ms) { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, ms); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null); gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST); gl.bindFramebuffer(gl.FRAMEBUFFER, null); }

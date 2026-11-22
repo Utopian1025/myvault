@@ -94,7 +94,9 @@
     ['store', 0.15, 0, 4.6, 4, 7.6, 0.1, 0.06, 0.22, C.CREAM2, C.SHING, '储藏间的腌菜间', 'rummage'],
   ];
   const HUTS = [], HUT_PASS = [];
-  HUT_SPEC.forEach(([pid, side, t, w, d, h, lu, lv2, yx, wc, rc, nm, use], k) => {
+  /* 贴在大房间外墙上的 12 个小隔间（凸窗间、雨具间、腌菜间……）：从外面看城堡到处鼓包，进去也没什么可做的 → 先都去掉，把功夫花在大房间里。想要哪个就把它的名字放进 HUT_KEEP */
+  const HUT_KEEP = new Set([]);
+  HUT_SPEC.filter((h) => HUT_KEEP.has(h[11])).forEach(([pid, side, t, w, d, h, lu, lv2, yx, wc, rc, nm, use], k) => {
     const P = RM[pid]; if (!P) return;
     let Pl, nl, pfr = P.rot ? P : null;
     if (P.c) { nl = [Math.cos(side), Math.sin(side)]; Pl = [P.c[0] + nl[0] * P.c[2], P.c[1] + nl[1] * P.c[2]]; }
@@ -155,6 +157,7 @@
   // 菜园：3×2 块地，按菜园的局部坐标；站位在每块地前面
   const PS = 4.4;
   // 菜园拆成上下两块，各歪各的：[所在的那块, u, v]
+  const CROP_TAG = { carrot: '#f08a3a', berry: '#e8405a', corn: '#ffd36a', sunflower: '#f6c43a', pumpkin: '#f2832a', tomato: '#e0402a', cabbage: '#9ad070', melon: '#3f8a44', tulip: '#f2a6c2' };
   const PLOTS_L = [['farmA', 18.2, 29.4], ['farmA', 23.75, 29.4], ['farmA', 29.3, 29.4], ['farmB', 18.2, 36.5], ['farmB', 23.75, 36.5], ['farmB', 29.3, 36.5]];
   const PLOTS = PLOTS_L.map(([id, u, v]) => mW(id, u, v));
   const plotStand = (i) => mW(PLOTS_L[i][0], PLOTS_L[i][1] + PS / 2, PLOTS_L[i][2] + PS + 1.1);
@@ -311,6 +314,26 @@
     for (let i = 0; i < n; i++) { const c = a0 + (L * (i + 0.5)) / n; if (doors.some((d) => c > d[0] - 1.6 && c < d[1] + 1.6)) continue; const w = (i + r.lv + Math.round(at)) % 3 === 0 ? 0.7 : 0.95, top = tall ? (i % 2 ? 10.4 : 11) : 9; out.push([c - w, c + w, 4.4, top]); }
     return out;
   }
+  /* 室内收边：踢脚线（门口断开）、腰线、顶角线、窗帘、挂画——让房间看起来精致一点 */
+  const LAMP_ROOMS = { living: '#e8c890', bedroom: '#f0c8d0', library: '#c8d8a8', hall: '#e8d8b0', kitchen: '#f0e0b0', bath: '#d0e4ec' };
+  const ART_ROOMS = new Set(['living', 'bedroom', 'dining', 'library', 'hall', 'kitchen']);
+  const CURT = { living: '#8a5a4a', bedroom: '#c87a8a', dining: '#6a8a5a', library: '#5a6a8a', hall: '#8a6a4a', kitchen: '#c8a060', bath: '#7aaab8', laundry: '#9ab0b0', store: '#8a7a5a', shed: '#7a6a4a' };
+  const ARTS = [['#a8d0e8', '#7aa860', '#4f7a4a'], ['#f0c8a0', '#d89060', '#8a5a4a'], ['#c8d8f0', '#e8eef4', '#7a8aa0'], ['#f4e0a8', '#e8b860', '#6a8a4a'], ['#b8c8e8', '#3f6a9a', '#e8d8a0']];
+  function interiorTrim(m, r, ax, at, a0, a1, sg, holes, z, top, full) {
+    if (r.glass || r.c) return;
+    const f = at - sg * WT / 2;
+    const B = (s, e, z0, z1, d, col, mat) => { if (e - s < 0.05 || z1 - z0 < 0.02) return; const p1 = f - sg * d, w0 = Math.min(f, p1), w1 = Math.max(f, p1); if (ax === 'v') m.box(s, w0, z0, e, w1, z1, col, mat); else m.box(w0, s, z0, w1, e, z1, col, mat); };
+    const minus = (lo, hi, cuts) => { let segs = [[lo, hi]]; for (const [s0, e0] of cuts) segs = segs.flatMap(([x, y]) => (e0 <= x || s0 >= y ? [[x, y]] : [[x, s0], [e0, y]].filter(([p0, q0]) => q0 - p0 > 0.05))); return segs; };
+    const wood = shade(r.fl, 0.68), lo = a0 + WT / 2 + 0.05, hi = a1 - WT / 2 - 0.05;
+    const doorCuts = holes.filter((hh) => hh[2] < 0.7).map((hh) => [hh[0] - 0.34, hh[1] + 0.34]);
+    for (const [s0, e0] of minus(lo, hi, doorCuts)) { B(s0, e0, z, z + 0.55, 0.14, wood, M.plank); if (top > z + 3.6) B(s0, e0, z + 3.05, z + 3.3, 0.09, wood, M.plank); }
+    if (full) B(lo, hi, top - 0.42, top, 0.22, shade(r.in, 0.9), 0);
+    if (top > z + 9.5) for (const hh of holes) if (hh[2] > 1) { const col = CURT[r.id] || '#8a7a6a', zb = z + hh[2] - 0.7, zt = z + hh[3] + 0.3;
+      B(hh[0] - 0.95, hh[0] - 0.35, zb, zt, 0.16, col, M.cloth); B(hh[1] + 0.35, hh[1] + 0.95, zb, zt, 0.16, col, M.cloth); B(hh[0] - 1.1, hh[1] + 1.1, zt + 0.05, zt + 0.2, 0.22, '#5a4030', M.metal); }
+    if (ART_ROOMS.has(r.id) && top > z + 8.2) { const free = minus(lo + 0.5, hi - 0.5, holes.map((hh) => [hh[0] - 1.2, hh[1] + 1.2])).sort((p0, q0) => (q0[1] - q0[0]) - (p0[1] - p0[0]))[0];
+      if (free && free[1] - free[0] > 2.8) { const c = (free[0] + free[1]) / 2, w = Math.min(1.5, (free[1] - free[0]) / 2 - 0.4), A = ARTS[Math.abs(Math.round(at * 7 + c * 3)) % ARTS.length];
+        B(c - w, c + w, z + 4.8, z + 7.4, 0.1, '#5a3a24', M.plank); B(c - w + 0.18, c + w - 0.18, z + 6.0, z + 7.22, 0.13, A[0], 0); B(c - w + 0.18, c + w - 0.18, z + 5.5, z + 6.05, 0.135, A[1], 0); B(c - w + 0.18, c + w - 0.18, z + 4.98, z + 5.55, 0.14, A[2], 0); } }
+  }
   function rectRoom(m, r, cut, o) {
     const fr = r.rot ? r : null, fac = (nu, nv) => facing(cut, ...rotN(fr, nu, nv));
     const z = Z[r.lv], [u0, v0, u1, v1] = r.r, cutHere = cut && cut.lv === r.lv, h = roomH(r);
@@ -327,10 +350,12 @@
       wallPiece(m, ax, at, a0 - (ax === 'v' ? WT / 2 : 0), a1 + (ax === 'v' ? WT / 2 : 0), z, topIn, -sg, r.in, r.im, holes);
       for (const [s, e] of ext) { const top = cutHere && !back ? lowZ : fullZ; wallPiece(m, ax, at, s - (ax === 'v' ? WT / 2 : 0), e + (ax === 'v' ? WT / 2 : 0), z, top, sg, r.out, r.om, holes); if (top === fullZ) facade(m, r, ax, at, s, e, sg, z, wins, doors, o); }
       for (const hh of holes) { if (cutHere && z + hh[3] > topIn) continue; frame(m, ax, at, hh, z, hh[2] === 0, r); }
+      interiorTrim(m, r, ax, at, a0, a1, sg, holes, z, topIn, topIn === fullZ);
       if (!cutHere || back) for (const hh of wins) if (r.shut && (Math.round(hh[0] * 7) % 2)) shutters(m, ax, at + sg * (WT / 2 + 0.02), hh, z, sg, r.shut);
     }
     if (!r.glass) for (const [cu, cv] of [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? LOW(cut) : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
-    if (!r.glass) { m.box(u0 + 0.25, v0 + 0.25, z, u1 - 0.25, v0 + 0.35, z + 0.6, shade(r.in, 0.7), 0); m.box(u0 + 0.25, v0 + 0.25, z, u0 + 0.35, v1 - 0.25, z + 0.6, shade(r.in, 0.7), 0); }
+    // 吊灯：住人的房间天花板中间垂一盏（剖开看的时候不画，免得飘在半空）
+    if (!r.glass && LAMP_ROOMS[r.id] && !cutHere && h >= 10.5) { const cu = (u0 + u1) / 2, cv = (v0 + v1) / 2, top = z + h, lo = Math.max(z + 8.6, top - 2.2); /* 灯罩底边不低于 8.6，站着的眼睛（7.2）不会钻进灯里 */ m.box(cu - 0.05, cv - 0.05, lo + 0.6, cu + 0.05, cv + 0.05, top, '#3a2a20', M.metal); m.cyl(cu, cv, lo, lo + 0.6, 0.9, 0.3, LAMP_ROOMS[r.id], M.cloth, 10); m.cyl(cu, cv, lo - 0.05, lo + 0.12, 0.42, 0.42, '#fff3c4', M.glow, 8); }
   }
   function roundRoom(m, r, cut, o) {
     const z = Z[r.lv], [cu, cv, rad] = r.c, cutHere = cut && cut.lv === r.lv, h = roomH(r), n = RSEG(r);
@@ -598,9 +623,17 @@
           PLOTS_L.forEach(([pid, u, v], i) => {
             if (pid !== q.id) return;
             m.pk(PK.plot + i);
-            m.box(u, v, z, u + PS, v + PS, z + 1.6, '#6a4a30', M.plank, '#6a4a34', M.soil);
-            m.box(u + 0.4, v + 0.4, z + 1.6, u + PS - 0.4, v + PS - 0.4, z + 1.7, o.farm && o.farm[i] && o.farm[i].wet ? '#4a3424' : '#6a4a34', M.soil);
-            for (let k = 0; k < 3; k++) m.box(u + 0.7, v + 0.9 + k * 1.2, z + 1.7, u + PS - 0.7, v + 1.1 + k * 1.2, z + 1.78, '#5a3e2c', M.soil);
+            // 菜畦：四边木板（深浅不一）、四角小木桩、土里三条圆鼓鼓的垄、角上一块小木牌、前面几块踏脚石
+            const wet = o.farm && o.farm[i] && o.farm[i].wet, soil = wet ? '#4a3424' : '#6a4a34', ridge = wet ? '#5a3e2a' : '#7a5a3e', furrow = wet ? '#3a2818' : '#54382a';
+            m.box(u + 0.25, v + 0.25, z, u + PS - 0.25, v + PS - 0.25, z + 1.45, '#5a3e2c', M.soil, soil, M.soil);
+            const bd = ['#8a6040', '#7a5436', '#946a46', '#80583a'];
+            m.box(u, v, z, u + PS, v + 0.25, z + 1.7, bd[i % 4], M.plank); m.box(u, v + PS - 0.25, z, u + PS, v + PS, z + 1.7, bd[(i + 1) % 4], M.plank);
+            m.box(u, v + 0.25, z, u + 0.25, v + PS - 0.25, z + 1.7, bd[(i + 2) % 4], M.plank); m.box(u + PS - 0.25, v + 0.25, z, u + PS, v + PS - 0.25, z + 1.7, bd[(i + 3) % 4], M.plank);
+            for (const [pu, pv] of [[u, v], [u + PS, v], [u, v + PS], [u + PS, v + PS]]) { m.box(pu - 0.22, pv - 0.22, z, pu + 0.22, pv + 0.22, z + 2.1, '#5a3a24', M.plank); m.box(pu - 0.28, pv - 0.28, z + 2.1, pu + 0.28, pv + 0.28, z + 2.25, '#3a2618', M.plank); }
+            for (let k = 0; k < 3; k++) { const rv = v + 0.75 + k * ((PS - 1.5) / 2); m.box(u + 0.5, rv - 0.32, z + 1.45, u + PS - 0.5, rv + 0.32, z + 1.62, ridge, M.soil); m.box(u + 0.55, rv - 0.18, z + 1.62, u + PS - 0.55, rv + 0.18, z + 1.72, ridge, M.soil); }
+            for (let k = 0; k < 2; k++) { const fv = v + 0.75 + (k + 0.5) * ((PS - 1.5) / 2); m.box(u + 0.5, fv - 0.14, z + 1.45, u + PS - 0.5, fv + 0.14, z + 1.48, furrow, M.soil); }
+            { const f0 = o.farm && o.farm[i], tag = f0 ? (CROP_TAG[f0.crop] || '#e0b060') : '#d8c4a0'; m.box(u + PS - 0.75, v + PS - 0.42, z + 1.45, u + PS - 0.63, v + PS - 0.32, z + 3.0, '#6a4a30', M.plank); m.box(u + PS - 1.05, v + PS - 0.44, z + 2.4, u + PS - 0.33, v + PS - 0.3, z + 3.1, '#e8d8b8', M.plank); m.box(u + PS - 0.95, v + PS - 0.46, z + 2.5, u + PS - 0.43, v + PS - 0.28, z + 3.0, tag, 0); }
+            m.pk(0); for (let k = 0; k < 3; k++) m.box(u + 0.4 + k * (PS - 1.4) / 2, v + PS + 0.35, z, u + 1.0 + k * (PS - 1.4) / 2, v + PS + 0.95, z + 0.12, ['#9a948a', '#a8a298', '#8e887e'][k], M.stone); m.pk(PK.plot + i);
             const f = o.farm && o.farm[i]; if (f && Pt.crop) for (let ka = 0; ka < 3; ka++) for (let kb = 0; kb < 3; kb++) Pt.crop(m, f.crop, f.stage, u + 0.9 + ka * 1.3, v + 0.9 + kb * 1.3, z + 1.7, i * 9 + ka * 3 + kb);
             m.pk(0);
             m.box(u + 0.2, v - 0.25, z + 1.6, u + PS - 0.2, v - 0.05, z + 1.85, C.COP, M.metal);
