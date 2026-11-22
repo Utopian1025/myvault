@@ -372,7 +372,7 @@
   // ---------- 画 ----------
   function renderBack(ctx) {
     for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
-    if (G.isle) followTick();
+    if (G.isle) { followTick(); watchdog(); }
     if (!G.isle) return;
     if (!fp && !warm.on && !PP.noWarm) { warm.on = true; setTimeout(warmLoop, 400); }
     if (!L) layout();
@@ -1607,6 +1607,41 @@
   A.enterDoor = function* (done) { if (!G.isle) { yield* baseEnter.call(this, done); return; } const p = this; yield* walkTo(p, HALL_OUT.u - 1, HALL_OUT.v - 1); yield 0.2; p.inDoor = true; done && done(); };
   A.emerge = function* () { if (!G.isle) { yield* baseEmerge.call(this); return; } const p = this; p.inDoor = false; p.ip = null; p.iw = null; p.isleSpot = null; setIp(p, HALL_OUT.u - 1, HALL_OUT.v - 1, 1); p.y = p.floor; yield* A.isleOut.call(p); };
   // 自己决定做什么：整座城堡就是家。下雨下雪往屋里躲；晚上、累了去卧室睡；锅炉没柴了去抱柴
+  /* 挑一件家务：别的伙伴正在干的同一件不挑 */
+  function chore(p, wet) {
+    const e = E(), PR = props(), mine = (k) => G.pets.some((o) => o !== p && o._chore === k && o.action && o.action !== 'fp');
+    const free = (k) => !mine(k), out = [];
+    PLOTS.forEach((_, i) => { const inf = PP.econ.plotInfo(i), k = 'plot' + i; if (!free(k)) return;
+      if (inf && inf.stage === 3) out.push([3, { key: k, name: 'isleHarvest', fn: A.isleHarvest, args: [i] }]);
+      else if (inf && !wet && (e.farm[i].water || 0) < 2) out.push([1.6, { key: k, name: 'isleWater', fn: A.isleWater, args: [i] }]);
+      else if (!inf) { const seed = Object.keys(e.bag).find((id) => e.bag[id] > 0 && PP.econ.ITEMS[id] && PP.econ.ITEMS[id].kind === 'seed'); if (seed) out.push([1.4, { key: k, name: 'isleSow', fn: A.isleSow, args: [i, seed] }]); } });
+    if (fort().fuel < 45 && free('wood')) out.push([1.5, { key: 'wood', name: 'isleStoke', fn: A.isleStoke, args: [] }]);
+    if (eggOut() && free('nest')) { const pr = PR.find((x) => x.do === 'nest'); if (pr) out.push([1.2, { key: 'nest', name: 'isleUse', fn: A.isleUse, args: [pr] }]); }
+    if (!day().honey && free('hive') && !wet) out.push([1, { key: 'hive', name: 'isleHive', fn: A.isleHive, args: [] }]);
+    if (free('fish') && (day().fish || 0) < 14) out.push([0.5, { key: 'fish', name: 'isleFish', fn: A.isleFish, args: [] }]);
+    { const pr = PR.find((x) => x.do === 'cookp'); if (pr && free('cook') && (day().cook || 0) < 4) out.push([0.4, { key: 'cook', name: 'isleUse', fn: A.isleUse, args: [pr] }]); }
+    if (!out.length) return null;
+    return U.weighted(out.map(([w, c]) => [c, w]));
+  }
+  /* 城堡里的串门：走到对方身边聊几句（不去拉你正在操控的主角，也不玩风景里那种横着跑的追逐） */
+  const baseSocial = A.social;
+  A.social = function* () {
+    if (!G.isle || !G.pets.includes(this)) { yield* baseSocial.call(this); return; }
+    const p = this, cands = G.pets.filter((o) => o !== p && o.ip && !o.held && !o.sleeping && !(PP.fpOwns && PP.fpOwns(o)) && o.ip.lv === ipOf(p).lv);
+    if (!cands.length) return; const o = U.pick(cands), at = nearFree(area(), o.ip.u + U.rand(-1.5, 1.5), o.ip.v + 1.6, o.ip.lv);
+    if (!(yield* walkTo(p, at[0], at[1], null, o.ip.lv))) return;
+    face(p, o.ip.u, o.ip.v); const topics = ['note', 'heart', 'fish', 'sun', 'moon', 'star', 'q', 'excl'];
+    for (let i = 0; i < U.randi(2, 4); i++) { const s2 = i % 2 && !o.gen ? o : p; s2.think(U.pick(topics), 1.6, '聊天'); yield 1.6; }
+    p.addRel && p.addRel(o, 0.5); p.n.social = Math.min(100, p.n.social + 20);
+  };
+  /* 看门狗：城堡里一个动作卡太久（等不到的东西）就结束它，换下一件事。睡觉、你让它干的、你正在操控的不管 */
+  function watchdog() {
+    const now = performance.now();
+    for (const p of G.pets) { if (p._wdA !== p.action || p._wdG !== p.gen) { p._wdA = p.action; p._wdG = p.gen; p._wdT = now; continue; }
+      if (!p.action || p.sleeping || p.held || (PP.fpOwns && PP.fpOwns(p)) || p._byYou) continue;
+      const lim = p.action === 'isleUse' && p._usePr && p._usePr.do === 'sleep' ? 600000 : ['social', 'with', 'idle', 'wander'].includes(p.action) ? 30000 : 90000;
+      if (now - p._wdT > lim) { p.interrupt(true); p._wdT = now; } }
+  }
   const baseDecide = PP.Pet.prototype.decide;
   PP.Pet.prototype.decide = function () {
     if (G.isle && this.isleSpot && !this.sleeping && !this.fishing) { const s = this.isleSpot, a = area(), q = ipOf(this); this.isleSpot = null; if (Math.hypot(s.u - q.u, s.v - q.v) > 6) { const c = nearFree(a, s.u, s.v, q.lv); setIp(this, c[0], c[1], q.lv); } }
@@ -1616,7 +1651,7 @@
     if (G.isle && G.pets.includes(this) && this._stayUntil && performance.now() < this._stayUntil && !(PP.sleepTime && PP.sleepTime())) { this.run('isleWait', A.isleWait); return; }
     // 睡觉时间：回卧室的床上睡，不在甲板上随地一躺
     if (G.isle && G.pets.includes(this) && !this.held && PP.sleepTime && PP.sleepTime() && !this.sleeping) { const bed = props().find((x) => x.do === 'sleep'); if (bed) { this.run('isleUse', A.isleUse, bed); return; } }
-    if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {
+    if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.93) {
       const e = E(), p = this, q = ipOf(p), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; }, PR = props();
       // 别的伙伴正在用 / 站在旁边的东西先不挑：几只住在一起时各干各的，不挤成一堆
       const taken = (x) => x && x.at && G.pets.some((o) => o !== p && o.ip && (o._usePr === x || Math.hypot(o.ip.u - x.at[0], o.ip.v - x.at[1]) < 2.5));
@@ -1624,6 +1659,8 @@
       const roam = (lv) => { const cs = cellList().filter((c) => lv == null || c[4] === lv); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
       if (p.n.energy < 40 || (night() && Math.random() < 0.5)) { const bed = PR.find((x) => x.do === 'sleep'); if (bed && Math.random() < 0.7) return R('isleUse', A.isleUse, bed); }
       if (fort().fuel < 15 && Math.random() < 0.35) return R('isleStoke', A.isleStoke);
+      /* 家务：城堡里有活就先干活（收菜、种菜、浇水、添柴、捡蛋、收蜂蜜、钓鱼、做饭），几只分着干，不抢同一块地 */
+      { const ch = chore(p, wet); if (ch && Math.random() < 0.8) { p._chore = ch.key; return R(ch.name, ch.fn, ...ch.args); } }
       if (wet && !indoor && Math.random() < 0.6) return R('isleHouse', A.isleHouse, U.pick(['house', 'house', 'gh']));
       if (!wet) {
         const grow = PLOTS.map((_, i) => i).filter((i) => { const inf = PP.econ.plotInfo(i); return inf && inf.stage < 3 && (e.farm[i].water || 0) < 3; });
