@@ -899,7 +899,7 @@
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
-          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看 · 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · Alt 松开鼠标 · Q 退出 · Esc 老板键</div>
+          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看（M 锁住鼠标后移动就转头）· 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · M 锁住 / 松开鼠标（松开时按住鼠标拖动转头） · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4); fpBarEl.style.transformOrigin = 'left top'; fpBarEl.style.transform = `scale(${sc.toFixed(3)})`;
@@ -972,15 +972,16 @@
     try { const r = el.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
   }
   function lookFree() { if (document.pointerLockElement) { lookBye = true; try { document.exitPointerLock(); } catch (e) {} } }
+  /* M：锁住 / 松开鼠标（锁住时移动鼠标就转头；松开时按住鼠标拖动转头，或者用 ← → 键） */
   function lookToggle() {
-    S().fpMouse = !lookPref(); PP.save.soon();
-    if (lookPref()) lookGrab(); else lookFree();
-    if (fp) fpBar(); PP.ui.toast(lookPref() ? '鼠标转头：开（移动鼠标看四周，单击用东西，Alt 松开鼠标）' : '鼠标转头：关（按住鼠标拖动转头）', 2);
+    if (lookOn()) { S().fpMouse = false; lookFree(); PP.ui.toast('鼠标松开了：按住鼠标拖动转头，或者用 ← → 键；再按 M 锁住', 2.4); }
+    else { S().fpMouse = true; lookGrab(); }
+    PP.save.soon(); if (fp) fpBar();
   }
   document.addEventListener('pointerlockchange', () => {
     const on = lookOn(), self = lookBye; lookBye = false;
     if (document.pointerLockElement && (!fp || !lookPref() || fpMenu || bigMap)) { lookFree(); return; } // 刚锁上时已经关掉 / 退出 / 开了菜单
-    if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标转头 · 按 Esc 或 Alt 松开', 2.4); } else if (!self && fp) { lookLostT = performance.now(); PP.ui.toast('鼠标松开了（单击画面继续转头 · 再按一次 Esc 是老板键）', 2.4); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
+    if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标就转头 · 按 M 松开', 2.4); } else if (!self && fp) { lookLostT = performance.now(); if (performance.now() - (PP.lastEscTap || -1e9) < 600 && PP.panic) PP.panic(); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键 // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
     PP.refreshInteractive && PP.refreshInteractive(); if (fp) fpBar();
   });
   PP.lookLostRecently = () => performance.now() - lookLostT < 600;
@@ -998,7 +999,6 @@
     if (bigMap) { mapClick(x, y); return; }
     if (fpMenu) { fpMenu = false; fpBar(); return; }
     if (miniHit(x, y)) { toggleMap(); return; }
-    if (lookPref() && !lookOn() && lastPT !== 'touch') { lookGrab(); return; }
     // 拖动 / 触屏滑：默认“转镜头”（往左滑 → 往左看）；菜单里能改成“拽画面”
     const st = { x, y, yaw: fp.yaw, pitch: fp.pitch, moved: false }; G.uiDrag = true;
     const mv = (ev) => { const dx = ev.clientX - st.x, dy = ev.clientY - st.y; if (Math.hypot(dx, dy) > 6) st.moved = true; if (!st.moved) return; const g = S().fpDrag === 'grab' ? -1 : 1; fp.yaw = st.yaw; fp.pitch = st.pitch; turnBy(dx * g, dy * g, 0.006 * fpSens()); document.body.style.cursor = 'grabbing'; };
@@ -1218,11 +1218,11 @@
     const fs = U.clamp(Math.min(w, h) / 34, 11, 18); ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     let ty = cy0 + 12 * us; const pill = (tx, a = 0.72) => { const tw = ctx.measureText(tx).width; ctx.fillStyle = `rgba(30,24,40,${a})`; ctx.fillRect(cx0 - tw / 2 - 8, ty, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, ty + 5); ty += fs + 16; };
     if (fp.aim) pill('[E] ' + fp.aim);
-    if (lookPref() && !lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('单击画面：用鼠标转头（Esc / Alt 随时松开）', 0.62);
-    if (lookOn()) { const t2 = '鼠标已锁定 · 按 Esc 或 Alt 松开', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
+    if (!lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill('按 M 锁定鼠标转头 · 或按住鼠标拖动转头', 0.62);
+    if (lookOn()) { const t2 = '鼠标已锁定 · 按 M 松开', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     const age = (now - fpHintT) / 1000;
-    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 单击画面锁定鼠标转头（Esc 松开）· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · M 锁定 / 松开鼠标 · 拖动也能转头· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }

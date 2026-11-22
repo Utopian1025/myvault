@@ -253,9 +253,9 @@
     if (G.save.settings.mode === 'full' && PP.exitFull) PP.exitFull();
     PP.setView(G.save.settings.lastMini || 'top'); return true;
   };
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.repeat) { /* 第一人称锁着鼠标：这一下 Esc 只是松开鼠标，不当老板键 */ if ((PP.isle && PP.isle.looking && PP.isle.looking()) || (PP.lookLostRecently && PP.lookLostRecently())) return; if (PP.panic()) e.preventDefault(); escT = 0; } }, true);
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.repeat) { if (PP.panic()) e.preventDefault(); escT = 0; } }, true);
   if (api && api.onHotkey) api.onHotkey((k) => {
-    if (k === 'escTap') { PP.lastEscTap = performance.now(); if (document.hasFocus()) return; const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
+    if (k === 'escTap') { PP.lastEscTap = performance.now(); if (document.hasFocus()) { if (PP.lookLostRecently && PP.lookLostRecently()) PP.panic(); return; } const t = performance.now(); if (t - escT < 450) { escT = 0; PP.panic(); } else escT = t; return; }
     if (k === 'exitFull') { PP.panic() || (PP.exitFull && PP.exitFull()); return; }
     else PP.toggleAll(k === 'summon' ? 'summon' : null);
   });
