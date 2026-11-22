@@ -725,7 +725,7 @@
   // 操作像 CS / 我的世界：WASD 走（A 左 D 右）、鼠标看、空格跳、Shift 跑、E 用、Tab 地图、滚轮拉远拉近（拉远就是第三人称）
   // 走路按“真的地面”算：脚下最高的那个面（楼板、楼梯的坡面、能站上去的家具），墙挡路，栏杆跳起来能翻过去，踩空就往下掉
   let fpBarEl = null, fpMenu = false, bigMap = null, fpHintT = 0;
-  const PH = 8, EYE = 7.2, BODYH = 3.6, CROUCH = 3.0, FOV = 1.12, STEP = 1.3, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
+  const PH = 8, EYE = 7.2, BODYH = 3.6, CROUCH = 3.0, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
   const fpQ = () => (S().fpQ === 'pixel' ? 'pixel' : 'fine');
   const fpK = () => (fpQ() === 'pixel' ? pixK() : 1 / Math.min(2, DPR())); // 精细：按屏幕实际像素画（高分屏最多 2 倍）
   const fpDist = () => U.clamp(+S().fpDist || 0, 0, 14);
@@ -1073,9 +1073,11 @@
     if (fp.air) {
       fp.vz = Math.max(-70, fp.vz - GRAV * dt); let nz = q.z + fp.vz * dt;
       /* 往上跳时头顶碰到天花板 / 楼板就停住往下掉（以前会穿过天花板，落到楼上或屋顶上，镜头卡在楼板里看着像屋顶消失、乱闪） */
-      if (fp.vz > 0) { const hr = headroom(q.u, q.v, q.z); if (hr < 99) { const lim = q.z + Math.max(0, hr - (EYE + 0.6)); if (nz > lim) { nz = lim; fp.vz = 0; } } }
+      if (fp.vz > 0) { const hr = headroom(q.u, q.v, q.z); if (hr < 99) { const lim = q.z + Math.max(0, hr - (BODYH + 0.4)); if (nz > lim) { nz = lim; fp.vz = 0; } } }
       const g2 = surf(q.u, q.v, Math.max(nz, q.z) + STEP);
-      if (fp.vz <= 0 && isFinite(g2.z) && nz <= g2.z) { q.z = g2.z; q.lv = g2.lv; fp.air = false; const h = fp.fallZ - q.z; fp.vz = 0; if (h > 8) { fp.land = performance.now(); p.jolt && p.jolt(0, -3); } }
+      if (fp.vz <= 0 && isFinite(g2.z) && nz <= g2.z && blocked(q.u, q.v, g2.z) && fp.okUV) { /* 落下来会嵌进东西里（空中往前飘进了窗台、桌边底下）：退回上一个能站的地方再落 */ q.u = fp.okUV[0]; q.v = fp.okUV[1]; }
+      const g3b = fp.vz <= 0 ? surf(q.u, q.v, Math.max(nz, q.z) + STEP) : g2;
+      if (fp.vz <= 0 && isFinite(g3b.z) && nz <= g3b.z) { q.z = g3b.z; q.lv = g3b.lv; fp.air = false; const h = fp.fallZ - q.z; fp.vz = 0; if (h > 8) { fp.land = performance.now(); p.jolt && p.jolt(0, -3); } }
       else if (!isFinite(g2.z) || nz < Z[0] - 30) { const s = fp.safe; if (s) { q.u = s.u; q.v = s.v; q.z = s.z; q.lv = s.lv; } fp.air = false; fp.vz = 0; PP.ui.toast('差点掉下去！回到刚才站的地方', 1.6); }
       else { q.z = nz; q.lv = lvAt(q.z); }
     } else if (isFinite(g.z)) { if (q.z - g.z > stH) { fp.air = true; fp.vz = 0; fp.fallZ = q.z; } else { q.z = g.z; q.lv = g.lv;
@@ -1083,6 +1085,7 @@
         const want = mv || st || fp.auto, movedNow = fp.lastP ? Math.hypot(q.u - fp.lastP[0], q.v - fp.lastP[1]) : 1; fp.lastP = [q.u, q.v];
         if (blocked(q.u, q.v, q.z) && want && movedNow < 0.01) { fp.stuckT = (fp.stuckT || 0) + dt; if (fp.stuckT > 1 && fp.safe) { Object.assign(q, fp.safe); fp.stuckT = 0; fp.auto = null; PP.ui.toast('卡住了，回到刚才站的地方', 1.4); } } // 想走却一动不动 1 秒才救
         else if (!blocked(q.u, q.v, q.z)) { fp.stuckT = 0; if (!g.ramp && q.z > Z[0] - 1 && (!fp.safeT || performance.now() - fp.safeT > 300)) { fp.safe = { u: q.u, v: q.v, z: q.z, lv: q.lv }; fp.safeT = performance.now(); } } } }
+    if (!blocked(q.u, q.v, q.z)) fp.okUV = [q.u, q.v];
     p.anim = fp.air ? (fp.vz > 0 ? 'jump' : 'fall') : fp.pose ? fp.pose : (mv || st || fp.auto) ? (K.has('run') || fp.auto ? 'run' : 'walk') : 'idle';
     fpSync();
     if ((fp.saveT += dt) > 3) { fp.saveT = 0; fpRemember(); }
