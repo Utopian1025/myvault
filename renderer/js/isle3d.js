@@ -244,7 +244,7 @@
       else { float w1=sin(q.x*2.1+q.y*1.3+t*1.4+ns(q*0.9+t*0.2)*3.0), w2=sin(-q.x*1.2+q.y*2.6-t*1.1+ns(q*1.3-t*0.15)*3.0), h=w1*0.5+w2*0.5;
         for(int i=0;i<4;i++){ float age=t-uRip[i].z; if(age<0.0||age>4.0) continue; float d=length(q-uRip[i].xy); h+=sin(d*6.0-age*7.5)*exp(-d*0.8)*exp(-age*0.9)*1.6*smoothstep(0.0,0.4,age*2.5-d+0.4); }
         vec3 deep=c*0.6, sh=c*1.12+vec3(0.04,0.09,0.1); c=mix(deep,sh,smoothstep(-0.7,0.9,h)); c+=0.4*pow(clamp(1.0-abs(h),0.0,1.0),7.0);
-        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.6*step(0.975,ns(q*6.0+vec2(t*0.7,-t*0.4)))*(1.0-uLit*0.6)*(1.0-uFP.w); emis=0.25; }
+        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.35*step(0.98,ns(q*6.0+vec2(t*0.25,-t*0.15)))*(1.0-uLit*0.6)*(1.0-uFP.w); emis=0.25; }
     } else if(m==11){ float t=floor(vW.x*0.7)+floor(vW.y*0.7+vW.z*0.2); c*=0.88+0.2*mod(t,2.0);
     } else if(m==12){ c*=0.85+0.25*ns(vec2(hc*0.5,vW.z*0.6)); c+=0.12*smoothstep(0.8,1.0,fract(vW.z*0.2+hc*0.1));
     } else if(m==13){ float s=mod(floor(hc*0.9),2.0); c*=0.94+0.08*s; vec2 g=vec2(hc*0.9, vW.z*0.22); if(length(fract(g)-0.5)<0.13) c=mix(c, mix(vec3(0.9,0.55,0.5),vec3(0.5,0.72,0.6),s),0.75);
