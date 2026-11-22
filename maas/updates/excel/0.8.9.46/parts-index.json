@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "product": "maas-excel",
+  "version": "0.8.9.46",
+  "name": "Maas_Excel_v0.8.9.46.zip",
+  "size": 5202098,
+  "sha256": "5c9214e98ea0edcdc97169d1a53164b91d89bf368d8e46699549956e0fcdebce",
+  "url": "https://github.com/Utopian1025/myvault/releases/download/maas-excel-v0.8.9.46/Maas_Excel_v0.8.9.46.zip",
+  "notes": "WN 收藏与导航、QF 仅此项、SP 多区域高亮；SYN 对照 Excel 与 Word，显示差异及执行进度。内含可选 Word 0.3.21。",
+  "parts": [
+    {
+      "index": 0,
+      "size": 524288,
+      "sha256": "0a7b4dec329ea20f14a1fc87c17bc8a723315102eab006c36a74c4d2070dd444"
+    },
+    {
+      "index": 1,
+      "size": 524288,
+      "sha256": "7df8ade32ad5b8c68ed0dfd5fb35cd47fbf3ebde8ca7ee7daadc76944c189b44"
+    },
+    {
+      "index": 2,
+      "size": 524288,
+      "sha256": "019cb5a5f6f9f96969665a2274317dfd99b1cf4eac6e8db4c2f1eb5ac1dffd83"
+    },
+    {
+      "index": 3,
+      "size": 524288,
+      "sha256": "38d10b6128e00fa0176a3413a8c52ce0a724c5183a7698a24a55de6d95d1f9bf"
+    },
+    {
+      "index": 4,
+      "size": 524288,
+      "sha256": "f98f850c2bca1e6ea4bc9c25560ecf2c9eda43a46e734373d9dc27d1ad1ad05a"
+    },
+    {
+      "index": 5,
+      "size": 524288,
+      "sha256": "600a2f49180bcad892ca9673c608deaaf5a24a9f80f8521f0ab5ad41b41d307a"
+    },
+    {
+      "index": 6,
+      "size": 524288,
+      "sha256": "83f1c90089e0af920fcbc22332385c35d3ac292aa46c8123b1cf0f54c2700caf"
+    },
+    {
+      "index": 7,
+      "size": 524288,
+      "sha256": "7a4497b4f29bacf58227ad1aee0d6c7d28c30e03001b5918f2e061e746e980ef"
+    },
+    {
+      "index": 8,
+      "size": 524288,
+      "sha256": "72ec2ffaa92d94b1d9659f6d1c530738b94abb11c1e45b90d5b0a2e889bff4f0"
+    },
+    {
+      "index": 9,
+      "size": 483506,
+      "sha256": "aef3ef7ef0cd6c5f1f4cad7a43aa89a25b2287462f58f47dd5b28e0ac44cfa9b"
+    }
+  ]
+}
