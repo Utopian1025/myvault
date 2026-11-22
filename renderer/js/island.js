@@ -575,7 +575,11 @@
     const L0 = FURN.layout(E()), u = L.u, rid = froom;
     const draw = (it, col, w) => { const r = FURN.rect(it), z = Z[F.roomLv(it.room || 'living')]; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].map(([a, b]) => F.toW(F.frameOf(it.room || 'living'), a, b)).forEach(([a, b], k) => { const X = scrU(a, b), Y = scrV(a, b, z + 0.1); k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); ctx.stroke(); };
     ctx.save();
-    L0.forEach((it, i) => { if ((it.room || 'living') !== rid || (fdrag && fdrag.i === i)) return; draw(it, i === fsel ? 'rgba(255,230,120,.95)' : 'rgba(255,255,255,.35)', i === fsel ? u * 0.5 : u * 0.25); });
+    /* 只给选中的家具画框；其它家具只在中间点一个小圆点（表示能拖），不再有一堆白色菱形框 */
+    L0.forEach((it, i) => { if ((it.room || 'living') !== rid || (fdrag && fdrag.i === i)) return;
+      if (i === fsel) { draw(it, 'rgba(255,230,120,.95)', u * 0.5); return; }
+      const r = FURN.rect(it), z = Z[F.roomLv(it.room || 'living')], c = F.toW(F.frameOf(it.room || 'living'), (r[0] + r[2]) / 2, (r[1] + r[3]) / 2), X = scrU(c[0], c[1]), Y = scrV(c[0], c[1], z + 0.1);
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.strokeStyle = 'rgba(42,30,48,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(X, Y, Math.max(2.5, u * 0.45), 0, 6.3); ctx.fill(); ctx.stroke(); });
     if (fdrag) draw(fdrag.it, fdrag.ok ? 'rgba(120,230,120,.95)' : 'rgba(255,90,90,.95)', u * 0.6);
     ctx.restore();
   }
@@ -651,7 +655,7 @@
   function cBar() {
     if (!G.isle || !L || fp) { if (cbar) { cbar.remove(); cbar = null; PP.refreshInteractive(); } placeTags(); return; }
     if (!cbar) {
-      cbar = document.createElement('div'); cbar.className = 'cutbar'; document.getElementById('ui').appendChild(cbar);
+      cbar = document.createElement('div'); cbar.className = 'cutbar'; document.getElementById('ui').appendChild(cbar); S().cbarSeen = (S().cbarSeen || 0) + 1; PP.save.soon();
       cbar.addEventListener('mousedown', (ev) => ev.stopPropagation());
       cbar.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a; if (a === 'up') setCut(Math.min(3, cut + 1)); else if (a === 'down') setCut(cut - 1); else if (a === 'out') setCut(null); else if (a === 'furn') furnEdit(!fedit); else if (a === 'room') { if (b.dataset.go) goRoom(b.dataset.r); else setFocus(b.dataset.r); } else if (a === 'level') setCut(cut); else if (a === 'in') setCut(1); else viewAct(a, b); });
     }
@@ -665,6 +669,9 @@
         + (r ? B('level', '▦', '看这一整层') : '')
         + B('out', '✕', '回到外面看整座城堡', 'class="primary"'); }
     cbar.classList.add('vert');
+    /* 按钮旁边的文字：前几次进城堡一直显示，之后鼠标停上去才显示 */
+    cbar.querySelectorAll('button[title]').forEach((b) => { if (!b.dataset.l) b.dataset.l = b.title.split('（')[0]; });
+    cbar.classList.toggle('tips', (S().cbarSeen || 0) < 4);
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.5); cbar.style.transformOrigin = 'left top'; cbar.style.transform = `scale(${sc.toFixed(3)})`;
     const h = cbar.offsetHeight * sc;
     cbar.style.left = Math.max(2, L.vx0 + 6) + 'px'; cbar.style.top = Math.max(2, L.vy0 + 6) + 'px';
