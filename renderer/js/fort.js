@@ -85,18 +85,18 @@
     ['attic', 'v1', 0.62, 4.6, 4, 7.6, 0.08, 0.12, 0.26, C.CREAM2, C.TILE, '阁楼的观景窗', 'sit'],
     ['library', 'u1', 0.6, 4.6, 4, 7.4, 0.06, 0.1, -0.24, C.CREAM, C.SHING, '图书室的读书角', 'read'],
     ['dining', 'u1', 0.4, 4.8, 4.2, 8, 0.12, -0.06, 0.22, C.BRICK, C.TILE2, '餐厅的茶水间', 'drink'],
-    ['workshop', 4.0, 0, 5, 4.4, 8.4, 0.12, 0.06, 0.22, C.CREAM2, C.TILE, '工作间的零件仓', 'rummage'],
-    ['workshop', 5.35, 0, 4.4, 4, 7.4, -0.1, -0.06, -0.2, C.CREAM, C.TILE2, '工作间的小画室', 'read'],
+    ['workshop', 4.55, 0, 5, 4.4, 8.4, 0.12, 0.06, 0.22, C.CREAM2, C.TILE, '工作间的零件仓', 'rummage'], // 角度按「外面没有烟囱、屋顶、爬藤穿进来」挑的
+    ['cockpit', 4.65, 0, 4.4, 4, 7.4, -0.1, -0.06, -0.2, C.CREAM, C.TILE2, '驾驶室的小画室', 'read'],
     ['cockpit', 2.95, 0, 4.4, 4.2, 9, 0.08, -0.08, 0.2, '#e8d0b8', C.TILE2, '瞭望小屋', 'sit'],
     ['cockpit', 1.15, 0, 4.2, 4, 7.4, -0.1, 0.08, -0.24, C.CREAM2, C.TILE, '海图室', 'read'],
     ['hall', 3.6, 0, 4.8, 4.2, 8, -0.08, 0.06, 0.22, C.CREAM, C.TILE2, '门厅的雨具间', 'rummage'],
-    ['bath', -0.7, 0, 4.4, 4, 7.4, -0.1, 0.1, -0.2, C.CREAM, C.SHING, '浴室的蒸汽间', 'sit'],
+    ['bath', 4.8, 0, 4.4, 4, 7.4, -0.1, 0.1, -0.2, C.CREAM, C.SHING, '浴室的蒸汽间', 'sit'],
     ['store', 0.15, 0, 4.6, 4, 7.6, 0.1, 0.06, 0.22, C.CREAM2, C.SHING, '储藏间的腌菜间', 'rummage'],
   ];
   const HUTS = [], HUT_PASS = [];
-  /* 贴在大房间外墙上的 12 个小隔间（凸窗间、雨具间、腌菜间……）：从外面看城堡到处鼓包，进去也没什么可做的 → 先都去掉，把功夫花在大房间里。想要哪个就把它的名字放进 HUT_KEEP */
-  const HUT_KEEP = new Set([]);
-  HUT_SPEC.filter((h) => HUT_KEEP.has(h[11])).forEach(([pid, side, t, w, d, h, lu, lv2, yx, wc, rc, nm, use], k) => {
+  /* 贴在大房间外墙上的 12 个小隔间：每一间按名字单独布置（见 hutInterior），想临时关掉哪些就把要留的名字放进 HUT_KEEP */
+  const HUT_KEEP = null; // null = 全部都要（小隔间是城堡的灵魂：凌乱、别有洞天）
+  HUT_SPEC.filter((h) => !HUT_KEEP || HUT_KEEP.has(h[11])).forEach(([pid, side, t, w, d, h, lu, lv2, yx, wc, rc, nm, use], k) => {
     const P = RM[pid]; if (!P) return;
     let Pl, nl, pfr = P.rot ? P : null;
     if (P.c) { nl = [Math.cos(side), Math.sin(side)]; Pl = [P.c[0] + nl[0] * P.c[2], P.c[1] + nl[1] * P.c[2]]; }
@@ -218,7 +218,12 @@
   fx('laundry', 167, [24.6, 5.4], 'wash', '洗衣盆：搓搓洗洗', 'use', [[22.2, 2.5, 26.4, 4.3]]);
   fx('pergola', 168, [1.2, 13.6], 'sit', '葡萄架下的茶座：坐着喝杯茶', 'sit', [[-1.6, 10.2, 1.4, 12.6]], { spot: { u: 1.6, v: 11.4, dz: 1.6 } });
   GPOTS.forEach(([u, v], i) => fx('green', 160 + i, i < 2 ? [u, v + 2.2] : [9.5, v], 'pot', '花盆', 'water', [[u - 1.2, v - 1.2, u + 1.2, v + 1.2]], { i }));
-  HUTS.forEach((r, k) => { const [a, b, c, d] = r.r, cv = (b + d) / 2, use = r.use === 'drink' ? 'drink' : r.use; fx(r.id, 110 + k, [c - 1.9, cv], use, r.nm + (use === 'sit' ? '：坐在窗边' : use === 'read' ? '：看看书' : use === 'drink' ? '：喝口水' : '：翻一翻'), use === 'sit' ? 'rest' : 'use', [[c - 1.3, b + 0.4, c - 0.35, d - 0.4]], use === 'sit' ? { spot: { u: c - 0.8, v: cv, dz: 1.6 } } : undefined); });
+  const HUT_ACT = {
+    '起居室的小凸窗间': { act: '窝在窗台上看云' }, '卧室的小书房': { act: '在书桌前写写画画' }, '阁楼的观景窗': { act: '用望远镜看星星' }, '图书室的读书角': { act: '窝进扶手椅看书' },
+    '餐厅的茶水间': { act: '泡一壶茶' }, '工作间的零件仓': { act: '在零件盒里找螺丝' }, '驾驶室的小画室': { act: '画一幅画' }, '瞭望小屋': { act: '拿望远镜看看远处' },
+    '海图室': { act: '看看海图，城堡飘到哪儿了' }, '门厅的雨具间': { act: '穿雨衣、拿把伞' }, '浴室的蒸汽间': { act: '蒸一蒸，暖洋洋' }, '储藏间的腌菜间': { act: '尝一口腌菜' },
+  };
+  HUTS.forEach((r, k) => { const [a, b, c, d] = r.r, cv = (b + d) / 2, use = r.use === 'drink' ? 'drink' : r.use; fx(r.id, 110 + k, [a + 1.3, cv], use, r.nm + '：' + ((HUT_ACT[r.nm] || {}).act || (use === 'sit' ? '坐在窗边' : use === 'read' ? '看看书' : use === 'drink' ? '喝口水' : '翻一翻')), use === 'sit' ? 'rest' : 'use', [[c - 1.4, b + 0.3, c - 0.3, d - 0.3]], use === 'sit' ? { spot: { u: c - 0.8, v: cv, dz: 2.0 } } : undefined); });
   FIX.forEach((f) => { f.lv = roomLv(f.room); const fr = frameOf(f.room); f.F = fr; f.obL = f.ob; if (!fr) return; f.atL = f.at; f.at = toW(fr, ...f.at); f.ob = f.ob.flatMap((b) => rectObs(fr, null, b)); if (f.spot) { const w = toW(fr, f.spot.u, f.spot.v); f.spot = Object.assign({}, f.spot, { u: w[0], v: w[1] }); } });
 
   // ---------- 寻路 ----------
@@ -891,11 +896,58 @@
       for (const v of [b + 0.4, d - 0.4]) m.quad([c - 0.4, v - 0.12, z - 1], [c - 0.4, v + 0.12, z - 1], [a + 0.2, v + 0.12, z - 5.5], [a + 0.2, v - 0.12, z - 5.5], C.TIMBER, M.plank);
       m.box(a, b, z - 1.4, c, d, z - 1, '#7a5636', M.plank);
       const cv = (b + d) / 2, use = r.use;
+      if (hutInterior(m, r, z, a, b, c, d)) return;
       if (use === 'sit') { m.box(c - 1.3, b + 0.4, z, c - 0.35, d - 0.4, z + 1.6, '#a8784a', M.plank); m.box(c - 1.2, b + 0.5, z + 1.6, c - 0.4, d - 0.5, z + 2, '#e8a0b0', M.cloth); m.box(c - 1.1, cv - 0.6, z + 2, c - 0.5, cv + 0.6, z + 2.8, '#f6e0a0', M.cloth); }
       else if (use === 'read') { m.box(c - 1.3, b + 0.4, z, c - 0.35, d - 0.4, z + 6, '#7a5030', M.plank); for (let i = 0; i < 2; i++) for (let j = 0; j < 4; j++) m.box(c - 1.25, b + 0.6 + j * (d - b - 1.2) / 4, z + 1 + i * 2.6, c - 0.5, b + 0.9 + j * (d - b - 1.2) / 4, z + 2.8 + i * 2.6, ['#c85a4a', '#5a8ad8', '#e8c860', '#7fc8a8'][(i + j) % 4], 0); }
       else if (use === 'drink') { m.box(c - 1.3, b + 0.4, z, c - 0.35, d - 0.4, z + 4.4, '#c8a878', M.plank); m.cyl(c - 0.8, cv, z + 4.4, z + 5.6, 0.4, 0.35, '#f4f0e8', 0, 8); m.cyl(c - 0.8, cv + 0.9, z + 4.4, z + 5, 0.3, 0.25, '#e8a0b0', 0, 8); }
       else { m.box(c - 1.3, b + 0.4, z, c - 0.35, d - 0.4, z + 2.6, '#8a5a3a', M.plank); m.box(c - 1.2, b + 0.6, z + 2.6, c - 0.4, cv, z + 4, '#a8784a', M.plank); m.cyl(c - 0.8, d - 1, z + 2.6, z + 4.2, 0.45, 0.45, '#8a5a3a', M.plank, 8); }
     }); }
+  }
+  /* 每个小隔间按名字单独布置：东西都靠尽头墙（c 那边）和两侧墙的后半段，门口（a 那边）进来的路空着；外面窗下挂花箱、门边一盏小灯 */
+  function hutInterior(m, r, z, a, b, c, d) {
+    const cv = (b + d) / 2, W = d - b, nm = r.nm, B = (...x) => m.box(...x), CY = (...x) => m.cyl(...x);
+    const WOODc = '#a8784a', DK = '#5a3a24', CL = ['#e86a6a', '#7ab0d8', '#f0c040', '#9ad070', '#c8a0e8', '#f0a060'];
+    // 外面：尽头墙外的花箱 + 门边小灯（从屋里看不到，从外面看小屋更精致）
+    B(c + 0.25, cv - 1.1, z + 3.6, c + 0.75, cv + 1.1, z + 4.2, '#8a5a3a', M.plank); for (let i = 0; i < 5; i++) m.flower(c + 0.5, cv - 0.9 + i * 0.45, z + 4.2, 0.7, CL[i % CL.length]);
+    CY(a + 0.6, d + 0.35, z + 6.2, z + 6.9, 0.22, 0.22, '#ffd88a', M.glow, 6); B(a + 0.55, d + 0.3, z + 6.9, a + 0.65, d + 0.4, z + 7.3, DK, M.metal);
+    const shelf = (u0, u1, v0, v1, n, fn) => { B(u0, v0, z, u1, v1, z + 0.2, DK, M.plank); for (let k = 0; k < n; k++) { const zz = z + 1.4 + k * 1.6; B(u0, v0, zz, u1, v1, zz + 0.12, WOODc, M.plank); fn && fn(zz + 0.12, k); } for (const uu of [u0, u1 - 0.12]) B(uu, v0, z, uu + 0.12, v1, z + 1.5 + n * 1.6, DK, M.plank); };
+    switch (nm) {
+      case '起居室的小凸窗间': { B(c - 1.4, b + 0.3, z, c - 0.3, d - 0.3, z + 1.8, '#c8a07a', M.plank); B(c - 1.35, b + 0.35, z + 1.8, c - 0.35, d - 0.35, z + 2.2, '#f2c6d2', M.cloth);
+        for (const [vv, cc] of [[b + 0.8, '#a8c8e8'], [d - 0.8, '#f6e0a0'], [cv, '#ffffff']]) B(c - 0.95, vv - 0.4, z + 2.2, c - 0.45, vv + 0.4, z + 2.9, cc, M.cloth);
+        m.pot(c - 0.55, b + 0.6, z + 2.2, 0.3, '#c86a5a', '#5aa64e', 2); CY(c - 2.4, d - 0.8, z, z + 2.2, 0.12, 0.12, DK, M.plank, 5); CY(c - 2.4, d - 0.8, z + 2.2, z + 2.35, 0.6, 0.6, WOODc, M.plank, 10); CY(c - 2.3, d - 0.75, z + 2.35, z + 2.7, 0.18, 0.15, '#ffffff', 0, 8); return true; }
+      case '卧室的小书房': { B(c - 1.4, cv - 1.4, z + 2.8, c - 0.3, cv + 1.4, z + 3.1, WOODc, M.plank); for (const [uu, vv] of [[c - 1.3, cv - 1.3], [c - 0.4, cv - 1.3], [c - 1.3, cv + 1.3], [c - 0.4, cv + 1.3]]) B(uu - 0.08, vv - 0.08, z, uu + 0.08, vv + 0.08, z + 2.8, DK, M.plank);
+        CY(c - 0.7, cv + 0.9, z + 3.1, z + 4.6, 0.06, 0.06, '#5a5466', M.metal, 5); CY(c - 0.8, cv + 0.9, z + 4.4, z + 4.9, 0.45, 0.2, '#ffe9a8', M.glow, 8); B(c - 1.1, cv - 0.6, z + 3.1, c - 0.6, cv + 0.1, z + 3.15, '#f8f4ec', 0);
+        for (let i = 0; i < 4; i++) B(c - 1.2, cv - 1.25, z + 3.1 + i * 0.22, c - 0.6, cv - 0.75, z + 3.3 + i * 0.22, CL[i], M.cloth);
+        B(c - 2.6, cv - 0.5, z + 1.8, c - 1.8, cv + 0.5, z + 2.0, '#c86a5a', M.cloth); B(c - 2.6, cv - 0.5, z, c - 2.5, cv + 0.5, z + 1.8, DK, M.plank); B(c - 2.0, cv - 0.5, z, c - 1.9, cv + 0.5, z + 1.8, DK, M.plank);
+        shelf(c - 2.2, c - 0.3, d - 0.6, d - 0.25, 3, (zz, k) => { for (let i = 0; i < 5; i++) B(c - 2.1 + i * 0.35, d - 0.55, zz, c - 1.85 + i * 0.35, d - 0.3, zz + 0.9 + (i % 2) * 0.2, CL[(i + k) % CL.length], M.cloth); }); return true; }
+      case '阁楼的观景窗': case '瞭望小屋': { B(c - 1.2, b + 0.4, z, c - 0.3, d - 0.4, z + 1.7, WOODc, M.plank); B(c - 1.15, b + 0.45, z + 1.7, c - 0.35, d - 0.45, z + 2.0, '#7ab0d8', M.cloth);
+        const tu = c - 2.0, tv = d - 1.0; for (let i = 0; i < 3; i++) { const an = i * 2.1; m.quad([tu, tv, z + 3.6], [tu + 0.1, tv, z + 3.6], [tu + Math.cos(an) * 0.8, tv + Math.sin(an) * 0.8, z], [tu + Math.cos(an) * 0.8 - 0.1, tv + Math.sin(an) * 0.8, z], DK, M.plank); }
+        m.cyl(tu, tv, z + 3.6, z + 3.8, 0.25, 0.25, C.COP, M.metal, 8); m.quad([tu - 0.2, tv - 0.12, z + 3.8], [tu + 0.2, tv - 0.12, z + 3.8], [tu + 1.4, tv - 0.12, z + 5.0], [tu + 1.0, tv - 0.12, z + 5.0], C.COP, M.metal); m.quad([tu - 0.2, tv + 0.12, z + 3.8], [tu + 0.2, tv + 0.12, z + 3.8], [tu + 1.4, tv + 0.12, z + 5.0], [tu + 1.0, tv + 0.12, z + 5.0], C.COP, M.metal);
+        B(c - 2.6, b + 0.2, z + 3.6, c - 1.2, b + 0.3, z + 5.4, nm === '瞭望小屋' ? '#e8d8b0' : '#2a3a5a', 0); if (nm !== '瞭望小屋') for (let i = 0; i < 7; i++) B(c - 2.5 + (i * 0.37) % 1.3, b + 0.31, z + 3.8 + ((i * 0.53) % 1.4), c - 2.45 + (i * 0.37) % 1.3, b + 0.33, z + 3.85 + ((i * 0.53) % 1.4), '#fff6c0', M.glow); else { B(c - 2.3, b + 0.31, z + 4.0, c - 1.9, b + 0.33, z + 4.6, '#7ab060', 0); B(c - 1.8, b + 0.31, z + 4.3, c - 1.5, b + 0.33, z + 4.9, '#7ab0d8', 0); } return true; }
+      case '图书室的读书角': { B(c - 1.6, b + 0.3, z + 0.4, c - 0.3, b + 1.7, z + 1.9, '#5a7a9a', M.cloth); B(c - 0.7, b + 0.3, z + 1.9, c - 0.3, b + 1.7, z + 4.6, '#4a6a8a', M.cloth); B(c - 1.6, b + 0.3, z + 1.9, c - 0.3, b + 0.6, z + 3.0, '#4a6a8a', M.cloth); B(c - 1.6, b + 1.4, z + 1.9, c - 0.3, b + 1.7, z + 3.0, '#4a6a8a', M.cloth);
+        CY(c - 1.0, b + 2.4, z, z + 5.8, 0.08, 0.08, '#5a5466', M.metal, 5); CY(c - 1.0, b + 2.4, z + 5.6, z + 6.6, 0.6, 0.3, '#ffe9a8', M.glow, 8);
+        shelf(c - 0.75, c - 0.3, cv, d - 0.3, 3, (zz, k) => { for (let i = 0; i < 6; i++) B(c - 0.7, cv + 0.1 + i * ((d - cv - 0.5) / 6), zz, c - 0.35, cv + 0.35 + i * ((d - cv - 0.5) / 6), zz + 0.9 + (i % 3) * 0.15, CL[(i + k * 2) % CL.length], M.cloth); }); return true; }
+      case '餐厅的茶水间': { B(c - 1.2, b + 0.3, z, c - 0.3, d - 0.3, z + 3.4, '#c8a878', M.plank); B(c - 1.25, b + 0.25, z + 3.4, c - 0.25, d - 0.25, z + 3.6, '#e8dcc8', M.stone);
+        CY(c - 0.8, cv - 0.5, z + 3.6, z + 4.5, 0.4, 0.3, C.COP, M.metal, 10); CY(c - 0.8, cv - 0.5, z + 4.5, z + 4.7, 0.12, 0.12, C.COP, M.metal, 6); for (let i = 0; i < 3; i++) CY(c - 0.75, cv + 0.4 + i * 0.5, z + 3.6, z + 3.95, 0.16, 0.14, ['#ffffff', '#f2c6d2', '#a8c8e8'][i], 0, 8);
+        B(c - 0.6, b + 0.4, z + 5.4, c - 0.3, d - 0.4, z + 5.5, WOODc, M.plank); for (let i = 0; i < 5; i++) CY(c - 0.45, b + 0.7 + i * ((W - 1.4) / 4), z + 5.5, z + 6.2, 0.18, 0.18, CL[i], 0, 8); return true; }
+      case '工作间的零件仓': case '储藏间的腌菜间': { const jar = nm === '储藏间的腌菜间';
+        for (const [v0, v1] of [[b + 0.25, b + 0.8], [d - 0.8, d - 0.25]]) shelf(a + 2.1, c - 0.3, v0, v1, 3, (zz, k) => { for (let i = 0; i < 3; i++) { const uu = a + 2.25 + i * ((c - a - 2.7) / 3); if (jar) CY(uu + 0.3, (v0 + v1) / 2, zz, zz + 0.9, 0.25, 0.22, ['#d8e8a0', '#f0c080', '#e89890', '#c8e0c8'][(i + k) % 4], M.glass, 8); else B(uu, v0 + 0.05, zz, uu + 0.6, v1 - 0.05, zz + 0.6, CL[(i + k * 2) % CL.length], 0); } });
+        if (jar) for (let i = 0; i < 2; i++) CY(c - 0.8, cv - 0.6 + i * 1.2, z, z + 1.6, 0.5, 0.42, '#8a5a3a', 0, 10); else { CY(c - 0.35, cv, z + 4.2, z + 4.4, 0.9, 0.9, '#8a8a96', M.metal, 10); CY(c - 0.35, cv, z + 4.4, z + 4.5, 0.4, 0.4, '#5a5466', M.metal, 8); } return true; }
+      case '驾驶室的小画室': { const eu = c - 1.1, ev = cv - 0.4; for (const dv of [-0.6, 0.6]) m.quad([eu, ev + dv, z], [eu + 0.12, ev + dv, z], [eu + 0.4, ev + dv * 0.3, z + 5.8], [eu + 0.28, ev + dv * 0.3, z + 5.8], DK, M.plank);
+        B(eu + 0.15, ev - 0.9, z + 2.4, eu + 0.25, ev + 0.9, z + 4.8, '#f8f4ec', 0); B(eu + 0.26, ev - 0.7, z + 3.0, eu + 0.3, ev + 0.2, z + 4.4, '#7ab0d8', 0); B(eu + 0.26, ev - 0.2, z + 2.7, eu + 0.31, ev + 0.7, z + 3.6, '#9ad070', 0);
+        B(c - 0.9, d - 1.4, z + 2.4, c - 0.3, d - 0.3, z + 2.6, WOODc, M.plank); B(c - 0.85, d - 1.35, z, c - 0.35, d - 0.35, z + 2.4, DK, M.plank); for (let i = 0; i < 4; i++) CY(c - 0.6, d - 1.2 + i * 0.25, z + 2.6, z + 3.0, 0.1, 0.1, CL[i], 0, 6);
+        CY(c - 1.0, b + 0.7, z, z + 2.4, 0.5, 0.5, WOODc, M.plank, 8); return true; }
+      case '海图室': { B(c - 1.9, cv - 1.1, z + 3.0, c - 0.35, cv + 1.1, z + 3.3, DK, M.plank); for (const [uu, vv] of [[c - 1.8, cv - 1.0], [c - 0.45, cv - 1.0], [c - 1.8, cv + 1.0], [c - 0.45, cv + 1.0]]) B(uu - 0.1, vv - 0.1, z, uu + 0.1, vv + 0.1, z + 3, DK, M.plank);
+        B(c - 1.75, cv - 0.95, z + 3.3, c - 0.5, cv + 0.95, z + 3.35, '#e8d8b0', 0); B(c - 1.5, cv - 0.6, z + 3.35, c - 0.9, cv + 0.2, z + 3.37, '#7ab0d8', 0); B(c - 1.3, cv + 0.3, z + 3.35, c - 0.8, cv + 0.75, z + 3.37, '#9ad070', 0); CY(c - 0.9, cv - 0.8, z + 3.35, z + 3.5, 0.3, 0.3, C.COP, M.metal, 10);
+        CY(c - 0.6, d - 0.45, z, z + 2.4, 0.35, 0.35, '#8a5a3a', M.plank, 8); for (let i = 0; i < 4; i++) CY(c - 0.6 + (i % 2 - 0.5) * 0.25, d - 0.45 + (i > 1 ? 0.15 : -0.15), z + 1.0, z + 3.4, 0.1, 0.1, '#f0e4c8', 0, 6); return true; }
+      case '门厅的雨具间': { CY(c - 0.8, b + 0.8, z, z + 1.8, 0.45, 0.4, '#5a7a9a', M.metal, 10); for (let i = 0; i < 3; i++) { const uu = c - 0.8 + (i - 1) * 0.2; CY(uu, b + 0.8 + (i - 1) * 0.15, z + 0.5, z + 3.4, 0.06, 0.06, DK, 0, 4); CY(uu, b + 0.8 + (i - 1) * 0.15, z + 1.6, z + 3.0, 0.3, 0.12, CL[i], M.cloth, 8); }
+        B(c - 0.35, b + 1.6, z + 5.0, c - 0.25, d - 0.4, z + 5.2, DK, M.plank); for (let i = 0; i < 2; i++) { const vv = b + 2.2 + i * 1.3; B(c - 0.8, vv - 0.45, z + 2.4, c - 0.3, vv + 0.45, z + 5.0, ['#f0c040', '#e86a6a'][i], M.cloth); }
+        for (const uu of [c - 2.2, c - 1.7]) { B(uu - 0.2, d - 0.9, z, uu + 0.2, d - 0.3, z + 0.3, '#3a5a3a', M.cloth); B(uu - 0.2, d - 0.55, z + 0.3, uu + 0.2, d - 0.3, z + 1.2, '#3a5a3a', M.cloth); } B(a + 1.0, cv - 0.8, z, a + 2.0, cv + 0.8, z + 0.08, '#a8784a', M.cloth); return true; }
+      case '浴室的蒸汽间': { for (let k = 0; k < 2; k++) B(c - 1.0 - k * 0.9, b + 0.3, z, c - 0.3 - k * 0.9, d - 0.3, z + 1.6 + (1 - k) * 1.4, '#c8935e', M.plank);
+        CY(c - 2.4, b + 0.6, z, z + 1.0, 0.5, 0.42, '#5a5466', M.stone, 10); for (let i = 0; i < 5; i++) m.ball(c - 2.4 + Math.cos(i * 1.3) * 0.2, b + 0.6 + Math.sin(i * 1.3) * 0.2, z + 1.1, 0.2, 0.15, '#ff9a60', M.glow, 4, 5);
+        CY(c - 2.4, d - 0.55, z, z + 0.9, 0.35, 0.4, '#a8784a', M.plank, 10); CY(c - 2.4, d - 0.55, z + 0.9, z + 1.6, 0.05, 0.05, DK, 0, 4); return true; }
+    }
+    return false;
   }
   // 悬空的部分要有东西托着：转了角度的上层房间，角落如果悬在下面房间外面，就加一根斜撑顶回下面的墙
   // 院子外面的草地：后面一排果树、堆肥箱、柴火垛；水池引一根铜管到花房浇水
