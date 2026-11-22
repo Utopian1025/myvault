@@ -569,6 +569,8 @@
       if (this.inDoor || this.outing) return;
       /* 城堡里看不见它（在别的房间 / 别的层）：说的话也不挂在半空 */
       if (this.isleHide || this.inDen) return;
+      /* 第一人称时：头顶的气泡、图标是按俯视的位置算的，会飘在画面里，先不画 */
+      if (PP.fpOn && G.isle) return;
       // 气泡 & 名字牌
       const S = G.S;
       const [hx, hy] = this.headPos;

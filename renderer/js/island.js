@@ -216,7 +216,7 @@
     const w = want();
     document.body.classList.toggle('isle', !!w);
     if (w && !G.isle) { G.isle = {}; cut = null; migrateFurn(); layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); }
-    else if (!w && G.isle) { if (fp) { lookFree(); fp = null; PP.fpOn = false; if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; } if (hotEl) { hotEl.remove(); hotEl = null; } } G.isle = null; cut = null; focus = null; fbC = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
+    else if (!w && G.isle) { if (fp) { lookFree(); fp = null; PP.fpOn = false; if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; } if (hotEl) { hotEl.remove(); hotEl = null; } document.body.classList.remove('fpon'); } G.isle = null; cut = null; focus = null; fbC = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
   }
   function fit(moveIn) {
     layout(); G.ground = groundY();
@@ -864,7 +864,7 @@
     fpSync(); p.run('fp', A.fpCtl);
     PP.fpOn = true; fpMenu = false; bigMap = null; fpHintT = performance.now();
     try { window.petAPI && window.petAPI.focusWin && window.petAPI.focusWin(); } catch (e) {}
-    layout(); fpBar(); PP.refreshInteractive();
+    document.body.classList.add('fpon'); layout(); fpBar(); PP.refreshInteractive();
     if (lookPref() && lastPT !== 'touch') lookGrab();
   }
   function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再按 F 回到小窗口）' : '小窗口（按 F 全屏）', 1.4); }
@@ -873,7 +873,7 @@
     if (p && G.pets.includes(p)) { if (p.action === 'fp') p.interrupt(true); if (!p.iw) { const at = nearFree(area(), q.u, q.v, q.lv); setIp(p, at[0], at[1], q.lv); } }
     if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; }
     if (hotEl) { hotEl.remove(); hotEl = null; }
-    layout(); camChanged(); PP.refreshInteractive(); if (!quiet) PP.ui.toast('回到上帝视角');
+    document.body.classList.remove('fpon'); layout(); camChanged(); PP.refreshInteractive(); if (!quiet) PP.ui.toast('回到上帝视角');
   }
   // 主角的位置跟着镜头走（屏幕坐标也一起改，不然别的地方会按旧的屏幕位置把它“吸”回去）
   function fpSync() { const p = fp.p, q = fp.q; p.ip = { u: q.u, v: q.v, lv: q.lv, z: q.z }; p.isleLv = q.lv; if (L) p.x = scrU(q.u, q.v); }
@@ -1101,6 +1101,7 @@
     if (!fp) { if (hotEl) { hotEl.remove(); hotEl = null; } return; }
     if (!hotEl) { hotEl = document.createElement('div'); hotEl.className = 'fphot'; document.getElementById('ui').appendChild(hotEl);
       hotEl.addEventListener('mousedown', (ev) => ev.stopPropagation()); hotEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-s]'); if (b) fpSlot(+b.dataset.s); }); }
+    hotEl.style.display = bigMap ? 'none' : '';
     const cur = S().fpSlot || 1, k = cur + '|' + L.vx0 + '|' + L.vw + '|' + L.vy1;
     if (hotEl.dataset.k !== k) { hotEl.dataset.k = k; hotEl.innerHTML = SLOTS5.map(([n, ic, tip], i) => `<button data-s="${i + 1}" class="${cur === i + 1 ? 'on' : ''}" title="${tip}"><i>${i + 1}</i>${ic}<small>${n}</small></button>`).join('');
       hotEl.style.left = Math.round(L.vx0 + L.vw / 2) + 'px'; hotEl.style.top = Math.round(L.vy1 - 8) + 'px'; }
