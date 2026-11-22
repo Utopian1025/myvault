@@ -16,8 +16,14 @@
   function moveInOld() { for (const p of G.all) if (!p.d.wild && !p.d.ownHome && PP.canMoveIn && PP.canMoveIn(p)) { p.d.ownHome = PP.MINE[0]; p.d.scene = PP.MINE[0]; p.d.inHome = false; } }
   // 原来住在浮空岛的：浮空岛变成了你的城堡，它们搬到魔法学院（野外的回森林）
   function fromSkyisle() { for (const p of G.all) { if (p.d.ownHome === 'skyisle') p.d.ownHome = PP.MINE[0]; if (p.d.scene === 'skyisle') { p.d.scene = p.d.wild ? 'forest' : p.d.ownHome || PP.MINE[0]; p.d.inHome = false; p.eco = null; } } }
+  // 城堡建好了：认养的伙伴都搬回城堡住（只搬一次；以后想住魔法学院 / 地底森林，右键它 → 搬家）
+  function toCastle() { const f = G.save.flags || (G.save.flags = {}); if (f.castleHome) return; f.castleHome = 1; for (const p of G.all) if (!p.d.wild && PP.canMoveIn && PP.canMoveIn(p) && (!p.d.ownHome || (PP.MINE || []).includes(p.d.ownHome))) { p.d.ownHome = 'castle'; p.d.scene = 'castle'; p.d.inHome = false; p.eco = null; } }
+  // 能住的地方：城堡（默认）+ 你的几个小天地
+  const HOMES = () => ['castle', ...(PP.MINE || [])];
+  const homeName = (k) => (k === 'castle' ? '飞行城堡' : PP.SCENES[k] ? PP.SCENES[k].name : k);
+  PP.homeName = homeName;
   function populate() {
-    fromSkyisle(); moveInOld();
+    fromSkyisle(); moveInOld(); toCastle();
     let made = 0;
     for (const sp of PP.SPECIES_LIST) {
       if (SKIP.has(sp) || !PP.HAB || !PP.HAB[sp]) continue;
@@ -37,26 +43,28 @@
   function adoptPanel(p) {
     const ui = PP.ui;
     const box = $(`<div class="adopt-wild"><div class="top"><canvas width="96" height="96"></canvas><div><p><b>${esc(p.sp.name)}</b>${p.d.shiny ? ' ✨罕见花色' : ''}<br><span class="muted">${esc(PP.SPR.PAL[p.d.species][p.d.coat] ? PP.SPR.PAL[p.d.species][p.d.coat].name : '')} · 住在${esc(PP.SCENES[PP.HAB[p.d.species].home].name)}的${esc(PP.HOME_NAME[p.d.species] || '家')}</span></p>
-      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它会搬进「我的」，住进一间属于它的小屋。选一个地方：' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
-      ${PP.canMoveIn(p) ? `<div class="row homes">${PP.MINE.map((k, i) => `<button class="small ${i === 0 ? 'on' : ''}" data-h="${k}">${esc(PP.SCENES[k].name)}</button>`).join('')}</div>` : ''}</div></div>
+      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它就是你的伙伴了：先陪在你身边，之后住进你的飞行城堡（也可以选别的地方）。' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
+      ${PP.canMoveIn(p) ? `<div class="row homes"><span class="muted">住在：</span>${HOMES().map((k, i) => `<button class="small ${i === 0 ? 'on' : ''}" data-h="${k}">${esc(homeName(k))}</button>`).join('')}</div>` : ''}</div></div>
       <div class="row"><input class="nm" maxlength="12" placeholder="给它取个名字"><button class="small dice" title="随机一个">🎲</button></div>
       <div class="row"><button class="primary go">认养</button></div></div>`);
     const nm = box.querySelector('.nm'); nm.value = PP.randomName();
     box.querySelector('.dice').onclick = () => (nm.value = PP.randomName());
     try { const c = box.querySelector('canvas').getContext('2d'); c.imageSmoothingEnabled = false; PP.SPR.blit(c, PP.SPR.drawPet({ species: p.d.species, pal: p.pal, coatKey: p.d.coat, facing: 1, anim: 'idle', t: 0, eyes: 'happy', look: [0, 0], mouth: 'smile' }), 0, 0, 3); } catch (e) { }
-    let where = PP.MINE[0];
+    let where = 'castle';
     box.querySelectorAll('.homes button').forEach((b) => (b.onclick = () => { where = b.dataset.h; box.querySelectorAll('.homes button').forEach((x) => x.classList.toggle('on', x === b)); }));
     box.querySelector('.go').onclick = () => {
       const name = nm.value.trim() || PP.randomName();
       p.d.wild = false; p.d.name = name; p.d.adoptedAt = Date.now();
-      if (PP.canMoveIn(p)) { p.d.ownHome = where; p.d.scene = where; PP.eco.adopted(p); if (G.pets.includes(p) && PP.scene.view() !== where) p.hidden = false; }
+      // 刚认养的先留在你眼前（等你换了地方它才回家），不会一认养就不见了
+      if (PP.canMoveIn(p)) { p.d.ownHome = where; if (where !== 'castle') { p.d.scene = where; PP.eco.adopted(p); } if (G.pets.includes(p) && PP.scene.view() !== where) p.hidden = false; }
       p.d.affection = Math.max(p.d.affection, 15); p.d.trust = Math.max(p.d.trust, 60);
       if (!G.save.flags.firstAdopt) G.save.flags.firstAdopt = Date.now();
       PP.diary.add(p, `今天被认养了，名字叫${name}。`, 'love');
       if (G.pets.includes(p)) { PP.hearts(p.x, p.y - 30 * G.S, 4); p._forceSay = true; p.say(U.pick(['以后就叫我' + name + '啦', '（开心地转圈）', '你好呀～']), 2.5); p._forceSay = false; }
       // 没有指定陪伴你的那只：就是它了
       if (!G.save.settings.mainId || !G.all.some((q) => q.d.id === G.save.settings.mainId && mine(q))) G.save.settings.mainId = p.d.id;
-      ui.closePanel(); ui.toast(p.d.ownHome ? `认养了${name}（${p.sp.name}），它搬去了你的${PP.SCENES[p.d.ownHome].name}` : `认养了${name}（${p.sp.name}）`);
+      ui.closePanel(); ui.toast(p.d.ownHome === 'castle' ? `认养了${name}！它会住进你的飞行城堡（地图上点「飞行城堡」就能去看它）` : p.d.ownHome ? `认养了${name}（${p.sp.name}），它搬去了你的${homeName(p.d.ownHome)}` : `认养了${name}（${p.sp.name}）`, 3.5);
+      if (PP.onboard) PP.onboard.step('adopted', p);
       PP.save.write(); PP.syncTray && PP.syncTray(true);
     };
     ui.panel('认养', box);
@@ -72,8 +80,8 @@
   // 搬家：在你的几个小天地之间换地方住
   PP.moveHome = function (p) {
     if (!PP.canMoveIn(p)) { PP.ui.toast('它离不开水，没法搬进「我的」'); return; }
-    const box = $(`<div class="adopt-wild"><p>让${esc(p.name)}搬到哪里住？</p><div class="row homes">${PP.MINE.map((k) => `<button class="small ${p.d.ownHome === k ? 'on' : ''}" data-h="${k}">${esc(PP.SCENES[k].name)}</button>`).join('')}</div></div>`);
-    box.querySelectorAll('.homes button').forEach((b) => (b.onclick = () => { p.d.ownHome = b.dataset.h; p.d.scene = b.dataset.h; PP.eco.adopted(p); PP.ui.closePanel(); PP.ui.toast(`${p.name}搬去了${PP.SCENES[b.dataset.h].name}`); PP.save.soon(); }));
+    const box = $(`<div class="adopt-wild"><p>让${esc(p.name)}搬到哪里住？</p><div class="row homes">${HOMES().map((k) => `<button class="small ${p.d.ownHome === k ? 'on' : ''}" data-h="${k}">${esc(homeName(k))}</button>`).join('')}</div></div>`);
+    box.querySelectorAll('.homes button').forEach((b) => (b.onclick = () => { const k = b.dataset.h; p.d.ownHome = k; p.d.scene = k; if (k !== 'castle') PP.eco.adopted(p); else { p.d.inHome = false; p.eco = null; } PP.ui.closePanel(); PP.ui.toast(`${p.name}搬去了${homeName(k)}`); PP.syncPets && PP.syncPets(); PP.save.soon(); }));
     PP.ui.panel('搬家', box);
   };
   // 现在每个地方都有谁（按物种合在一起，认养的写名字）

@@ -22,7 +22,7 @@
       '-',
       wild ? { id: `pet:${id}:adopt`, label: '认养它（取个名字）…' } : { id: `pet:${id}:main`, label: '让它陪着我（极简模式、提醒、陪打字）', type: 'radio', checked: main },
       ...(wild ? [] : [{ id: `pet:${id}:note`, label: d.note ? '撕掉头顶便签' : '贴一张头顶便签' }, { id: `pet:${id}:coat`, label: '换花色' }, { id: `pet:${id}:rename`, label: '改名字…' }]),
-      { id: `pet:${id}:goto`, label: `去它在的地方看看（${PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
+      { id: `pet:${id}:goto`, label: `去它在的地方看看（${d.scene === 'castle' ? '飞行城堡' : PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
       '-',
       { id: `pet:${id}:profile`, label: '查看档案' },
       ...(wild || !PP.canMoveIn(p) ? [] : [{ id: `pet:${id}:move`, label: '搬家…' }]),
@@ -45,7 +45,14 @@
     const s = G.save.settings;
     const T = (v) => (forTray ? null : v); // 托盘菜单不显示右侧小字
     const items = [];
-    if (focus) items.push({ label: `${focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
+    // 右键某只动物：最常用的几件事直接放第一层（野生的第一项就是“认养”），其余收进“关于它”
+    if (focus) {
+      const fd = focus.d, fid = fd.id, here = G.pets.includes(focus);
+      if (fd.wild) items.push({ id: `pet:${fid}:adopt`, label: `❤ 认养${focus.sp.name}（给它取名字）` });
+      items.push({ id: `pet:${fid}:pat`, label: `摸摸${fd.wild ? '它' : focus.name}`, enabled: here }, { id: `pet:${fid}:feed`, label: `喂${focus.sp.favName}` });
+      if (!fd.wild) items.push({ id: `pet:${fid}:snack`, label: '喂零食 / 装扮…' });
+      items.push({ label: `关于${fd.wild ? focus.sp.name : focus.name}`, hint: T(focus.moodName), sub: petSub(focus, true) }, '-');
+    }
     const curMode = ({ top: 'mini', in: 'bar', house: 'house', isle: 'isle', band: 'band' })[PP.curView ? PP.curView() : 'band'] || s.mode, modeName = (PP.MODES.find((m) => m[0] === curMode) || ['', ''])[1];
     const mineList = G.all.filter((p) => !p.d.wild);
     const pets = mineList.map((p) => ({ label: p.name + `（${p.sp.name}）` + (G.save.settings.mainId === p.d.id ? ' ★' : ''), sub: petSub(p) }));
@@ -131,7 +138,14 @@
       const more = [petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu];
       return [...top, '-', { label: '更多', sub: more }, ...(api ? [{ id: 'quit', label: '退出' }] : [])];
     }
-    items.push(petsMenu, ...(econMenu ? [econMenu] : []), viewMenu, weatherMenu, soundMenu, quiet, remind, careMenu, settingsMenu);
+    // 第一层只放常用的；天气、声音、勿扰、提醒、照顾和回忆收进“更多”
+    const pomoOn = PP.F && PP.F.pomo.phase !== 'off';
+    items.push(petsMenu, ...(econMenu ? [econMenu] : []),
+      { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开城堡（回风景）' : '去我的飞行城堡' },
+      viewMenu,
+      { id: 'pomo', label: pomoOn ? '停止番茄钟' : `开始番茄钟（${s.pomo.focus} 分钟）` },
+      { id: 'settings', label: '设置…' },
+      { label: '更多', sub: [careMenu, remind, quiet, weatherMenu, soundMenu, settingsMenu] });
     // 宠物身上的菜单里不放“隐藏全部”：一不小心点到，整个窗口就没了（只在托盘菜单里有，半小时后自己回来）
     if (api && forTray) items.push('-', { id: 'hideWin', label: '暂时隐藏全部（30 分钟）' }, { id: 'quit', label: '退出' });
     else if (api) items.push('-', { id: 'quit', label: '退出' });
@@ -199,7 +213,7 @@
       case 'move': PP.moveHome(p); break;
       case 'release': if (confirm(`让${p.name}回到野外吗？它还会在${PP.SCENES[PP.HAB[d.species].home].name}生活，只是不再是你认养的了。`)) PP.wild.release(p); break;
       case 'rename': PP.renamePanel(p); break;
-      case 'goto': if (PP.scene.inside()) PP.scene.leave(); if (G.save.settings.mode === 'mini') PP.setMode(G.save.settings.lastMode && G.save.settings.lastMode !== 'mini' ? G.save.settings.lastMode : 'band'); PP.scene.go(d.inHome ? d.scene : d.scene); break;
+      case 'goto': if (d.scene === 'castle') { PP.setView('isle'); break; } if (PP.scene.inside()) PP.scene.leave(); if (G.save.settings.mode === 'mini') PP.setMode(G.save.settings.lastMode && G.save.settings.lastMode !== 'mini' ? G.save.settings.lastMode : 'band'); PP.scene.go(d.inHome ? d.scene : d.scene); break;
       case 'ball': PP.throwBall(p.x, p.y - 200); break;
       case 'sleep': if (p.sleeping) p.run('poked', PP.ACTIONS.poked); else p.run('sleep', PP.ACTIONS.sleep); break;
       case 'think': ui.thoughts(p); break;

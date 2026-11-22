@@ -1310,7 +1310,11 @@
     window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
   }
   // 房间中心附近一个能站的点
-  const roomSpot = (rid) => { const r = RM[rid], m = r.c ? [r.c[0], r.c[1] + 1] : r.rot ? F.toW(r, (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2) : [(r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1]; const c = nearFree(area(), m[0], m[1], r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
+  // 房间里随便一个空位（几只一起去同一个房间时不会叠在一起）
+  const roomSpot = (rid) => { const r = RM[rid];
+    for (let k = 0; k < 12; k++) { let m; if (r.c) { const a = Math.random() * 6.283, d = Math.random() * (r.c[2] - 1.6); m = [r.c[0] + Math.cos(a) * d, r.c[1] + Math.sin(a) * d]; } else { const lu = r.r[0] + 1.2 + Math.random() * (r.r[2] - r.r[0] - 2.4), lv2 = r.r[1] + 1.2 + Math.random() * (r.r[3] - r.r[1] - 2.4); m = r.rot ? F.toW(r, lu, lv2) : [lu, lv2]; }
+      if (free(area(), m[0], m[1], r.lv) && !G.pets.some((q) => q.ip && q.ip.lv === r.lv && Math.hypot(q.ip.u - m[0], q.ip.v - m[1]) < 2.2)) return { u: m[0], v: m[1], lv: r.lv }; }
+    const m = r.c ? [r.c[0], r.c[1] + 1] : r.rot ? F.toW(r, (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2) : [(r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1]; const c = nearFree(area(), m[0], m[1], r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
   function click(h, x, y) {
     if (!h) return;
     const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); } };
@@ -1480,7 +1484,7 @@
     return true;
   }
   A.isleStoke = function* () { yield* fetchWood(this); };
-  A.isleUse = function* (pr) {
+  A.isleUse = function* (pr) { this._usePr = pr;
     const p = this, d = day(), S2 = () => G.S, k = pr.do;
     const spark = (ic, n = 4, up = 20) => { for (let i = 0; i < n; i++) PP.fx({ x: p.x + U.rand(-12, 12) * S2(), y: p.y - up * S2(), vy: -30, icon: ic, life: 0.9, s: 1 }); };
     if (k === 'stoke' || k === 'wood') { yield* fetchWood(p); return; }
@@ -1536,7 +1540,9 @@
     if (G.isle && G.pets.includes(this) && !this.held && PP.sleepTime && PP.sleepTime() && !this.sleeping) { const bed = props().find((x) => x.do === 'sleep'); if (bed) { this.run('isleUse', A.isleUse, bed); return; } }
     if (G.isle && G.pets.includes(this) && !this.held && !(G.save.settings.quiet) && Math.random() < 0.7) {
       const e = E(), p = this, q = ipOf(p), fx = wfx(), wet = fx.rain > 0.3 || fx.snow > 0.5 || fx.storm, R = (n, f, ...a) => { p.run(n, f, ...a); return true; }, PR = props();
-      const indoor = !!F.roomAt(q.u, q.v, q.lv), use = (list, ch) => (list.length && Math.random() < ch ? R('isleUse', A.isleUse, U.pick(list)) : false);
+      // 别的伙伴正在用 / 站在旁边的东西先不挑：几只住在一起时各干各的，不挤成一堆
+      const taken = (x) => x && x.at && G.pets.some((o) => o !== p && o.ip && (o._usePr === x || Math.hypot(o.ip.u - x.at[0], o.ip.v - x.at[1]) < 2.5));
+      const indoor = !!F.roomAt(q.u, q.v, q.lv), use = (list, ch) => { const L2 = list.filter((x) => !taken(x)); return L2.length && Math.random() < ch ? R('isleUse', A.isleUse, U.pick(L2)) : false; };
       const roam = (lv) => { const cs = cellList().filter((c) => lv == null || c[4] === lv); if (!cs.length) return false; const c = U.pick(cs); return R('isleGo', A.isleGo, c[2], c[3], c[4]); };
       if (p.n.energy < 40 || (night() && Math.random() < 0.5)) { const bed = PR.find((x) => x.do === 'sleep'); if (bed && Math.random() < 0.7) return R('isleUse', A.isleUse, bed); }
       if (fort().fuel < 15 && Math.random() < 0.35) return R('isleStoke', A.isleStoke);

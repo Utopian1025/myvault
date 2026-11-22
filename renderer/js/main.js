@@ -60,7 +60,9 @@
     if (s.settings.mode === 'mini') G.pets.forEach((p, i) => PP.petEmerge(p, p.x, 300 + i * 650));
     else PP.eco && PP.eco.onView(PP.scene.view());
     const emergeT = 300 + G.pets.length * 650 + 2600;
-    if (!PP.mine().length && !s.flags.welcomed) { s.flags.welcomed = 1; setTimeout(() => PP.ui.toast('这里住满了野生动物：指着喜欢的那只，点“认养”就能给它取名字', 'egg'), 1200); }
+    // 第一次玩：场景稍微放大一点（原来缩在右下角很小），再给一张引导卡片
+    if (!PP.mine().length && !s.flags.welcomed) { s.flags.welcomed = 1; if (!s.settings.sceneZ) s.settings.sceneZ = 1.35; PP.onboard ? PP.onboard.start() : setTimeout(() => PP.ui.toast('这里住满了野生动物：指着喜欢的那只，点“认养”就能给它取名字', 'egg'), 1200); }
+    else if (PP.onboard && !PP.mine().length) PP.onboard.start()
     else if (away > 5 * 60000) {
       // 然后发现你回来了
       G.user.lastActive = Date.now() - away;

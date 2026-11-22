@@ -540,3 +540,13 @@ body.isle .seedpick, body.isle .furnbar { zoom: var(--isk, 1); }
 /* 上帝视角的 👁：竖着展开，紧贴在按钮旁边 */
 .cutbar .vfly { flex-direction: column; align-items: stretch; gap: 3px; padding: 4px; }
 .cutbar .vfly .row { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 3px; margin: 0; padding: 0; }
+
+/* 第一次玩的引导卡片：指着一只动物，跟着它走 */
+.guide { position: fixed; z-index: 60; width: 270px; padding: 10px 12px 10px; background: #fffaf0; border: 2px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); border-radius: 10px; font-size: 13px; line-height: 1.55; color: var(--ink); animation: guideIn .35s ease-out; }
+.guide .t b { color: #b8502e; }
+.guide .x { position: absolute; right: 4px; top: 2px; border: 0; box-shadow: none; background: transparent; font-size: 14px; color: var(--muted); padding: 0 4px; }
+.guide .row { display: flex; gap: 6px; margin-top: 8px; }
+.guide .arrow { position: absolute; left: var(--ax, 50%); bottom: -11px; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 10px solid var(--ink); transform: translateX(-50%); }
+.guide .arrow::after { content: ''; position: absolute; left: -7px; top: -12px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid #fffaf0; }
+.guide.noarrow .arrow { display: none; }
+@keyframes guideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

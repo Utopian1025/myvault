@@ -137,7 +137,9 @@
     if (s && s.mode === 'mini') {
       // 极简：只留主角（正在走回门里的也先留着，等它进去）
       const main = PP.mainPet() || vis[0];
-      G.pets = vis.filter((p) => p === main || (p.action === 'enterDoor' && G.pets.includes(p)));
+      // 城堡里：主角 + 住在城堡的认养动物都在家（任务栏上那种极简还是只有主角）
+      const castle = s.isle && !s.taskbar;
+      G.pets = vis.filter((p) => p === main || (castle && !p.d.wild && p.d.ownHome === 'castle') || (p.action === 'enterDoor' && G.pets.includes(p)));
     } else if (PP.eco) {
       // 场景里：只显示正在这个场景、没在家里、没在路上的（刚叫回电脑的也等它走进门）
       G.pets = vis.filter((p) => PP.eco.visible(p) || (p.action === 'enterDoor' && G.pets.includes(p)));

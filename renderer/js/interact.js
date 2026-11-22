@@ -38,7 +38,7 @@
   }
   PP.refreshInteractive = () => {
     // 只有鼠标真的在宠物 / 东西 / 面板上时才接住点击；其他地方一律穿透到你的窗口
-    const overUI = [...document.querySelectorAll('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover, .furnbar:hover, .rtags button:hover, .cutbar:hover')].some((e) => PP.seen(e))
+    const overUI = [...document.querySelectorAll('.panel:hover, .menu:hover, .hud:hover, .sdock:hover, .orb-pop:hover, .homepop:hover, .hoverbar:hover, .editbar:hover, .updchip:hover, .furnbar:hover, .rtags button:hover, .cutbar:hover, .guide:hover, .fphot:hover')].some((e) => PP.seen(e))
       || !!(PP.ringZone && G.mouse.onScreen !== false && PP.ringZone(G.mouse.x, G.mouse.y));
     // 任务栏视图：鼠标得在某只动物身上停一小会儿（0.45 秒）才接住点击，平时一律穿透给任务栏
     let petHot = !!(G.hoverPet || G.hoverItem || G.hoverHot);

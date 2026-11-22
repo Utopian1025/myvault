@@ -515,6 +515,8 @@
         continue;
       }
       if (S().mode === 'mini' && p === main) continue;
+      // 住在城堡里的：不在风景里跑来跑去，你一离开那个风景它就回城堡；在城堡里由城堡带着过日子
+      if (!p.d.wild && p.d.ownHome === 'castle') { if (p.d.scene !== 'castle') { p.d.scene = 'castle'; p.d.inHome = false; changed = true; } p.decay(step); continue; }
       p.decay(step);
       if (p.bubble) p.bubble = null;
       changed = simOne(p) || changed;
@@ -1001,6 +1003,7 @@
   // ---------- 开机：大家各就各位 ----------
   PP.eco.init = function () {
     for (const p of G.all) {
+      if (!p.d.wild && p.d.ownHome === 'castle') { p.d.scene = 'castle'; continue; }
       if (!p.d.scene || !PP.SCENES[p.d.scene]) p.d.scene = homeScene(p);
       if (!HAB[p.d.species]) continue;
       const t = plan(p);
