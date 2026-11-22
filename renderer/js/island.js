@@ -1218,7 +1218,7 @@
   function drawHands(ctx, x0, y0, w, h, now) {
     const p = fp.p, a = p.action, wk = WORK_KIND[a], t = now / 1000;
     if (fp._wa !== a) { if (fp._wa && WORK_KIND[fp._wa] && (!a || a === 'fp')) fp._done = { t: now, tx: WORK_KIND[fp._wa][1].replace('正在', '') + '完成' }; fp._wa = a; fp._wt = now; }
-    let kind = wk ? wk[0] : SLOT_KIND[S().fpSlot || 1] || 'hand'; const el = wk ? (now - fp._wt) / 1000 : 0;
+    let kind = wk ? wk[0] : fp.wood ? 'wood' : SLOT_KIND[S().fpSlot || 1] || 'hand'; const el = wk ? (now - fp._wt) / 1000 : 0;
     if (wk && p.tool && p.tool.k === 'can') kind = 'water'; else if (wk && p.tool && p.tool.k === 'basket') kind = 'harvest';
     const u = Math.max(4, Math.round(Math.min(w, h) / 55)), C = p.pal || {}, base = C.base || '#d9a066', light = C.light || '#f4dcb8', dark = C.dark || '#8a5a3a', K = '#2a2030';
     const walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto);
@@ -1246,6 +1246,7 @@
     else if (kind === 'rod' || kind === 'fish') { const bite = p.fishing && (p.fishing.ph === 'bite' || p.fishing.ph === 'nibble'), jig = bite ? Math.sin(t * 30) * 0.08 : 0;
       ctx.save(); ctx.rotate(-0.9 + jig - (p.fishing && p.fishing.ph === 'reel' ? 0.4 : 0)); R(-u * 0.8, -u * 40, u * 1.6, u * 40, K); R(-u * 0.4, -u * 39, u * 0.8, u * 38, '#a87a4a'); R(-u * 2, -u * 4, u * 4, u * 3, '#5a4a3a');
       if (kind === 'fish') { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -u * 40); ctx.quadraticCurveTo(-u * 6, -u * 20, -u * 10 + jig * u * 40, u * 4); ctx.stroke(); } ctx.restore(); }
+    else if (kind === 'wood') { for (let i = 0; i < 4; i++) { R(-u * 12, -u * 12 + i * u * 2.2, u * 16, u * 2.4, K); R(-u * 11.5, -u * 11.6 + i * u * 2.2, u * 15, u * 1.6, i % 2 ? '#a8784a' : '#8a5a3a'); R(-u * 11.5, -u * 11.6 + i * u * 2.2, u * 1.6, u * 1.6, '#e0b884'); } }
     else if (kind === 'snack' || kind === 'eat') { const sc = kind === 'eat' ? Math.max(0.2, 1 - el / 2.5) : 1; R(-u * 5 * sc, -u * 11 * sc - u * 2, u * 10 * sc, u * 8 * sc, K); R(-u * 4 * sc, -u * 10 * sc - u * 2, u * 8 * sc, u * 6 * sc, '#d8a05a'); R(-u * 2 * sc, -u * 9 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); R(u * 1 * sc, -u * 7 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); }
     ctx.restore();
     // 正在干什么 + 进度条（准星上方）；做完闪一下
@@ -1254,7 +1255,14 @@
     if (wk) { const k = Math.min(1, el / wk[2]), tx = wk[1] + '…', tw = Math.max(ctx.measureText(tx).width + 20, 120), by = cy - fs * 2.6;
       ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx - tw / 2, by - fs - 6, tw, fs + 16); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx, by + 1);
       ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(cx - tw / 2 + 6, by + 4, tw - 12, 4); ctx.fillStyle = '#ffd84a'; ctx.fillRect(cx - tw / 2 + 6, by + 4, (tw - 12) * k, 4); }
-    else if (fp._done && now - fp._done.t < 1300) { const a2 = 1 - (now - fp._done.t) / 1300, tx = '✓ ' + fp._done.tx, tw = ctx.measureText(tx).width + 20, by = cy - fs * 2.6 - (1 - a2) * 10;
+    /* 主角自己说的话（看书、闻花、看望远镜时的那句）：第一人称看不到它头顶的气泡，就当字幕显示在下面 */
+    const bb = p.bubble, said = bb && (bb.text || bb.label);
+    if (said) { const a3 = U.clamp(Math.min(bb.t / 0.15, (bb.dur - bb.t) / 0.4), 0, 1), tx = `${p.name}：${said}`, tw = ctx.measureText(tx).width + 24, sy = y0 + h - fs * 5.2;
+      ctx.globalAlpha = a3; ctx.fillStyle = 'rgba(30,24,40,.78)'; ctx.fillRect(cx - tw / 2, sy - fs - 8, tw, fs + 14); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx, sy + 2); ctx.globalAlpha = 1; }
+    /* 第一人称：「+体力」「心情变好」这类小字从准星下面往上飘 */
+    if (fp.pops && fp.pops.length) { fp.pops = fp.pops.filter((q) => now - q.t < 1600); fp.pops.forEach((q, i) => { const k = (now - q.t) / 1600, tw = ctx.measureText(q.tx).width + 16, py = cy + fs * 3 - k * fs * 3 - i * (fs + 8);
+      ctx.globalAlpha = 1 - k; ctx.fillStyle = 'rgba(70,150,80,.9)'; ctx.fillRect(cx - tw / 2, py - fs - 4, tw, fs + 10); ctx.fillStyle = '#fff'; ctx.fillText(q.tx, cx, py + 3); ctx.globalAlpha = 1; }); }
+    if (wk) {} else if (fp._done && now - fp._done.t < 1300) { const a2 = 1 - (now - fp._done.t) / 1300, tx = '✓ ' + fp._done.tx, tw = ctx.measureText(tx).width + 20, by = cy - fs * 2.6 - (1 - a2) * 10;
       ctx.globalAlpha = a2; ctx.fillStyle = 'rgba(40,120,60,.85)'; ctx.fillRect(cx - tw / 2, by - fs - 6, tw, fs + 12); ctx.fillStyle = '#fff'; ctx.fillText(tx, cx, by + 1); ctx.globalAlpha = 1; }
   }
   /* 城堡是飘在天上的：第一人称往下看是下面那片风景的大地（跟着你最近去的地方），身边有云，远处一圈山；地面慢慢往后退，像在飞 */
@@ -1409,7 +1417,7 @@
     const L0 = FURN.layout(E()), k = JSON.stringify(L0) + dirtyK; if (k === propKey && propList) return propList;
     propKey = k;
     const fix = F.FIX.map((f) => { const o = { id: f.id, at: [f.at[0], f.at[1], f.lv], do: f.do, label: f.label, cur: f.cur, room: f.room, i: f.i }; if (f.spot) o.spot = { u: f.spot.u, v: f.spot.v, z: Z[f.lv] + f.spot.dz }; return o; });
-    const fur = L0.map((it, i) => { const d = FURN.D[it.f], lv = F.roomLv(it.room || 'living'), R0 = rbox(it.room || 'living'), f0 = FURN.front(it), fr = d.walk ? [U.clamp(it.u, R0[0] + 1.2, R0[2] - 1.2), U.clamp(it.v, R0[1] + 1.2, R0[3] - 1.2)] : [U.clamp(f0[0], R0[0] + 1, R0[2] - 1), U.clamp(f0[1], R0[1] + 1, R0[3] - 1)], st = FURN.seat(it), ffr = F.frameOf(it.room || 'living'), fw = F.toW(ffr, fr[0], fr[1]), sw = st ? F.toW(ffr, st.u, st.v) : null; return { id: FURN.PICK0 + i, f: it.f, it, room: it.room || 'living', at: [fw[0], fw[1], lv], spot: st ? { u: sw[0], v: sw[1], z: Z[lv] + st.z } : undefined, do: d.use, label: d.name + '：' + (USE_LABEL[d.use] || '看一看'), cur: ['sit', 'rock', 'warm', 'sleep', 'nap', 'rug'].includes(d.use) ? 'rest' : 'use' }; });
+    const fur = L0.map((it, i) => { const d = FURN.D[it.f], lv = F.roomLv(it.room || 'living'), R0 = rbox(it.room || 'living'), f0 = FURN.front(it), fr = d.walk ? [U.clamp(it.u, R0[0] + 1.2, R0[2] - 1.2), U.clamp(it.v, R0[1] + 1.2, R0[3] - 1.2)] : [U.clamp(f0[0], R0[0] + 1, R0[2] - 1), U.clamp(f0[1], R0[1] + 1, R0[3] - 1)], st = FURN.seat(it), ffr = F.frameOf(it.room || 'living'), fw = F.toW(ffr, fr[0], fr[1]), sw = st ? F.toW(ffr, st.u, st.v) : null; return { id: FURN.PICK0 + i, f: it.f, it, room: it.room || 'living', at: [fw[0], fw[1], lv], spot: st ? { u: sw[0], v: sw[1], z: Z[lv] + st.z } : undefined, do: d.use, label: d.name + '：' + (d.act || USE_LABEL[d.use] || '看一看'), say: d.say, cur: ['sit', 'rock', 'warm', 'sleep', 'nap', 'rug'].includes(d.use) ? 'rest' : 'use' }; });
     return (propList = fix.concat(fur));
   }
   // 花房的花盆、阀门：标签跟着花盆里的情况变
@@ -1548,7 +1556,7 @@
   const say = (p, t, d = 2.6) => { p._forceSay = true; p.say(Array.isArray(t) ? U.pick(t) : t, d); p._forceSay = false; };
   const bubble = (u, v, z) => PP.fx({ kind: 'dot', x: scrU(u, v), y: scrV(u, v, z), vx: U.rand(-8, 8), vy: U.rand(-30, -16), life: 1.4, col: U.pick(['#ffffff', '#cfeaf8', '#e8f6ff']), size: Math.max(2, L.u * 0.8) });
   const face = (p, u, v) => { const [a, b] = uvOf(p), r1 = rotUV(a, b), r2 = rotUV(u, v), d = ((r2[0] - r1[0]) - (r2[1] - r1[1])) * (mir() ? -1 : 1); if (Math.abs(d) > 0.05) p.facing = d > 0 ? 1 : -1; };
-  const gain = (p, txt) => PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } });
+  const gain = (p, txt) => { if (fp && fp.p === p) { (fp.pops = fp.pops || []).push({ t: performance.now(), tx: txt }); return; } PP.fx({ kind: 'text', text: txt, x: p.x, y: p.y - 30 * G.S, vy: -28, life: 1.5, style: { size: 11, bg: '#bff0c0' } }); };
   const fxAt = (u, v, z, o) => PP.fx(Object.assign({ x: scrU(u, v), y: scrV(u, v, z), s: 1 }, o));
   /* 第一人称时主角是你在操控：从不自己走路，够得着就原地用，够不着就提示 */
   const REACH = 4.5;
@@ -1665,6 +1673,15 @@
   // 抱柴：去柴房抱一捆，下楼到锅炉房添进去
   function* fetchWood(p) {
     const wood = props().find((q) => q.do === 'wood'), boiler = props().find((q) => q.do === 'stoke');
+    /* 第一人称：你自己走。在柴堆旁 → 抱起一捆（手里拿着）；在锅炉旁 → 手里有柴就添进去 */
+    if (fp && fp.p === p) {
+      const near = (pr) => pr && Math.hypot(fp.q.u - pr.at[0], fp.q.v - pr.at[1]) < REACH + 1;
+      if (near(boiler)) { if (!fp.wood) { PP.ui.toast('手里没有柴：先去柴堆（甲板层）抱一捆', 2.2); return false; }
+        fp.wood = false; p.tool = null; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? -2 : 2); yield 0.3; }
+        const f = fort(); f.fuel = Math.min(100, f.fuel + 35); say(p, ['火旺起来了！', '翅膀要扇得有劲啦', '热水马上就好'], 2); PP.ui.toast(`锅炉 ${Math.round(f.fuel)}%`, 1.6); yield 1; return true; }
+      if (near(wood)) { p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; fp.wood = true; say(p, ['抱一捆柴！拿去地下的锅炉房', '嘿咻'], 2); yield 0.4; return true; }
+      PP.ui.toast('离得有点远，走近一些再用', 1.4); return false;
+    }
     if (!(yield* walkTo(p, wood.at[0], wood.at[1], null, 1))) { stuck(p); return false; }
     face(p, 2, 25); p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; p.tool = { k: 'wood', t0: performance.now() }; say(p, ['抱一捆柴！', '嘿咻'], 1.4); yield 0.4;
     if (!(yield* walkTo(p, boiler.at[0], boiler.at[1], null, 0))) { stuck(p); return false; }
