@@ -26,7 +26,11 @@
 - 拟人：城堡里刺猬画成站立的小人（`sprites.js` 的 `drawHumanHedgehog`，`PP.SPR.HUMAN` 里的物种），第三人称从背后看时画背影（`p.back`）。
 - `modes.js`：模式切换（`setView`）、HUD、地图弹窗（地球 `globe.js`，旗子来自 `PP.REGIONS`；「飞行城堡」旗子单独加，点了 `setView('isle')`）。
 - `places.js`：地方和区域列表。浮空岛场景已去掉（城堡就是浮空岛），`PP.MINE = ['academy','undergrove']`。
-- `menu.js`：右键菜单、`PP.panic()`（老板键收成极简）。
+- `menu.js`：右键菜单、`PP.panic()`（老板键收成极简）。右键野生动物第一项是「❤ 认养」；所有设置在 `ui.settings(tab)`（分页：基本/声音/提醒/勿扰/天气/第一人称，内部调 `PP.menuRun(id)`）。
+- `onboard.js`：新手引导卡片（`PP.onboard.start/step`，进度在 `flags.onboard`，9 = 做完）。
+- 认养的伙伴住城堡：`d.ownHome === 'castle'`（`wild.js` 的 `toCastle()` 迁移老存档），`eco.js` 不再模拟它们，`world.js syncPets` 在城堡里把它们都显示出来。
+- `quest.js`：每日委托 + 新手任务（`econ.starter`：feed → plant → pat → trip），「带我去」调 `PP.isle.questGo(k)`。成长面板（`econ.js`）分四组 `GROUPS`。
+- 第一人称另有：F 全屏（`S().fpFull`，`layout()` 里把 `L.v*` 铺满）、快捷栏 1～5（`S().fpSlot`，`.fphot`）、C 坐 / Z 躺（`fp.pose`）、按视线看见别的动物（`sees()`，体素射线）、在城堡里后台预算碰撞和地图（`warmLoop`）。
 - `eco.js / wild.js / econ.js / life.js`：生态、野生动物与认养、经济/探险、种植。
 - `dmaps.js / vmaps.js / worlds.js / dio.js`：各个风景的布景。
 
@@ -39,6 +43,6 @@
 
 ## 下一步（用户已同意，还没做）
 - **风景的旋转**：要先给每个风景做寻路，动物在世界坐标里走，才能自由转。
-- **认养动物住进城堡**：现在城堡只显示主角；原浮空岛的住户临时搬到了魔法学院。
+- （已做）认养动物住进城堡。
 
 设计文档在仓库的 `DESIGN.md`，以及 claude.ai 项目「桌面宠物」里的几篇设计说明。

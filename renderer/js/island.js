@@ -374,7 +374,7 @@
     for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
     if (G.isle) followTick();
     if (!G.isle) return;
-    if (!fp && !warm.on) { warm.on = true; setTimeout(warmLoop, 400); }
+    if (!fp && !warm.on && !PP.noWarm) { warm.on = true; setTimeout(warmLoop, 400); }
     if (!L) layout();
     if (fp) { try { fpFrame(ctx); } catch (e) { console.error(e); } return; }
     const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0, pw = power();
