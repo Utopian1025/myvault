@@ -44,9 +44,9 @@
       return this;
     }
     // 人字屋顶：axis='u' 表示屋脊沿 u 方向；ov 是出檐
-    gable(u0, v0, u1, v1, z, h, axis, col, mat, ov = 0.6, wall, wallMat = 0) {
+    gable(u0, v0, u1, v1, z, h, axis, col, mat, ov = 0.6, wall, wallMat = 0, ovFront) { // ovFront：u0 那头单独的出檐（贴着大房间的小隔间前面不出檐）
       if (axis === 'u') {
-        const m = (v0 + v1) / 2, a0 = u0 - ov, a1 = u1 + ov, e = ov * h / ((v1 - v0) / 2);
+        const m = (v0 + v1) / 2, a0 = u0 - (ovFront != null ? ovFront : ov), a1 = u1 + ov, e = ov * h / ((v1 - v0) / 2);
         this.quad([a0, v0 - ov, z - e], [a1, v0 - ov, z - e], [a1, m, z + h], [a0, m, z + h], col, mat);
         this.quad([a0, v1 + ov, z - e], [a1, v1 + ov, z - e], [a1, m, z + h], [a0, m, z + h], col, mat);
         if (wall) { this.tri([u0, v0, z], [u0, v1, z], [u0, m, z + h], wall, wallMat); this.tri([u1, v0, z], [u1, v1, z], [u1, m, z + h], wall, wallMat); }

@@ -181,7 +181,7 @@ function install(relaunch = true) {
   } catch (e) { console.warn('backup before update failed', e); }
   try { fs.writeFileSync(markFile(), JSON.stringify({ version: state.latest && state.latest.version, t: Date.now() })); } catch {}
   if (process.platform === 'win32') {
-    const args = ['/S']; if (relaunch) args.push('--force-run');
+    const args = ['/S', '--updated']; if (relaunch) args.push('--force-run'); // --updated：告诉安装程序这是更新（不碰存档、不当成全新安装）；桌面图标见 build/installer.nsh
     try {
       const ch = spawn(state.file, args, { detached: true, stdio: 'ignore' });
       ch.on('error', (e) => { console.warn('installer failed', e); state.status = 'error'; state.error = '没能启动安装程序（' + (e.code || e.message) + '），可以去网页下载手动安装'; notify(state); });

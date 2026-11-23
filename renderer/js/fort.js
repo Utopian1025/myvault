@@ -351,7 +351,7 @@
     m.box(u0 - WT / 2, v0 - WT / 2, z - 1, u1 + WT / 2, v1 + WT / 2, z, r.fl, r.fm, r.fl, r.fm);
     if (!r.glass) for (let u = u0 + 1.6; u < u1 - 0.5; u += 1.6) m.box(u - 0.04, v0, z + 0.01, u + 0.04, v1, z + 0.04, shade(r.fl, 0.85), 0);
     for (const [ax, at, a0, a1, nu, nv] of [['v', v0, u0, u1, 0, -1], ['v', v1, u0, u1, 0, 1], ['u', u0, v0, v1, -1, 0], ['u', u1, v0, v1, 1, 0]]) {
-      const sg = ax === 'v' ? nv : nu, ext = exteriorParts(r, ax, at, a0, a1), doors = sideHoles(r.lv, ax, at, a0, a1, fr).map(([s, e]) => [s, e, 0, DOOR_H]);
+      const sg = ax === 'v' ? nv : nu, ext = r.hut && ax === 'u' && at === u0 ? [] /* 小隔间正面那堵墙在大房间里：不是外墙，不画外墙装饰 */ : exteriorParts(r, ax, at, a0, a1), doors = sideHoles(r.lv, ax, at, a0, a1, fr).map(([s, e]) => [s, e, 0, DOOR_H]);
       const wins = r.glass ? [] : ext.flatMap(([s, e]) => windowsOn(r, ax, at, s, e, doors)), holes = doors.concat(wins);
       const back = !fac(nu, nv), lowZ = z + LOW(cut), fullZ = z + h;
       if (r.glass) { glassWall(m, ax, at, a0, a1, z, cutHere && !back ? lowZ : z + h, doors); continue; }
@@ -366,7 +366,7 @@
     // 天花板上几根木梁（顺着短边搭过去），屋里看着更像有人住
     if (!r.hut && !r.glass && !cutHere && h >= 10) { const alongU = (u1 - u0) <= (v1 - v0), L = alongU ? v1 - v0 : u1 - u0, n = Math.max(2, 2 * Math.round(L / 6.8)), bw = shade(r.fl, 0.62); // 双数根：正中间留给吊灯
       for (let k = 1; k <= n; k++) { const c = (alongU ? v0 : u0) + (L * k) / (n + 1); if (alongU) m.box(u0 + WT / 2, c - 0.22, z + h - 0.75, u1 - WT / 2, c + 0.22, z + h - 0.03, bw, M.plank); else m.box(c - 0.22, v0 + WT / 2, z + h - 0.75, c + 0.22, v1 - WT / 2, z + h - 0.03, bw, M.plank); } }
-    if (!r.glass) for (const [cu, cv] of [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? LOW(cut) : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
+    if (!r.glass) for (const [cu, cv] of r.hut ? [[u1, v0], [u1, v1]] /* 小隔间前面两个角在大房间里面 */ : [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? LOW(cut) : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
     // 吊灯：住人的房间天花板中间垂一盏（剖开看的时候不画，免得飘在半空）
     if (!r.glass && LAMP_ROOMS[r.id] && !cutHere && h >= 10.5) { const cu = (u0 + u1) / 2, cv = (v0 + v1) / 2, top = z + h, lo = Math.max(z + 8.6, top - 2.2); /* 灯罩底边不低于 8.6，站着的眼睛（7.2）不会钻进灯里 */ m.box(cu - 0.05, cv - 0.05, lo + 0.6, cu + 0.05, cv + 0.05, top, '#3a2a20', M.metal); m.cyl(cu, cv, lo, lo + 0.6, 0.9, 0.3, LAMP_ROOMS[r.id], M.cloth, 10); m.cyl(cu, cv, lo - 0.05, lo + 0.12, 0.42, 0.42, '#fff3c4', M.glow, 8); }
   }
@@ -472,7 +472,7 @@
   }
   function tallRoof(m, r, z, o) {
     const [u0, v0, u1, v1] = r.r, ax = r.ax || 'u', span = ax === 'u' ? v1 - v0 : u1 - u0, hh = span * (r.roof === 'steep' ? 1.5 : 0.9), col = o.snow ? '#e4ecf4' : r.lv % 2 ? C.TILE : C.TILE2, warp = P2().warp, tilt = (H(r.lv, u0) < 0.5 ? -1 : 1) * 0.14;
-    const draw = () => { m.box(u0 - 0.3, v0 - 0.3, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.gable(u0, v0, u1, v1, z, hh, ax, col, o.snow ? M.snow : M.tile, 0.7, r.out, r.om); tileRows(m, r.r, z, hh, ax, o); };
+    const fr0 = r.hut ? 0 : 0.3, draw = () => { m.box(u0 - fr0, v0 - 0.3, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.gable(u0, v0, u1, v1, z, hh, ax, col, o.snow ? M.snow : M.tile, 0.7, r.out, r.om, r.hut ? 0 : undefined); tileRows(m, r.r, z, hh, ax, o, r.hut ? 0 : 0.7); }; // 小隔间：前面（贴着大房间那头）不出檐，不然屋檐、木梁会伸进大房间里
     if (warp) warp(m, [(u0 + u1) / 2, (v0 + v1) / 2, z], 0, ax === 'u' ? 0 : tilt, ax === 'u' ? tilt : 0, draw); else draw();
     if (ax === 'u') { const cu = (u0 + u1) / 2 + 1.5, wv = v1 - span * 0.28, wz = z + hh * 0.42; m.box(cu - 1.1, wv - 0.6, wz - 1.6, cu + 1.1, wv + 0.6, wz + 1.6, r.out, r.om); m.box(cu - 0.6, wv + 0.6, wz - 0.9, cu + 0.6, wv + 0.65, wz + 1, C.GLASS, M.glass); m.gable(cu - 1.2, wv - 0.8, cu + 1.2, wv + 0.8, wz + 1.6, 1.2, 'v', col, M.tile, 0.2); }
     else { const cv = (v0 + v1) / 2 - 1.2, wu = u1 - span * 0.28, wz = z + hh * 0.42; m.box(wu - 0.6, cv - 1.1, wz - 1.6, wu + 0.6, cv + 1.1, wz + 1.6, r.out, r.om); m.box(wu + 0.6, cv - 0.6, wz - 0.9, wu + 0.65, cv + 0.6, wz + 1, C.GLASS, M.glass); m.gable(wu - 0.8, cv - 1.2, wu + 0.8, cv + 1.2, wz + 1.6, 1.2, 'u', col, M.tile, 0.2); }
@@ -484,7 +484,7 @@
     m.box(q[0] - 0.25, q[3] - 0.1, z, q[2] + 0.25, q[3] + 0.25, z + 0.9, C.STONE2, M.stone); m.box(q[2] - 0.1, q[1] - 0.25, z, q[2] + 0.25, q[3] + 0.25, z + 0.9, C.STONE2, M.stone);
     m.box(q[0] - 0.3, q[3] + 0.25, z - 0.5, q[2] + 0.3, q[3] + 0.6, z - 0.1, C.COP, M.metal);
   }
-  function tileRows(m, q, z, hh, ax, o) { if (o.snow) return; const [u0, v0, u1, v1] = q, dk = '#8a3a26'; for (let t = 0.15; t < 0.95; t += 0.14) { if (ax === 'u') { const vm = (v0 + v1) / 2; for (const [ve, s2] of [[v0 - 0.7, 1], [v1 + 0.7, -1]]) { const vv = ve + (vm - ve) * t, zz = z - 0.7 * hh / ((v1 - v0) / 2) + (hh + 0.7 * hh / ((v1 - v0) / 2)) * t + 0.08; m.quad([u0 - 0.7, vv, zz], [u1 + 0.7, vv, zz], [u1 + 0.7, vv + s2 * 0.16, zz + 0.14], [u0 - 0.7, vv + s2 * 0.16, zz + 0.14], dk, M.tile); } } else { const um = (u0 + u1) / 2; for (const [ue, s2] of [[u0 - 0.7, 1], [u1 + 0.7, -1]]) { const uu = ue + (um - ue) * t, zz = z - 0.7 * hh / ((u1 - u0) / 2) + (hh + 0.7 * hh / ((u1 - u0) / 2)) * t + 0.08; m.quad([uu, v0 - 0.7, zz], [uu, v1 + 0.7, zz], [uu + s2 * 0.16, v1 + 0.7, zz + 0.14], [uu + s2 * 0.16, v0 - 0.7, zz + 0.14], dk, M.tile); } } } }
+  function tileRows(m, q, z, hh, ax, o, fo = 0.7) { if (o.snow) return; const [u0, v0, u1, v1] = q, dk = '#8a3a26'; for (let t = 0.15; t < 0.95; t += 0.14) { if (ax === 'u') { const vm = (v0 + v1) / 2; for (const [ve, s2] of [[v0 - 0.7, 1], [v1 + 0.7, -1]]) { const vv = ve + (vm - ve) * t, zz = z - 0.7 * hh / ((v1 - v0) / 2) + (hh + 0.7 * hh / ((v1 - v0) / 2)) * t + 0.08; m.quad([u0 - fo, vv, zz], [u1 + 0.7, vv, zz], [u1 + 0.7, vv + s2 * 0.16, zz + 0.14], [u0 - fo, vv + s2 * 0.16, zz + 0.14], dk, M.tile); } } else { const um = (u0 + u1) / 2; for (const [ue, s2] of [[u0 - 0.7, 1], [u1 + 0.7, -1]]) { const uu = ue + (um - ue) * t, zz = z - 0.7 * hh / ((u1 - u0) / 2) + (hh + 0.7 * hh / ((u1 - u0) / 2)) * t + 0.08; m.quad([uu, v0 - 0.7, zz], [uu, v1 + 0.7, zz], [uu + s2 * 0.16, v1 + 0.7, zz + 0.14], [uu + s2 * 0.16, v0 - 0.7, zz + 0.14], dk, M.tile); } } } }
   function glassRoof(m, r, o) {
     const [u0, v0, u1, v1] = r.r, z = Z[r.lv] + roomH(r), hh = 5.5, mu = (u0 + u1) / 2;
     m.box(u0 - 0.2, v0 - 0.2, z - 0.3, u1 + 0.2, v1 + 0.2, z, '#f4f0e6', 0);
