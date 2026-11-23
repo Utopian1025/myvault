@@ -100,7 +100,7 @@
   /* 贴在大房间外墙上的 12 个小隔间：每一间按名字单独布置（见 hutInterior），想临时关掉哪些就把要留的名字放进 HUT_KEEP */
   const HUT_KEEP = null; // null = 全部都要（小隔间是城堡的灵魂：凌乱、别有洞天）
   HUT_SPEC.filter((h) => !HUT_KEEP || HUT_KEEP.has(h[11])).forEach(([pid, side, t, w, d, h, lu, lv2, yx, wc, rc, nm, use], k) => {
-    h = Math.max(h, 9.6); // 小隔间至少 9.6 高：人站着（7.8）能进去，不用自己蹲
+    h = Math.max(h, 10.4); // 小隔间至少 10.4 高：人站着（7.8）能进去，屋檐也高过从外面走过的人的头
     const P = RM[pid]; if (!P) return;
     let Pl, nl, pfr = P.rot ? P : null;
     if (P.c) { nl = [Math.cos(side), Math.sin(side)]; Pl = [P.c[0] + nl[0] * P.c[2], P.c[1] + nl[1] * P.c[2]]; }
@@ -893,14 +893,14 @@
       curve([[u + Math.cos(a) * 1.4, v + Math.sin(a) * 1.4, z + 1], [x - Math.cos(a) * 1.2, y - Math.sin(a) * 1.2, z + 0.2], [x, y, z - 2], [x + Math.cos(a) * 1.2, y + Math.sin(a) * 1.2, z - 9], [x + Math.cos(a) * 1.6 + Math.sin(k) * 1.4, y + Math.sin(a) * 1.6, z - 9 - len * 0.5], [x + Math.cos(a) * 1.2, y + Math.sin(a) * 1.2 + Math.cos(k) * 1.2, z - 9 - len]], 0.75, 0.2);
       for (let j = 0; j < 3; j++) dangle(m, o, x + Math.cos(a) * 1.4 + (j - 1) * 0.7, y + Math.sin(a) * 1.4, z - 12 - j * 4, 10 + R(k + j) * 12, k * 3 + j, j === 1); }
     // 两条根爬到圆塔（门厅）脚下，绕着塔壁往上爬（避开门洞那一侧）
-    for (const [a0, turn] of [[-2.36, 0.9], [-1.75, -0.7]]) { const pts = [[u, v, z + 1.5]]; const A0 = [12 + Math.cos(a0) * 8.9, 12 + Math.sin(a0) * 8.9]; pts.push([(u + A0[0]) / 2, (v + A0[1]) / 2, z + 0.4]); for (let k = 0; k <= 8; k++) { const t = k / 8, a = a0 + turn * t; pts.push([12 + Math.cos(a) * 8.95, 12 + Math.sin(a) * 8.95, z + 1 + t * 26]); } curve(pts, 0.6, 0.22); }
+    for (const [a0, turn] of [[-2.36, 0.9], [-1.75, -0.5]]) { const pts = [[u, v, z + 1.5]]; const A0 = [12 + Math.cos(a0) * 8.9, 12 + Math.sin(a0) * 8.9]; pts.push([(u + A0[0]) / 2, (v + A0[1]) / 2, z + 0.4]); for (let k = 0; k <= 8; k++) { const t = k / 8, a = a0 + turn * t; pts.push([12 + Math.cos(a) * 8.95, 12 + Math.sin(a) * 8.95, z + 1 + t * 15]); } /* 爬到二层楼板下面为止，不钻进二层的小隔间 */ curve(pts, 0.6, 0.22); }
   }
   /* 林子：岛的外沿一圈种上树（后面那半圈多、前面少，不挡着看城堡），树下有蕨和小灌木 */
   function forest(m, cut, o) {
     const pts = deckEdge(64, 0, true);
     pts.forEach(([pu, pv], i) => { const a = Math.atan2(pv - CEN[1], pu - CEN[0]), u = CEN[0] + (pu - CEN[0]) * 0.93, v = CEN[1] + (pv - CEN[1]) * 0.93, back = Math.sin(a + 0.8) < 0.25; if (!back && i % 3) return;
       if (ROOMS.some((r) => r.lv <= 2 && inRoom(r, u, v, -3)) || MODS.some((q) => inMod(q, u, v, -2.2)) || inLake(u, v, -3) || PASS.some((p) => { const b = wBox(p.F, p.r); return u > b[0] - 3 && u < b[2] + 3 && v > b[1] - 3 && v < b[3] + 3; }) || Math.hypot(u - GTREE.u, v - GTREE.v) < 8) return;
-      if (H(i, 41) < 0.35) return; const h = 9 + H(i, 42) * 6; tree(m, o, u, v, HT, h, i * 13 + 5, (H(i, 43) - 0.5) * 0.6);
+      if (H(i, 41) < 0.35) return; const h = 9 + H(i, 42) * 6; if (ROOMS.some((r) => r.lv <= 2 && inRoom(r, u, v, -(h * 0.5 + 1.5)))) return; /* 树冠不伸进房子 */ tree(m, o, u, v, HT, h, i * 13 + 5, (H(i, 43) - 0.5) * 0.6);
       if (!o.snow) for (let k = 0; k < 3; k++) { const x = u + (H(i, k + 50) - 0.5) * 4, y = v + (H(k, i + 50) - 0.5) * 4; if (!inPoly(x, y, 0.5) || roomAt(x, y, 1)) continue; P2().bush ? P2().bush(m, x, y, HT, 0.5 + H(i, k) * 0.4, LEAF(o), i + k, true) : m.foliage(x, y, HT + 0.6, 0.7, 0.6, LEAF(o), 12, k); } });
   }
   function plants(m, cut, o) {

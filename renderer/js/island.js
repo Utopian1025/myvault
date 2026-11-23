@@ -1479,7 +1479,7 @@
           ctx.fillStyle = `rgb(${base.join(',')})`; ctx.beginPath(); ctx.arc(cx, cy + rr * 0.18, rr, 0, 6.283); ctx.fill(); }
         for (let k = 0; k < n2; k++) { const ox = (k / (n2 - 1) - 0.5) * R * 3.2, up = Math.sin((k / (n2 - 1)) * Math.PI) * R * (0.8 + hs(k, i) * 0.6), rr = R * (0.45 + Math.sin((k / (n2 - 1)) * Math.PI) * 0.45 + hs(i, k) * 0.15), cx = c0[0] + ox, cy = c0[1] - up * 0.6;
           ctx.fillStyle = `rgb(${body.join(',')})`; ctx.beginPath(); ctx.arc(cx, cy, rr * 0.92, 0, 6.283); ctx.fill(); ctx.fillStyle = `rgb(${hl.join(',')})`; ctx.beginPath(); ctx.arc(cx - rr * 0.12, cy - rr * 0.22, rr * 0.62, 0, 6.283); ctx.fill(); }
-        ctx.fillStyle = `rgb(${base.join(',')})`; ctx.fillRect(c0[0] - R * 1.9, c0[1] + R * 0.05, R * 3.8, R * 0.25); ctx.globalAlpha = 1; } }
+        ctx.fillStyle = `rgb(${base.join(',')})`; ctx.beginPath(); ctx.ellipse(c0[0], c0[1] + R * 0.12, R * 1.75, R * 0.2, 0, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; } } // 云底：压扁的椭圆（原来是一块方条，看着像天上贴了一条长方形）
     // 1) 地面底色：地平线那儿雾蒙蒙的，越往下越清楚
     if (horizon < y0 + h) { const g = ctx.createLinearGradient(0, Math.max(y0, horizon), 0, y0 + h); g.addColorStop(0, fog); g.addColorStop(0.18, mixF(pal[0], 0.5)); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(x0, Math.max(y0, horizon), w, y0 + h - Math.max(y0, horizon)); }
     // 2) 远山：三层，越远越淡越蓝；高的山尖上有雪
