@@ -24,7 +24,7 @@
   const IWf = () => (bnd() || { IW: 200 }).IW, IHf = () => (bnd() || { IH: 200 }).IH;
   const cx = (u, v) => { const k = cam(), [ru, rv] = rotUV(u, v, k), x = org()[0] + 2 * (ru - rv); return mir() ? IWf() - x : x; }, cy = (u, v, z = 0) => { const k = cam(), [ru, rv] = rotUV(u, v, k); return org()[1] + ((ru + rv) * k.A - z * k.B); };
   // 剖切：朝镜头的方向（世界坐标）
-  const cutO = () => { if (cut == null) return null; const k = cam(); return { lv: cut, vu: k.c + k.s, vv: k.c - k.s, low: focus ? 0.3 : 2.2 }; };
+  const cutO = () => { if (cut == null || fp) return null; /* 第一人称：永远看完整的城堡（剖开会把屋顶切掉、碰撞也跟着变） */ const k = cam(); return { lv: cut, vu: k.c + k.s, vv: k.c - k.s, low: focus ? 0.3 : 2.2 }; };
   const quad = () => { const k = cam(); return (k.c + k.s > 0 ? 1 : 0) + (k.c - k.s > 0 ? 2 : 0); };
   // 外面的画框：按整座城堡（外部）算，进屋剖切时画框不跳
   let bndC = null, extPos = null, extKey = '';
@@ -274,7 +274,7 @@
   }
   function scene() {
     ensureExt();
-    const key = [cut, cut == null ? '' : focus ? focus + ':' + Math.round((+S().isleYaw || 0) / (Math.PI / 12)) : quad(), baseKey()].join('#'); // 详细视图：边转边换（每 15° 重算一次哪几面墙朝着你）
+    const key = [fp ? null : cut, cut == null || fp ? '' : focus ? focus + ':' + Math.round((+S().isleYaw || 0) / (Math.PI / 12)) : quad(), baseKey()].join('#'); // 详细视图：边转边换（每 15° 重算一次哪几面墙朝着你）
     const s = meshes.main;
     if (s && s.key === key) return s;
     const m = F.build(opts(cutO()));
@@ -491,7 +491,7 @@
   }
   // 老存档：原来的小屋（楼下 + 阁楼）→ 城堡的起居室和卧室，按比例搬过去，放不下的收起来
   function migrateFurn() {
-    const e = E(); if (!e || e.layoutV >= 4) return; if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
+    const e = E(); if (!e || e.layoutV >= 5) return; if (e.layoutV === 4) { repairFurn(e); return; } if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
     const L0 = FURN.layout(e), out = [];
     const map = (it) => { const bed = !!it.lv, rid = bed ? 'bedroom' : 'living', R0 = RM[rid].r, src = bed ? [4, 4, 22, 18] : [4, 4, 37.8, 32.6]; return Object.assign({}, it, { room: rid, lv: undefined, u: R0[0] + 1 + ((it.u - src[0]) / (src[2] - src[0])) * (R0[2] - R0[0] - 2), v: R0[1] + 1 + ((it.v - src[1]) / (src[3] - src[1])) * (R0[3] - R0[1] - 2) }); };
     e.layout = []; for (const it of L0) { const n = map(it); delete n.lv; e.layout.push(n); const i = e.layout.length - 1; if (!fOK(n, i)) { const f = fFree(n, i); if (f) e.layout[i] = f; else e.layout.pop(); } }
@@ -545,7 +545,13 @@
     for (const rid in ROOM_SET2) { if (!RM[rid]) continue; for (const f of ROOM_SET2[rid]) { if (!FURN.D[f] || FURN.layout(e).length >= FURN.MAXN) continue; (WALL_F.has(f) ? placeWall : placeReach)(e, { f, u: 0, v: 0, r: 0, room: rid }); } }
     /* 餐桌两边各两把椅子，面朝桌子 */
     if (RM.dining && FURN.D.chair) { const L0 = FURN.layout(e); for (const [u, v, r] of [[33.6, 20.7, 2], [36.4, 20.7, 2], [30.9, 18.1, 3], [39.1, 18.1, 1]]) { const c = { f: 'chair', u, v, r, room: 'dining' }; if (L0.length < FURN.MAXN && fOK(c, -1)) { L0.push(c); if (!reachOK('dining')) L0.pop(); } } }
-    e.layoutV = 4; dirty(); PP.save.soon();
+    e.layoutV = 4; repairFurn(e);
+  }
+  /* 城堡改了结构（比如塔楼楼梯挪了位置）：放不下的家具挪到附近空地，实在没地方就收进仓库 */
+  function repairFurn(e) {
+    const L0 = FURN.layout(e);
+    for (let i = L0.length - 1; i >= 0; i--) { if (fOK(L0[i], i)) continue; const f = fFree(L0[i], i); if (f) L0[i] = f; else L0.splice(i, 1); }
+    e.layoutV = 5; dirty(); PP.save.soon();
   }
   function fChanged() { dirty(); PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.y = p.floor; } } }
   function fStart(i, x, y) {
@@ -615,6 +621,7 @@
 
   // ---------- 剖切：进到哪一层 ----------
   function setCut(lv, quiet, keepFocus) {
+    if (fp && lv != null) return; // 第一人称里不剖切
     lv = lv == null ? null : U.clamp(lv, 0, 3);
     if (!keepFocus && focus) { focus = null; fbC = null; bndC = null; if (cut === lv) { cells = {}; for (const p of G.pets) if (!p.held) p.isleHide = hidden(p); layout(); camFix(); cBar(); return; } }
     if (cut === lv) return;
@@ -629,6 +636,7 @@
   // 详细视图：进到一个房间。镜头推近到这个房间，别的房间都不画；从门、走廊、楼梯走到隔壁，镜头跟过去
   function camFix() { for (const p of G.pets) { if (p.held) continue; const q = p.isleSpot || ipOf(p); p.x = scrU(q.u, q.v); p.y = p.floor; } PP.placeOrb && PP.placeOrb(); }
   function setFocus(id, quiet) {
+    if (fp) return;
     const r = id && RM[id]; if (!r) { setCut(cut, true); return; }
     if (focus === id) return;
     focus = id; fbC = null; bndC = null; cells = {}; hover = null;
@@ -794,7 +802,19 @@
       const n = Math.min(400, Math.ceil(Math.max(Math.hypot(bx, by, bz), Math.hypot(cx, cy, cz), Math.hypot(bx - cx, by - cy, bz - cz)) / sp));
       for (let a = 0; a <= n; a++) for (let b = 0; b <= n - a; b++) { const fa = a / n, fb = b / n; put(ax + bx * fa + cx * fb, ay + by * fa + cy * fb, az + bz * fa + cz * fb); }
     }
+    stampUnder(V);
     B.res = V;
+  }
+  /* 桌子、工作台、柜子这些东西底下是空的：身子矮（3.6）能钻进去，可眼睛在 7.2，一钻镜头就穿进桌面。
+     把它们占的地方从离地 1 格往上、到碰到它自己为止填实，第一人称就钻不进去了（跟伙伴们找路时的规矩一样） */
+  function stampUnder(V) {
+    const { g, u0, v0, z0, nx, ny, nz } = V, list = [];
+    try { for (const f of F.FIX) for (const b of f.ob) list.push([f.lv, ...b]); for (const it of FURN.layout(E())) { if (FURN.D[it.f].walk) continue; list.push(...F.rectObs(F.frameOf(it.room || 'living'), F.roomLv(it.room || 'living'), FURN.rect(it, 0))); } } catch (e) { return; }
+    const col = (u, v, lv) => { const i = Math.floor((u - u0) / VX), j = Math.floor((v - v0) / VX); if (i < 0 || j < 0 || i >= nx || j >= ny) return; const ka = Math.floor((Z[lv] + 1.05 - z0) / VZ), kb = Math.floor((Z[lv] + 3.4 - z0) / VZ);
+      for (let k = Math.max(0, ka); k <= kb && k < nz; k++) { const n = (k * ny + j) * nx + i; if (g[n] === 1) break; g[n] = 1; } };
+    for (const o of list) { const lv = o[0]; if (Z[lv] == null) continue;
+      if (o[1] === 'c') { const [, , cu, cv, r] = o; for (let u = cu - r; u <= cu + r; u += VX) for (let v = cv - r; v <= cv + r; v += VX) if (Math.hypot(u - cu, v - cv) <= r) col(u, v, lv); }
+      else { const [, a, b, c, d] = o; for (let u = a + VX / 2; u < c; u += VX) for (let v = b + VX / 2; v < d; v += VX) col(u, v, lv); } }
   }
   const vAt = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] === 1; };
   // ---- 地面、墙 ----
@@ -932,7 +952,7 @@
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
-          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看（M 锁住鼠标后移动就转头）· 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · M 锁住 / 松开鼠标（松开时按住鼠标拖动转头） · Q 退出 · Esc 老板键</div>
+          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看（默认锁住，移动就转头）· 空格 跳（能翻过栏杆、从阳台跳下去）· Shift 跑 · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · M 锁住 / 松开鼠标（松开时鼠标移到画面边上转头） · R 跑到屋顶外沿下不来时，回到刚才站的地面 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4); fpBarEl.style.transformOrigin = 'left top'; fpBarEl.style.transform = `scale(${sc.toFixed(3)})`;
@@ -974,6 +994,7 @@
     if (e.code === 'Tab') { toggleMap(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
     if (e.code === 'KeyM') { lookToggle(); e.preventDefault(); return; }
+    if (e.code === 'KeyR') { fpRescue(); e.preventDefault(); return; }
     if (e.code === 'KeyV') { const s = S(); if (fpDist() >= 0.5) { s.fpDist3 = fpDist(); s.fpDist = 0; } else s.fpDist = s.fpDist3 || 8; PP.save.soon(); fpBar(); PP.ui.toast(fpDist() >= 0.5 ? '第三人称（滚轮拉远拉近，V 切回来）' : '第一人称（滚轮调视野，V 切第三人称）', 1.4); e.preventDefault(); return; }
     if (e.code === 'KeyF') { fpFullToggle(); e.preventDefault(); return; }
     if (e.code === 'KeyC' || e.code === 'KeyZ') { const w = e.code === 'KeyC' ? 'sit' : 'lie'; fp.pose = fp.pose === w ? null : w; fp.auto = null; PP.ui.toast(fp.pose === 'sit' ? '坐下歇会儿（慢慢回体力，走一步就起来）' : fp.pose === 'lie' ? '躺下（回体力更快，走一步就起来）' : '起来了', 1.4); e.preventDefault(); return; }
@@ -1062,6 +1083,11 @@
     return true;
   }
   function fpMove(du, dv) { const q = fp.q, n = Math.max(1, Math.ceil(Math.hypot(du, dv) / 0.3)); for (let i = 0; i < n; i++) { const a = du / n, b = dv / n; if (!fpStepTo(q.u + a, q.v + b) && !fpStepTo(q.u + a, q.v) && !fpStepTo(q.u, q.v + b)) return false; } return true; }
+  /* 站在楼层地面上（不是屋顶、外沿、树上）：只有这种地方才记成「上次站稳的地方」 */
+  function onFloor(q) { if (!navC) return true; const i = gi(q.u), j = gi(q.v); if (i < 0 || j < 0 || i >= GN || j >= GN) return false; const k = j * GN + i; return !!navC.g[q.lv] && navC.g[q.lv][k] === 1 && Math.abs(navC.h[q.lv][k] - q.z) < 0.8; }
+  /* 脚下这层有地板、只是站在箱子桌子上（不高）：不算跑出去了 */
+  function overFloor(q) { if (!navC) return true; const i = gi(q.u), j = gi(q.v); if (i < 0 || j < 0 || i >= GN || j >= GN) return false; const k = j * GN + i, g = navC.g[q.lv]; return !!g && g[k] > 0 && q.z - navC.h[q.lv][k] < 6; }
+  function fpRescue() { if (!fp || !fp.safe) return; Object.assign(fp.q, fp.safe); fp.air = false; fp.vz = 0; fp.auto = null; fp.offT = 0; fp._cam = null; PP.ui.toast('回到刚才站的地面了', 1.4); }
   function fpTick(dt) {
     const p = fp.p; if (!G.pets.includes(p) || p.held) { fpStop(true); return; }
     if (lookOn() && uiOpen()) popCheck();
@@ -1117,8 +1143,10 @@
         // 卡在缝里（站着却被墙夹住）超过半秒：回到刚才站稳的地方
         const want = mv || st || fp.auto, movedNow = fp.lastP ? Math.hypot(q.u - fp.lastP[0], q.v - fp.lastP[1]) : 1; fp.lastP = [q.u, q.v];
         if (blocked(q.u, q.v, q.z) && want && movedNow < 0.01) { fp.stuckT = (fp.stuckT || 0) + dt; if (fp.stuckT > 1 && fp.safe) { Object.assign(q, fp.safe); fp.stuckT = 0; fp.auto = null; PP.ui.toast('卡住了，回到刚才站的地方', 1.4); } } // 想走却一动不动 1 秒才救
-        else if (!blocked(q.u, q.v, q.z)) { fp.stuckT = 0; if (!g.ramp && q.z > Z[0] - 1 && (!fp.safeT || performance.now() - fp.safeT > 300)) { fp.safe = { u: q.u, v: q.v, z: q.z, lv: q.lv }; fp.safeT = performance.now(); } } } }
+        else if (!blocked(q.u, q.v, q.z)) { fp.stuckT = 0; if (!g.ramp && q.z > Z[0] - 1 && onFloor(q) && (!fp.safeT || performance.now() - fp.safeT > 300)) { fp.safe = { u: q.u, v: q.v, z: q.z, lv: q.lv }; fp.safeT = performance.now(); } } } }
     if (!blocked(q.u, q.v, q.z)) fp.okUV = [q.u, q.v];
+    /* 跑到屋顶、外沿上下不来：在地面以外待了一会儿、又不是在楼梯上，就提示按 R 回去 */
+    if (!fp.air && !fp.pose && !onFloor(q) && !overFloor(q) && !area().ramps.some((r) => inRampF(r, q.u, q.v))) { fp.offT = (fp.offT || 0) + dt; if (fp.offT > 4 && !fp.offTold) { fp.offTold = true; PP.ui.toast('下不来了？按 R 回到刚才站的地面', 4); } } else { fp.offT = 0; fp.offTold = false; }
     p.anim = fp.air ? (fp.vz > 0 ? 'jump' : 'fall') : fp.pose ? fp.pose : (mv || st || fp.auto) ? (K.has('run') || fp.auto ? 'run' : 'walk') : 'idle';
     fpSync();
     if ((fp.saveT += dt) > 3) { fp.saveT = 0; fpRemember(); }
@@ -1314,32 +1342,62 @@
     const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(cam.fov / 2);
     const P = (u, v, z) => { const mx = (u - cam.eye[0]) * 2.83, my = (v - cam.eye[1]) * 2.83, mz = (z - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; return f2 < 1 ? null : [x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), y0 + h / 2 - (u2 * f) / f2 * (h / 2), f2]; };
     const sc = underScene(), pal = BIOME[sc] || BIOME[(PP.SCENES[sc] && PP.SCENES[sc].biome) || ''] || BIOME_DEF, nightK = lo && lo.lit ? Math.min(1, lo.lit) : 0;
-    const horizon = y0 + h / 2 + Math.tan(cam.pitch) * f * (h / 2);
-    const fog = (lo && lo.skyBot) ? `rgb(${lo.skyBot.map((v) => Math.round(v * 255)).join(',')})` : '#cfe2f0';
+    const horizon = y0 + h / 2 + Math.tan(cam.pitch) * f * (h / 2), K = h / 400;
+    const fogA = (lo && lo.skyBot) ? lo.skyBot.map((v) => Math.round(v * 255)) : [207, 226, 240], fog = `rgb(${fogA.join(',')})`;
+    const hx = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    const mixF = (c, t) => { const a = hx(c); t = Math.max(0, Math.min(1, t)); return `rgb(${a.map((x, i) => Math.round(x + (fogA[i] - x) * t)).join(',')})`; };
+    const dark = (c, k) => { const a = hx(c); return '#' + a.map((x) => Math.max(0, Math.min(255, Math.round(x * k))).toString(16).padStart(2, '0')).join(''); };
+    const hs = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+    // 0) 太阳 / 月亮和星星：方向固定在天上，跟着视线转
+    const far = (az, el) => P(cam.eye[0] + Math.cos(az) * Math.cos(el) * 4000, cam.eye[1] + Math.sin(az) * Math.cos(el) * 4000, cam.eye[2] + Math.sin(el) * 4000 / 1.155 * 2.83);
+    if (nightK < 0.5) { const s0 = far(0.9, 0.42); if (s0) { const R = h * 0.32, g = ctx.createRadialGradient(s0[0], s0[1], 0, s0[0], s0[1], R); g.addColorStop(0, 'rgba(255,250,225,0.95)'); g.addColorStop(0.08, 'rgba(255,240,190,0.75)'); g.addColorStop(0.35, 'rgba(255,230,180,0.18)'); g.addColorStop(1, 'rgba(255,230,180,0)'); ctx.fillStyle = g; ctx.fillRect(s0[0] - R, s0[1] - R, R * 2, R * 2); } }
+    else { for (let i = 0; i < 90; i++) { const st = far(hs(i, 1) * 6.283, 0.08 + hs(i, 2) * 1.2); if (!st || st[1] > horizon) continue; ctx.globalAlpha = (0.35 + hs(i, 3) * 0.65) * nightK * (0.75 + 0.25 * Math.sin(now / 900 + i)); ctx.fillStyle = '#fff8e8'; const r = (hs(i, 4) < 0.15 ? 1.6 : 0.9) * K; ctx.fillRect(st[0] - r, st[1] - r, r * 2, r * 2); }
+      const mo = far(2.4, 0.5); if (mo) { ctx.globalAlpha = 0.9 * nightK; const R = 10 * K, g = ctx.createRadialGradient(mo[0], mo[1], R * 0.6, mo[0], mo[1], R * 4); g.addColorStop(0, 'rgba(240,240,255,0.35)'); g.addColorStop(1, 'rgba(240,240,255,0)'); ctx.fillStyle = g; ctx.fillRect(mo[0] - R * 4, mo[1] - R * 4, R * 8, R * 8); ctx.fillStyle = '#f4f2e8'; ctx.beginPath(); ctx.arc(mo[0], mo[1], R, 0, 6.283); ctx.fill(); ctx.fillStyle = 'rgba(200,200,215,0.5)'; ctx.beginPath(); ctx.arc(mo[0] - R * 0.3, mo[1] - R * 0.2, R * 0.25, 0, 6.283); ctx.arc(mo[0] + R * 0.35, mo[1] + R * 0.3, R * 0.18, 0, 6.283); ctx.fill(); }
+      ctx.globalAlpha = 1; }
     // 1) 地面底色：地平线那儿雾蒙蒙的，越往下越清楚
-    if (horizon < y0 + h) { const g = ctx.createLinearGradient(0, Math.max(y0, horizon), 0, y0 + h); g.addColorStop(0, fog); g.addColorStop(0.25, pal[0]); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(x0, Math.max(y0, horizon), w, y0 + h - Math.max(y0, horizon)); }
-    // 2) 远处一圈山（贴着地平线）
-    ctx.fillStyle = sc === 'desert' || sc === 'savanna' ? '#c8a878' : sc === 'snow' || sc === 'antarctic' ? '#e8eef4' : '#7a8aa0'; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.moveTo(x0, horizon + 2);
-    for (let px = 0; px <= w; px += 6) { const a = cam.yaw + Math.atan((px / w * 2 - 1) * (w / h) / f), n = Math.sin(a * 3.1) * 0.5 + Math.sin(a * 7.3 + 1.7) * 0.3 + Math.sin(a * 13.1 + 0.4) * 0.2; ctx.lineTo(x0 + px, horizon - (8 + n * 10) * (h / 400)); }
-    ctx.lineTo(x0 + w, horizon + 2); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
-    // 3) 地面上的一块块：田、林子、湖……在很下面（地面在城堡底下 400），慢慢往后退（城堡在飞）
+    if (horizon < y0 + h) { const g = ctx.createLinearGradient(0, Math.max(y0, horizon), 0, y0 + h); g.addColorStop(0, fog); g.addColorStop(0.18, mixF(pal[0], 0.5)); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(x0, Math.max(y0, horizon), w, y0 + h - Math.max(y0, horizon)); }
+    // 2) 远山：三层，越远越淡越蓝；高的山尖上有雪
+    const snowy = sc === 'snow' || sc === 'antarctic', sandy = sc === 'desert' || sc === 'savanna', mcol = snowy ? '#c8d4e0' : sandy ? '#b89868' : sc === 'jungle' ? '#3f6a4a' : '#5f7a6a';
+    for (let L2 = 0; L2 < 3; L2++) { const amp = (10 + L2 * 7) * K, base = horizon + 1 + L2 * 2 * K, top = [], seed = L2 * 3.7;
+      for (let px = 0; px <= w + 6; px += 5) { const a = cam.yaw + Math.atan((px / w * 2 - 1) * (w / h) / f), r1 = 1 - Math.abs(Math.sin(a * (2.3 + L2) + seed)), r2 = 1 - Math.abs(Math.sin(a * (5.9 + L2 * 1.7) + seed * 2.1)), n = r1 * r1 * 0.65 + r2 * r2 * 0.35 + Math.sin(a * 17 + seed) * 0.04; top.push([x0 + px, base - amp * (0.25 + n), n]); }
+      ctx.fillStyle = mixF(mcol, 0.72 - L2 * 0.2); ctx.beginPath(); ctx.moveTo(x0, base + 2); for (const [x, y] of top) ctx.lineTo(x, y); ctx.lineTo(x0 + w + 6, base + 2); ctx.closePath(); ctx.fill();
+      if (L2 < 2 && !sandy) { ctx.fillStyle = mixF('#f4f8fc', 0.35 - L2 * 0.1); for (let i = 0; i + 1 < top.length; i++) { const [xa, ya, na] = top[i], [xb, yb, nb] = top[i + 1]; if (na < 0.72 && nb < 0.72) continue; const ca = Math.max(0, na - 0.72) * amp * 1.6, cb = Math.max(0, nb - 0.72) * amp * 1.6; ctx.beginPath(); ctx.moveTo(xa, ya); ctx.lineTo(xb, yb); ctx.lineTo(xb, yb + cb); ctx.lineTo(xa, ya + ca); ctx.closePath(); ctx.fill(); } } }
+    // 3) 地面：田（一垄一垄）、林子（一团团树冠）、草地、湖、村子（小房子），远的被雾吃掉；城堡在飞，地面慢慢往后退
     const GZ = Z[0] - 400, T = 90, drift = (now / 1000) * 1.2, tiles = [];
-    const cu = Math.floor(cam.eye[0] / T), cv = Math.floor((cam.eye[1] + drift) / T);
-    for (let a = -9; a <= 9; a++) for (let b = -9; b <= 9; b++) { const iu = cu + a, iv = cv + b, hsh = Math.abs(Math.sin(iu * 127.1 + iv * 311.7) * 43758.5) % 1;
-      const u0 = iu * T, v0 = iv * T - drift, ins = T * (0.06 + 0.1 * (Math.abs(Math.sin(iu * 3.1 + iv * 7.7)) % 1));
-      const q = [P(u0 + ins, v0 + ins, GZ), P(u0 + T - ins, v0 + ins, GZ), P(u0 + T - ins, v0 + T - ins, GZ), P(u0 + ins, v0 + T - ins, GZ)]; if (q.some((x) => !x)) continue;
-      tiles.push([q, pal[2 + Math.floor(hsh * 3)] || pal[0], (q[0][2] + q[2][2]) / 2]); }
-    tiles.sort((A, B) => B[2] - A[2]);
-    for (const [q, col, d] of tiles) { ctx.globalAlpha = Math.max(0.15, Math.min(0.9, 1.4 - d / 2200)); ctx.fillStyle = col; ctx.beginPath(); q.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill(); }
-    ctx.globalAlpha = 1;
-    // 4) 云：有的在脚下、有的在头顶，跟着风慢慢飘
+    const cu = Math.floor(cam.eye[0] / T), cv = Math.floor((cam.eye[1] + drift) / T), water = sc === 'desert' ? '#6aa8b8' : '#4a8ab8';
+    for (let a = -9; a <= 9; a++) for (let b = -9; b <= 9; b++) { const iu = cu + a, iv = cv + b, hsh = hs(iu, iv);
+      const u0 = iu * T, v0 = iv * T - drift, ins = T * 0.04;
+      const C4 = [[u0 + ins, v0 + ins], [u0 + T - ins, v0 + ins], [u0 + T - ins, v0 + T - ins], [u0 + ins, v0 + T - ins]], q = C4.map(([u, v]) => P(u, v, GZ)); if (q.some((x) => !x)) continue;
+      const kind = snowy ? (hsh < 0.15 ? 'forest' : hsh < 0.22 ? 'lake' : 'meadow') : sandy ? (hsh < 0.08 ? 'lake' : hsh < 0.2 ? 'village' : 'meadow') : hsh < 0.3 ? 'field' : hsh < 0.55 ? 'forest' : hsh < 0.62 ? 'lake' : hsh < 0.7 ? 'village' : 'meadow';
+      tiles.push({ q, C4, kind, col: pal[2 + Math.floor(hs(iv, iu) * 3)] || pal[0], d: (q[0][2] + q[2][2]) / 2, iu, iv }); }
+    tiles.sort((A, B) => B.d - A.d);
+    const at = (C4, s, t) => { const u = C4[0][0] + (C4[1][0] - C4[0][0]) * s, v = C4[0][1] + (C4[3][1] - C4[0][1]) * t; return P(u, v, GZ); };
+    const poly = (pts) => { ctx.beginPath(); pts.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); ctx.fill(); };
+    for (const t of tiles) { const fz = Math.min(0.92, t.d / 2600), near = t.d < 1500, sz = (T / t.d) * f * (h / 2) * 2.83; // sz：这块地在画面上大概多宽
+      ctx.fillStyle = mixF(t.kind === 'lake' ? pal[0] : t.col, fz); poly(t.q);
+      if (sz < 6) continue;
+      if (t.kind === 'field') { ctx.strokeStyle = mixF(dark(t.col, 0.78), fz); ctx.lineWidth = Math.max(0.6, sz / 90); const n = 7; ctx.beginPath(); for (let i = 1; i < n; i++) { const a2 = at(t.C4, i / n, 0.04), b2 = at(t.C4, i / n, 0.96); if (a2 && b2) { ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); } } ctx.stroke(); }
+      else if (t.kind === 'forest') { const n = near ? 16 : 7; for (let i = 0; i < n; i++) { const p0 = at(t.C4, 0.1 + hs(t.iu * 7 + i, t.iv) * 0.8, 0.1 + hs(t.iv * 5 + i, t.iu) * 0.8); if (!p0) continue; const r = sz * (0.07 + hs(i, t.iu) * 0.05); ctx.fillStyle = mixF(dark(pal[0], 0.72), fz); ctx.beginPath(); ctx.ellipse(p0[0], p0[1], r, r * 0.7, 0, 0, 6.283); ctx.fill(); ctx.fillStyle = mixF(dark(pal[0], 1.05), fz); ctx.beginPath(); ctx.ellipse(p0[0] - r * 0.25, p0[1] - r * 0.2, r * 0.55, r * 0.38, 0, 0, 6.283); ctx.fill(); } }
+      else if (t.kind === 'lake') { const L3 = []; for (let k = 0; k < 14; k++) { const a2 = (k / 14) * 6.283, rr = 0.3 + 0.06 * Math.sin(a2 * 3 + t.iu); const p0 = at(t.C4, 0.5 + Math.cos(a2) * rr, 0.5 + Math.sin(a2) * rr); if (p0) L3.push(p0); } if (L3.length > 3) { ctx.fillStyle = mixF(water, fz); poly(L3); ctx.strokeStyle = `rgba(255,255,255,${0.25 * (1 - fz)})`; ctx.lineWidth = Math.max(0.6, sz / 120); const a2 = at(t.C4, 0.35, 0.45), b2 = at(t.C4, 0.6, 0.45); if (a2 && b2) { ctx.beginPath(); ctx.moveTo(a2[0], a2[1]); ctx.lineTo(b2[0], b2[1]); ctx.stroke(); } } }
+      else if (t.kind === 'village' && near) { for (let i = 0; i < 6; i++) { const p0 = at(t.C4, 0.25 + hs(i, t.iv) * 0.5, 0.25 + hs(t.iu, i) * 0.5); if (!p0) continue; const r = sz * 0.035; ctx.fillStyle = mixF('#e8dcc8', fz); ctx.fillRect(p0[0] - r, p0[1] - r * 0.6, r * 2, r * 1.2); ctx.fillStyle = mixF(['#b85a48', '#8a5a3a', '#5a6a8a'][i % 3], fz); ctx.beginPath(); ctx.moveTo(p0[0] - r * 1.2, p0[1] - r * 0.6); ctx.lineTo(p0[0], p0[1] - r * 1.5); ctx.lineTo(p0[0] + r * 1.2, p0[1] - r * 0.6); ctx.closePath(); ctx.fill(); } }
+      else if (t.kind === 'meadow' && near && !snowy) { ctx.fillStyle = mixF(dark(t.col, 1.12), fz); for (let i = 0; i < 4; i++) { const p0 = at(t.C4, hs(i, t.iu + 3), hs(t.iv + 3, i)); if (p0) { const r = sz * 0.05; ctx.beginPath(); ctx.ellipse(p0[0], p0[1], r * 1.6, r, 0, 0, 6.283); ctx.fill(); } } } }
+    // 一条弯弯的河从远处流过来
+    if (!sandy || sc === 'savanna') { ctx.strokeStyle = mixF(water, 0.25); ctx.lineCap = 'round'; let prev = null; for (let k = -24; k <= 24; k++) { const v = Math.round((cam.eye[1] + drift) / 40) * 40 + k * 40 - drift, u = CEN[0] + 260 + Math.sin((v + drift) / 330) * 160 + Math.sin((v + drift) / 97) * 30, p0 = P(u, v, GZ + 0.5); if (p0 && prev) { ctx.globalAlpha = Math.max(0.1, 1 - p0[2] / 2600); ctx.lineWidth = Math.max(1, (16 / p0[2]) * f * (h / 2) * 2.83); ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(p0[0], p0[1]); ctx.stroke(); } prev = p0; } ctx.globalAlpha = 1; ctx.lineCap = 'butt'; }
+    // 地平线上一层薄雾
+    if (horizon > y0 - 40 && horizon < y0 + h + 40) { const g = ctx.createLinearGradient(0, horizon - 24 * K, 0, horizon + 30 * K); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.45, `rgba(${fogA.join(',')},0.55)`); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(x0, horizon - 24 * K, w, 54 * K); }
+    // 4) 云：一团团的，上面亮下面带一点灰蓝的影子；有的在脚下、有的在头顶，跟着风慢慢飘
     const clouds = [];
-    for (let i = 0; i < 26; i++) { const r1 = Math.abs(Math.sin(i * 12.9898) * 43758.5) % 1, r2 = Math.abs(Math.sin(i * 78.233) * 12345.6) % 1, r3 = Math.abs(Math.sin(i * 39.42) * 9876.5) % 1;
-      const ang = r1 * 6.283, dist = 90 + r2 * 260, u = CEN[0] + Math.cos(ang) * dist, v = CEN[1] + Math.sin(ang) * dist + ((now / 1000) * 2 + i * 37) % 500 - 250, z = Z[0] - 120 + r3 * 260;
+    for (let i = 0; i < 30; i++) { const r1 = hs(i, 11), r2 = hs(i, 12), r3 = hs(i, 13);
+      const ang = r1 * 6.283, dist = 90 + r2 * 300, u = CEN[0] + Math.cos(ang) * dist, v = CEN[1] + Math.sin(ang) * dist + ((now / 1000) * 2 + i * 37) % 600 - 300, z = Z[0] - 140 + r3 * 280;
       const pp = P(u, v, z); if (pp) clouds.push([pp, 0.8 + r2 * 1.4, i]); }
     clouds.sort((A, B) => B[0][2] - A[0][2]);
-    for (const [pp, sz, i] of clouds) { const R = Math.min(w, (sz * 1800) / pp[2] * (h / 400)); if (R < 2) continue; ctx.globalAlpha = Math.max(0.25, Math.min(0.85, 1.2 - pp[2] / 1500)) * (1 - nightK * 0.5); ctx.fillStyle = nightK > 0.5 ? '#9aa4b8' : '#ffffff';
-      for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(pp[0] + (k - 1.5) * R * 0.55, pp[1] - (k % 2) * R * 0.18, R * (0.55 + (k % 2) * 0.2), R * 0.32, 0, 0, 6.283); ctx.fill(); } }
+    const lit = nightK > 0.5 ? [150, 160, 185] : [255, 255, 255], shd = nightK > 0.5 ? [95, 105, 135] : [200, 212, 230];
+    for (const [pp, sz, i] of clouds) { const R = Math.min(w, (sz * 1800) / pp[2] * K); if (R < 2) continue; const al = Math.max(0.25, Math.min(0.9, 1.25 - pp[2] / 1500));
+      for (let k = 0; k < 7; k++) { const ox = (hs(i, k) - 0.5) * R * 1.9, oy = -Math.abs(hs(k, i) - 0.5) * R * 0.45 - (k === 3 ? R * 0.2 : 0), rr = R * (0.35 + hs(i + 9, k) * 0.3), cx = pp[0] + ox, cy = pp[1] + oy;
+        const g = ctx.createRadialGradient(cx - rr * 0.2, cy - rr * 0.35, rr * 0.1, cx, cy, rr); g.addColorStop(0, `rgba(${lit.join(',')},${al})`); g.addColorStop(0.7, `rgba(${lit.map((x, j) => Math.round((x + shd[j]) / 2)).join(',')},${al * 0.95})`); g.addColorStop(1, `rgba(${shd.join(',')},0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, rr * 1.25, rr * 0.8, 0, 0, 6.283); ctx.fill(); } }
+    // 5) 偶尔一小群鸟飞过
+    if (nightK < 0.5) { const tt = (now / 1000) % 40; if (tt < 16) { ctx.strokeStyle = 'rgba(40,40,60,0.6)'; ctx.lineWidth = Math.max(1, K); for (let k = 0; k < 5; k++) { const b0 = P(CEN[0] - 160 + tt * 18 + k * 5, CEN[1] + 120 + (k % 2) * 6 + k * 3, Z[2] + 20 + Math.sin(tt * 2 + k) * 2); if (!b0) continue; const s2 = Math.max(2, 300 / b0[2]) * K, fl = Math.sin(now / 120 + k * 1.3) * 0.6; ctx.beginPath(); ctx.moveTo(b0[0] - s2, b0[1] - s2 * fl); ctx.quadraticCurveTo(b0[0] - s2 * 0.4, b0[1] - s2 * 0.5, b0[0], b0[1]); ctx.quadraticCurveTo(b0[0] + s2 * 0.4, b0[1] - s2 * 0.5, b0[0] + s2, b0[1] - s2 * fl); ctx.stroke(); } } }
     ctx.globalAlpha = 1;
   }
   function fpFrame(ctx) {
@@ -1862,7 +1920,7 @@
     slice: (u0, v0, u1, v1, z) => { const V = voxels(), o = []; for (let v = v0; v < v1; v += VX) { let r = ''; for (let u = u0; u < u1; u += VX) r += vAt(V, u + 0.01, v + 0.01, z) ? '#' : '.'; o.push(r); } return o; },
     why: (u, v, z) => { const V = voxels(), o = []; for (const [du, dv] of BODYC) for (let zz = z + STEP; zz <= z + BODYH; zz += VZ) if (vAt(V, u + du, v + dv, zz)) { o.push([+du.toFixed(2), +dv.toFixed(2), +zz.toFixed(2)]); break; } return o; },
     tris: (u, v, z, r = 0.3) => { const m = scene().cpu, P = m.p, out = {}; for (let t = 0; t < P.length; t += 9) { let hit = false; const cu = (P[t] + P[t + 3] + P[t + 6]) / 3, cv = (P[t + 1] + P[t + 4] + P[t + 7]) / 3, cz = (P[t + 2] + P[t + 5] + P[t + 8]) / 3; if (Math.abs(cu - u) < r + 1 && Math.abs(cv - v) < r + 1 && Math.abs(cz - z) < 1.5) hit = true; if (!hit) continue; const vi = t / 3, k = m.c.slice(vi * 3, vi * 3 + 3).map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('') + ' 材质' + m.m[vi] + ' 摆' + (m.w ? m.w[vi] : 0); out[k] = (out[k] || 0) + 1; } return out; },
-    who: (u0, v0, u1, v1, z0, z1) => { const cpu = scene().cpu, proto = Object.getPrototypeOf(cpu), orig = proto.tri, hits = new Map(); proto.tri = function (a, b, c, ...r) { for (let fa = 0; fa <= 1.001; fa += 0.1) for (let fb = 0; fb <= 1.001 - fa; fb += 0.1) { const x = a[0] + (b[0] - a[0]) * fa + (c[0] - a[0]) * fb + this.ox, y = a[1] + (b[1] - a[1]) * fa + (c[1] - a[1]) * fb + this.oy, z = a[2] + (b[2] - a[2]) * fa + (c[2] - a[2]) * fb + this.oz; if (x > u0 && x < u1 && y > v0 && y < v1 && z > z0 && z < z1) { const st = new Error().stack.split('\n').slice(2, 7).map((l) => l.trim().replace(/^at /, '').replace(/\(?file:.*\/js\//, '(').replace(/\)$/, '')).join(' < '); hits.set(st, (hits.get(st) || 0) + 1); fa = 9; break; } } return orig.call(this, a, b, c, ...r); }; try { F.build(opts(null)); } finally { proto.tri = orig; } return [...hits.entries()].map(([k, n]) => n + '× ' + k); },
+    who: (u0, v0, u1, v1, z0, z1) => { const cpu = scene().cpu, proto = Object.getPrototypeOf(cpu), orig = proto.tri, hits = new Map(); proto.tri = function (a, b, c, ...r) { for (let fa = 0; fa <= 1.001; fa += 0.1) for (let fb = 0; fb <= 1.001 - fa; fb += 0.1) { const x = a[0] + (b[0] - a[0]) * fa + (c[0] - a[0]) * fb + this.ox, y = a[1] + (b[1] - a[1]) * fa + (c[1] - a[1]) * fb + this.oy, z = a[2] + (b[2] - a[2]) * fa + (c[2] - a[2]) * fb + this.oz; if (x > u0 && x < u1 && y > v0 && y < v1 && z > z0 && z < z1) { const st = new Error().stack.split('\n').slice(2, 9).map((l) => l.trim().replace(/^at /, '').replace(/\(?file:.*\/js\//, '(').replace(/\)$/, '')).join(' < '); hits.set(st, (hits.get(st) || 0) + 1); fa = 9; break; } } return orig.call(this, a, b, c, ...r); }; try { F.build(opts(null)); } finally { proto.tri = orig; } return [...hits.entries()].map(([k, n]) => n + '× ' + k); },
     triIn: (u0, v0, u1, v1, z0, z1) => { const m = scene().cpu, P = m.p, out = {}; for (let t = 0; t < P.length; t += 9) { let hit = false; for (let fa = 0; fa <= 1.001 && !hit; fa += 0.1) for (let fb = 0; fb <= 1.001 - fa; fb += 0.1) { const x = P[t] + (P[t + 3] - P[t]) * fa + (P[t + 6] - P[t]) * fb, y = P[t + 1] + (P[t + 4] - P[t + 1]) * fa + (P[t + 7] - P[t + 1]) * fb, z = P[t + 2] + (P[t + 5] - P[t + 2]) * fa + (P[t + 8] - P[t + 2]) * fb; if (x > u0 && x < u1 && y > v0 && y < v1 && z > z0 && z < z1) { hit = true; break; } } if (!hit) continue; const vi = t / 3, k = m.c.slice(vi * 3, vi * 3 + 3).map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('') + ' 材质' + (m.m[vi] % 32) + ' 点选' + Math.floor(m.m[vi] / 32) + ' 摆' + m.w[vi] + ' 三角[' + [0, 1, 2].map((q) => P.slice(t + q * 3, t + q * 3 + 3).map((x) => x.toFixed(1)).join(',')).join(' ') + ']'; out[k] = (out[k] || 0) + 1; } return out; },
     rebuild: () => { vox = null; voxB = null; navC = null; navB = null; const t0 = performance.now(); voxels(); const t1 = performance.now(); return [Math.round(t1 - t0)]; },
     col: (u, v, z0, z1) => { const V = voxels(), o = []; for (let z = z0; z <= z1; z += VZ) if (vAt(V, u, v, z + 0.01)) o.push(+z.toFixed(2)); return o; },

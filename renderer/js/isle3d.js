@@ -254,7 +254,12 @@
         c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.35*step(0.98,ns(q*6.0+vec2(t*0.25,-t*0.15)))*(1.0-uLit*0.6)*(1.0-uFP.w); emis=0.25; }
     } else if(m==11){ float t=floor(vW.x*0.7)+floor(vW.y*0.7+vW.z*0.2); c*=0.88+0.2*mod(t,2.0);
     } else if(m==12){ c*=0.85+0.25*ns(vec2(hc*0.5,vW.z*0.6)); c+=0.12*smoothstep(0.8,1.0,fract(vW.z*0.2+hc*0.1));
-    } else if(m==13){ float s=mod(floor(hc*0.9),2.0); c*=0.94+0.08*s; vec2 g=vec2(hc*0.9, vW.z*0.22); if(length(fract(g)-0.5)<0.13) c=mix(c, mix(vec3(0.9,0.55,0.5),vec3(0.5,0.72,0.6),s),0.75);
+    } else if(m==13){ // 墙纸：很淡的细竖条纹，菱形错开排着的小碎花（五瓣），远了就淡成底色
+      float sl=abs(fract(hc*1.1)-0.5); c*=0.975+0.035*smoothstep(0.44,0.5,sl);
+      vec2 g=vec2(hc*0.55, vW.z*0.26); vec2 ce=floor(g); vec2 fr=fract(g)-0.5; if(mod(ce.y,2.0)>0.5){ fr=fract(g+vec2(0.5,0.0))-0.5; }
+      float d=length(fr*vec2(1.0,1.25)), ang=atan(fr.y,fr.x), pet=0.085+0.035*cos(ang*5.0);
+      float fl=1.0-smoothstep(pet-0.012,pet+0.012,d); float cen=1.0-smoothstep(0.022,0.034,d);
+      c=mix(c, c*vec3(0.84,0.88,0.93), fl*0.55); c=mix(c, c*vec3(1.05,0.92,0.78), cen*0.5);
     } else if(m==14){ c*=0.93+0.09*ns(vW.xy*1.5);
     } else if(m==15){ // 像素草地：一大块一大块深浅绿，零星亮草叶、暗点
       vec2 q=vW.xy; float a=ns(q*0.21+3.0)*0.65+ns(q*0.55)*0.35; c*= a>0.6?1.13:(a>0.42?1.0:0.86);
