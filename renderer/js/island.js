@@ -386,6 +386,32 @@
   const CHIMS = [[16.6, 4.2, Z[3] + F.WH + 27.6], [22.9, 7.9, Z[3] + F.WH + 21], [6.4, 4.6, Z[3] + 21], [41.8, 3, Z[3] + 15], [2.4, 22.9, Z[3] + F.WH + 18]];
 
   // ---------- 画 ----------
+  // ---------- 俯视时的天空和远方（一整幅画：渐变的天、太阳光束或星月、远远在下面的田野、三层慢慢飘的积云） ----------
+  const hs2 = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  function animeCloud(ctx, cx, cy, R, seed, night, al) {
+    const base = night ? 'rgba(64,72,112,' : 'rgba(190,198,230,', body = night ? 'rgba(118,128,168,' : 'rgba(255,255,255,', hl = night ? 'rgba(150,160,200,' : 'rgba(255,243,214,', n = 6 + Math.floor(hs2(seed, 1) * 5), P = [];
+    for (let k = 0; k < n; k++) { const t = k / (n - 1), up = Math.sin(t * Math.PI) * R * (0.7 + hs2(k, seed) * 0.6), rr = R * (0.42 + Math.sin(t * Math.PI) * 0.45 + hs2(seed, k) * 0.15); P.push([cx + (t - 0.5) * R * 3.4, cy - up * 0.6, rr]); }
+    ctx.fillStyle = base + al + ')'; for (const [x, y, r] of P) { ctx.beginPath(); ctx.arc(x, y + r * 0.2, r, 0, 6.283); ctx.fill(); } ctx.fillRect(cx - R * 1.95, cy, R * 3.9, R * 0.3);
+    ctx.fillStyle = body + al + ')'; for (const [x, y, r] of P) { ctx.beginPath(); ctx.arc(x, y, r * 0.9, 0, 6.283); ctx.fill(); }
+    ctx.fillStyle = hl + al * 0.95 + ')'; for (const [x, y, r] of P) { ctx.beginPath(); ctx.arc(x - r * 0.15, y - r * 0.25, r * 0.58, 0, 6.283); ctx.fill(); }
+  }
+  function drawIsoSky(ctx, now) {
+    ctx.save(); ctx.beginPath(); ctx.rect(L.vx0, L.vy0, L.vw, L.vh); ctx.clip(); try { drawIsoSky0(ctx, now); } finally { ctx.restore(); }
+  }
+  function drawIsoSky0(ctx, now) {
+    const x0 = L.vx0, y0 = L.vy0, w = L.vw, h = L.vh, lo = lightOpts(), ph = phase(), ngt = ph === 'night', c3 = (a) => `rgb(${a.map((v) => Math.round(v * 255)).join(',')})`, t = now / 1000, K = Math.min(w, h) / 500;
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + h); g.addColorStop(0, c3(lo.skyTop)); g.addColorStop(0.62, c3(lo.skyBot)); g.addColorStop(1, c3(lo.skyBot.map((v) => v * 0.92))); ctx.fillStyle = g; ctx.fillRect(x0, y0, w, h);
+    if (ngt) { for (let i = 0; i < 120; i++) { const tw = 0.5 + 0.5 * Math.sin(t * 1.3 + i); ctx.globalAlpha = (0.3 + hs2(i, 3) * 0.7) * tw; ctx.fillStyle = '#fff8e8'; const r = (hs2(i, 4) < 0.1 ? 1.6 : 0.9) * K; ctx.fillRect(x0 + hs2(i, 1) * w, y0 + hs2(i, 2) * h * 0.6, r * 2, r * 2); }
+      ctx.globalAlpha = 1; const mx = x0 + w * 0.82, my = y0 + h * 0.16, mr = 16 * K, mg = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 5); mg.addColorStop(0, 'rgba(230,236,255,.35)'); mg.addColorStop(1, 'rgba(230,236,255,0)'); ctx.fillStyle = mg; ctx.fillRect(mx - mr * 5, my - mr * 5, mr * 10, mr * 10); ctx.fillStyle = '#f4f2e8'; ctx.beginPath(); ctx.arc(mx, my, mr, 0, 6.283); ctx.fill(); ctx.fillStyle = c3(lo.skyTop); ctx.beginPath(); ctx.arc(mx + mr * 0.45, my - mr * 0.2, mr * 0.85, 0, 6.283); ctx.fill(); }
+    else { const sx = x0 + w * 0.85, sy = y0 + h * (ph === 'dusk' || ph === 'dawn' ? 0.42 : 0.12), sr = h * 0.5, sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr); sg.addColorStop(0, 'rgba(255,250,228,.95)'); sg.addColorStop(0.06, 'rgba(255,240,200,.7)'); sg.addColorStop(0.3, 'rgba(255,230,190,.16)'); sg.addColorStop(1, 'rgba(255,230,190,0)'); ctx.fillStyle = sg; ctx.fillRect(x0, y0, w, h);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const a = 2.2 + i * 0.12 + Math.sin(t * 0.1 + i) * 0.02, len = h * 1.6, wd = h * (0.03 + hs2(i, 7) * 0.05); ctx.fillStyle = `rgba(255,240,200,${0.05 + hs2(i, 8) * 0.04})`; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.cos(a - 0.02) * len, sy + Math.sin(a - 0.02) * len); ctx.lineTo(sx + Math.cos(a + 0.02) * len + wd, sy + Math.sin(a + 0.02) * len); ctx.closePath(); ctx.fill(); } ctx.restore(); }
+    // 远远在下面的田野：一条一条往后退，被雾盖住一大半
+    const gy = y0 + h * 0.74, pal = BIOME[underScene()] || BIOME_DEF; for (let r = 0; r < 7; r++) { const yy = gy + r * r * h * 0.006 + r * h * 0.02, hh = h * (0.012 + r * 0.008), shift = (t * (2 + r * 3)) % 1;
+      for (let k = -1; k < 14; k++) { const xx = x0 + ((k + shift) / 12) * w, col = pal[2 + Math.floor(hs2(k + r * 31, Math.floor(t * (2 + r * 3) / 1 / 12)) * 3)] || pal[0]; ctx.globalAlpha = 0.25 + r * 0.08; ctx.fillStyle = col; ctx.fillRect(xx, yy, w / 12 - 2, hh); } }
+    ctx.globalAlpha = 1; const fogG = ctx.createLinearGradient(0, gy - h * 0.06, 0, y0 + h); fogG.addColorStop(0, c3(lo.skyBot)); fogG.addColorStop(0.35, `rgba(${lo.skyBot.map((v) => Math.round(v * 255)).join(',')},.55)`); fogG.addColorStop(1, `rgba(${lo.skyBot.map((v) => Math.round(v * 255)).join(',')},.15)`); ctx.fillStyle = fogG; ctx.fillRect(x0, gy - h * 0.06, w, y0 + h - gy + h * 0.06);
+    // 三层积云：远处小而淡、慢；城堡背后大一点；最下面一片云海
+    for (const [ly, cnt, sz, sp, al] of [[0.28, 5, 0.07, 3, 0.55], [0.5, 4, 0.11, 6, 0.8], [0.86, 7, 0.13, 10, 0.92]]) for (let i = 0; i < cnt; i++) { const R = h * sz * (0.8 + hs2(i, ly * 10) * 0.5), span = w + R * 8, xx = x0 - R * 4 + ((hs2(i, ly * 7) * span + t * sp * K) % span), yy = y0 + h * ly + (hs2(i, ly * 3) - 0.5) * h * 0.08; animeCloud(ctx, xx, yy, R, i * 13 + ly * 100, ngt, al * (ngt ? 0.38 : 1)); }
+  }
   function renderBack(ctx) {
     for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
     if (G.isle) { followTick(); watchdog(); }
@@ -396,6 +422,7 @@
     const u = L.u, nt = night(), now = performance.now(), fx = wfx(), wind = fx.wind || 0, pw = power();
     ctx.save();
     const cv = glOK && g3.ok() && render3d();
+    if (cut == null && !focus) { try { drawIsoSky(ctx, now); } catch (e) {} }
     /* 城堡底下飘着几朵小云：它是浮在天上的（只在看整座城堡时画） */
     if (cut == null && !focus) { const tt = now / 1000, cu2 = L.u, by = L.vy0 + L.vh * 0.82;
       for (let i = 0; i < 6; i++) { const r1 = (Math.sin(i * 12.99) * 43758.5) % 1, sp2 = 6 + Math.abs(r1) * 8, xx = L.vx0 + ((Math.abs(r1) * L.vw + tt * sp2 * cu2 * 0.3) % (L.vw + 60 * cu2)) - 30 * cu2, yy = by + (i % 3) * 5 * cu2 - 6 * cu2, R = (5 + (i % 3) * 2) * cu2;
@@ -1194,7 +1221,7 @@
     const q = fp.q, walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto), b = walking ? Math.sin(fp.bob) * 0.16 : 0;
     const land = fp.land ? Math.max(0, 1 - (performance.now() - fp.land) / 260) * -0.9 : 0;
     // 弯腰：头顶空间不够就把眼睛放低（慢慢低下去、慢慢直起来）
-    const want = fp.pose === 'sit' ? 4.4 : fp.pose === 'lie' ? 2.0 : fp.crouch ? 3.6 : EYE; // 眼睛高度只看你是站着、蹲着还是坐着躺着，不再碰到低处就自己矮下去 fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
+    const want = fp.pose === 'sit' ? 4.4 : fp.pose === 'lie' ? 2.0 : fp.crouch ? 3.6 : EYE; /* 眼睛高度只看你是站着、蹲着还是坐着躺着，不再碰到低处就自己矮下去 */ fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
     fp.camZ = fp.camZ == null || Math.abs(fp.camZ - q.z) > 4 ? q.z : fp.camZ + (q.z - fp.camZ) * 0.3;
     const head = [q.u, q.v, fp.camZ + fp.eyeH + b + land];
     // 第三人称：镜头往后拉，碰到墙、天花板就停在墙前面
@@ -1408,7 +1435,7 @@
   function drawBelow(ctx, x0, y0, w, h, now, lo) {
     const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(cam.fov / 2);
     const P = (u, v, z) => { const mx = (u - cam.eye[0]) * 2.83, my = (v - cam.eye[1]) * 2.83, mz = (z - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; return f2 < 1 ? null : [x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), y0 + h / 2 - (u2 * f) / f2 * (h / 2), f2]; };
-    const sc = underScene(), pal = BIOME[sc] || BIOME[(PP.SCENES[sc] && PP.SCENES[sc].biome) || ''] || BIOME_DEF, nightK = lo && lo.lit ? Math.min(1, lo.lit) : 0;
+    const sc = underScene(), pal = BIOME[sc] || BIOME[(PP.SCENES[sc] && PP.SCENES[sc].biome) || ''] || BIOME_DEF, nightK = phase() === 'night' ? 1 : phase() === 'dusk' ? 0.35 : 0; // 按真的白天黑夜（阴天不算夜里）
     const horizon = y0 + h / 2 + Math.tan(cam.pitch) * f * (h / 2), K = h / 400;
     const fogA = (lo && lo.skyBot) ? lo.skyBot.map((v) => Math.round(v * 255)) : [207, 226, 240], fog = `rgb(${fogA.join(',')})`;
     const hx = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -1421,6 +1448,15 @@
     else { for (let i = 0; i < 90; i++) { const st = far(hs(i, 1) * 6.283, 0.08 + hs(i, 2) * 1.2); if (!st || st[1] > horizon) continue; ctx.globalAlpha = (0.35 + hs(i, 3) * 0.65) * nightK * (0.75 + 0.25 * Math.sin(now / 900 + i)); ctx.fillStyle = '#fff8e8'; const r = (hs(i, 4) < 0.15 ? 1.6 : 0.9) * K; ctx.fillRect(st[0] - r, st[1] - r, r * 2, r * 2); }
       const mo = far(2.4, 0.5); if (mo) { ctx.globalAlpha = 0.9 * nightK; const R = 10 * K, g = ctx.createRadialGradient(mo[0], mo[1], R * 0.6, mo[0], mo[1], R * 4); g.addColorStop(0, 'rgba(240,240,255,0.35)'); g.addColorStop(1, 'rgba(240,240,255,0)'); ctx.fillStyle = g; ctx.fillRect(mo[0] - R * 4, mo[1] - R * 4, R * 8, R * 8); ctx.fillStyle = '#f4f2e8'; ctx.beginPath(); ctx.arc(mo[0], mo[1], R, 0, 6.283); ctx.fill(); ctx.fillStyle = 'rgba(200,200,215,0.5)'; ctx.beginPath(); ctx.arc(mo[0] - R * 0.3, mo[1] - R * 0.2, R * 0.25, 0, 6.283); ctx.arc(mo[0] + R * 0.35, mo[1] + R * 0.3, R * 0.18, 0, 6.283); ctx.fill(); }
       ctx.globalAlpha = 1; }
+    // 0.5) 远处一圈大积云（二次元那种）：底部偏蓝紫的阴影、中间雪白、顶上被太阳照亮的一道亮边；离得很远，跟着视线转
+    { const CL = 14; for (let i = 0; i < CL; i++) { const az = hs(i, 91) * 6.283 + now / 1000 * 0.004, el = 0.05 + hs(i, 92) * 0.16, c0 = far(az, el); if (!c0 || c0[1] < y0 - h * 0.3 || c0[1] > y0 + h * 1.2) continue;
+        const R = h * (0.09 + hs(i, 93) * 0.1), night = nightK > 0.5, base = night ? [70, 80, 120] : [196, 204, 232], body = night ? [120, 130, 170] : [255, 255, 255], hl = night ? [150, 160, 200] : [255, 244, 214];
+        const n2 = 7 + Math.floor(hs(i, 94) * 5); ctx.globalAlpha = night ? 0.55 : 0.92;
+        for (let k = 0; k < n2; k++) { const ox = (k / (n2 - 1) - 0.5) * R * 3.2, up = Math.sin((k / (n2 - 1)) * Math.PI) * R * (0.8 + hs(k, i) * 0.6), rr = R * (0.45 + Math.sin((k / (n2 - 1)) * Math.PI) * 0.45 + hs(i, k) * 0.15), cx = c0[0] + ox, cy = c0[1] - up * 0.6;
+          ctx.fillStyle = `rgb(${base.join(',')})`; ctx.beginPath(); ctx.arc(cx, cy + rr * 0.18, rr, 0, 6.283); ctx.fill(); }
+        for (let k = 0; k < n2; k++) { const ox = (k / (n2 - 1) - 0.5) * R * 3.2, up = Math.sin((k / (n2 - 1)) * Math.PI) * R * (0.8 + hs(k, i) * 0.6), rr = R * (0.45 + Math.sin((k / (n2 - 1)) * Math.PI) * 0.45 + hs(i, k) * 0.15), cx = c0[0] + ox, cy = c0[1] - up * 0.6;
+          ctx.fillStyle = `rgb(${body.join(',')})`; ctx.beginPath(); ctx.arc(cx, cy, rr * 0.92, 0, 6.283); ctx.fill(); ctx.fillStyle = `rgb(${hl.join(',')})`; ctx.beginPath(); ctx.arc(cx - rr * 0.12, cy - rr * 0.22, rr * 0.62, 0, 6.283); ctx.fill(); }
+        ctx.fillStyle = `rgb(${base.join(',')})`; ctx.fillRect(c0[0] - R * 1.9, c0[1] + R * 0.05, R * 3.8, R * 0.25); ctx.globalAlpha = 1; } }
     // 1) 地面底色：地平线那儿雾蒙蒙的，越往下越清楚
     if (horizon < y0 + h) { const g = ctx.createLinearGradient(0, Math.max(y0, horizon), 0, y0 + h); g.addColorStop(0, fog); g.addColorStop(0.18, mixF(pal[0], 0.5)); g.addColorStop(1, pal[1]); ctx.fillStyle = g; ctx.fillRect(x0, Math.max(y0, horizon), w, y0 + h - Math.max(y0, horizon)); }
     // 2) 远山：三层，越远越淡越蓝；高的山尖上有雪
@@ -1490,6 +1526,15 @@
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
     vis.sort((a, b) => b.d - a.d);
     for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    try { /* 空中飘的东西：白天是花瓣（风吹着斜斜地飘），晚上是一闪一闪的萤火虫；转头时跟着画面挪，像真的在空气里 */
+      const lo2 = lightOpts(), ngt = (lo2.lit || 0) > 0.6, P2 = fp.air2 = fp.air2 || Array.from({ length: 46 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28 }));
+      const dyaw = (fp._lastYaw == null ? 0 : fp.yaw - fp._lastYaw), dpit = (fp._lastPit == null ? 0 : fp.pitch - fp._lastPit); fp._lastYaw = fp.yaw; fp._lastPit = fp.pitch; const indoor = !!F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
+      for (const a of P2) { a.x -= dyaw * 0.35 * a.z; a.y += dpit * 0.35 * a.z; if (ngt) { a.x += Math.sin(now / 1300 + a.ph) * 0.0006; a.y += Math.cos(now / 1700 + a.ph) * 0.0005; } else { a.x += 0.0009 * a.z; a.y += 0.0011 * a.z; }
+        a.x = ((a.x % 1) + 1) % 1; a.y = ((a.y % 1) + 1) % 1; }
+      const nShow = indoor ? (ngt ? 6 : 0) : P2.length;
+      for (let i = 0; i < nShow; i++) { const a = P2[i], px = x0 + a.x * w, py = y0 + a.y * h, sz = (2 + a.z * 5) * Math.min(w, h) / 500;
+        if (ngt) { const tw = 0.5 + 0.5 * Math.sin(now / 300 + a.ph * 3); if (tw < 0.15) continue; const g = ctx.createRadialGradient(px, py, 0, px, py, sz * 3); g.addColorStop(0, `rgba(230,255,150,${0.9 * tw})`); g.addColorStop(1, 'rgba(230,255,150,0)'); ctx.fillStyle = g; ctx.fillRect(px - sz * 3, py - sz * 3, sz * 6, sz * 6); }
+        else { ctx.save(); ctx.translate(px, py); ctx.rotate(now / 600 + a.ph); ctx.scale(1, 0.55 + 0.45 * Math.sin(now / 300 + a.ph)); ctx.fillStyle = i % 3 ? 'rgba(255,196,214,.85)' : 'rgba(255,240,246,.9)'; ctx.beginPath(); ctx.ellipse(0, 0, sz, sz * 0.6, 0, 0, 6.283); ctx.fill(); ctx.restore(); } } } catch (e) {}
     if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) {} }
     try { /* 鱼线：从右下角手里的鱼竿尖拉到浮漂；咬钩时浮漂那儿一圈圈水花 */ const bb = bobNow(now); if (bb) { const mx = (bb.u - cam.eye[0]) * 2.83, my = (bb.v - cam.eye[1]) * 2.83, mz = (POOL.z + 0.3 - bb.dip - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp;
         if (f2 > 1) { const bx = x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), by = y0 + h / 2 - (u2 * f) / f2 * (h / 2); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x0 + w * 0.7, y0 + h * 0.46); ctx.quadraticCurveTo((x0 + w * 0.7 + bx) / 2, Math.max(y0 + h * 0.46, by) + h * 0.06, bx, by); ctx.stroke();
@@ -1511,11 +1556,11 @@
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     // 按键说明：默认一直显示在左下角（像很多游戏的按键提示），按 H 收起 / 展开
     if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳（跑起来跳更高）'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['1～5 / 滚轮', '快捷栏'], ['M / Tab', '地图'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['F11', '全屏'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
-      const f3 = fs * 0.78; ctx.save(); ctx.font = PP.FONT(f3); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      const f3 = fs * 0.72; ctx.save(); ctx.font = PP.FONT(f3); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       if (S().fpKeysHide) { const t3 = 'H 显示按键说明', tw3 = ctx.measureText(t3).width; ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillRect(x0 + 8, y0 + h - f3 - 18, tw3 + 14, f3 + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(t3, x0 + 15, y0 + h - f3 / 2 - 13); }
-      else { const lh = f3 + 7, kwid = Math.max(...KS.map(([k]) => ctx.measureText(k).width)) + 12, twid = Math.max(...KS.map(([, t]) => ctx.measureText(t).width)), bh = KS.length * lh + 10, bx = x0 + 8, by = y0 + h - bh - 70;
-        ctx.fillStyle = 'rgba(30,24,40,.42)'; ctx.fillRect(bx, by, kwid + twid + 22, bh);
-        KS.forEach(([k, t], i) => { const yy = by + 5 + i * lh + lh / 2, kw2 = ctx.measureText(k).width + 8; ctx.fillStyle = 'rgba(255,246,216,.9)'; ctx.fillRect(bx + 6, yy - lh / 2 + 2, kw2, lh - 4); ctx.fillStyle = '#2a2030'; ctx.fillText(k, bx + 10, yy); ctx.fillStyle = '#fff6d8'; ctx.fillText(t, bx + kwid + 12, yy); }); }
+      else { const lh = f3 + 7, rows = Math.ceil(KS.length / 2), kwid = Math.max(...KS.map(([k]) => ctx.measureText(k).width)) + 12, twid = Math.max(...KS.map(([, t]) => ctx.measureText(t).width)), colW = kwid + twid + 18, bh = rows * lh + 10, bx = x0 + 8, by = y0 + h - bh - 8;
+        ctx.fillStyle = 'rgba(30,24,40,.42)'; ctx.fillRect(bx, by, colW * 2 + 8, bh);
+        KS.forEach(([k, t], i) => { const col = Math.floor(i / rows), row = i % rows, xx = bx + col * colW, yy = by + 5 + row * lh + lh / 2, kw2 = ctx.measureText(k).width + 8; ctx.fillStyle = 'rgba(255,246,216,.9)'; ctx.fillRect(xx + 6, yy - lh / 2 + 2, kw2, lh - 4); ctx.fillStyle = '#2a2030'; ctx.fillText(k, xx + 10, yy); ctx.fillStyle = '#fff6d8'; ctx.fillText(t, xx + kwid + 12, yy); }); }
       ctx.restore(); }
     const age = 99;
     if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 移动鼠标转向 · 准星对准东西单击 · M 松开鼠标· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
@@ -1595,6 +1640,22 @@
     return (propList = fix.concat(fur));
   }
   // 花房的花盆、阀门：标签跟着花盆里的情况变
+  /* 花房里一株植物的小卡片：画、名字、简介、长到哪一步（进度条）、还要多久、浇水 / 温度 / 授粉的情况，下面是能做的事 */
+  function potCard(i) {
+    const LF = PP.LIFE, f = LF.potInfo(i), box = document.createElement('div'); box.className = 'potcard';
+    if (!f) { box.innerHTML = '<p>这个花盆还空着。</p><p class="muted">在花房面板里挑一颗珍稀种子种下去吧。</p><div class="row"><button class="btn" data-a="open">打开花房面板</button></div>'; }
+    else { const P = LF.PL[f.id], e = E(), pt = e.gh.pots[i], TN = LF.TEMPN, ST = ['种子', '发芽', '开花', '结果，可以收了'], pct = Math.round(Math.min(1, pt.g) * 100);
+      const sp = (f.wet ? 1 : 0.25) * (f.tempOk ? 1 : 0.5), left = f.stage >= 3 ? 0 : f.stage === 2 && !f.pol ? -1 : Math.ceil(((f.stage < 2 ? 0.55 : 1) - pt.g) * (P.min || 60) / sp);
+      box.innerHTML = `<div class="pc-top"><canvas width="96" height="96"></canvas><div><b class="pc-name">${f.name}</b><div class="muted">${P.about || ''}</div></div></div>
+        <div class="pc-bar"><i style="width:${pct}%"></i>${[0, 15, 55, 100].map((x, k) => `<span style="left:${x}%">${['播种', '发芽', '开花', '成熟'][k]}</span>`).join('')}</div>
+        <ul class="pc-st"><li>现在：<b>${ST[f.stage]}</b>${left > 0 ? `（还要大约 ${left >= 60 ? Math.round(left / 6) / 10 + ' 小时' : left + ' 分钟'}）` : left < 0 ? '（等授粉：蜜蜂会飞进来帮忙，你也可以自己授粉）' : ''}</li>
+        <li>浇水：${f.wet ? '土是湿的 💧' : '<b class="bad">干了，该浇水了</b>（不浇水长得慢四倍）'}</li><li>温度：${f.tempOk ? '正合适' : `<b class="bad">它想要「${TN[f.temp]}」</b>（去调暖气阀门，长得快一倍）`}</li></ul>
+        <div class="row">${!f.wet ? '<button class="btn" data-a="water">浇水</button>' : ''}${f.stage === 2 && !f.pol ? '<button class="btn" data-a="pol">授粉</button>' : ''}${f.stage >= 3 ? '<button class="btn" data-a="harv">收获</button>' : ''}<button class="btn ghost" data-a="open">花房面板</button></div>`;
+      const c = box.querySelector('canvas').getContext('2d'); c.imageSmoothingEnabled = false; const im = LF.art(f.id, f.stage); c.drawImage(im, 0, 0, 96, 96); }
+    box.addEventListener('click', (ev) => { const b = ev.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a;
+      if (a === 'open') { PP.econ.openPanel('gh'); return; } if (a === 'water' && LF.potWater(i)) PP.ui.toast('浇好水了'); if (a === 'pol' && LF.potPollinate(i)) PP.ui.toast('用小刷子授好粉了'); if (a === 'harv' && LF.potHarvest(i)) PP.ui.toast('收获啦！'); dirty(); potCard(i); });
+    PP.ui.panel(f ? '花房 · ' + f.name : '花房 · 空花盆', box);
+  }
   function propLabel(pr) {
     const L0 = PP.LIFE, TN = L0 ? L0.TEMPN : {};
     if (pr.do === 'pot') { const f = L0 && L0.potInfo(pr.i); return f ? `${f.name}：${['种子', '发芽了', '开花了', '可以收获了'][f.stage]}${f.wet ? '' : ' · 该浇水了'}${f.stage === 2 && !f.pol ? ' · 等授粉' : ''}${f.tempOk ? '' : ' · 想要' + TN[f.temp]}（点开花房面板）` : `花盆 ${pr.i + 1}：空着，种一颗稀有种子`; }
@@ -1683,6 +1744,7 @@
     if (h.k === 'door' && !h.d) { setFocus('living', true); if (p) go('isleHouse', A.isleHouse, 'house'); return; } // 菜单里的“进屋”：去起居室
     if (h.k === 'door') { const d = h.d, r = d.room, c = r.c ? [r.c[0] + (d.inP[0] - r.c[0]) * 0.6, r.c[1] + (d.inP[1] - r.c[1]) * 0.6] : [d.inP[0] + (d.inP[0] - d.outP[0]) * 0.8, d.inP[1] + (d.inP[1] - d.outP[1]) * 0.8]; setCut(d.lv); go('isleGo', A.isleGo, c[0], c[1], d.lv); return; }
     if (h.k === 'exit') { setCut(null); return; } // 兼容：菜单里的“出门”
+    if (h.k === 'prop' && h.pr.do === 'pot' && PP.LIFE) { potCard(h.pr.i != null ? h.pr.i : h.pr.id - 160); return; } // 花盆：弹出这株植物自己的卡片
     if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (cut == null && h.pr.at[2] !== 1) setCut(h.pr.at[2], true); go('isleUse', A.isleUse, h.pr); return; }
     if (h.k === 'deco') { go('isleSit', A.isleSit, { id: h.id, i: h.i, u: SLOTS[h.i][0], v: SLOTS[h.i][1] }); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }

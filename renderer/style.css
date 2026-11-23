@@ -584,3 +584,13 @@ body.fpon .hud, body.fpon .orb, body.fpon .dock, body.fpon .sdock, body.fpon .pe
 .panel { z-index: 50; }
 .menu { z-index: 60; }
 .toast { z-index: 70; }
+/* 花房植物卡片 */
+.potcard { min-width: 300px; }
+.potcard .pc-top { display: flex; gap: 12px; align-items: center; }
+.potcard .pc-top canvas { width: 96px; height: 96px; image-rendering: pixelated; background: #f4ecd8; border: 2px solid var(--ink); border-radius: 6px; }
+.potcard .pc-name { font-size: 1.2em; display: block; margin-bottom: 4px; }
+.potcard .pc-bar { position: relative; height: 14px; background: #e8dcc4; border: 2px solid var(--ink); border-radius: 7px; margin: 18px 0 22px; }
+.potcard .pc-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #8ac85a, #f0c050); border-radius: 5px; }
+.potcard .pc-bar span { position: absolute; top: 16px; transform: translateX(-50%); font-size: 11px; color: #6a5a4a; white-space: nowrap; }
+.potcard .pc-st { margin: 6px 0 10px; padding-left: 18px; line-height: 1.8; }
+.potcard .bad { color: #c8503a; }
