@@ -222,7 +222,7 @@
     const own = Object.prototype.hasOwnProperty.call(m, 'tri'), o = m.tri; m.tri = function (a, b, c, col, mat) { return o.call(this, T(a), T(b), T(c), col, mat); };
     try { fn(); } finally { if (own) m.tri = o; else delete m.tri; }
   }
-  const HW = { IRON: '#6a6470', IRON2: '#565060', RUST: '#9a5a3a', RUST2: '#7c4632', COP: '#b06a42', COP2: '#8a5034', CREAM: '#e8d4b0', CREAM2: '#d8c098', TILE: '#c0543a', TILE2: '#a8442e', SHING: '#b8683e', GOLD: '#c8a050', STONEW: '#8a7e70', WING: '#9a2e2a', WING2: '#5a2a2e' };
+  const HW = { IRON: '#6f9e8c', IRON2: '#5b8778', RUST: '#9a8268', RUST2: '#857058', COP: '#6f9e8c', COP2: '#5b8778', CREAM: '#f0e6d2', CREAM2: '#e2d4ba', TILE: '#5f7482', TILE2: '#53677a', SHING: '#6f8a66', GOLD: '#d4b46a', STONEW: '#b8ae9a', WING: '#f4f0e6', WING2: '#d6cfbf' }; // 跟城堡的「林间白石城」配色一致：圆顶是生了铜绿的铜，翅膀是白的
   // 横着伸出去的管子 / 炮管：从 (u,v,z) 朝 yaw 方向伸 len 格
   function pipeOut(m, u, v, z, yaw, len, r, col, up = 0) { warp(m, [u, v, z], yaw, Math.PI / 2 - up, 0, () => { m.cyl(u, v, z, z + len / ZS, r, r * 0.92, col, M.metal, 8); m.cyl(u, v, z + len / ZS - 0.3, z + len / ZS + 0.4, r * 1.35, r * 1.35, shade(col, 0.8), M.metal, 8, true, '#1e1a22'); }); }
   // 一圈城垛（石头矮墙，上面一个个垛口）

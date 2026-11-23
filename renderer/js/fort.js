@@ -31,22 +31,25 @@
   const deckEdge = (n = 120, m = 0, wob = true) => { const pts = []; for (let i = 0; i < n; i++) { const th = (i / n) * Math.PI * 2, w = wob ? Math.sin(i * 0.9) * 0.3 + Math.sin(i * 0.23 + 1) * 0.5 : 0, r = polyR(th) - m + w; pts.push([CEN[0] + Math.cos(th) * r, CEN[1] + Math.sin(th) * r]); } return pts; };
 
   // ---------- 配色 ----------
+  /* 配色「林间白石城」：石灰白的墙、浅色石头的圆塔（长着苔藓）、石板蓝和苔绿的屋顶、生了铜绿的铜件、深胡桃木、白色的翅膀。
+     整体是森林里的淡色石头房子：颜色不抢，靠绿植、暖灯、花点缀 */
   const C = {
-    CREAM: '#ecdcbc', CREAM2: '#dcc8a0', STONE: '#b0a694', STONE2: '#8e8476', BRICK: '#b4664c', IRON: '#6a6470', IRON2: '#565060', RUST: '#9a5a3a', RUST2: '#7c4632', COP: '#b06a42', COP2: '#8a5034',
-    TILE: '#c0543a', TILE2: '#a8442e', SHING: '#b8683e', TIMBER: '#5a3a28', WOOD: '#b88a5a', WOOD2: '#a8784a', GOLD: '#c8a050', GLASS: '#bfe6f6', WING: '#9a2e2a', WING2: '#5a2a2e', PLANK: '#9a7452', MOSS: '#6f9a4a',
+    CREAM: '#f0e6d2', CREAM2: '#e2d4ba', STONE: '#cbc2ae', STONE2: '#a89f8c', BRICK: '#c8a284', IRON: '#9a978c', IRON2: '#7e7c74', RUST: '#9a8268', RUST2: '#857058', COP: '#6f9e8c', COP2: '#5b8778',
+    TILE: '#5f7482', TILE2: '#53677a', SHING: '#6f8a66', TIMBER: '#4e3c30', WOOD: '#b8936a', WOOD2: '#a68058', GOLD: '#d4b46a', GLASS: '#c6e8f2', WING: '#f4f0e6', WING2: '#d6cfbf', PLANK: '#9a7a58', MOSS: '#6f9a4a',
+    TOWER: '#d2c8b2', TOWER2: '#c4b9a2',
   };
 
   // ---------- 房间 ----------
   const R = (id, nm, lv, o) => Object.assign({ id, nm, lv, out: C.CREAM, om: M.plaster, in: '#efe0c4', im: M.wallpaper, fl: C.WOOD, fm: M.plank, h: WH }, o);
   const A = [12, 12], B = [37, 7.5];
   const ROOMS = [
-    R('boiler', '锅炉房', 0, { c: [A[0], A[1], 8.6], out: C.RUST, om: M.metal, in: '#9a6a52', im: M.stone, fl: '#6a6470', fm: M.metal, iron: true }),
-    R('hall', '门厅', 1, { c: [A[0], A[1], 8.6], out: C.IRON, om: M.metal, in: '#e8d8c0', im: M.plaster, fl: '#9a8a78', fm: M.stone, iron: true }),
-    R('workshop', '工作间', 2, { c: [A[0], A[1], 8.45], out: C.RUST, om: M.metal, in: '#e0ccb0', im: M.plank, fl: '#a8845a', iron: true }),
-    R('cockpit', '驾驶室', 3, { c: [A[0], A[1], 8.6], out: C.RUST2, om: M.metal, in: '#8a7a6a', im: M.metal, fl: '#7a5a3e', iron: true, roof: 'dome' }),
-    R('pump', '水泵间', 0, { c: [B[0], B[1], 6.6], out: C.IRON, om: M.metal, in: '#8a9aa0', im: M.tile, fl: '#7a8288', fm: M.metal, iron: true }),
-    R('store', '储藏间', 1, { c: [B[0], B[1], 6.6], out: C.RUST, om: M.metal, in: '#d8c4a0', im: M.plank, fl: '#9a7a58', iron: true }),
-    R('bath', '浴室', 2, { c: [B[0], B[1], 6.2], out: C.COP2, om: M.metal, in: '#cfe6ee', im: M.tile, fl: '#d8e8ec', fm: M.tile, iron: true, roof: 'tank' }),
+    R('boiler', '锅炉房', 0, { c: [A[0], A[1], 8.6], out: C.TOWER2, om: M.stone, in: '#9a6a52', im: M.stone, fl: '#6a6470', fm: M.metal, iron: true }),
+    R('hall', '门厅', 1, { c: [A[0], A[1], 8.6], out: C.TOWER, om: M.stone, in: '#e8d8c0', im: M.plaster, fl: '#9a8a78', fm: M.stone, iron: true }),
+    R('workshop', '工作间', 2, { c: [A[0], A[1], 8.45], out: C.TOWER, om: M.stone, in: '#e0ccb0', im: M.plank, fl: '#a8845a', iron: true }),
+    R('cockpit', '驾驶室', 3, { c: [A[0], A[1], 8.6], out: C.TOWER2, om: M.stone, in: '#8a7a6a', im: M.metal, fl: '#7a5a3e', iron: true, roof: 'dome' }),
+    R('pump', '水泵间', 0, { c: [B[0], B[1], 6.6], out: C.TOWER2, om: M.stone, in: '#8a9aa0', im: M.tile, fl: '#7a8288', fm: M.metal, iron: true }),
+    R('store', '储藏间', 1, { c: [B[0], B[1], 6.6], out: C.TOWER, om: M.stone, in: '#d8c4a0', im: M.plank, fl: '#9a7a58', iron: true }),
+    R('bath', '浴室', 2, { c: [B[0], B[1], 6.2], out: C.TOWER, om: M.stone, in: '#cfe6ee', im: M.tile, fl: '#d8e8ec', fm: M.tile, iron: true, roof: 'tank' }),
     R('kitchen', '厨房', 1, { r: [20.8, 9, 30, 19], out: C.CREAM, in: '#f2e2c8', fl: '#c8b098', fm: M.tile }),
     R('living', '起居室', 2, { r: [20.8, 9, 30, 19], out: C.CREAM2, in: '#f4e4cc', fl: '#b88a5a', shut: '#4a7a6a' }),
     R('bedroom', '卧室', 3, { r: [20.8, 9, 30, 15.4], out: '#e8d0b8', in: '#f4e0e8', fl: '#b88a5a', roof: 'steep', ax: 'u', shut: '#b8503c' }),
@@ -265,6 +268,7 @@
     for (const r of ROOMS) { if (r.lv > 1 || r.id === 'green') continue; if (r.c) { for (let i = 0; i < 24; i++) add(r.c[0] + Math.cos(i / 24 * 6.2832) * r.c[2], r.c[1] + Math.sin(i / 24 * 6.2832) * r.c[2], 0.6); continue; } const fr = r.rot ? r : null, [a, b, c, d] = r.r; for (let k = 0; k <= 6; k++) { const t = k / 6; for (const q of [[a + (c - a) * t, b], [a + (c - a) * t, d], [a, b + (d - b) * t], [c, b + (d - b) * t]]) add(...toW(fr, ...q), -2.6); } }
     for (const p of PASS) if (p.lv === 1) { const q = wBox(p.F, p.r); add(q[0], q[1], -1.5); add(q[2], q[3], -1.5); add(q[0], q[3], -1.5); add(q[2], q[1], -1.5); }
     { const [a, b, c, d] = MD.cistern.r; for (const [u, v] of [[a, b], [c, b], [a, d], [c, d], [(a + c) / 2, d], [c, (b + d) / 2]]) add(u, v, -1.2); } // 湖也在甲板上
+    add(4.2, -4.6, 4); // 守护树的树脚也要落在船体上
     for (const id of ['courtA', 'courtB', 'courtC']) { const q = MD[id], [a, b, c, d] = q.r; for (const [u, v] of [[a, b], [c, b], [a, d], [c, d], [(a + c) / 2, d]]) add(...mW(id, u, v), -2.4); }
     const N = 17, V = [];
     for (let k = 0; k < N; k++) {
@@ -532,11 +536,15 @@
   }
   function tallRoof(m, r, z, o) {
     const [u0, v0, u1, v1] = r.r, ax = r.ax || 'u', span = ax === 'u' ? v1 - v0 : u1 - u0, hh = span * (r.roof === 'steep' ? 1.5 : 0.9), col = o.snow ? '#e4ecf4' : r.lv % 2 ? C.TILE : C.TILE2, warp = P2().warp, tilt = (H(r.lv, u0) < 0.5 ? -1 : 1) * 0.14;
-    const fr0 = r.hut ? 0 : 0.3, draw = () => { if (r.hut) { /* 小隔间：屋顶下面只是一圈梁，不封顶（不然就是一块 6.8 高的天花板，人得弯腰） */ m.box(u0, v0 - 0.3, z - 0.6, u1 + 0.3, v0 + 0.25, z, C.TIMBER, M.plank); m.box(u0, v1 - 0.25, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.box(u1 - 0.25, v0 + 0.25, z - 0.6, u1 + 0.3, v1 - 0.25, z, C.TIMBER, M.plank); } else m.box(u0 - fr0, v0 - 0.3, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.gable(u0, v0, u1, v1, z, hh, ax, col, o.snow ? M.snow : M.tile, 0.7, r.out, r.om, r.hut ? 0 : undefined); tileRows(m, r.r, z, hh, ax, o, r.hut ? 0 : 0.7); }; // 小隔间：前面（贴着大房间那头）不出檐，不然屋檐、木梁会伸进大房间里
+    /* 屋顶上长着一块块苔藓和小草（林子里的老房子） */
+    const mossOn = () => { if (o.snow) return; const n = r.hut ? 2 : 6; for (let k = 0; k < n; k++) { const a1 = H(k + r.id.length, 3.3), b1 = H(k * 2 + 1, r.id.length + 7), half = span / 2;
+        const [mu, mv] = ax === 'u' ? [u0 + 0.6 + a1 * (u1 - u0 - 1.2), (v0 + v1) / 2 + (b1 - 0.5) * span * 0.85] : [(u0 + u1) / 2 + (b1 - 0.5) * span * 0.85, v0 + 0.6 + a1 * (v1 - v0 - 1.2)], off = ax === 'u' ? Math.abs(mv - (v0 + v1) / 2) : Math.abs(mu - (u0 + u1) / 2);
+        m.blob(mu, mv, z + hh * (1 - off / half) - 0.1, 0.7 + a1 * 0.7, 0.28, ['#6f9a4a', '#7fa85a', '#5f8a44'][k % 3], M.grass, k); } };
+    const fr0 = r.hut ? 0 : 0.3, draw = () => { mossOn(); if (r.hut) { /* 小隔间：屋顶下面只是一圈梁，不封顶（不然就是一块 6.8 高的天花板，人得弯腰） */ m.box(u0, v0 - 0.3, z - 0.6, u1 + 0.3, v0 + 0.25, z, C.TIMBER, M.plank); m.box(u0, v1 - 0.25, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.box(u1 - 0.25, v0 + 0.25, z - 0.6, u1 + 0.3, v1 - 0.25, z, C.TIMBER, M.plank); } else m.box(u0 - fr0, v0 - 0.3, z - 0.6, u1 + 0.3, v1 + 0.3, z, C.TIMBER, M.plank); m.gable(u0, v0, u1, v1, z, hh, ax, col, o.snow ? M.snow : M.tile, 0.7, r.out, r.om, r.hut ? 0 : undefined); tileRows(m, r.r, z, hh, ax, o, r.hut ? 0 : 0.7); }; // 小隔间：前面（贴着大房间那头）不出檐，不然屋檐、木梁会伸进大房间里
     if (warp) warp(m, [(u0 + u1) / 2, (v0 + v1) / 2, z], 0, ax === 'u' ? 0 : tilt, ax === 'u' ? tilt : 0, draw); else draw();
     if (ax === 'u') { const cu = (u0 + u1) / 2 + 1.5, wv = v1 - span * 0.28, wz = z + hh * 0.42; m.box(cu - 1.1, wv - 0.6, wz - 1.6, cu + 1.1, wv + 0.6, wz + 1.6, r.out, r.om); m.box(cu - 0.6, wv + 0.6, wz - 0.9, cu + 0.6, wv + 0.65, wz + 1, C.GLASS, M.glass); m.gable(cu - 1.2, wv - 0.8, cu + 1.2, wv + 0.8, wz + 1.6, 1.2, 'v', col, M.tile, 0.2); }
     else { const cv = (v0 + v1) / 2 - 1.2, wu = u1 - span * 0.28, wz = z + hh * 0.42; m.box(wu - 0.6, cv - 1.1, wz - 1.6, wu + 0.6, cv + 1.1, wz + 1.6, r.out, r.om); m.box(wu + 0.6, cv - 0.6, wz - 0.9, wu + 0.65, cv + 0.6, wz + 1, C.GLASS, M.glass); m.gable(wu - 0.8, cv - 1.2, wu + 0.8, cv + 1.2, wz + 1.6, 1.2, 'u', col, M.tile, 0.2); }
-    const cu = u0 + 1.4, cv = v0 + 1.4; m.box(cu - 0.55, cv - 0.55, z, cu + 0.55, cv + 0.55, z + hh * 0.8 + 2.5, C.BRICK, M.stone); m.box(cu - 0.7, cv - 0.7, z + hh * 0.8 + 2.5, cu + 0.7, cv + 0.7, z + hh * 0.8 + 3, '#3a3448', M.metal);
+    if (r.id === 'laundry') { /* 只有洗衣房（烧水煮衣服）有烟囱；别的屋顶下面没有炉子，就不画烟囱 */ const cu = u0 + 1.4, cv = v0 + 1.4; m.box(cu - 0.55, cv - 0.55, z, cu + 0.55, cv + 0.55, z + hh * 0.8 + 2.5, C.BRICK, M.stone); m.box(cu - 0.7, cv - 0.7, z + hh * 0.8 + 2.5, cu + 0.7, cv + 0.7, z + hh * 0.8 + 3, '#3a3448', M.metal); }
   }
   function flatRoof(m, q, z, o) {
     m.box(q[0] - 0.25, q[1] - 0.25, z - 1, q[2] + 0.25, q[3] + 0.25, z, '#8a7e70', M.stone, o.snow ? '#eef4fa' : '#9a8e7e', o.snow ? M.snow : M.stone);
@@ -857,7 +865,47 @@
     const pts = []; for (let k = 0; k <= 6; k++) pts.push([u + Math.sin(k * 0.9 + seed) * 0.5, v + Math.cos(k * 0.7 + seed) * 0.4, z - len * k / 6]);
     if (green && !o.snow) vine(m, o, pts, seed, 0.38); else { const sw0 = m.sway; m.sway = Math.max(sw0, 0.15); /* 垂下来的根：会摆，人能穿过去 */ for (let i = 0; i + 1 < pts.length; i++) m.quad(pts[i], [pts[i][0] + 0.12, pts[i][1], pts[i][2]], [pts[i + 1][0] + 0.1, pts[i + 1][1], pts[i + 1][2]], pts[i + 1], '#5a4028', 0); m.sway = sw0; }
   }
+  /* 守护树：城堡背后（西北角）一棵很老很老的大树，城堡就是贴着它长起来的——
+     几股树干拧在一起往上长，树冠撑在屋顶上面；粗根抓着船体边沿翻下去，一直垂到岛底下的云里；
+     有两条根顺着地面爬到圆塔脚下，又绕着塔壁往上爬（像《天空之城》里树和城长在一起，但这是我们自己的树） */
+  const GTREE = { u: 4.2, v: -4.6, z: HT };
+  function giantTree(m, cut, o) {
+    const { u, v, z } = GTREE, snow = o.snow, cols = LEAF(o), bark = '#6b5442', bark2 = '#57432f', mossC = '#6f8f4e', R = (k) => H(k * 1.7 + 3, 9.1);
+    const seg = (a, b, r0, r1, col) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(d[0], d[1], d[2]) || 1, n = Math.max(2, Math.ceil(L / 1.6)); for (let k = 0; k < n; k++) { const t0 = k / n, t1 = (k + 1) / n, P0 = [a[0] + d[0] * t0, a[1] + d[1] * t0, a[2] + d[2] * t0], P1 = [a[0] + d[0] * t1, a[1] + d[1] * t1, a[2] + d[2] * t1], rr = r0 + (r1 - r0) * t0;
+      if (Math.abs(d[2]) / L > 0.7) m.cyl((P0[0] + P1[0]) / 2, (P0[1] + P1[1]) / 2, Math.min(P0[2], P1[2]), Math.max(P0[2], P1[2]) + rr * 0.3, rr, rr * 0.96, k % 3 ? col : bark2, M.plank, 9, false);
+      else { const ux = -d[1] / L, uy = d[0] / L; m.quad([P0[0] - ux * rr, P0[1] - uy * rr, P0[2] + rr * 0.6], [P0[0] + ux * rr, P0[1] + uy * rr, P0[2] + rr * 0.6], [P1[0] + ux * rr, P1[1] + uy * rr, P1[2] + rr * 0.6], [P1[0] - ux * rr, P1[1] - uy * rr, P1[2] + rr * 0.6], col, M.plank); for (const sd of [-1, 1]) m.quad([P0[0] + sd * ux * rr, P0[1] + sd * uy * rr, P0[2] + rr * 0.6], [P1[0] + sd * ux * rr, P1[1] + sd * uy * rr, P1[2] + rr * 0.6], [P1[0] + sd * ux * rr * 0.8, P1[1] + sd * uy * rr * 0.8, P1[2] - rr * 0.5], [P0[0] + sd * ux * rr * 0.8, P0[1] + sd * uy * rr * 0.8, P0[2] - rr * 0.5], bark2, M.plank); } } };
+    const curve = (pts, r0, r1, col = bark) => { for (let i = 0; i + 1 < pts.length; i++) seg(pts[i], pts[i + 1], r0 + (r1 - r0) * i / (pts.length - 1), r0 + (r1 - r0) * (i + 1) / (pts.length - 1), col); };
+    // 三股树干拧着往上
+    const TOP = z + 56;
+    for (let s2 = 0; s2 < 3; s2++) { const pts = []; for (let k = 0; k <= 12; k++) { const t = k / 12, a = s2 * 2.094 + t * 2.6, r = 2.0 * (1 - t * 0.55); pts.push([u + Math.cos(a) * r - t * 2.2, v + Math.sin(a) * r - t * 2.6, z + t * (TOP - z)]); } curve(pts, 2.1, 0.8, s2 === 1 ? '#735b47' : bark); }
+    if (!snow) for (let k = 0; k < 14; k++) { const a = k * 1.3, zz = z + 2 + k * 2.2; m.blob(u + Math.cos(a) * 2.2 - (zz - z) * 0.055, v + Math.sin(a) * 2.2 - (zz - z) * 0.065, zz, 0.6, 0.35, mossC, M.grass, k); } // 树皮上一块块苔藓
+    // 板根：树脚往四周撑开
+    for (let k = 0; k < 7; k++) { const a = k * 0.9 + 0.3, L = 4 + R(k) * 3; curve([[u + Math.cos(a) * 1.2, v + Math.sin(a) * 1.2, z + 3.5], [u + Math.cos(a) * L * 0.6, v + Math.sin(a) * L * 0.6, z + 1.2], [u + Math.cos(a) * L, v + Math.sin(a) * L, z - 0.6]], 0.9, 0.35); }
+    // 大枝：往外、往上撑开，枝头是一团团叶子（树冠在屋顶上面，不往塔和烟囱那边伸）
+    const tips = [];
+    for (let k = 0; k < 9; k++) { const a = -2.9 + k * 0.62 + R(k + 5) * 0.3, z0 = z + 34 + k * 2.2, L = 12 + R(k + 7) * 6, base = [u - (z0 - z) / (TOP - z) * 2.2, v - (z0 - z) / (TOP - z) * 2.6, z0], mid = [base[0] + Math.cos(a) * L * 0.55, base[1] + Math.sin(a) * L * 0.55, z0 + 4 + R(k) * 3], tip = [base[0] + Math.cos(a) * L, base[1] + Math.sin(a) * L, z0 + 7 + R(k + 2) * 5];
+      curve([base, mid, tip], 0.75, 0.25); tips.push(tip, mid); }
+    tips.push([u - 2.2, v - 2.6, TOP + 3]);
+    if (!snow) tips.forEach((t, k) => { const rr = k === tips.length - 1 ? 9 : k % 2 ? 5.6 : 7.4; m.foliage(t[0], t[1], t[2], rr, rr * 0.7, o.season === 'autumn' ? cols : ['#4f8a44', '#5e9a4c', '#6aa858', '#3f7a3c'], 70, k * 7 + 3, 0.9); });
+    // 粗根：顺着船体顶面爬到边上，翻下去，一路垂到岛底下
+    const edge = (a) => { let r = 2; while (r < 30 && inPoly(u + Math.cos(a) * r, v + Math.sin(a) * r, 0)) r += 0.5; return r; };
+    for (let k = 0; k < 6; k++) { const a = -2.9 + k * 0.5, e = edge(a) + 0.6, x = u + Math.cos(a) * e, y = v + Math.sin(a) * e, len = 18 + R(k + 30) * 16;
+      curve([[u + Math.cos(a) * 1.4, v + Math.sin(a) * 1.4, z + 1], [x - Math.cos(a) * 1.2, y - Math.sin(a) * 1.2, z + 0.2], [x, y, z - 2], [x + Math.cos(a) * 1.2, y + Math.sin(a) * 1.2, z - 9], [x + Math.cos(a) * 1.6 + Math.sin(k) * 1.4, y + Math.sin(a) * 1.6, z - 9 - len * 0.5], [x + Math.cos(a) * 1.2, y + Math.sin(a) * 1.2 + Math.cos(k) * 1.2, z - 9 - len]], 0.75, 0.2);
+      for (let j = 0; j < 3; j++) dangle(m, o, x + Math.cos(a) * 1.4 + (j - 1) * 0.7, y + Math.sin(a) * 1.4, z - 12 - j * 4, 10 + R(k + j) * 12, k * 3 + j, j === 1); }
+    // 两条根爬到圆塔（门厅）脚下，绕着塔壁往上爬（避开门洞那一侧）
+    for (const [a0, turn] of [[-2.36, 0.9], [-1.75, -0.7]]) { const pts = [[u, v, z + 1.5]]; const A0 = [12 + Math.cos(a0) * 8.9, 12 + Math.sin(a0) * 8.9]; pts.push([(u + A0[0]) / 2, (v + A0[1]) / 2, z + 0.4]); for (let k = 0; k <= 8; k++) { const t = k / 8, a = a0 + turn * t; pts.push([12 + Math.cos(a) * 8.95, 12 + Math.sin(a) * 8.95, z + 1 + t * 26]); } curve(pts, 0.6, 0.22); }
+  }
+  /* 林子：岛的外沿一圈种上树（后面那半圈多、前面少，不挡着看城堡），树下有蕨和小灌木 */
+  function forest(m, cut, o) {
+    const pts = deckEdge(64, 0, true);
+    pts.forEach(([pu, pv], i) => { const a = Math.atan2(pv - CEN[1], pu - CEN[0]), u = CEN[0] + (pu - CEN[0]) * 0.93, v = CEN[1] + (pv - CEN[1]) * 0.93, back = Math.sin(a + 0.8) < 0.25; if (!back && i % 3) return;
+      if (ROOMS.some((r) => r.lv <= 2 && inRoom(r, u, v, -3)) || MODS.some((q) => inMod(q, u, v, -2.2)) || inLake(u, v, -3) || PASS.some((p) => { const b = wBox(p.F, p.r); return u > b[0] - 3 && u < b[2] + 3 && v > b[1] - 3 && v < b[3] + 3; }) || Math.hypot(u - GTREE.u, v - GTREE.v) < 8) return;
+      if (H(i, 41) < 0.35) return; const h = 9 + H(i, 42) * 6; tree(m, o, u, v, HT, h, i * 13 + 5, (H(i, 43) - 0.5) * 0.6);
+      if (!o.snow) for (let k = 0; k < 3; k++) { const x = u + (H(i, k + 50) - 0.5) * 4, y = v + (H(k, i + 50) - 0.5) * 4; if (!inPoly(x, y, 0.5) || roomAt(x, y, 1)) continue; P2().bush ? P2().bush(m, x, y, HT, 0.5 + H(i, k) * 0.4, LEAF(o), i + k, true) : m.foliage(x, y, HT + 0.6, 0.7, 0.6, LEAF(o), 12, k); } });
+  }
   function plants(m, cut, o) {
+    if (!cut || cut.lv >= 1) { giantTree(m, cut, o); forest(m, cut, o); }
+    if (!cut || cut.lv >= 3) { /* 屋顶花园和起居室露台的角上各长一棵小树（种在大木盆里），楼上也是林子 */ for (const [u, v, h, sd] of [[39.3, 22.1, 7, 61], [28.8, 25.3, 6.5, 62]]) { m.cyl(u, v, Z[2], Z[2] + 1.4, 1.1, 1.0, '#8a5a3a', M.plank, 10); m.cyl(u, v, Z[2] + 1.3, Z[2] + 1.45, 0.95, 0.95, '#5a4030', M.soil, 10); tree(m, o, u, v, Z[2] + 1.4, h, sd, 0.2); } }
     if (o.snow && o.season === 'winter') { /* 冬天只剩光秃秃的枝和根 */ }
     // 墙上的爬藤：每间方房子挑两面朝外的墙
     for (const r of ROOMS) {
@@ -1050,10 +1098,10 @@
         let dx = ca * Math.sin(th), dy = sa * Math.sin(th) + back, dz = -Math.cos(th) / 0.408;
         const l = Math.hypot(dx, dy, dz * 0.408); dx /= l; dy /= l; dz /= l;
         const len = 7 + f * 7;
-        feather(P, dx, dy, dz, len, 0.85, j % 2 ? '#b8402e' : C.WING, C.GOLD);
+        feather(P, dx, dy, dz, len, 0.85, j % 2 ? '#e8e2d4' : C.WING, '#c8bea8');
         // 覆羽：短一点、深一点，盖在长羽根部
         const P2 = sp(Math.min(1, f + 0.05));
-        feather([P2[0], P2[1] - 0.1, P2[2] + 0.2], dx, dy, dz, len * 0.45, 0.7, C.WING2, '#7a2a24');
+        feather([P2[0], P2[1] - 0.1, P2[2] + 0.2], dx, dy, dz, len * 0.45, 0.7, C.WING2, '#b8ae98');
       }
       // 根部的活塞：一伸一缩
       m.box(u - 0.25, v - 0.25, z0 - 4 + Math.sin(flap * 5) * 0.8, u + 0.25, v + 0.25, z0, '#c0c0c8', M.metal);
