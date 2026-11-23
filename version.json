@@ -1,12 +1,21 @@
 {
-  "version": "0.23.0",
+  "version": "0.24.0",
   "date": "2026-11-23",
-  "title": "更新后不再往桌面放图标、小隔间门口干净了",
+  "title": "吊灯精致一点",
   "notes": [
-    "程序自动更新后不会再在桌面上放图标了：你删掉了桌面图标，更新完它就不会再回来（原来每次更新都被当成全新安装）。",
-    "站在大房间里看小隔间的门口，以前能看到小隔间的屋檐、椽子、屋顶下的横梁和墙角的一摞摞角石伸进大房间里，像几根斜梁加一根横杠挡在门口。现在小隔间靠大房间那一头不出檐、不画外墙装饰和角石，门口干干净净。"
+    "起居室、卧室、图书室、厨房、浴室的吊灯：以前从底下看只是一块发白的扁片，现在顶上有铜灯座，布灯罩更高、下沿一圈铜边，里面露出一个发光的灯泡。",
+    "门厅换成一盏铜环吊灯：一圈铜环、中间一个铜碗，环上插着八根小蜡烛，火苗微微亮着。"
   ],
   "history": [
+    {
+      "version": "0.24.0",
+      "date": "2026-11-23",
+      "title": "吊灯精致一点",
+      "notes": [
+        "起居室、卧室、图书室、厨房、浴室的吊灯：以前从底下看只是一块发白的扁片，现在顶上有铜灯座，布灯罩更高、下沿一圈铜边，里面露出一个发光的灯泡。",
+        "门厅换成一盏铜环吊灯：一圈铜环、中间一个铜碗，环上插着八根小蜡烛，火苗微微亮着。"
+      ]
+    },
     {
       "version": "0.23.0",
       "date": "2026-11-23",
@@ -730,41 +739,41 @@
     }
   ],
   "win": {
-    "name": "Desktopia-Setup-0.23.0.exe",
-    "asset": "Desktopia-Setup-0.23.0.exe",
-    "size": 82546143,
-    "sha256": "3bbd574554f8615c039355bf27a8f1daf758720e4a6f2cd5aa826040352b56c3",
+    "name": "Desktopia-Setup-0.24.0.exe",
+    "asset": "Desktopia-Setup-0.24.0.exe",
+    "size": 82546436,
+    "sha256": "3bc1fa6b0d7d5aef86e2fd98b8f9ce322a8af454fb45ae06823fb7e4b21605ae",
     "parts": [
       {
-        "file": "Desktopia-Setup-0.23.0.exe.000",
-        "ref": "abfdeb560aa5b13b174fb869aa815346b9189608"
+        "file": "Desktopia-Setup-0.24.0.exe.000",
+        "ref": "986043c66e7972da0d968b4435250680d6060853"
       },
       {
-        "file": "Desktopia-Setup-0.23.0.exe.001",
-        "ref": "a4a8e909aa01e38c53a49a6056600e0f576a6ff3"
+        "file": "Desktopia-Setup-0.24.0.exe.001",
+        "ref": "9e73be976960ea7120410e3cc64da3e1430aae3e"
       },
       {
-        "file": "Desktopia-Setup-0.23.0.exe.002",
-        "ref": "566624546f58ef54caf3ed5d32b8b06ba0715114"
+        "file": "Desktopia-Setup-0.24.0.exe.002",
+        "ref": "5ea9fc648dabf09a1870d14a36294aedeec73956"
       },
       {
-        "file": "Desktopia-Setup-0.23.0.exe.003",
-        "ref": "05e4fddf531044d346e176eacabbe0483bcc372e"
+        "file": "Desktopia-Setup-0.24.0.exe.003",
+        "ref": "0f903176157e2e984cb20550a616642f507945b9"
       },
       {
-        "file": "Desktopia-Setup-0.23.0.exe.004",
-        "ref": "26daef77c65eb7afea65435f5ef95294fc7ef461"
+        "file": "Desktopia-Setup-0.24.0.exe.004",
+        "ref": "acbf24425a6537d2373ce350f4a1874968c9ac22"
       },
       {
-        "file": "Desktopia-Setup-0.23.0.exe.005",
-        "ref": "92ba486aaf8b35b3c113950a399c8c3fc8f4cfa7"
+        "file": "Desktopia-Setup-0.24.0.exe.005",
+        "ref": "c0ce32c76b7cb3e7f03681ac8725e008c2be64b5"
       }
     ]
   },
   "mac": {
-    "name": "Desktopia-0.23.0.dmg",
-    "asset": "Desktopia-0.23.0.dmg",
-    "size": 180540947,
-    "sha256": "ebc4793e75f2d89cfcc2abddcd1c015b9b2136ab2ecc17eec288f5b261c726b4"
+    "name": "Desktopia-0.24.0.dmg",
+    "asset": "Desktopia-0.24.0.dmg",
+    "size": 180537575,
+    "sha256": "410e55346dbd5103b39a46174d28a23ec3796330efc4e725c438af9f49bab467"
   }
 }
