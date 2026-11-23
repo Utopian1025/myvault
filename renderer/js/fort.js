@@ -850,7 +850,7 @@
   }
   function tree(m, o, u, v, z, h, seed, lean = 0.3) {
     // 一棵树：树干分三四根枝，每根枝再分两根小枝；叶子一簇一簇包住枝头（簇压在枝上，不会飘在空中）；冬天是光秃秃的枝，雪积在枝的上面
-    const cols = LEAF(o), bark = '#6a4a2e', bark2 = '#4e3622', R = (k) => H(seed, k), th = h * 0.48, top = [u + lean * 1.2, v, z + th], g = Math.min(1.3, h / 8);
+    const cols = LEAF(o), bark = '#6a4a2e', bark2 = '#4e3622', R = (k) => H(seed, k), th = Math.max(h * 0.48, 8.6) /* 最低的枝杈要比人头高，走到树下不会被枝挡住 */, top = [u + lean * 1.2, v, z + th], g = Math.min(1.3, h / 8);
     const limb = (a, b, r0, r1, c1 = bark, c2 = bark2) => { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], n = 4; for (let k = 0; k < n; k++) { const t0 = k / n, t1 = (k + 1) / n, rr = r0 + (r1 - r0) * t0, rr1 = r0 + (r1 - r0) * t1; const P0 = [a[0] + d[0] * t0, a[1] + d[1] * t0, a[2] + d[2] * t0], P1 = [a[0] + d[0] * t1, a[1] + d[1] * t1, a[2] + d[2] * t1]; for (let s2 = 0; s2 < 5; s2++) { const f0 = s2 * 1.2566, f1 = f0 + 1.2566, e = (P, f, r) => [P[0] + Math.cos(f) * r, P[1] + Math.sin(f) * r, P[2]]; m.quad(e(P0, f0, rr), e(P0, f1, rr), e(P1, f1, rr1), e(P1, f0, rr1), s2 % 2 ? c1 : c2, M.plank); } } };
     limb([u, v, z - 0.3], top, 0.5 * g, 0.3 * g);
     for (let k = 0; k < 4; k++) { const a = k * 1.57 + R(k) * 0.8; m.quad([u, v, z + 0.6], [u + 0.15, v, z + 0.6], [u + Math.cos(a) * 1.3 * g, v + Math.sin(a) * 1.3 * g, z - 0.3], [u + Math.cos(a) * 1.15 * g, v + Math.sin(a) * 1.15 * g, z - 0.3], bark2, 0); }
