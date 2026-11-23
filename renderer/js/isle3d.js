@@ -201,7 +201,7 @@
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
+  uniform vec4 uRLa[40]; uniform vec4 uRLb[40]; uniform float uRLk[40]; uniform int uNRL; uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
@@ -296,6 +296,13 @@
       float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.86,0.88,1.1), vec3(1.05,1.0,0.9), b);
       float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,0.86); // 稍微灰一点，和猫屋那种柔和的颜色一致
     } else lit=c*(amb+uSunCol*L);
+    // 屋里的灯：每间房一盏，开着的时候整间屋子暖暖地亮起来（只照到这间房的范围、这一层的高度里）
+    for(int i=0;i<40;i++){ if(i>=uNRL) break; float k=uRLk[i]; if(k<=0.01) continue; vec4 a=uRLa[i], b=uRLb[i]; if(vW.z<b.z-0.05||vW.z>b.w+0.05) continue;
+      vec2 d=vW.xy-a.xy; float far;
+      if(b.x<0.0){ float r=length(d); if(r>-b.x+0.3) continue; far=r/(-b.x); }
+      else { vec2 l=vec2(d.x*a.z+d.y*a.w, -d.x*a.w+d.y*a.z); if(abs(l.x)>b.x+0.3||abs(l.y)>b.y+0.3) continue; far=length(l/vec2(b.x,b.y))*0.75; }
+      vec3 lp=vec3(a.xy, b.w-2.4), L2=normalize(lp-vW); float df=0.45+0.55*max(dot(n,L2),0.0);
+      lit+=c*vec3(1.0,0.8,0.55)*k*df*(1.05-0.45*clamp(far,0.0,1.0))*0.95; }
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
     if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     o=vec4(lit,1.0);
@@ -377,6 +384,7 @@
       gl.uniform3f(u.uVd, MU * (c + s), MU * (c - s), 2 * MZ * A / Math.max(0.3, B)); }
     { const f = o.fp; if (u.uFP) { gl.uniform4f(u.uFP, f ? f.eye[0] * MU : 0, f ? f.eye[1] * MU : 0, f ? f.eye[2] * MZ : 0, f ? 1 : 0); if (u.uFP2) gl.uniform4f(u.uFP2, f ? f.yaw : 0, f ? f.pitch : 0, f ? 1 / Math.tan((f.fov || 1.15) / 2) : 1, W / H); } } gl.uniform1f(u.uWind, o.wind || 0); gl.uniform1f(u.uMir, o.mirror ? -1 : 1); gl.uniform1f(u.uPick, o.pickAt ? 1 : 0); gl.uniform1f(u.uH, H);
     { const pa = new Float32Array(16), pz = new Float32Array(16), rp = new Float32Array(12); (o.pets || []).slice(0, 4).forEach((q, i) => { pa.set(q.slice(0, 4), i * 4); pz[i * 4] = q[4]; }); (o.rips || []).slice(0, 4).forEach((q, i) => rp.set(q, i * 3)); if (!(o.rips || []).length) for (let i = 0; i < 4; i++) rp[i * 3 + 2] = -99; else for (let i = (o.rips || []).length; i < 4; i++) rp[i * 3 + 2] = -99; if (u['uPet[0]']) gl.uniform4fv(u['uPet[0]'], pa); if (u['uPetZ[0]']) gl.uniform4fv(u['uPetZ[0]'], pz); if (u['uRip[0]']) gl.uniform3fv(u['uRip[0]'], rp); }
+    { const L = (o.rlights || []).slice(0, 40), A4 = new Float32Array(160), B4 = new Float32Array(160), K = new Float32Array(40); L.forEach((q, i) => { A4.set(q.a, i * 4); B4.set(q.b, i * 4); K[i] = q.k; }); if (u['uRLa[0]']) { gl.uniform4fv(u['uRLa[0]'], A4); gl.uniform4fv(u['uRLb[0]'], B4); gl.uniform1fv(u['uRLk[0]'], K); } if (u.uNRL) gl.uniform1i(u.uNRL, L.length); }
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
     if (u.uGP) gl.uniform1f(u.uGP, 0);

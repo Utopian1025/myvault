@@ -369,7 +369,7 @@
     if (!r.glass) for (const [cu, cv] of r.hut ? [[u1, v0], [u1, v1]] /* 小隔间前面两个角在大房间里面 */ : [[u0, v0], [u1, v0], [u0, v1], [u1, v1]]) { const tall = cutHere ? LOW(cut) : h; for (let k = 0.5; k < tall - 0.6; k += 1.5) m.box(cu - 0.4, cv - 0.4, z + k, cu + 0.4, cv + 0.4, z + k + 0.85, shade(r.om === M.plaster ? r.out : C.STONE, 0.82), M.stone); }
     // 吊灯：住人的房间天花板中间垂一盏（剖开看的时候不画，免得飘在半空）
     if (!r.glass && LAMP_ROOMS[r.id] && !cutHere && h >= 10.5) { const cu = (u0 + u1) / 2, cv = (v0 + v1) / 2, top = z + h, lo = Math.max(z + 8.6, top - 2.2); /* 灯罩底边不低于 8.6，站着的眼睛（7.2）不会钻进灯里 */ m.cyl(cu, cv, top - 0.18, top - 0.02, 0.38, 0.3, '#c8a060', M.metal, 10); m.box(cu - 0.04, cv - 0.04, lo + 1.0, cu + 0.04, cv + 0.04, top - 0.18, '#3a2a20', M.metal); m.cyl(cu, cv, lo + 0.95, lo + 1.12, 0.22, 0.16, '#c8a060', M.metal, 8);
-      m.cyl(cu, cv, lo, lo + 1.0, 1.0, 0.36, LAMP_ROOMS[r.id], M.cloth, 14, false); m.cyl(cu, cv, lo - 0.06, lo + 0.06, 1.03, 1.03, '#c8a060', M.metal, 14, false); m.ball(cu, cv, lo + 0.2, 0.26, 0.32, '#fff3c4', M.glow, 4, 8); } // 吊灯：铜灯座、布灯罩带铜边，里面露出发光的灯泡
+      m.cyl(cu, cv, lo, lo + 1.0, 1.0, 0.36, LAMP_ROOMS[r.id], M.cloth, 14, false); m.cyl(cu, cv, lo - 0.06, lo + 0.06, 1.03, 1.03, '#c8a060', M.metal, 14, false); } // 吊灯：铜灯座、布灯罩带铜边；里面的灯泡在 dyn() 里画（跟着开关亮灭）
   }
   function roundRoom(m, r, cut, o) {
     const z = Z[r.lv], [cu, cv, rad] = r.c, cutHere = cut && cut.lv === r.lv, h = roomH(r), n = RSEG(r);
@@ -737,7 +737,7 @@
       m.cyl(12, 12, Zh + 10.2, Zh + 11.2, 0.12, 0.35, '#c8a060', M.metal, 8); m.ball(12, 12, Zh + 10.1, 0.45, 0.35, '#b08a50', M.metal, 4, 8);
       for (let k = 0; k < 28; k++) { const a = k * 0.2244, x = 12 + Math.cos(a) * 1.7, y = 12 + Math.sin(a) * 1.7; m.box(x - 0.11, y - 0.11, Zh + 10.22, x + 0.11, y + 0.11, Zh + 10.4, '#c8a060', M.metal); }
       for (let k = 0; k < 4; k++) { const a = k * 1.5708 + 0.3; for (let j = 1; j < 7; j++) { const x = 12 + Math.cos(a) * j * 0.24, y = 12 + Math.sin(a) * j * 0.24; m.box(x - 0.06, y - 0.06, Zh + 10.26, x + 0.06, y + 0.06, Zh + 10.36, '#a8844c', M.metal); } const x = 12 + Math.cos(a) * 1.7, y = 12 + Math.sin(a) * 1.7; m.box(x - 0.025, y - 0.025, Zh + 10.4, x + 0.025, y + 0.025, Zh + 11.2, '#3a3448', M.metal); }
-      for (let k = 0; k < 8; k++) { const a = k * 0.7854 + 0.2, x = 12 + Math.cos(a) * 1.7, y = 12 + Math.sin(a) * 1.7; m.cyl(x, y, Zh + 10.4, Zh + 10.55, 0.16, 0.16, '#c8a060', M.metal, 6); m.cyl(x, y, Zh + 10.55, Zh + 11.1, 0.09, 0.09, '#f4ead8', 0, 6); m.ball(x, y, Zh + 11.22, 0.07, 0.13, '#ffd88a', M.glow, 3, 5); } });
+      for (let k = 0; k < 8; k++) { const a = k * 0.7854 + 0.2, x = 12 + Math.cos(a) * 1.7, y = 12 + Math.sin(a) * 1.7; m.cyl(x, y, Zh + 10.4, Zh + 10.55, 0.16, 0.16, '#c8a060', M.metal, 6); m.cyl(x, y, Zh + 10.55, Zh + 11.1, 0.09, 0.09, '#f4ead8', 0, 6); } /* 火苗在 dyn() 里画（跟着开关亮灭） */ });
     if (show('kitchen')) inFrame(m, frameOf('kitchen'), () => { const Zk = z('kitchen'); m.pk(141); m.box(22.4, 9.4, Zk, 25.4, 11.3, Zk + 5, '#4a4450', M.metal, '#2e2a30'); for (const u of [23.3, 24.6]) m.cyl(u, 10.4, Zk + 5, Zk + 6.4, 0.7, 0.8, '#5a5a66', M.metal, 10); m.cyl(25, 9.8, Zk + 5, Zk + WH, 0.45, 0.45, C.COP2, M.metal, 8); m.pk(142); m.box(25.4, 9.4, Zk, 27.4, 11.1, Zk + 4.8, C.WOOD, M.plank, '#e8e0d0'); m.box(25.8, 9.8, Zk + 4.5, 27, 10.8, Zk + 4.85, '#9fc8e0', M.water); m.cyl(26.4, 9.6, Zk + 4.8, Zk + 6.8, 0.14, 0.12, C.COP, M.metal, 5); m.pk(0);
       m.box(25, 9.3, Zk + 8.4, 28.2, 10.6, Zk + 11.6, C.WOOD2, M.plank); for (let k = 0; k < 4; k++) m.box(21.2 + k * 1, 9.35, Zk + 8.4 + (k % 2), 21.5 + k * 1, 9.5, Zk + 10.6, ['#c0c0c8', C.COP, '#c0c0c8', C.GOLD][k], M.metal);
       m.box(22.4, 14.4, Zk + 4.4, 27, 17.4, Zk + 5, C.WOOD, M.plank); for (const [u, v] of [[22.8, 14.8], [26.6, 14.8], [22.8, 17], [26.6, 17]]) m.box(u - 0.18, v - 0.18, Zk, u + 0.18, v + 0.18, Zk + 4.4, C.TIMBER, M.plank); m.ball(23.8, 15.8, Zk + 5.6, 0.7, 1.1, '#e8705a', 0, 4, 8); m.ball(25.6, 15.6, Zk + 5.5, 0.5, 0.9, '#ffd36a', 0, 4, 8); });
@@ -1164,6 +1164,45 @@
     const keep = (arr, per) => { const out = []; for (let t = 0; t < N; t++) if (!kill[t]) for (let q = t * 3 * per; q < (t + 1) * 3 * per; q++) out.push(arr[q]); return out; };
     m.p = keep(m.p, 3); m.n = keep(m.n, 3); m.c = keep(m.c, 3); m.m = keep(m.m, 1); m.w = keep(m.w, 1);
   }
+  // ---------- 屋里的灯：每间房一盏（范围就是这间房），门边墙上一个开关 ----------
+  const SW_PK = 220; // 开关的点选编号：220 + 房间序号
+  const lampLo = (r) => { const z = Z[r.lv], top = z + roomH(r); return Math.max(z + 8.6, top - 2.2); };
+  const hasPendant = (r) => !r.glass && !r.c && LAMP_ROOMS[r.id] && roomH(r) >= 10.5;
+  let LBOX = null;
+  function lightBoxes() {
+    if (LBOX) return LBOX;
+    LBOX = ROOMS.map((r, i) => { const z0 = Z[r.lv], z1 = z0 + roomH(r);
+      if (r.c) return { i, id: r.id, nm: r.nm, a: [r.c[0], r.c[1], 1, 0], b: [-r.c[2], 0, z0, z1] };
+      const fr = r.rot ? r : null, [u0, v0, u1, v1] = r.r, c = toW(fr, (u0 + u1) / 2, (v0 + v1) / 2), th = r.rot || 0;
+      return { i, id: r.id, nm: r.nm, a: [c[0], c[1], Math.cos(th), Math.sin(th)], b: [(u1 - u0) / 2, (v1 - v0) / 2, z0, z1] }; });
+    return LBOX;
+  }
+  // 开关装在这间房第一个门的旁边（墙的里面那一面，离地 4 格，伸手就够得着）
+  let SWS = null;
+  function switches() {
+    if (SWS) return SWS;
+    SWS = ROOMS.map((r, i) => { const z = Z[r.lv];
+      if (r.c) { const [cu, cv, rad] = r.c, n = RSEG(r); for (let k = 0; k < n; k++) if (ringGap(r, k) && !ringGap(r, (k + n - 1) % n)) { const a = (k / n) * 6.2832 - 0.17, rr = rad - WT / 2 - 0.1; return { i, fr: null, u: cu + Math.cos(a) * rr, v: cv + Math.sin(a) * rr, z, round: true }; } return null; }
+      const fr = r.rot ? r : null, [u0, v0, u1, v1] = r.r;
+      for (const [ax, at, a0, a1, nu, nv] of [['v', v0, u0, u1, 0, -1], ['v', v1, u0, u1, 0, 1], ['u', u0, v0, v1, -1, 0], ['u', u1, v0, v1, 1, 0]]) {
+        const sg = ax === 'v' ? nv : nu, doors = sideHoles(r.lv, ax, at, a0, a1, fr); if (!doors.length) continue; const hh = doors[0];
+        const gap = r.hut ? 0.62 : 0.75, edge = r.hut ? 0.15 : 0.7; let sAt = hh[1] + gap; if (sAt > a1 - edge) sAt = hh[0] - gap; if (sAt < a0 + edge) continue; // 小隔间窄：开关贴着门框
+        return { i, fr, ax, at: at - sg * (WT / 2), sg, s: sAt, z }; }
+      return null; });
+    return SWS;
+  }
+  function drawLights(m, o) {
+    const L = o.lights || [], cut = o.cut; switches().forEach((w, i) => { const r = ROOMS[i]; if (!w || !showLv(cut, r.lv)) return; const on = (L[i] || 0) > 0.5;
+      inFrame(m, w.fr, () => { m.pk(SW_PK + i);
+        if (w.round) { m.box(w.u - 0.2, w.v - 0.2, w.z + 4.0, w.u + 0.2, w.v + 0.2, w.z + 4.6, '#f4efe4', 0); m.box(w.u - 0.07, w.v - 0.07, on ? w.z + 4.32 : w.z + 4.12, w.u + 0.07, w.v + 0.07, on ? w.z + 4.48 : w.z + 4.28, on ? '#e8b040' : '#8a8070', 0); }
+        else { const f = w.at, d1 = f - w.sg * 0.07, d2 = f - w.sg * 0.14, B = (a, b, z0, z1, p, q, col) => (w.ax === 'v' ? m.box(a, Math.min(p, q), z0, b, Math.max(p, q), z1, col, 0) : m.box(Math.min(p, q), a, z0, Math.max(p, q), b, z1, col, 0));
+          B(w.s - 0.22, w.s + 0.22, w.z + 4.0, w.z + 4.6, f, d1, '#f4efe4'); B(w.s - 0.06, w.s + 0.06, on ? w.z + 4.32 : w.z + 4.12, on ? w.z + 4.48 : w.z + 4.28, d1, d2, on ? '#e8b040' : '#8a8070'); }
+        m.pk(0); });
+      // 灯泡 / 蜡烛火苗：开着才发光
+      if (cut && cut.lv < r.lv) return; const k = L[i] || 0;
+      if (hasPendant(r)) inFrame(m, r.rot ? r : null, () => { const [u0, v0, u1, v1] = r.r; m.ball((u0 + u1) / 2, (v0 + v1) / 2, lampLo(r) + 0.2, 0.26, 0.32, k > 0.5 ? '#fff3c4' : '#d8d2c0', k > 0.5 ? M.glow : 0, 4, 8); });
+      if (r.id === 'hall') { const Zh = Z[r.lv]; for (let q = 0; q < 8; q++) { const a = q * 0.7854 + 0.2, x = 12 + Math.cos(a) * 1.7, y = 12 + Math.sin(a) * 1.7; if (k > 0.5) m.ball(x, y, Zh + 11.22 + Math.sin(o.t * 7 + q) * 0.02, 0.07, 0.13, '#ffd88a', M.glow, 3, 5); else m.box(x - 0.02, y - 0.02, Zh + 11.1, x + 0.02, y + 0.02, Zh + 11.2, '#3a3448', 0); } } });
+  }
   function dyn(o) {
     const m = new Mesh(), t = o.t, cut = o.cut;
     if (!cut || cut.lv >= 2) wings(m, t, o);
@@ -1171,10 +1210,11 @@
     if (showLv(cut, 1)) { const Zk = Z[1]; if (o.cooking) for (let i = 0; i < 6; i++) { const h = 1.4 + Math.sin(t * 9 + i * 2.1) * 0.5; m.cyl(22.9 + i * 0.4, 10.4, Zk + 6.4, Zk + 6.4 + h, 0.26, 0.02, i % 2 ? '#ffb040' : '#ff7a30', M.glow, 5); }
     }
     if (showLv(cut, 0)) inFrame(m, mFrame(MD.cistern), () => { const Q = Object.assign({}, POOL_L, { z: POOL.z }); for (let i = 0; i < 4; i++) { const a = t * (0.35 + i * 0.08) + i * 1.7, cu = (Q.u0 + Q.u1) / 2 + Math.cos(a) * (2.6 - i * 0.5), cv = (Q.v0 + Q.v1) / 2 + Math.sin(a * 1.3) * (3.4 - i * 0.6), du = -Math.sin(a) * 0.9, dv = Math.cos(a * 1.3) * 0.6, l = Math.hypot(du, dv) || 1, ux = du / l, vx = dv / l, z = Q.z + 0.03, col = i === 0 ? '#e8804a' : '#2a5a6a'; m.quad([cu + ux * 0.7, cv + vx * 0.7, z], [cu - vx * 0.22, cv + ux * 0.22, z], [cu - ux * 0.5, cv - vx * 0.5, z], [cu + vx * 0.22, cv - ux * 0.22, z], col, 0); } });
+    drawLights(m, o);
     if (o.drag && PP.FURN) inFrame(m, frameOf(o.drag.room || 'living'), () => PP.FURN.build(m, [o.drag], { S: FS, zOf: (it) => Z[roomLv(it.room || 'living')], pinkBed: o.pinkBed, idx: () => -1 }));
     return m;
   }
   const FALL = mW('cistern', (POOL_L.u0 + POOL_L.u1) / 2, MD.cistern.r[3] + 0.3);
   const DECK = { v1: DK.v1 };
-  PP.FORT = { _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();
