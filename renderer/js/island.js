@@ -534,7 +534,7 @@
   }
   // 老存档：原来的小屋（楼下 + 阁楼）→ 城堡的起居室和卧室，按比例搬过去，放不下的收起来
   function migrateFurn() {
-    const e = E(); if (!e || e.layoutV >= 7) return; if (e.layoutV >= 4) { repairFurn(e); return; } if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
+    const e = E(); if (!e || e.layoutV >= 8) return; /* 8：城堡结构归正（房间都扶正了），家具重新检查一遍 */ if (e.layoutV >= 4) { repairFurn(e); return; } if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
     const L0 = FURN.layout(e), out = [];
     const map = (it) => { const bed = !!it.lv, rid = bed ? 'bedroom' : 'living', R0 = RM[rid].r, src = bed ? [4, 4, 22, 18] : [4, 4, 37.8, 32.6]; return Object.assign({}, it, { room: rid, lv: undefined, u: R0[0] + 1 + ((it.u - src[0]) / (src[2] - src[0])) * (R0[2] - R0[0] - 2), v: R0[1] + 1 + ((it.v - src[1]) / (src[3] - src[1])) * (R0[3] - R0[1] - 2) }); };
     e.layout = []; for (const it of L0) { const n = map(it); delete n.lv; e.layout.push(n); const i = e.layout.length - 1; if (!fOK(n, i)) { const f = fFree(n, i); if (f) e.layout[i] = f; else e.layout.pop(); } }
@@ -598,7 +598,7 @@
     for (const rid of Object.keys(RM)) { if (RM[rid].hut || reachOK(rid)) continue;
       const idx = L0.map((it, i) => [it, i]).filter(([it]) => it.room === rid).sort((A, B) => { const ra = FURN.rect(A[0], 0), rb = FURN.rect(B[0], 0); return (rb[2] - rb[0]) * (rb[3] - rb[1]) - (ra[2] - ra[0]) * (ra[3] - ra[1]); });
       for (const [it] of idx) { const i = L0.indexOf(it); L0.splice(i, 1); if (!reachOK(rid)) { L0.splice(i, 0, it); continue; } (WALL_F.has(it.f) ? placeWall : placeReach)(e, Object.assign({}, it)); break; } }
-    e.layoutV = 7; dirty(); PP.save.soon();
+    e.layoutV = 8; dirty(); PP.save.soon();
   }
   function fChanged() { dirty(); PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.y = p.floor; } } }
   function fStart(i, x, y) {

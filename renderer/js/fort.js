@@ -47,15 +47,15 @@
     R('pump', '水泵间', 0, { c: [B[0], B[1], 6.6], out: C.IRON, om: M.metal, in: '#8a9aa0', im: M.tile, fl: '#7a8288', fm: M.metal, iron: true }),
     R('store', '储藏间', 1, { c: [B[0], B[1], 6.6], out: C.RUST, om: M.metal, in: '#d8c4a0', im: M.plank, fl: '#9a7a58', iron: true }),
     R('bath', '浴室', 2, { c: [B[0], B[1], 6.2], out: C.COP2, om: M.metal, in: '#cfe6ee', im: M.tile, fl: '#d8e8ec', fm: M.tile, iron: true, roof: 'tank' }),
-    R('kitchen', '厨房', 1, { r: [20.8, 9, 28.5, 19], out: C.CREAM, in: '#f2e2c8', fl: '#c8b098', fm: M.tile }),
-    R('living', '起居室', 2, { rot: 14, r: [20.6, 9, 30, 18.5], out: C.CREAM2, in: '#f4e4cc', fl: '#b88a5a', shut: '#4a7a6a' }),
-    R('bedroom', '卧室', 3, { rot: -20, r: [21.5, 6.5, 31.5, 15], out: '#e8d0b8', in: '#f4e0e8', fl: '#b88a5a', roof: 'steep', ax: 'u', shut: '#b8503c' }),
-    R('dining', '餐厅', 1, { rot: -14, r: [29.9, 15.4, 40.4, 23.2], out: C.BRICK, om: M.stone, in: '#f0d8b8', fl: '#a87a52' }),
-    R('shed', '柴房', 1, { rot: 20, r: [1.5, 21, 10.5, 30], out: '#8a5e3c', om: M.plank, in: '#c8a878', im: M.plank, fl: '#7a5a3e' }),
-    R('library', '图书室', 2, { rot: -4, r: [1.5, 20.5, 11, 29.5], out: C.CREAM, in: '#d8c8a8', fl: '#8a5e3c', shut: '#5a7ab0' }),
-    R('attic', '阁楼仓库', 3, { rot: 24, r: [1, 21.5, 11.5, 29], out: '#c8a078', om: M.plank, in: '#d8c4a0', im: M.plank, fl: '#9a7a58', roof: 'steep', ax: 'v' }),
-    R('laundry', '洗衣房', 1, { rot: 6, r: [21, 2, 29.4, 8.6], out: '#d8c8b0', om: M.plank, in: '#e8f0f0', im: M.tile, fl: '#9aa8a8', fm: M.tile, roof: 'steep', ax: 'u', shut: '#5a8a9a' }),
-    R('green', '花房', 1, { rot: -12, r: [4, 32, 15, 43], glass: true, out: '#e8f0e8', in: '#e8f0e8', fl: '#9a8a70', fm: M.stone, h: 11, roof: 'glass' }),
+    R('kitchen', '厨房', 1, { r: [20.8, 9, 30, 19], out: C.CREAM, in: '#f2e2c8', fl: '#c8b098', fm: M.tile }),
+    R('living', '起居室', 2, { r: [20.8, 9, 30, 19], out: C.CREAM2, in: '#f4e4cc', fl: '#b88a5a', shut: '#4a7a6a' }),
+    R('bedroom', '卧室', 3, { r: [20.8, 9, 30, 15.4], out: '#e8d0b8', in: '#f4e0e8', fl: '#b88a5a', roof: 'steep', ax: 'u', shut: '#b8503c' }),
+    R('dining', '餐厅', 1, { r: [30, 15.5, 40.5, 23.2], out: C.BRICK, om: M.stone, in: '#f0d8b8', fl: '#a87a52' }),
+    R('shed', '柴房', 1, { r: [1.5, 21, 11, 29.5], out: '#8a5e3c', om: M.plank, in: '#c8a878', im: M.plank, fl: '#7a5a3e' }),
+    R('library', '图书室', 2, { r: [1.5, 21, 11, 29.5], out: C.CREAM, in: '#d8c8a8', fl: '#8a5e3c', shut: '#5a7ab0' }),
+    R('attic', '阁楼仓库', 3, { r: [1.5, 21, 11, 29.5], out: '#c8a078', om: M.plank, in: '#d8c4a0', im: M.plank, fl: '#9a7a58', roof: 'steep', ax: 'v' }),
+    R('laundry', '洗衣房', 1, { r: [21, 2, 29.4, 8.6], out: '#d8c8b0', om: M.plank, in: '#e8f0f0', im: M.tile, fl: '#9aa8a8', fm: M.tile, roof: 'steep', ax: 'u', shut: '#5a8a9a' }),
+    R('green', '花房', 1, { r: [4, 32, 15, 43], glass: true, out: '#e8f0e8', in: '#e8f0e8', fl: '#9a8a70', fm: M.stone, h: 11, roof: 'glass' }),
   ];
   const RM = {}; ROOMS.forEach((r) => { RM[r.id] = r; if (r.rot) r.rot *= Math.PI / 180; });
   const isRound = (r) => !!r.c;
@@ -111,19 +111,19 @@
     if (!P.c) { const tu = Math.abs(nl[0]) ? [Pl[0] - 1.1 * Math.abs(nl[0]) + nl[0] * 0, 0] : 0; const q = nl[1] ? [Pl[0] - 1.1, Pl[1] - 1, Pl[0] + 1.1, Pl[1] + 1] : [Pl[0] - 1, Pl[1] - 1.1, Pl[0] + 1, Pl[1] + 1.1]; HUT_PASS.push([P.lv, q, null, pfr ? pid : null]); }
   });
   const MODS = [
-    { id: 'courtA', name: '门前小院', lv: 1, r: [9.6, 19, 25.5, 28.4], rot: -4, kind: 'court' },
-    { id: 'courtB', name: '门前小院', lv: 1, r: [24, 21, 33.4, 28.8], rot: 5, kind: 'court', tone: 1 },
-    { id: 'courtC', name: '楼梯口', lv: 1, r: [31.4, 21.6, 39.4, 29.4], rot: -9, kind: 'court', tone: 2 },
+    { id: 'courtA', name: '门前小院', lv: 1, r: [11, 19, 25.5, 27.2], kind: 'court' },
+    { id: 'courtB', name: '门前小院', lv: 1, r: [25.5, 19, 30, 27.2], kind: 'court', tone: 1 },
+    { id: 'courtC', name: '楼梯口', lv: 1, r: [30, 23.2, 39.4, 29.4], kind: 'court', tone: 2 },
     { id: 'farmA', name: '菜园', lv: 1, r: [16.5, 27.2, 34.5, 35.6], rot: 0, kind: 'farm' },
     { id: 'farmB', name: '菜园', lv: 1, r: [16.5, 35.2, 34.5, 43.4], rot: 0, kind: 'farm' },
-    { id: 'gplat', name: '花房', lv: 1, r: [2.8, 30.6, 17.6, 44.4], fr: 'green', kind: 'gplat' },
-    { id: 'cistern', name: '蓄水池', lv: 0, r: [33, 30.5, 48, 42.5], rot: -8, kind: 'pool' },
+    { id: 'gplat', name: '花房', lv: 1, r: [2.8, 30.6, 16.5, 44.4], fr: 'green', kind: 'gplat' },
+    { id: 'cistern', name: '蓄水池', lv: 0, r: [33, 30.5, 48, 42.5], kind: 'pool' },
     { id: 'hives', name: '蜂箱台', lv: 2, r: [39.4, 15.2, 46.8, 23], fr: 'garden', kind: 'hive' },
     // 半露天的葡萄架茶座：从工作间出去
-    { id: 'pergola', name: '葡萄架茶座', lv: 2, r: [-4.6, 6.6, 4.4, 16.4], rot: -10, kind: 'pergola' },
+    { id: 'pergola', name: '葡萄架茶座', lv: 2, r: [-4.6, 6.6, 3.6, 16.4], kind: 'pergola' },
     // 带雨棚的小阳台：wall 是贴着房子的那一边
     { id: 'landL', name: '楼梯平台', lv: 2, r: [18.8, 19.4, 24.6, 26.4], kind: 'landing' },
-    { id: 'balcL', name: '起居室阳台', lv: 2, r: [21.6, 18.3, 27.4, 21.6], fr: 'living', kind: 'balc', wall: 'v0', aw: ['#e06a5a', '#f4ead8'] },
+    { id: 'balcL', name: '起居室阳台', lv: 2, r: [24.6, 19, 29.6, 22.4], fr: 'living', kind: 'balc', wall: 'v0', aw: ['#e06a5a', '#f4ead8'] },
     { id: 'balcB', name: '图书室阳台', lv: 2, r: [-1.9, 22.4, 1.6, 27.6], fr: 'library', kind: 'balc', wall: 'u1', aw: ['#5a8ab8', '#f4ead8'] },
     { id: 'balcA', name: '阁楼小阳台', lv: 3, r: [-2.4, 22.8, 1.1, 27.4], fr: 'attic', kind: 'balc', wall: 'u1', aw: ['#6aa060', '#f4ead8'] },
     { id: 'balcS', name: '浴室晾台', lv: 2, r: [42.6, 4.6, 46.8, 10.4], kind: 'balc', wall: 'u0', aw: ['#e8b040', '#fff4dc'] },
@@ -135,16 +135,16 @@
   const P = (lv, r, walls, fr) => ({ lv, r, walls: walls || null, fr: fr || null });
   const PASS = [
     P(0, [19.6, 8.6, 31.6, 11.4], 'v'), P(0, [33.2, 13, 36, 32.5], 'u'),
-    P(1, [19.6, 10, 21.6, 12.6]), P(1, [28, 11.4, 33.4, 13.6], 'v'), P(1, [27.6, 16.8, 29.4, 19.0]), P(1, [28.6, 15.5, 31, 18.0], null, 'dining'), /* 厨房↔餐厅：餐厅转了 -14°，两半在世界里要对齐（都落在 v≈16.9～19） */
-    P(1, [22.6, 18.4, 25.4, 19.8]), P(1, [28.6, 4, 31.8, 6.2], null, 'laundry'), P(1, [33, 22.6, 35.8, 24], null, 'dining'), P(1, [16.2, 17.2, 18.8, 19.8]), P(1, [10, 24, 11.4, 26.6], null, 'shed'), P(1, [14.4, 36.5, 15.8, 39.2], null, 'green'),
-    P(2, [19, 10.4, 21.4, 13], null, 'living'), P(2, [29.6, 9.2, 33.2, 11.6], 'v', 'living'), P(2, [29.4, 15.2, 30.8, 17.6], null, 'living'), P(2, [5.8, 17, 8.4, 21.2], 'u', 'library'),
-    P(2, [23.4, 17.4, 25.4, 19.4], null, 'living'), P(2, [0.4, 24, 2.6, 26], null, 'library'), P(2, [2.6, 10.6, 5.6, 13], null, 'pergola'), P(2, [41.4, 6.4, 43.6, 8.6]),
-    P(3, [19.2, 9.2, 22.2, 11.8], 'v', 'bedroom'), P(3, [0, 24.2, 2, 26], null, 'attic'), P(3, [24.4, 14.4, 27, 15.8], null, 'bedroom'), P(3, [5.8, 17.6, 8.4, 22.2], 'u', 'attic'),
+    P(1, [19.6, 10, 21.6, 12.6]), P(1, [29.6, 11.4, 33.4, 13.6], 'v'), P(1, [29, 16.2, 31, 18.6]), /* 厨房↔餐厅：两间墙贴墙，门开在共用的那面墙上 */
+    P(1, [22.6, 18.4, 25.4, 19.8]), P(1, [28.6, 4, 31.8, 6.2], null, 'laundry'), P(1, [33, 22.6, 35.8, 24], null, 'dining'), P(1, [16.2, 17.2, 18.8, 19.8]), P(1, [10.2, 24, 11.8, 26.6], null, 'shed'), P(1, [14.4, 36.5, 15.8, 39.2], null, 'green'),
+    P(2, [19, 10.4, 21.4, 13], null, 'living'), P(2, [29.6, 9.2, 33.2, 11.6], 'v', 'living'), P(2, [29.2, 15.8, 30.8, 18.2], null, 'living'), P(2, [5.8, 17, 8.4, 21.2], 'u', 'library'),
+    P(2, [21.4, 18.2, 23.8, 19.8], null, 'living'), P(2, [0.4, 24, 2.6, 26], null, 'library'), P(2, [2.6, 10.6, 5.6, 13], null, 'pergola'), P(2, [41.4, 6.4, 43.6, 8.6]),
+    P(3, [19.6, 10, 21.6, 12.6], 'v', 'bedroom'), P(3, [0, 24.2, 2, 26], null, 'attic'), P(3, [24.2, 14.6, 26.8, 16.2], null, 'bedroom'), P(3, [5.8, 17.6, 8.4, 22.2], 'u', 'attic'),
   ];
   for (const [lv, q, wl, fr] of HUT_PASS) PASS.push(P(lv, q, wl, fr));
   PASS.forEach((p) => (p.F = p.fr ? frameOf(p.fr) : null));
   // 露天的地方：屋顶花园跟着餐厅转，卧室阳台跟着卧室转
-  const OPEN = [[2, 29, 14.5, 40, 23, '屋顶花园', 'garden'], [2, 28.5, 18.5, 30, 23, '屋顶花园', 'garden'], [3, 21.5, 15, 30, 18.5, '卧室阳台', 'balcony']];
+  const OPEN = [[2, 30, 15.5, 40.5, 23.2, '屋顶花园', 'garden'], [3, 20.8, 15.4, 30, 19, '卧室阳台', 'balcony']]; // 屋顶花园就是餐厅的屋顶，卧室阳台就是起居室多出来的那截屋顶
   const inOpen = (o, u, v) => { [u, v] = toL(frameOf(o[6]), u, v); return u >= o[1] && u <= o[3] && v >= o[2] && v <= o[4]; };
   const inPass = (p, u, v, m = 0) => { [u, v] = toL(p.F, u, v); return u >= p.r[0] - m && u <= p.r[2] + m && v >= p.r[1] - m && v <= p.r[3] + m; };
   const passAt = (lv, u, v, m = 0) => PASS.some((p) => p.lv === lv && inPass(p, u, v, m));
@@ -171,10 +171,10 @@
   const HIVES_L = [[42.4, 17.6], [45.4, 17.4]];
   const HIVES = HIVES_L.map(([u, v]) => toW(frameOf('garden'), u, v)), HIVE_Z = Z[2];
   const hiveStand = () => toW(frameOf('garden'), HIVES_L[0][0] + 1.6, HIVES_L[0][1] + 2.8);
-  const MAILB = (([u, v]) => ({ u, v }))(mW('courtC', 37.4, 26.4)), TAP = (([u, v]) => ({ u, v }))(mW('courtB', 32.4, 22.2));
+  const MAILB = (([u, v]) => ({ u, v }))(mW('courtC', 37.4, 26.4)), TAP = (([u, v]) => ({ u, v }))(mW('courtC', 32.4, 24.6));
   const mailStand = () => [MAILB.u - 1.6, MAILB.v + 1.2], tapStand = () => [TAP.u - 1.8, TAP.v + 0.6];
-  const LAMPS = [mW('courtA', 10.4, 19.8), mW('courtC', 38.6, 22.4), mW('farmA', 33.8, 34.8), mW('farmB', 15.2, 42.6)];
-  const SLOTS = [mW('courtA', 14.4, 27.4), mW('courtA', 21.6, 27.4), mW('courtB', 27.6, 27.7), mW('courtB', 27.6, 23.6), mW('farmA', 17.3, 35), mW('farmB', 33.2, 42.4)];
+  const LAMPS = [mW('courtA', 10.4, 19.8), mW('courtC', 38.6, 24.2), mW('farmA', 33.8, 34.8), mW('farmB', 15.2, 42.6)];
+  const SLOTS = [mW('courtA', 14.4, 27.4), mW('courtA', 21.6, 27.4), mW('courtB', 27.6, 26.2), mW('courtB', 27.6, 22.6), mW('farmA', 17.3, 35), mW('farmB', 33.2, 42.4)];
   // 小院 → 蓄水池的露天楼梯
   const STAIR = { u0: 36.4, u1: 38.6, v0: 29.4, v1: 38, axis: 'v', lo: 29.4, hi: 38, a: 1, b: 0, out: true };
   RAMPS.push(STAIR);
@@ -215,7 +215,7 @@
   fx('green', 165, [6, 42.2], 'valve', '暖气阀门（点开调）', 'use', [[4.4, 41.8, 5, 42.6]]);
   fx('garden', 159, [33.6, 20.6], 'sit', '屋顶花园的长椅：晒太阳', 'rest', [[31.6, 21.8, 35.6, 22.6]], { spot: { u: 33.6, v: 22.2, dz: 2.6 } });
   fx('garden', PK.nest, [37.6, 21], 'nest', '鸟巢：野鸟偶尔会留下一个蛋', 'use', []);
-  fx('bedroom', 166, [24.8, 10.6], 'sleep', '卧室的床：睡一觉', 'rest', [[22.4, 6.8, 27.2, 9.4]], { spot: { u: 24.6, v: 8.0, dz: 2.2 } });
+  fx('bedroom', 166, [24.8, 13.0], 'sleep', '卧室的床：睡一觉', 'rest', [[22.4, 9.2, 27.2, 11.8]], { spot: { u: 24.6, v: 10.4, dz: 2.2 } });
   fx('laundry', 167, [24.6, 5.4], 'wash', '洗衣盆：搓搓洗洗', 'use', [[22.2, 2.5, 26.4, 4.3]]);
   fx('pergola', 168, [1.2, 13.6], 'sit', '葡萄架下的茶座：坐着喝杯茶', 'sit', [[-1.6, 10.2, 1.4, 12.6]], { spot: { u: 1.6, v: 11.4, dz: 1.6 } });
   GPOTS.forEach(([u, v], i) => fx('green', 160 + i, i < 2 ? [u, v + 2.2] : [9.5, v], 'pot', '花盆', 'water', [[u - 1.2, v - 1.2, u + 1.2, v + 1.2]], { i }));
@@ -278,7 +278,7 @@
   }
   makeDeck();
   // 栏杆（局部坐标，跟着花园 / 阳台转）
-  const PARA = [[2, 46.8, 15.2, 47.3, 23.3, 'garden'], [2, 40.4, 22.8, 47.3, 23.3, 'garden'], [2, 40.4, 14.8, 47.3, 15.3, 'garden'], [2, 28.5, 23, 40.5, 23.5, 'garden'], [2, 28, 18.5, 28.5, 23.5, 'garden'], [3, 21.5, 18.5, 30.5, 19, 'balcony'], [3, 30, 15, 30.5, 19, 'balcony'], [3, 21, 15, 21.5, 19, 'balcony']];
+  const PARA = [[2, 46.8, 15.2, 47.3, 23.3, 'garden'], [2, 40.4, 22.8, 47.3, 23.3, 'garden'], [2, 40.4, 14.8, 47.3, 15.3, 'garden'], [2, 30, 23.2, 40.5, 23.7, 'garden'], [3, 20.8, 18.6, 30, 19, 'balcony'], [3, 29.6, 15.4, 30, 19, 'balcony'], [3, 20.8, 15.4, 21.2, 19, 'balcony']];
   const PARA_OB = PARA.flatMap((q) => rectObs(frameOf(q[5]), q[0], q.slice(1, 5)));
   // 第一人称用：每个挡路的东西有多高（墙挡死；栏杆跳起来能翻过去；菜地、家具这类能跳上去站着）
   const SOLID_H = (o) => (o[1] === 'c' && o[4] < 0.5 ? 9 : 3);
