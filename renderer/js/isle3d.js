@@ -7,7 +7,7 @@
   const C = (c) => (typeof c === 'string' ? hex(c) : c);
   const MAT = { flat: 0, tile: 1, plank: 2, stone: 3, grass: 4, glass: 5, glow: 6, soil: 7, leaf: 8, plaster: 9, water: 10, cloth: 11, metal: 12, wallpaper: 13, snow: 14,
     // 像素画用的材质：花纹都是“成块”的，放大缩小都不会变成噪点
-    pgrass: 15, pstone: 16, pplank: 17, pdirt: 18, psand: 19, pleaf: 20, proof: 21, pwater: 22, psnow: 23, pcrys: 24, pice: 25, pbrick: 26, pthatch: 27, prock: 28 };
+    pgrass: 15, pstone: 16, pplank: 17, pdirt: 18, psand: 19, pleaf: 20, proof: 21, pwater: 22, psnow: 23, pcrys: 24, pice: 25, pbrick: 26, pthatch: 27, prock: 28, lake: 29 };
 
   // ---------- 网格 ----------
   class Mesh {
@@ -201,7 +201,7 @@
   precision highp float; precision highp sampler2DShadow;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
-  uniform vec4 uRLa[40]; uniform vec4 uRLb[40]; uniform float uRLk[40]; uniform int uNRL; uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
+  uniform vec4 uRLa[40]; uniform vec4 uRLb[40]; uniform float uRLk[40]; uniform int uNRL; uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec4 uLake; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
   out vec4 o;
   float h1(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
   float ns(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h1(i),h1(i+vec2(1,0)),f.x), mix(h1(i+vec2(0,1)),h1(i+vec2(1,1)),f.x), f.y); }
@@ -216,10 +216,13 @@
     // 第一人称：玻璃是透明的（看得见外面），不再是一整块发光的黄玻璃，一动就闪
     // 第一人称：玻璃画成很淡的一层（隔几个像素留一点浅蓝），看得见外面也看得出那儿有玻璃挡着；点东西时能点穿玻璃
     // 第一人称：玻璃单独第二遍画，真正半透明（看得见外面，也看得出有玻璃）；第一遍先跳过玻璃
-    if(uFP.w>0.0){ bool gl5=int(mod(vM+0.5,32.0))==5; if(gl5){ if(uPick>0.5 || uMode>0.5 || uGP<0.5) discard; o=vec4(mix(uSkyTop,vec3(0.86,0.95,1.0),0.6),0.22); return; } else if(uGP>0.5) discard; }
+    { int mm=int(mod(vM+0.5,32.0)); bool gl5=uFP.w>0.0 && mm==5, lk=mm==29;
+      if(gl5){ if(uPick>0.5 || uMode>0.5 || uGP<0.5) discard; o=vec4(mix(uSkyTop,vec3(0.86,0.95,1.0),0.6),0.22); return; }
+      // 湖水：第二遍才画，真半透明（看得见水底的古城）；点选时照样能点到水面（钓鱼）
+      if(lk){ if(uMode>0.5 || (uPick<0.5 && uGP<0.5)) discard; } else if(uGP>0.5) discard; }
     if(uPick>0.5){ o=vec4(floor(vM/32.0+0.01)/255.0,0.0,0.0,1.0); return; }
     vec3 n=normalize(vN); vec3 V=normalize(uVd); if(uFP.w>0.0) V=normalize(uFP.xyz-vec3(vW.xy*${MU}, vW.z*${MZ})); if(dot(n,V)<0.0) n=-n;
-    int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0;
+    int m=int(mod(vM+0.5,32.0)); vec3 c=vC; float emis=0.0; bool lakeW=m==29; if(lakeW) m=10;
     if(uCel>0.5){ if(m==1) m=21; else if(m==2) m=17; else if(m==3) m=16; else if(m==4) m=15; else if(m==7) m=18; else if(m==8) m=20; else if(m==14) m=23; }
     if(uMode>0.5){ float d=gl_FragCoord.z*255.0; float face=n.z>0.6?0.0:(abs(n.x)>abs(n.y)?1.0:2.0); if(n.z<-0.6) face=3.0; o=vec4(floor(d)/255.0, fract(d), (float(m)+32.0*face)/255.0, 1.0); return; }
     bool wall=abs(n.z)<0.5; float hc=(abs(n.x)>abs(n.y))?vW.y:vW.x; // 墙面上的水平坐标
@@ -288,6 +291,10 @@
       float t=wall? hc*1.6 : (vW.x+vW.y)*1.2; c*=0.88+0.22*h1(vec2(floor(t),floor(vW.z/2.5))); if(fract(vW.z/2.5)<0.25) c*=0.75; }
     // 第一人称：离得远、一个像素盖住好几格花纹时，花纹（草点、木板缝、石缝、墙纸点……）慢慢淡成底色，不在像素间跳来跳去闪
     if(uFP.w>0.0 && m!=5 && m!=6 && m!=10){ float wpp=max(length(dFdx(vW)),length(dFdy(vW))); c=mix(c, vC*0.96, smoothstep(0.18,0.6,wpp)); }
+    // 湖底：水下的东西有一层晃动的光斑（焦散），越深越蓝
+    if(uLake.z>0.0 && !lakeW && vW.z<uLake.w-0.15){ vec2 d=vW.xy-uLake.xy; if(length(d)<uLake.z){ float dep=uLake.w-vW.z, t=uTime;
+      vec2 q=vW.xy*0.9; float k1=ns(q+vec2(t*0.35,t*0.2)), k2=ns(q*1.7-vec2(t*0.25,-t*0.3)); float cs=pow(1.0-abs(k1-k2),10.0);
+      c=mix(c, c*vec3(0.62,0.86,0.92)+vec3(0.02,0.08,0.1), clamp(dep/12.0,0.25,0.85)); c+=cs*vec3(0.55,0.8,0.75)*exp(-dep*0.06)*(n.z>0.3?1.0:0.5); emis=max(emis,0.18); } }
     float nl=max(dot(n,uSun),0.0);
     float sh=1.0; if(uShadow>0.5 && vS.x>0.0&&vS.x<1.0&&vS.y>0.0&&vS.y<1.0){ float s=0.0; for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) s+=texture(uSh, vec3(vS.xy+vec2(float(i),float(j))/2048.0*1.3, vS.z-0.0025)); sh=s/9.0; }
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
@@ -310,6 +317,7 @@
       float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.12);
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
+    if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); o=vec4(lit, uPick>0.5?1.0:clamp(0.32+0.55*fr,0.32,0.8)); return; } // 正着往下看最透，斜着看反光多
     o=vec4(lit,1.0);
   }`;
   const FSS = `#version 300 es
@@ -393,8 +401,9 @@
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
     if (u.uGP) gl.uniform1f(u.uGP, 0);
+    if (u.uLake) gl.uniform4fv(u.uLake, o.lake || [0, 0, 0, 0]); // 湖：圆心、半径、水面高度（水下光斑、发蓝）
     for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
-    if (o.fp && !o.pickAt && !o.mode && u.uGP) { gl.uniform1f(u.uGP, 1); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.depthMask(false);
+    if (!o.pickAt && !o.mode && u.uGP && (o.fp || o.lake)) { gl.uniform1f(u.uGP, 1); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.depthMask(false);
       for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
       gl.depthMask(true); gl.disable(gl.BLEND); gl.uniform1f(u.uGP, 0); }
     gl.bindVertexArray(null);

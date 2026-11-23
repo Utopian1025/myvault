@@ -326,7 +326,7 @@
   }
   function viewOpts() { const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
-    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf() }, lastLO); }
+    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
     const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)) });
@@ -811,7 +811,7 @@
   // ---- 碰撞：直接用画出来的模型 ----
   // 把城堡的每个三角面撒点，落进 0.25 格的小方块里：有东西的方块就是实心的（像我的世界）。
   // 看得见的才挡人，看不见的不挡；会随风摆的（树叶、草丛、灌木）和水面能穿过去
-  const VX = 0.25, VZ = 0.25, MAT_SKIP = new Set([g3.MAT.water, g3.MAT.pwater, g3.MAT.glow]);
+  const VX = 0.25, VZ = 0.25, MAT_SKIP = new Set([g3.MAT.water, g3.MAT.pwater, g3.MAT.glow, g3.MAT.lake]); // 水面不算实心（湖里能游泳、潜水）
   let vox = null, voxB = null;
   // 第一次当场生成（约一秒）；之后城堡有变化（菜长了、挪了家具……）就在后台一点点生成新的，生成好之前继续用旧的
   function voxels() {
@@ -1010,7 +1010,7 @@
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
-          <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· E / F / 单击 互动 · 1～5 或滚轮 换快捷栏 · M 或 Tab 地图 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
+          <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· 准星对着东西 E / F / 单击，自动做对的事（种菜、浇水、收菜、钓鱼、摸摸伙伴）· 滚轮 镜头远近 · B 自己吃点东西 · M 或 Tab 地图 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4); fpBarEl.style.transformOrigin = 'left top'; fpBarEl.style.transform = `scale(${sc.toFixed(3)})`;
@@ -1047,9 +1047,9 @@
     if (!fp) return;
     if (e.key === 'Alt') { lookFree(); e.preventDefault(); return; } // Alt：先把鼠标放出来点按钮
     { const k = fpKeyMap[e.code]; if (k && !e.altKey && !e.metaKey) { fp.keys.add(k); if (k !== 'run' && k !== 'crouch') fp.auto = null; e.preventDefault(); return; } } // 按住 Ctrl 蹲着也能走
-    if (e.code === 'Space' && !e.altKey && !e.metaKey) { fpJump(); e.preventDefault(); return; }
+    if (e.code === 'Space' && !e.altKey && !e.metaKey) { fp.keys.add('up'); fpJump(); e.preventDefault(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    /* 按键照成熟游戏来：E / F 互动（GTA / 原神）、M 或 Tab 地图、按住 Alt 放出鼠标（原神）、Ctrl / C 蹲（GTA）、V 视角、1～5 和滚轮快捷栏（我的世界）、F11 全屏、H 或 F1 按键说明 */
+    /* 按键照成熟游戏来：E / F 互动（GTA / 原神）、M 或 Tab 地图、按住 Alt 放出鼠标（原神）、Ctrl / C 蹲（GTA）、V 视角、滚轮镜头远近（原神）；没有快捷栏，看着东西点一下就做对的事、F11 全屏、H 或 F1 按键说明 */
     if (e.code === 'Tab' || e.code === 'KeyM') { toggleMap(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
     if (e.code === 'F11') { fpFullToggle(); e.preventDefault(); return; }
@@ -1058,21 +1058,21 @@
     if (e.code === 'KeyV') { const s = S(), d = fpDist(); s.fpDist = d < 0.5 ? 6 : d < 9 ? 11 : 0; PP.save.soon(); fpBar(); PP.ui.toast(s.fpDist === 0 ? '第一人称' : s.fpDist === 6 ? '第三人称（近）· 再按 V 拉远' : '第三人称（远）· 再按 V 回第一人称', 1.2); e.preventDefault(); return; }
     if (e.code === 'KeyC' || e.code === 'KeyX') { fp.crouchT = !fp.crouchT; PP.ui.toast(fp.crouchT ? '蹲下了（再按 C 站起来；按住 Ctrl 也能蹲）' : '站起来了', 1.2); e.preventDefault(); return; }
     if (e.code === 'KeyZ') { fp.pose = !fp.pose ? 'sit' : fp.pose === 'sit' ? 'lie' : null; fp.auto = null; PP.ui.toast(fp.pose === 'sit' ? '坐下歇会儿（慢慢回体力，走一步就起来）' : fp.pose === 'lie' ? '躺下（回体力更快，走一步就起来）' : '起来了', 1.4); e.preventDefault(); return; }
-    if (/^Digit[1-5]$/.test(e.code)) { fpSlot(+e.code.slice(5)); e.preventDefault(); return; }
+    if (e.code === 'KeyB') { foodPop(fp.p, L.vx0 + L.vw / 2, L.vy0 + L.vh / 2, true); e.preventDefault(); return; } // B：自己吃点东西（像原神的背包里点食物）
     if (e.code === 'KeyQ') { fpStop(); e.preventDefault(); }
   });
-  window.addEventListener('keyup', (e) => { if (!fp) return; const k = fpKeyMap[e.code]; if (k) fp.keys.delete(k); if (e.key === 'Alt' && lookPref() && !fp.freeMouse && !fpMenu && !bigMap && !uiOpen()) { e.preventDefault(); lookGrab(); } }); // 松开 Alt：鼠标重新锁回画面（像原神）
+  window.addEventListener('keyup', (e) => { if (!fp) return; if (e.code === 'Space') fp.keys.delete('up'); const k = fpKeyMap[e.code]; if (k) fp.keys.delete(k); if (e.key === 'Alt' && lookPref() && !fp.freeMouse && !fpMenu && !bigMap && !uiOpen()) { e.preventDefault(); lookGrab(); } }); // 松开 Alt：鼠标重新锁回画面（像原神）
   window.addEventListener('blur', () => { if (fp) fp.keys.clear(); });
   // 滚轮：拉远（第三人称）/ 拉近（第一人称）
   window.addEventListener('wheel', (e) => {
     if (!fp || (e.target && e.target.closest && e.target.closest('.panel,.menu,.fpmenu'))) return;
     e.preventDefault(); e.stopImmediatePropagation();
     if (bigMap) { bigMap.z = U.clamp((bigMap.z || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 4); return; }
-    // 滚轮换快捷栏（像我的世界）；视野宽窄在设置里调，第三人称远近按 V
-    fpSlot(((S().fpSlot || 1) - 1 + (e.deltaY > 0 ? 1 : 4)) % 5 + 1);
+    // 滚轮拉近 / 拉远镜头（像原神）：拉到最近就是第一人称
+    { const s2 = S(), d0 = fpDist(), d1 = U.clamp(d0 + (e.deltaY > 0 ? 1.5 : -1.5), 0, 14); s2.fpDist = d1 < 2 ? 0 : Math.max(4, d1); if ((d0 < 0.5) !== (s2.fpDist < 0.5)) fpBar(); PP.save.soon(); }
   }, { capture: true, passive: false });
   /* 跳：站着起跳是普通高度；跑起来再跳更高（助跑越快跳得越高，最快时高出六成） */
-  function fpJump() { if (!fp || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.18 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
+  function fpJump() { if (!fp || fp.swim || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.18 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
   // ---- 鼠标：锁住（转头）/ 拖动 / 触屏滑 ----
   // 鼠标转头：把鼠标锁在画面里（光标藏起来），移动鼠标 = 转头，单击 = 用准星对着的东西；M 或菜单开关；Alt 先松开鼠标；Esc 是老板键
   let lookBye = false, lookT = 0, lookLostT = -1e9, lastPT = 'mouse';
@@ -1191,6 +1191,22 @@
       /* 自动跳（像我的世界）：被不高的东西（花盆边、长凳、箱子……不到 3 格）挡住、上面又站得下，就自己跳上去 */
       if (!fp.air && S().fpAutoJump !== false && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du * 0.45, nv = q.v + dv * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + stepAt(q.u, q.v) && !blocked(nu, nv, g2.z) && headroom(nu, nv, g2.z) > bodyNow + 0.3 && wideTop(nu, nv, g2.z, du, dv)) fpJump(); }
     }
+    // ---- 游泳 / 潜水：在林中湖里（身子泡在水面以下） ----
+    const LK = F.LAKE, inWater = !!(LK && F.inLake(q.u, q.v, 0.2) && q.z < LK.z - 1.2);
+    if (inWater && !fp.swim) { fp.swim = true; fp.air = false; fp.vz = Math.max(fp.vz || 0, -6); fp.crouchT = false; PP.ui.toast('掉进湖里啦——在游泳：空格往上浮，Ctrl / C 往下潜，看着哪儿往哪儿游', 3); }
+    if (fp.swim && !inWater && !(LK && F.inLake(q.u, q.v, -0.4))) fp.swim = false;
+    if (fp.swim) {
+      const floatZ = LK.z - EYE + 0.7, down = K.has('crouch') || fp.crouchT, up = K.has('up'), g0 = surf(q.u, q.v, q.z + 1.2);
+      if (mv && Math.abs(fp.pitch) > 0.15) fp.vz += Math.sin(fp.pitch) * 30 * dt * mv; // 往下看着往前游就往下潜，往上看就往上浮
+      fp.vz += ((up ? 26 : 0) - (down ? 22 : 0) + (q.z < floatZ ? 6 : -14)) * dt; fp.vz *= Math.pow(0.12, dt); // 水里有浮力、有阻力
+      let nz = q.z + fp.vz * dt; if (nz > floatZ) { nz = Math.min(nz, floatZ + (up ? 0.5 : 0.15)); if (fp.vz > 0) fp.vz *= 0.5; } // 浮到水面就停（头露出水面），按住空格也只是冒个头
+      if (isFinite(g0.z) && nz < g0.z) { nz = g0.z; fp.vz = Math.max(0, fp.vz); }
+      /* 游到岸边往上浮：岸比水面高一点，按空格（或往前游）就爬上岸 */
+      if ((up || mv) && q.z > floatZ - 1.5) { const c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), nu = q.u + c * 0.8, nv = q.v + s2 * 0.8, g2 = surf(nu, nv, LK.z + 2.4); if (isFinite(g2.z) && g2.z > LK.z - 0.3 && !blocked(nu, nv, g2.z)) { q.u = nu; q.v = nv; nz = g2.z; fp.swim = false; fp.vz = 0; } }
+      q.z = nz; q.lv = 1; fp.air = false; fp.under = q.z + EYE < LK.z; fp.bob += dt * 3;
+      p.anim = 'walk'; fpSync(); return;
+    }
+    fp.under = false;
     // 竖直方向：跳起来 / 掉下去 / 落地
     const stH = stepAt(q.u, q.v), g = surf(q.u, q.v, q.z + stH);
     if (fp.air) {
@@ -1263,8 +1279,7 @@
       else if (f.ph === 'fly' || f.ph === 'wait') PP.ui.toast('收竿了——还没咬钩呢，再耐心等等', 1.4);
       ripple(f.u, f.v); fp.fish = null; p.tool = null; return;
     }
-    if (fp.q.lv !== FISH.lv || Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 10) { PP.ui.toast('走到蓄水池边上，对准水面再抛竿', 1.6); return; }
-    if (S().fpSlot !== 4) fpSlot(4);
+    if (fp.q.lv !== FISH.lv || Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 10) { PP.ui.toast('走到湖边，对准水面再点一下抛竿', 1.6); return; }
     const pt = castPoint(); fp.fish = { ph: 'fly', u: pt[0], v: pt[1], t0: now, biteAt: now + 600 + U.rand(3500, 9000) }; p.tool = { k: 'rod', t0: now };
   }
   function fishTick(now) {
@@ -1275,19 +1290,10 @@
     if (Math.hypot(fp.q.u - f.u, fp.q.v - f.v) > 16 || fp.q.lv !== FISH.lv) { fp.fish = null; fp.p.tool = null; PP.ui.toast('走远了，鱼线收回来了', 1.2); }
   }
   function bobNow(now) { const f = fp && fp.fish; if (!f || f.ph === 'fly') return null; const dip = f.ph === 'bite' ? 0.28 + Math.sin(now / 60) * 0.08 : Math.max(0, Math.sin(now / 420)) * 0.05; return { u: f.u, v: f.v, dip }; }
-  /* 快捷栏（1～5）：手 / 水壶 / 种子 / 鱼竿 / 零食。选好再按 E 或单击 */
-  const SLOTS5 = [['手', '✋', '用准星对着的东西'], ['水壶', '💧', '对着菜地浇水'], ['种子', '🌱', '对着空菜地种下'], ['鱼竿', '🎣', '对着蓄水池钓鱼'], ['零食', '🍪', '按 E 自己吃一口零食']];
   let hotEl = null;
-  function fpSlot(i) { S().fpSlot = U.clamp(i, 1, 5); PP.save.soon(); fpHot(); }
-  function fpHot() {
-    if (!fp) { if (hotEl) { hotEl.remove(); hotEl = null; } return; }
-    if (!hotEl) { hotEl = document.createElement('div'); hotEl.className = 'fphot'; document.getElementById('ui').appendChild(hotEl);
-      hotEl.addEventListener('mousedown', (ev) => ev.stopPropagation()); hotEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-s]'); if (b) fpSlot(+b.dataset.s); }); }
-    hotEl.style.display = bigMap ? 'none' : '';
-    const cur = S().fpSlot || 1, k = cur + '|' + L.vx0 + '|' + L.vw + '|' + L.vy1;
-    if (hotEl.dataset.k !== k) { hotEl.dataset.k = k; hotEl.innerHTML = SLOTS5.map(([n, ic, tip], i) => `<button data-s="${i + 1}" class="${cur === i + 1 ? 'on' : ''}" title="${tip}"><i>${i + 1}</i>${ic}<small>${n}</small></button>`).join('');
-      hotEl.style.left = Math.round(L.vx0 + L.vw / 2) + 'px'; hotEl.style.top = Math.round(L.vy1 - 8) + 'px'; }
-  }
+  function fpSlot() { S().fpSlot = 1; }
+  /* 快捷栏去掉了（看着东西点一下就做对的事，像原神 / 塞尔达）：这里只负责把旧存档里留下的快捷栏收掉 */
+  function fpHot() { if (hotEl) { hotEl.remove(); hotEl = null; } }
   /* 看不看得见：从眼睛到它身子中间连一条线，路上碰到墙、地板（实心的方块）就看不见。每只 0.15 秒算一次 */
   function sees(o, eye, q) {
     const now = performance.now(); if (o._seeT && now - o._seeT < 150) return o._see; o._seeT = now;
@@ -1298,14 +1304,31 @@
     for (let i = 2; i < n - 3; i++) { const k = i / n; if (vAt(V, eye[0] + du * k, eye[1] + dv * k, eye[2] + dz * k)) { ok = false; break; } }
     return (o._see = ok);
   }
+  /* 准星对着的伙伴（画在画面上的纸片人：按屏幕位置和远近判断） */
+  function aimPet(x, y) {
+    let best = null;
+    for (const v of fp.vis || []) { if (v.me) continue; const o = v.o, q = o.isleSpot ? { u: o.isleSpot.u, v: o.isleSpot.v } : o.ip; if (!q || Math.hypot(q.u - fp.q.u, q.v - fp.q.v) > REACH + 3) continue;
+      if (Math.abs(x - v.sx) < Math.max(14, v.px * 0.4) && y < v.sy + 4 && y > v.sy - Math.max(24, v.px * 1.1) && (!best || v.d < best.d)) best = v; }
+    return best && best.o;
+  }
+  const FOODS = () => { const e = E(), I = PP.econ.ITEMS; return Object.keys(e.bag).filter((k) => e.bag[k] > 0 && I[k] && ['snack', 'dish', 'crop'].includes(I[k].kind)); };
+  /* 对着伙伴点一下：摸摸 / 喂它吃的；按 B 是给自己吃 */
+  function foodPop(o, x, y, self) {
+    const I = PP.econ.ITEMS, e = E(), fs = FOODS().slice(0, 6);
+    if (self && !fs.length) { PP.ui.toast('背包里没有吃的（商店能买零食，菜地能收菜）', 2); return; }
+    const el = document.createElement('div'); el.className = 'seedpick';
+    el.innerHTML = `<div class="sp-head"><b>${self ? '吃点什么？' : (o.d.name || '小伙伴')}</b></div><div class="sp-list">${self ? '' : '<button class="sp" data-a="pat">✋<b>摸摸它</b></button>'}${fs.map((k) => `<button class="sp" data-a="feed" data-k="${k}">${I[k].icon || '🍪'}<b>${self ? '' : '喂它'}${I[k].name}</b><small>还有 ${e.bag[k]}</small></button>`).join('')}${!self && !fs.length ? '<div class="muted">背包里没有吃的</div>' : ''}</div>`;
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b) return; PP.hud && PP.hud.close();
+      if (b.dataset.a === 'pat') { o.run('petted', PP.ACTIONS.petted); if (PP.quest && !o.d.wild) PP.quest.on('pat'); } else PP.econ.feedItem(o, b.dataset.k); });
+    if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
+  }
   function fpUse(at) {
     fp.useT = performance.now();
-    const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2, slot = S().fpSlot || 1;
-    if (slot === 5) { const e = E(), id = Object.keys(e.bag).find((k) => e.bag[k] > 0 && PP.econ.ITEMS[k] && ['snack', 'dish', 'crop'].includes(PP.econ.ITEMS[k].kind)); if (!id) { PP.ui.toast('背包里没有吃的了（商店能买零食，菜地能收菜）', 2); return; } PP.econ.feedItem(fp.p, id); return; }
+    const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2;
+    if (fp.fish) { fpFish(); return; } // 正在钓鱼：点哪儿都是收竿（随时都能收）
+    { const o = aimPet(L.vx0 + x, L.vy0 + y); if (o) { foodPop(o, L.vx0 + x, L.vy0 + y); return; } }
     const h = hotFromId(fpPick(x, y));
-    if (fp.fish || slot === 4 || (h && h.k === 'fish')) { fpFish(); return; } // 钓鱼：抛竿 / 收竿（随时都能收）
-    const need = { 2: (h) => h && h.k === 'plot' && PP.econ.plotInfo(h.i), 3: (h) => h && h.k === 'plot' && !PP.econ.plotInfo(h.i), 4: (h) => h && h.k === 'fish' }[slot];
-    if (need && !need(h)) { PP.ui.toast(SLOTS5[slot - 1][0] + '：' + SLOTS5[slot - 1][2] + '（按 1 换回手）', 1.8); return; }
+    if (h && h.k === 'fish') { fpFish(); return; } // 对着水面点一下：抛竿
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
     if (h.k === 'plot' && !nearPlot(fp.q.u, fp.q.v, h.i)) { PP.ui.toast('离菜地远了点，走到菜地边上再用', 1.4); return; }
     if (h.k === 'switch') { const w = F.switches()[h.i], p0 = w && (w.round ? [w.u, w.v] : F.toW(w.fr, w.ax === 'v' ? w.s : w.at, w.ax === 'v' ? w.at : w.s)); if (p0 && Math.hypot(p0[0] - fp.q.u, p0[1] - fp.q.v) > REACH + 1) { PP.ui.toast('够不着开关，走到门边再按', 1.4); return; } toggleLight(h.i); return; }
@@ -1370,13 +1393,13 @@
     bigMap = null; fpBar(); PP.ui.toast('自己走过去啦（按方向键可以停下）', 1.6);
   }
   // ---- 每一帧 ----
-  /* 第一人称的手：右下角一直画着主角的爪子，拿着快捷栏里的东西；干活时有动作，准星上面显示「正在……」和进度条，做完闪一下 */
+  /* 第一人称的手：右下角一直画着主角的爪子，手里拿什么看正在干什么；干活时有动作，准星上面显示「正在……」和进度条，做完闪一下 */
   const WORK_KIND = { isleWater: ['water', '正在浇水', 3.2], isleSow: ['sow', '正在播种', 3.5], isleHarvest: ['harvest', '正在收菜', 2.6], isleFish: ['fish', '正在钓鱼', 10], isleHive: ['use', '正在收蜂蜜', 3], isleDrink: ['use', '正在喝水', 3], isleMail: ['use', '正在看信箱', 2], isleUse: ['use', '正在用', 4], fed: ['eat', '正在吃', 2.5], isleStoke: ['use', '正在添柴', 6] };
   const SLOT_KIND = [null, 'hand', 'can', 'seed', 'rod', 'snack'];
   function drawHands(ctx, x0, y0, w, h, now) {
     const p = fp.p, a = p.action, wk = WORK_KIND[a], t = now / 1000;
     if (fp._wa !== a) { if (fp._wa && WORK_KIND[fp._wa] && (!a || a === 'fp')) fp._done = { t: now, tx: WORK_KIND[fp._wa][1].replace('正在', '') + '完成' }; fp._wa = a; fp._wt = now; }
-    let kind = wk ? wk[0] : fp.wood ? 'wood' : SLOT_KIND[S().fpSlot || 1] || 'hand'; const el = wk ? (now - fp._wt) / 1000 : 0;
+    let kind = wk ? wk[0] : fp.wood ? 'wood' : fp.fish ? 'rod' : 'hand'; /* 手里拿什么看正在干什么（钓鱼拿鱼竿、浇水拿水壶），不用自己切 */ const el = wk ? (now - fp._wt) / 1000 : 0;
     if (wk && p.tool && p.tool.k === 'can') kind = 'water'; else if (wk && p.tool && p.tool.k === 'basket') kind = 'harvest';
     const u = Math.max(4, Math.round(Math.min(w, h) / 55)), C = p.pal || {}, base = C.base || '#d9a066', light = C.light || '#f4dcb8', dark = C.dark || '#8a5a3a', K = '#2a2030';
     const walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto);
@@ -1524,12 +1547,19 @@
       const mx = (q.u - cam.eye[0]) * 2.83, my = (q.v - cam.eye[1]) * 2.83, mz = ((q.z != null ? q.z : Z[q.lv]) - cam.eye[2]) * 1.155;
       const rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; if (f2 < 1) continue;
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
-    vis.sort((a, b) => b.d - a.d);
+    vis.sort((a, b) => b.d - a.d); fp.vis = vis; // 留给「准星对着哪个伙伴」用
     for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    if (fp.under) try { /* 水下：整个画面泛蓝绿、越往下越暗；头顶斜斜的几道光；小气泡往上冒 */
+      const LK = F.LAKE, dep = U.clamp((LK.z - (fp.q.z + EYE)) / 18, 0, 1), gr = ctx.createLinearGradient(0, y0, 0, y0 + h);
+      gr.addColorStop(0, `rgba(70,170,180,${0.28 + dep * 0.12})`); gr.addColorStop(1, `rgba(16,60,78,${0.42 + dep * 0.3})`); ctx.fillStyle = gr; ctx.fillRect(x0, y0, w, h);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const xx = x0 + w * (0.15 + i * 0.18) + Math.sin(now / 1500 + i) * w * 0.04, ww = w * (0.04 + 0.02 * Math.sin(now / 900 + i * 2)); const g2 = ctx.createLinearGradient(0, y0, 0, y0 + h * 0.8); g2.addColorStop(0, `rgba(190,240,230,${0.12 * (1 - dep)})`); g2.addColorStop(1, 'rgba(190,240,230,0)'); ctx.fillStyle = g2; ctx.beginPath(); ctx.moveTo(xx, y0); ctx.lineTo(xx + ww, y0); ctx.lineTo(xx + ww * 3 + w * 0.08, y0 + h * 0.8); ctx.lineTo(xx + w * 0.08, y0 + h * 0.8); ctx.closePath(); ctx.fill(); } ctx.restore();
+      const B = fp.bub = fp.bub || Array.from({ length: 18 }, () => ({ x: Math.random(), y: Math.random(), r: 1 + Math.random() * 2.5, s: 0.05 + Math.random() * 0.12 }));
+      ctx.strokeStyle = 'rgba(230,250,255,.7)'; ctx.lineWidth = 1; for (const b of B) { b.y -= b.s * 0.016; b.x += Math.sin(now / 400 + b.r * 3) * 0.0006; if (b.y < -0.05) { b.y = 1.05; b.x = Math.random(); } ctx.beginPath(); ctx.arc(x0 + b.x * w, y0 + b.y * h, b.r * (h / 400), 0, 6.283); ctx.stroke(); }
+    } catch (e) {}
     try { /* 空中飘的东西：白天是花瓣（风吹着斜斜地飘），晚上是一闪一闪的萤火虫；转头时跟着画面挪，像真的在空气里 */
       const lo2 = lightOpts(), ngt = (lo2.lit || 0) > 0.6, P2 = fp.air2 = fp.air2 || Array.from({ length: 46 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: 0.3 + Math.random() * 0.7, ph: Math.random() * 6.28 }));
       const dyaw = (fp._lastYaw == null ? 0 : fp.yaw - fp._lastYaw), dpit = (fp._lastPit == null ? 0 : fp.pitch - fp._lastPit); fp._lastYaw = fp.yaw; fp._lastPit = fp.pitch; const indoor = !!F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
-      for (const a of P2) { a.x -= dyaw * 0.35 * a.z; a.y += dpit * 0.35 * a.z; if (ngt) { a.x += Math.sin(now / 1300 + a.ph) * 0.0006; a.y += Math.cos(now / 1700 + a.ph) * 0.0005; } else { a.x += 0.0009 * a.z; a.y += 0.0011 * a.z; }
+      for (const a of (fp.under ? [] : P2)) { /* 水下不飘花瓣 */ a.x -= dyaw * 0.35 * a.z; a.y += dpit * 0.35 * a.z; if (ngt) { a.x += Math.sin(now / 1300 + a.ph) * 0.0006; a.y += Math.cos(now / 1700 + a.ph) * 0.0005; } else { a.x += 0.0009 * a.z; a.y += 0.0011 * a.z; }
         a.x = ((a.x % 1) + 1) % 1; a.y = ((a.y % 1) + 1) % 1; }
       const nShow = indoor ? (ngt ? 6 : 28) : P2.length; // 屋里白天：空气里漂着一点点被阳光照亮的灰尘
       for (let i = 0; i < nShow; i++) { const a = P2[i], px = x0 + a.x * w, py = y0 + a.y * h, sz = (2 + a.z * 5) * Math.min(w, h) / 500;
@@ -1544,7 +1574,7 @@
       const cs = fp.catchShow; if (cs && now - cs.t < 2600 && PP.FISHDEX && cs.id) { const im = PP.FISHDEX.sprite(cs.id), k = Math.min(1, (now - cs.t) / 250), sw = Math.min(w, h) * 0.42 * k, sh = sw * im.height / im.width, cx = x0 + w * 0.62, cy = y0 + h * 0.64 + Math.sin(now / 90) * 3; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(cx, cy); ctx.rotate(-0.25 + Math.sin(now / 120) * 0.06); ctx.drawImage(im, -sw / 2, -sh / 2, sw, sh); ctx.restore(); ctx.font = PP.FONT(Math.min(w, h) / 22); ctx.textAlign = 'center'; ctx.fillStyle = '#fff6d8'; ctx.strokeStyle = 'rgba(30,24,40,.8)'; ctx.lineWidth = 4; ctx.strokeText(cs.name, cx, cy + sh / 2 + 8); ctx.fillText(cs.name, cx, cy + sh / 2 + 8); } } catch (e) {}
     // 准星 + 准星指着的东西
     const cur = !lookOn() && fp.mx != null && !fp.overUI && fp.mx >= x0 && fp.mx <= x0 + w && fp.my >= y0 && fp.my <= y0 + h ? [fp.mx - x0, fp.my - y0] : null;
-    if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(cur ? cur[0] : w / 2, cur ? cur[1] : h / 2)); fp.aim = hh && hh.label ? hh.label : null; fp.aimAt = cur; }
+    if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(cur ? cur[0] : w / 2, cur ? cur[1] : h / 2)), po = aimPet(x0 + (cur ? cur[0] : w / 2), y0 + (cur ? cur[1] : h / 2)); fp.aim = po ? (po.d.name || '小伙伴') + '：摸摸 / 喂点吃的' : fp.fish ? '收竿' : hh && hh.label ? hh.label : null; fp.aimAt = cur; }
     const cx0 = x0 + w / 2, cy0 = y0 + h / 2, us = Math.max(1, Math.round(Math.min(w, h) / 260));
     if (lookOn() || !cur) { /* 准星：锁着鼠标时才用；不锁时鼠标本身就是指针 */
     ctx.fillStyle = 'rgba(20,16,30,.55)'; ctx.fillRect(cx0 - 7 * us, cy0 - us * 1.5, 14 * us, 3 * us); ctx.fillRect(cx0 - us * 1.5, cy0 - 7 * us, 3 * us, 14 * us); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(cx0 - 6 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 + 2 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 - us / 2, cy0 - 6 * us, us, 4 * us); ctx.fillRect(cx0 - us / 2, cy0 + 2 * us, us, 4 * us); }
@@ -1556,7 +1586,7 @@
     if (false) { const t2 = '', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     // 按键说明：默认一直显示在左下角（像很多游戏的按键提示），按 H 收起 / 展开
-    if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳（跑起来跳更高）'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['1～5 / 滚轮', '快捷栏'], ['M / Tab', '地图'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['F11', '全屏'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
+    if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳（跑起来跳更高）'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['滚轮', '镜头远近'], ['B', '自己吃点东西'], ['M / Tab', '地图'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['F11', '全屏'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
       const f3 = fs * 0.72; ctx.save(); ctx.font = PP.FONT(f3); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       if (S().fpKeysHide) { const t3 = 'H 显示按键说明', tw3 = ctx.measureText(t3).width; ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillRect(x0 + 8, y0 + h - f3 - 18, tw3 + 14, f3 + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(t3, x0 + 15, y0 + h - f3 / 2 - 13); }
       else { const lh = f3 + 7, rows = Math.ceil(KS.length / 2), kwid = Math.max(...KS.map(([k]) => ctx.measureText(k).width)) + 12, twid = Math.max(...KS.map(([, t]) => ctx.measureText(t).width)), colW = kwid + twid + 18, bh = rows * lh + 10, bx = x0 + 8, by = y0 + h - bh - 8;
@@ -1564,14 +1594,14 @@
         KS.forEach(([k, t], i) => { const col = Math.floor(i / rows), row = i % rows, xx = bx + col * colW, yy = by + 5 + row * lh + lh / 2, kw2 = ctx.measureText(k).width + 8; ctx.fillStyle = 'rgba(255,246,216,.9)'; ctx.fillRect(xx + 6, yy - lh / 2 + 2, kw2, lh - 4); ctx.fillStyle = '#2a2030'; ctx.fillText(k, xx + 10, yy); ctx.fillStyle = '#fff6d8'; ctx.fillText(t, xx + kwid + 12, yy); }); }
       ctx.restore(); }
     const age = 99;
-    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 移动鼠标转向 · 准星对准东西单击 · M 松开鼠标· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 移动鼠标转向 · 准星对准东西单击 · M 松开鼠标· 空格跳 · E 用 · 滚轮 镜头远近 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 走进一个房间：屏幕上方淡入房间名字（像原神进入新地方），两三秒后淡掉
-    { const rr = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), key = rr ? rr.id : 'out:' + fp.q.lv; if (fp._roomK !== key) { if (fp._roomK != null) fp.roomPop = { nm: rr ? rr.nm : '城堡外面', sub: F.NAME[fp.q.lv], t: now }; fp._roomK = key; }
+    { const rr = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), md = !rr && F.MODS.find((q) => q.lv === fp.q.lv && F.inMod(q, fp.q.u, fp.q.v)), key = fp.under ? 'under' : rr ? rr.id : md ? 'm:' + md.id : 'out:' + fp.q.lv; if (fp._roomK !== key) { if (fp._roomK != null) fp.roomPop = { nm: fp.under ? '水下古城' : rr ? rr.nm : md ? md.name : '城堡外面', sub: F.NAME[fp.q.lv], t: now }; fp._roomK = key; }
       const rp = fp.roomPop; if (rp && now - rp.t < 2800) { const k = now - rp.t, al = k < 400 ? k / 400 : k > 2200 ? (2800 - k) / 600 : 1, fz = Math.min(w, h) / 16; ctx.save(); ctx.globalAlpha = al; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const yy = y0 + h * 0.16;
         ctx.font = PP.FONT(fz); const tw = ctx.measureText(rp.nm).width; ctx.strokeStyle = 'rgba(255,246,216,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx0 - tw / 2 - fz * 2.2, yy); ctx.lineTo(cx0 - tw / 2 - fz * 0.5, yy); ctx.moveTo(cx0 + tw / 2 + fz * 0.5, yy); ctx.lineTo(cx0 + tw / 2 + fz * 2.2, yy); ctx.stroke();
         ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillText(rp.nm, cx0 + 2, yy + 2); ctx.fillStyle = '#fff6d8'; ctx.fillText(rp.nm, cx0, yy); ctx.font = PP.FONT(fz * 0.42); ctx.fillStyle = 'rgba(255,246,216,.85)'; ctx.fillText(rp.sub, cx0, yy + fz * 0.85); ctx.restore(); } }
     // 小地图（右上角）+ 在哪儿
-    const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;
+    const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = `${F.NAME[fp.q.lv]} · ${fp.under ? '林中湖 · 水下古城' : rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }
     else if (!bigMap) { miniR = null; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.85); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(where, x0 + w - 10, y0 + 10); }
     // 大地图
@@ -1684,7 +1714,7 @@
     for (const lv of order) { const [gu, gv] = toUV(x, y, a.z[lv]); if (!free(a, gu, gv, lv)) continue; if (cut == null && F.roomAt(gu, gv, lv)) continue; return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
     return null;
   }
-  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '蓄水池：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' } };
+  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '林中湖：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' } };
   function hot(x, y) {
     hover = null;
     if (fp) { if (L && x >= L.vx0 && x <= L.vx1 && y >= L.vy0 && y <= L.vy1) return (hover = { k: 'fp', isle: true, cur: 'crosshair' }); return null; }
@@ -1849,7 +1879,7 @@
   A.isleDrink = function* () { const p = this; if (!(yield* walkTo(p, ...F.tapStand()))) { stuck(p); return; } face(p, TAP.u, TAP.v); p.anim = 'idle'; p.jolt(0, -2); yield 0.3; p.anim = 'eat'; for (let k = 0; k < 6; k++) { fxAt(TAP.u, TAP.v - 0.9, 3, { vy: 30, icon: 'drop', life: 0.3 }); yield 0.3; } p.n.thirst = 100; gain(p, '不渴了'); p.anim = 'idle'; p.eyes = 'happy'; p.think('heart', 1); yield 1; p.eyes = 'open'; };
   A.isleFish = function* () {
     const p = this;
-    if (fp && fp.p === p) { if (Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 8 || fp.q.lv !== FISH.lv) { PP.ui.toast('走到蓄水池边上再钓', 1.4); return; } } /* 第一人称：池边哪儿都能钓 */
+    if (fp && fp.p === p) { if (Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 8 || fp.q.lv !== FISH.lv) { PP.ui.toast('走到湖边再钓', 1.4); return; } } /* 第一人称：池边哪儿都能钓 */
     else if (!(yield* walkTo(p, FISH.u, FISH.v, null, FISH.lv))) { stuck(p); return; } face(p, BOB.u, BOB.v); p.anim = 'sit';
     const set = (ph) => { p.fishing = Object.assign(p.fishing || {}, { ph, t0: performance.now() }); };
     set('cast'); p.jolt(0, -2); yield 0.8; ripple(BOB.u, BOB.v); yield 0.6; set('wait'); yield U.rand(3, 7); set('nibble'); ripple(BOB.u, BOB.v); yield U.rand(0.9, 1.6);

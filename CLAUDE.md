@@ -11,6 +11,7 @@
 - 不要输入任何密码或凭据。
 
 ## 发版流程
+0. **先对照 `docs/需求清单.md`**：用户提的每条要求都记在那里，本轮要做的全部打勾才发版（用户说过「之前说的你都记住了改完了吗就发布」）。用户提新要求时马上记进去。
 1. 改 `package.json` 的 `version`，在 `changelog.json` 最前面加一条（`version/date/title/notes[]`，notes 写给用户看的中文）。
 2. 提交并推到 `main`。
 3. 手动触发 `.github/workflows/build.yml`（`gh workflow run build.yml`），大约 15～17 分钟。
