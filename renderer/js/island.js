@@ -1039,7 +1039,7 @@
     PP.save.soon(); fpBar();
   }, { capture: true, passive: false });
   /* 跳：站着起跳是普通高度；跑起来再跳更高（助跑越快跳得越高，最快时高出六成） */
-  function fpJump() { if (!fp || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.27 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
+  function fpJump() { if (!fp || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.18 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
   // ---- 鼠标：锁住（转头）/ 拖动 / 触屏滑 ----
   // 鼠标转头：把鼠标锁在画面里（光标藏起来），移动鼠标 = 转头，单击 = 用准星对着的东西；M 或菜单开关；Alt 先松开鼠标；Esc 是老板键
   let lookBye = false, lookT = 0, lookLostT = -1e9, lastPT = 'mouse';
