@@ -1531,9 +1531,10 @@
       const dyaw = (fp._lastYaw == null ? 0 : fp.yaw - fp._lastYaw), dpit = (fp._lastPit == null ? 0 : fp.pitch - fp._lastPit); fp._lastYaw = fp.yaw; fp._lastPit = fp.pitch; const indoor = !!F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
       for (const a of P2) { a.x -= dyaw * 0.35 * a.z; a.y += dpit * 0.35 * a.z; if (ngt) { a.x += Math.sin(now / 1300 + a.ph) * 0.0006; a.y += Math.cos(now / 1700 + a.ph) * 0.0005; } else { a.x += 0.0009 * a.z; a.y += 0.0011 * a.z; }
         a.x = ((a.x % 1) + 1) % 1; a.y = ((a.y % 1) + 1) % 1; }
-      const nShow = indoor ? (ngt ? 6 : 0) : P2.length;
+      const nShow = indoor ? (ngt ? 6 : 28) : P2.length; // 屋里白天：空气里漂着一点点被阳光照亮的灰尘
       for (let i = 0; i < nShow; i++) { const a = P2[i], px = x0 + a.x * w, py = y0 + a.y * h, sz = (2 + a.z * 5) * Math.min(w, h) / 500;
         if (ngt) { const tw = 0.5 + 0.5 * Math.sin(now / 300 + a.ph * 3); if (tw < 0.15) continue; const g = ctx.createRadialGradient(px, py, 0, px, py, sz * 3); g.addColorStop(0, `rgba(230,255,150,${0.9 * tw})`); g.addColorStop(1, 'rgba(230,255,150,0)'); ctx.fillStyle = g; ctx.fillRect(px - sz * 3, py - sz * 3, sz * 6, sz * 6); }
+        else if (indoor) { const tw = 0.4 + 0.6 * Math.abs(Math.sin(now / 900 + a.ph * 2)), r2 = sz * 0.35; ctx.fillStyle = `rgba(255,236,190,${0.55 * tw})`; ctx.beginPath(); ctx.arc(px + Math.sin(now / 2200 + a.ph) * 6, py + Math.cos(now / 2600 + a.ph) * 5, r2, 0, 6.283); ctx.fill(); }
         else { ctx.save(); ctx.translate(px, py); ctx.rotate(now / 600 + a.ph); ctx.scale(1, 0.55 + 0.45 * Math.sin(now / 300 + a.ph)); ctx.fillStyle = i % 3 ? 'rgba(255,196,214,.85)' : 'rgba(255,240,246,.9)'; ctx.beginPath(); ctx.ellipse(0, 0, sz, sz * 0.6, 0, 0, 6.283); ctx.fill(); ctx.restore(); } } } catch (e) {}
     if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) {} }
     try { /* 鱼线：从右下角手里的鱼竿尖拉到浮漂；咬钩时浮漂那儿一圈圈水花 */ const bb = bobNow(now); if (bb) { const mx = (bb.u - cam.eye[0]) * 2.83, my = (bb.v - cam.eye[1]) * 2.83, mz = (POOL.z + 0.3 - bb.dip - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp;
@@ -1564,6 +1565,11 @@
       ctx.restore(); }
     const age = 99;
     if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 移动鼠标转向 · 准星对准东西单击 · M 松开鼠标· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
+    // 走进一个房间：屏幕上方淡入房间名字（像原神进入新地方），两三秒后淡掉
+    { const rr = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), key = rr ? rr.id : 'out:' + fp.q.lv; if (fp._roomK !== key) { if (fp._roomK != null) fp.roomPop = { nm: rr ? rr.nm : '城堡外面', sub: F.NAME[fp.q.lv], t: now }; fp._roomK = key; }
+      const rp = fp.roomPop; if (rp && now - rp.t < 2800) { const k = now - rp.t, al = k < 400 ? k / 400 : k > 2200 ? (2800 - k) / 600 : 1, fz = Math.min(w, h) / 16; ctx.save(); ctx.globalAlpha = al; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const yy = y0 + h * 0.16;
+        ctx.font = PP.FONT(fz); const tw = ctx.measureText(rp.nm).width; ctx.strokeStyle = 'rgba(255,246,216,.85)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx0 - tw / 2 - fz * 2.2, yy); ctx.lineTo(cx0 - tw / 2 - fz * 0.5, yy); ctx.moveTo(cx0 + tw / 2 + fz * 0.5, yy); ctx.lineTo(cx0 + tw / 2 + fz * 2.2, yy); ctx.stroke();
+        ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillText(rp.nm, cx0 + 2, yy + 2); ctx.fillStyle = '#fff6d8'; ctx.fillText(rp.nm, cx0, yy); ctx.font = PP.FONT(fz * 0.42); ctx.fillStyle = 'rgba(255,246,216,.85)'; ctx.fillText(rp.sub, cx0, yy + fz * 0.85); ctx.restore(); } }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.26, 96, 200)), mx = x0 + w - ms - 8, my = y0 + 8; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillText(where, x0 + w - 10, my + ms + 4); }
