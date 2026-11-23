@@ -551,6 +551,10 @@
   function repairFurn(e) {
     const L0 = FURN.layout(e);
     for (let i = L0.length - 1; i >= 0; i--) { if (fOK(L0[i], i)) continue; const f = fFree(L0[i], i); if (f) L0[i] = f; else L0.splice(i, 1); }
+    // 哪间屋有门走不到（家具挡在门口，以前是从桌子底下钻过去的）：把挡路的那件挪到能走通的地方
+    for (const rid of Object.keys(RM)) { if (RM[rid].hut || reachOK(rid)) continue;
+      const idx = L0.map((it, i) => [it, i]).filter(([it]) => it.room === rid).sort((A, B) => { const ra = FURN.rect(A[0], 0), rb = FURN.rect(B[0], 0); return (rb[2] - rb[0]) * (rb[3] - rb[1]) - (ra[2] - ra[0]) * (ra[3] - ra[1]); });
+      for (const [it] of idx) { const i = L0.indexOf(it); L0.splice(i, 1); if (!reachOK(rid)) { L0.splice(i, 0, it); continue; } (WALL_F.has(it.f) ? placeWall : placeReach)(e, Object.assign({}, it)); break; } }
     e.layoutV = 5; dirty(); PP.save.soon();
   }
   function fChanged() { dirty(); PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.y = p.floor; } } }
@@ -807,14 +811,18 @@
   }
   /* 桌子、工作台、柜子这些东西底下是空的：身子矮（3.6）能钻进去，可眼睛在 7.2，一钻镜头就穿进桌面。
      把它们占的地方从离地 1 格往上、到碰到它自己为止填实，第一人称就钻不进去了（跟伙伴们找路时的规矩一样） */
+  const UNDER_F = new Set(['desk', 'table', 'longtable', 'coffeetable', 'sidetable', 'teacart', 'vise', 'washstand', 'bench', 'piano']); // 底下是空的、人能钻进去的那些
   function stampUnder(V) {
     const { g, u0, v0, z0, nx, ny, nz } = V, list = [];
-    try { for (const f of F.FIX) for (const b of f.ob) list.push([f.lv, ...b]); for (const it of FURN.layout(E())) { if (FURN.D[it.f].walk) continue; list.push(...F.rectObs(F.frameOf(it.room || 'living'), F.roomLv(it.room || 'living'), FURN.rect(it, 0))); } } catch (e) { return; }
+    try { for (const f of F.FIX) if (f.id === 143 || f.id === 147) for (const b of f.ob) /* 固定摆设里只有餐桌、工作台底下是空的 */ list.push(Object.assign([f.lv, ...b], { src: 'FIX' + f.id })); for (const it of FURN.layout(E())) { if (!UNDER_F.has(it.f)) continue; list.push(...F.rectObs(F.frameOf(it.room || 'living'), F.roomLv(it.room || 'living'), FURN.rect(it, 0)).map((q) => Object.assign(q, { src: it.f }))); } } catch (e) { return; }
     const col = (u, v, lv) => { const i = Math.floor((u - u0) / VX), j = Math.floor((v - v0) / VX); if (i < 0 || j < 0 || i >= nx || j >= ny) return; const ka = Math.floor((Z[lv] + 1.05 - z0) / VZ), kb = Math.floor((Z[lv] + 3.4 - z0) / VZ);
+      const ta = Math.floor((Z[lv] + 3.5 - z0) / VZ), tb = Math.floor((Z[lv] + 6 - z0) / VZ); let over = false; for (let k = Math.max(0, ta); k <= tb && k < nz; k++) if (g[(k * ny + j) * nx + i] === 1) { over = true; break; }
+      if (!over) return; // 头顶 3.5～6 高处没有桌面一类的东西（细的灯杆、地球仪旁边的空当）：不填，照样能走
+      if (window.__stampDbg) window.__stampDbg.push([lv, +u.toFixed(2), +v.toFixed(2), col.src]);
       for (let k = Math.max(0, ka); k <= kb && k < nz; k++) { const n = (k * ny + j) * nx + i; if (g[n] === 1) break; g[n] = 1; } };
-    for (const o of list) { const lv = o[0]; if (Z[lv] == null) continue;
-      if (o[1] === 'c') { const [, , cu, cv, r] = o; for (let u = cu - r; u <= cu + r; u += VX) for (let v = cv - r; v <= cv + r; v += VX) if (Math.hypot(u - cu, v - cv) <= r) col(u, v, lv); }
-      else { const [, a, b, c, d] = o; for (let u = a + VX / 2; u < c; u += VX) for (let v = b + VX / 2; v < d; v += VX) col(u, v, lv); } }
+    for (const o of list) { const lv = o[0]; if (Z[lv] == null) continue; col.src = o.src;
+      if (o[1] === 'c') { const [, , cu, cv, r0] = o, r = r0 - 0.3; if (r <= 0) continue; for (let u = cu - r; u <= cu + r; u += VX) for (let v = cv - r; v <= cv + r; v += VX) if (Math.hypot(u - cu, v - cv) <= r) col(u, v, lv); }
+      else { const [, a0, b0, c0, d0] = o, a = a0 + 0.3, b = b0 + 0.3, c = c0 - 0.3, d = d0 - 0.3; for (let u = a + VX / 2; u < c; u += VX) for (let v = b + VX / 2; v < d; v += VX) col(u, v, lv); } } // 外框往里收一点：外框通常比看得见的东西大一圈
   }
   const vAt = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] === 1; };
   // ---- 地面、墙 ----
