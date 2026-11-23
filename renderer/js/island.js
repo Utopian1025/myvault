@@ -1210,7 +1210,7 @@
   const vAny = (V, u, v, z) => { const i = Math.floor((u - V.u0) / VX), j = Math.floor((v - V.v0) / VX), k = Math.floor((z - V.z0) / VZ); return i >= 0 && j >= 0 && k >= 0 && i < V.nx && j < V.ny && k < V.nz && V.g[(k * V.ny + j) * V.nx + i] > 0; };
   const wallAt = (u, v, z) => { const V = voxels(); if (V) return vAny(V, u, v, z) || vAny(V, u, v, z + 0.4) || vAny(V, u, v, z - 0.4); /* 镜头：树叶也算（不钻进树冠） */ const by = solids(); for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z < zb || z > zb + 15) continue; for (const s of by[L]) if (s.wall && hitO(s.o, u, v, 0.25)) return true; } return false; };
   function ceilAt(u, v, lv) { const r = F.roomAt(u, v, lv); let c = r ? Z[lv] + F.roomH(r) : 1e9; for (let L = lv + 1; L < Z.length; L++) if (area().inF(L, u, v)) { c = Math.min(c, Z[L]); break; } return c; }
-  function fpOpts(extra) { const k = fpK(), pix = fpQ() === 'pixel'; return Object.assign({}, viewOpts(), { msaa: !pix, w: Math.ceil(L.vw / k), h: Math.ceil(L.vh / k), posterize: pix ? 26 : 0, cel: pix, fp: fpCam(), cut: null, clip: null, mirror: false, pets: [], rips: [] }, extra || {}); }
+  function fpOpts(extra) { const k = fpK(), pix = fpQ() === 'pixel'; return Object.assign({}, viewOpts(), { msaa: !pix, w: Math.ceil(L.vw / k), h: Math.ceil(L.vh / k), posterize: pix ? 26 : 0, cel: pix, fp: fpCam(), cut: null, clip: null, mirror: false, pets: [], rips: rips.filter((r) => performance.now() / 1000 - r[2] < 4).slice(-4) }, extra || {}); }
   // 准星 / 点到的地方是什么
   function hotFromId(id) {
     if (id == null || id < 0) return null;
@@ -1221,6 +1221,33 @@
     const pr = props().find((q) => q.id === id); return pr ? { k: 'prop', pr, label: propLabel(pr) } : null;
   }
   function fpPick(x, y) { try { const k = fpK(); return glOK ? g3.draw(lastScenes, fpOpts({ pickAt: [x / k, y / k] })) : -1; } catch (e) { return -1; } }
+  // ---------- 第一人称钓鱼（像我的世界 / 原神）：对准水面点一下抛竿，浮漂落到你瞄的地方；咬钩时浮漂一沉、溅起水花，这时点一下就钓上来；随时都能收竿 ----------
+  function castPoint() {
+    const cam = fpCam(), P0 = F.pondFrame(), PL = F.POOL_L, y = cam.yaw, pt = cam.pitch; let x, v2;
+    const ez = isFinite(cam.eye[2]) ? cam.eye[2] : fp.q.z + EYE; if (pt < -0.03) { const t = (POOL.z - ez) * 1.155 / Math.sin(pt); x = cam.eye[0] + Math.cos(pt) * Math.cos(y) / 2.83 * t; v2 = cam.eye[1] + Math.cos(pt) * Math.sin(y) / 2.83 * t; }
+    else { x = cam.eye[0] + Math.cos(y) * 5; v2 = cam.eye[1] + Math.sin(y) * 5; }
+    const l = F.toL(P0, x, v2), lu = U.clamp(l[0], PL.u0 + 1.2, PL.u1 - 1.2), lv = U.clamp(l[1], PL.v0 + 1.2, PL.v1 - 1.2); return F.toW(P0, lu, lv);
+  }
+  function fpFish() {
+    const f = fp.fish, now = performance.now(), p = fp.p;
+    if (f) { // 收竿
+      if (f.ph === 'bite') { const d = day(); let got = null; if (PP.FISHDEX) { got = PP.FISHDEX.caught(p); if (got.eff !== 'junk' && d.fish < 14) d.fish++; } else { PP.econ.addFish(1, '钓到一条鱼'); d.fish++; }
+        fp.catchShow = { id: got && got.id, name: got ? got.name : '小鱼', t: now }; gain(p, got ? '钓到了 ' + got.name + '！' : '钓到一条鱼！'); }
+      else if (f.ph === 'fly' || f.ph === 'wait') PP.ui.toast('收竿了——还没咬钩呢，再耐心等等', 1.4);
+      ripple(f.u, f.v); fp.fish = null; p.tool = null; return;
+    }
+    if (fp.q.lv !== FISH.lv || Math.hypot(fp.q.u - BOB.u, fp.q.v - BOB.v) > 10) { PP.ui.toast('走到蓄水池边上，对准水面再抛竿', 1.6); return; }
+    if (S().fpSlot !== 4) fpSlot(4);
+    const pt = castPoint(); fp.fish = { ph: 'fly', u: pt[0], v: pt[1], t0: now, biteAt: now + 600 + U.rand(3500, 9000) }; p.tool = { k: 'rod', t0: now };
+  }
+  function fishTick(now) {
+    const f = fp && fp.fish; if (!f) return;
+    if (f.ph === 'fly' && now - f.t0 > 600) { f.ph = 'wait'; ripple(f.u, f.v); }
+    else if (f.ph === 'wait' && now > f.biteAt) { f.ph = 'bite'; f.biteEnd = now + U.rand(1100, 1600); ripple(f.u, f.v); PP.ui.toast('咬钩了！快收竿（单击 / E）', 1.2); }
+    else if (f.ph === 'bite' && now > f.biteEnd) { f.ph = 'wait'; f.biteAt = now + U.rand(3000, 8000); PP.ui.toast('鱼跑掉了……浮漂还在，等下一条', 1.4); }
+    if (Math.hypot(fp.q.u - f.u, fp.q.v - f.v) > 16 || fp.q.lv !== FISH.lv) { fp.fish = null; fp.p.tool = null; PP.ui.toast('走远了，鱼线收回来了', 1.2); }
+  }
+  function bobNow(now) { const f = fp && fp.fish; if (!f || f.ph === 'fly') return null; const dip = f.ph === 'bite' ? 0.28 + Math.sin(now / 60) * 0.08 : Math.max(0, Math.sin(now / 420)) * 0.05; return { u: f.u, v: f.v, dip }; }
   /* 快捷栏（1～5）：手 / 水壶 / 种子 / 鱼竿 / 零食。选好再按 E 或单击 */
   const SLOTS5 = [['手', '✋', '用准星对着的东西'], ['水壶', '💧', '对着菜地浇水'], ['种子', '🌱', '对着空菜地种下'], ['鱼竿', '🎣', '对着蓄水池钓鱼'], ['零食', '🍪', '按 E 自己吃一口零食']];
   let hotEl = null;
@@ -1249,6 +1276,7 @@
     const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2, slot = S().fpSlot || 1;
     if (slot === 5) { const e = E(), id = Object.keys(e.bag).find((k) => e.bag[k] > 0 && PP.econ.ITEMS[k] && ['snack', 'dish', 'crop'].includes(PP.econ.ITEMS[k].kind)); if (!id) { PP.ui.toast('背包里没有吃的了（商店能买零食，菜地能收菜）', 2); return; } PP.econ.feedItem(fp.p, id); return; }
     const h = hotFromId(fpPick(x, y));
+    if (fp.fish || slot === 4 || (h && h.k === 'fish')) { fpFish(); return; } // 钓鱼：抛竿 / 收竿（随时都能收）
     const need = { 2: (h) => h && h.k === 'plot' && PP.econ.plotInfo(h.i), 3: (h) => h && h.k === 'plot' && !PP.econ.plotInfo(h.i), 4: (h) => h && h.k === 'fish' }[slot];
     if (need && !need(h)) { PP.ui.toast(SLOTS5[slot - 1][0] + '：' + SLOTS5[slot - 1][2] + '（按 1 换回手）', 1.8); return; }
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
@@ -1447,7 +1475,7 @@
     // 天空
     const sg = ctx.createLinearGradient(0, y0, 0, y0 + h); sg.addColorStop(0, c3(lo.skyTop || [0.48, 0.72, 0.91])); sg.addColorStop(1, c3(lo.skyBot || [0.81, 0.92, 0.98])); ctx.fillStyle = sg; ctx.fillRect(x0, y0, w, h);
     try { drawBelow(ctx, x0, y0, w, h, now, lo); } catch (e) {}
-    const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)) });
+    const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)) });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null; lastScenes = [s.gpu, dynMesh]; lastLO = lo;
     const pix = fpQ() === 'pixel'; let cv = g3.draw(lastScenes, fpOpts()); if (cv && pix && pixOn()) cv = outline(cv);
     if (cv) { ctx.imageSmoothingEnabled = !pix; const k = fpK(); ctx.drawImage(cv, x0, y0, cv.width * k, cv.height * k); ctx.imageSmoothingEnabled = false; }
@@ -1463,6 +1491,11 @@
     vis.sort((a, b) => b.d - a.d);
     for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
     if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) {} }
+    try { /* 鱼线：从右下角手里的鱼竿尖拉到浮漂；咬钩时浮漂那儿一圈圈水花 */ const bb = bobNow(now); if (bb) { const mx = (bb.u - cam.eye[0]) * 2.83, my = (bb.v - cam.eye[1]) * 2.83, mz = (POOL.z + 0.3 - bb.dip - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp;
+        if (f2 > 1) { const bx = x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), by = y0 + h / 2 - (u2 * f) / f2 * (h / 2); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x0 + w * 0.7, y0 + h * 0.46); ctx.quadraticCurveTo((x0 + w * 0.7 + bx) / 2, Math.max(y0 + h * 0.46, by) + h * 0.06, bx, by); ctx.stroke();
+          if (fp.fish && fp.fish.ph === 'bite') { const k = (now % 500) / 500; ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - k)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(bx, by + 4, 8 + k * 26, (8 + k * 26) * 0.35, 0, 0, 6.283); ctx.stroke(); } } }
+      /* 钓上来了：那条鱼拿在手里给你看两秒半（图鉴里那张像素画），旁边写着名字 */
+      const cs = fp.catchShow; if (cs && now - cs.t < 2600 && PP.FISHDEX && cs.id) { const im = PP.FISHDEX.sprite(cs.id), k = Math.min(1, (now - cs.t) / 250), sw = Math.min(w, h) * 0.42 * k, sh = sw * im.height / im.width, cx = x0 + w * 0.62, cy = y0 + h * 0.64 + Math.sin(now / 90) * 3; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(cx, cy); ctx.rotate(-0.25 + Math.sin(now / 120) * 0.06); ctx.drawImage(im, -sw / 2, -sh / 2, sw, sh); ctx.restore(); ctx.font = PP.FONT(Math.min(w, h) / 22); ctx.textAlign = 'center'; ctx.fillStyle = '#fff6d8'; ctx.strokeStyle = 'rgba(30,24,40,.8)'; ctx.lineWidth = 4; ctx.strokeText(cs.name, cx, cy + sh / 2 + 8); ctx.fillText(cs.name, cx, cy + sh / 2 + 8); } } catch (e) {}
     // 准星 + 准星指着的东西
     const cur = !lookOn() && fp.mx != null && !fp.overUI && fp.mx >= x0 && fp.mx <= x0 + w && fp.my >= y0 && fp.my <= y0 + h ? [fp.mx - x0, fp.my - y0] : null;
     if (now - fp.aimT > 160) { fp.aimT = now; const hh = hotFromId(fpPick(cur ? cur[0] : w / 2, cur ? cur[1] : h / 2)); fp.aim = hh && hh.label ? hh.label : null; fp.aimAt = cur; }
