@@ -487,11 +487,11 @@
   let froom = 'living', fcat = 'living';
   const ovl = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
   // 门口要留出来：每扇门往屋里 2.8 格
-  const doorKeep = (rid) => { const r = RM[rid], B = rbox(rid); return F.PASS.filter((p) => p.lv === r.lv && p.F === F.frameOf(rid) && p.r[2] > B[0] - 0.5 && p.r[0] < B[2] + 0.5 && p.r[3] > B[1] - 0.5 && p.r[1] < B[3] + 0.5).map((p) => [p.r[0] - 0.7, p.r[1] - 0.7, p.r[2] + 0.7, p.r[3] + 0.7]); }; // 门洞外面留 0.7 格通道就够了（以前 1.3，小房间几乎全被划成通道，家具摆不进来）
+  const doorKeep = (rid) => { const r = RM[rid], B = rbox(rid); return F.PASS.filter((p) => p.lv === r.lv && p.F === F.frameOf(rid) && p.r[2] > B[0] - 0.5 && p.r[0] < B[2] + 0.5 && p.r[3] > B[1] - 0.5 && p.r[1] < B[3] + 0.5).map((p) => [p.r[0] - 1.5, p.r[1] - 1.5, p.r[2] + 1.5, p.r[3] + 1.5]); } // 门口留 1.5 格空地：人是真实身高，不能指望从灯头、书梯底下钻过去; // 门洞外面留 0.7 格通道就够了（以前 1.3，小房间几乎全被划成通道，家具摆不进来）
   function fOK(it, i) {
     const d = FURN.D[it.f], rid = it.room || 'living', r = FURN.rect(it);
     if (!RM[rid] || !inRoomL(rid, r)) return (fOK.why = '出了房间', false);
-    for (const q of F.RAMPS) if (!q.out && (q.a === RM[rid].lv || q.b === RM[rid].lv) && !F.frameOf(rid) && ovl(r, [q.u0 - 0.6, q.v0 - 0.6, q.u1 + 0.6, q.v1 + 0.6])) return (fOK.why = '楼梯', false);
+    for (const q of F.RAMPS) if (!q.out && (q.a === RM[rid].lv || q.b === RM[rid].lv) && !F.frameOf(rid) && ovl(r, q.axis === 'u' ? [q.u0 - 3.5, q.v0 - 1.2, q.u1 + 3.5, q.v1 + 1.2] : [q.u0 - 1.2, q.v0 - 3.5, q.u1 + 1.2, q.v1 + 3.5])) return (fOK.why = '楼梯', false); // 楼梯两头的平台也要空着
     if (d.walk) return true;
     for (const f of F.FIX) if (f.room === rid) for (const b of f.obL || f.ob) if (ovl(r, b)) return (fOK.why = '固定陈设 ' + f.do, false);
     if (rid === 'bedroom' && ovl(r, [27.4, 6.5, 31.4, 8.4])) return (fOK.why = '壁炉', false); // 壁炉
@@ -507,7 +507,7 @@
   }
   // 老存档：原来的小屋（楼下 + 阁楼）→ 城堡的起居室和卧室，按比例搬过去，放不下的收起来
   function migrateFurn() {
-    const e = E(); if (!e || e.layoutV >= 5) return; if (e.layoutV === 4) { repairFurn(e); return; } if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
+    const e = E(); if (!e || e.layoutV >= 7) return; if (e.layoutV >= 4) { repairFurn(e); return; } if (e.layoutV === 3) { furnish2(e); return; } if (e.layoutV === 2) { furnishRooms(e); return; }
     const L0 = FURN.layout(e), out = [];
     const map = (it) => { const bed = !!it.lv, rid = bed ? 'bedroom' : 'living', R0 = RM[rid].r, src = bed ? [4, 4, 22, 18] : [4, 4, 37.8, 32.6]; return Object.assign({}, it, { room: rid, lv: undefined, u: R0[0] + 1 + ((it.u - src[0]) / (src[2] - src[0])) * (R0[2] - R0[0] - 2), v: R0[1] + 1 + ((it.v - src[1]) / (src[3] - src[1])) * (R0[3] - R0[1] - 2) }); };
     e.layout = []; for (const it of L0) { const n = map(it); delete n.lv; e.layout.push(n); const i = e.layout.length - 1; if (!fOK(n, i)) { const f = fFree(n, i); if (f) e.layout[i] = f; else e.layout.pop(); } }
@@ -571,7 +571,7 @@
     for (const rid of Object.keys(RM)) { if (RM[rid].hut || reachOK(rid)) continue;
       const idx = L0.map((it, i) => [it, i]).filter(([it]) => it.room === rid).sort((A, B) => { const ra = FURN.rect(A[0], 0), rb = FURN.rect(B[0], 0); return (rb[2] - rb[0]) * (rb[3] - rb[1]) - (ra[2] - ra[0]) * (ra[3] - ra[1]); });
       for (const [it] of idx) { const i = L0.indexOf(it); L0.splice(i, 1); if (!reachOK(rid)) { L0.splice(i, 0, it); continue; } (WALL_F.has(it.f) ? placeWall : placeReach)(e, Object.assign({}, it)); break; } }
-    e.layoutV = 5; dirty(); PP.save.soon();
+    e.layoutV = 7; dirty(); PP.save.soon();
   }
   function fChanged() { dirty(); PP.save.soon(); for (const p of G.pets) if (p.ip && !p.held && !p.isleSpot) { const a = area(); if (!free(a, p.ip.u, p.ip.v, p.ip.lv)) { const c = nearFree(a, p.ip.u, p.ip.v, p.ip.lv); setIp(p, c[0], c[1], p.ip.lv); p.y = p.floor; } } }
   function fStart(i, x, y) {
@@ -773,7 +773,7 @@
   // 操作像 CS / 我的世界：WASD 走（A 左 D 右）、鼠标看、空格跳、Shift 跑、E 用、Tab 地图、滚轮拉远拉近（拉远就是第三人称）
   // 走路按“真的地面”算：脚下最高的那个面（楼板、楼梯的坡面、能站上去的家具），墙挡路，栏杆跳起来能翻过去，踩空就往下掉
   let fpBarEl = null, fpMenu = false, bigMap = null, fpHintT = 0;
-  const PH = 8, EYE = 7.2, BODYH = 3.6, CROUCH = 3.0, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
+  const PH = 8, EYE = 7.2, BODYH = 7.8, CROUCH = 4.2, FOV = 1.12, STEP = 1.0, BODY = 0.3, GRAV = 44, JUMP = 17.5; // 主角在世界里多高、眼睛多高：按真人的比例（门 10、桌面 5.3、天花板 14）
   const fpQ = () => (S().fpQ === 'pixel' ? 'pixel' : 'fine');
   const fpK = () => (fpQ() === 'pixel' ? pixK() : 1 / Math.min(2, DPR())); // 精细：按屏幕实际像素画（高分屏最多 2 倍）
   const fpDist = () => U.clamp(+S().fpDist || 0, 0, 14);
@@ -860,6 +860,8 @@
     return { z, lv, ramp };
   }
   // 身体（脚在 z，高 PH）放在 (u, v) 会不会撞到东西
+  /* 自动跳之前看看落脚处够不够宽：前后左右都得是差不多高的平面（箱子、台阶），墙上的压条、窗台这种窄边不算，免得被「跳」到墙上去 */
+  function wideTop(u, v, z, du, dv) { const L = Math.hypot(du, dv) || 1, a = du / L, b = dv / L; for (const [x, y] of [[0.3, 0], [-0.1, 0], [0.1, 0.3], [0.1, -0.3]]) { const g = surf(u + a * x - b * y, v + b * x + a * y, z + 0.4); if (!isFinite(g.z) || Math.abs(g.z - z) > 0.35) return false; } return true; }
   let bodyNow = BODYH; // 第一人称蹲着的时候身子矮（只在第一人称每一帧里临时改，算地图的时候还是站着的高度）
   function blocked(u, v, z) {
     const V = voxels();
@@ -915,7 +917,7 @@
     return pts;
   }
   // 脚底一小圈（站得住）、身体一圈（撞不撞）
-  const FOOT = (() => { const o = [[0, 0]]; for (let a = 0; a < 8; a++) o.push([Math.cos(a / 8 * 6.283) * 0.2, Math.sin(a / 8 * 6.283) * 0.2]); return o; })(); // 脚底 = 整个身体底面：身子有一部分在箱子上方，就算站在箱子上（不会落到箱子旁边、被箱子夹住）
+  const FOOT = (() => { const o = [[0, 0]]; for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * 0.15, Math.sin(a / 12 * 6.283) * 0.15]); return o; })(); /* 和身子那一圈同方向、往里收一点：墙上的薄护墙板先碰到身子，脚就踩不上去（以前会顺着墙「爬台阶」爬上楼板） */ // 脚底 = 整个身体底面：身子有一部分在箱子上方，就算站在箱子上（不会落到箱子旁边、被箱子夹住）
   // 检测半径比身子小一点：方块会把表面往外“撑”出最多一格（0.25），扣掉一半，贴墙走时不会比看上去更早撞到
   const BODYC = (() => { const R = 0.2, o = []; for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * R, Math.sin(a / 12 * 6.283) * R]); o.push([0, 0]); return o; })();
   // 头顶还有多高的空（身子正上方一小圈里最近的实心方块）：门框、雨棚、横梁低了就弯腰
@@ -931,9 +933,13 @@
     if (cut != null || focus) setCut(null, true);
     // 位置是连续的：主角现在在哪儿（菜地边、床上、正在走的路上），第一人称就从哪儿开始
     const m = S().fpLast, mOK = m && [0, 1, 2, 3].includes(m.lv) && isFinite(m.u) && isFinite(m.v);
-    const q0 = p.isleSpot ? { u: p.isleSpot.u, v: p.isleSpot.v, lv: p.isleLv != null ? p.isleLv : 1 } : p.ip ? { u: p.ip.u, v: p.ip.v, lv: p.ip.lv } : mOK ? m : ipOf(p);
+    /* 按 Esc（老板键）或 Q 出去，再进来：回到上次第一人称站的地方、朝着上次的方向（像游戏读档），不跟着主角后来自己溜达到哪儿 */
+    const recent = mOK && m.t && Date.now() - m.t < 12 * 3600e3;
+    const q0 = recent ? m : p.isleSpot ? { u: p.isleSpot.u, v: p.isleSpot.v, lv: p.isleLv != null ? p.isleLv : 1 } : p.ip ? { u: p.ip.u, v: p.ip.v, lv: p.ip.lv } : mOK ? m : ipOf(p);
     p.interrupt(true); p.iw = null; p.fishing = null; p.tool = null; p.isleSpot = null;
-    const lv = q0.lv != null ? q0.lv : 1, at = nearFree(area(), q0.u, q0.v, lv), g = surf(at[0], at[1], Z[lv] + STEP);
+    const lv = q0.lv != null ? q0.lv : 1;
+    let at = nearFree(area(), q0.u, q0.v, lv), g = surf(at[0], at[1], Z[lv] + STEP);
+    if (recent) { const g0 = surf(m.u, m.v, (isFinite(m.z) ? m.z : Z[lv]) + 0.5); if (isFinite(g0.z) && !blocked(m.u, m.v, g0.z)) { at = [m.u, m.v]; g = g0; } } // 原地原样：连站在箱子上、楼梯上也一样
     const same = mOK && m.lv === lv && Math.hypot(m.u - at[0], m.v - at[1]) < 4;
     fp = { p, q: { u: at[0], v: at[1], lv, z: isFinite(g.z) ? g.z : Z[lv] }, yaw: same && isFinite(m.yaw) ? m.yaw : Math.atan2(CEN[1] - at[1], CEN[0] - at[0]), pitch: same && isFinite(m.pitch) ? U.clamp(m.pitch, -1.3, 1.3) : -0.12,
       keys: new Set(), last: performance.now(), t0: performance.now(), vz: 0, air: false, bob: 0, aim: null, aimT: 0, saveT: 0, safe: null, auto: null, camD: fpDist(), fallZ: 0 };
@@ -941,10 +947,10 @@
     PP.fpOn = true; fpMenu = false; bigMap = null; fpHintT = performance.now();
     try { window.petAPI && window.petAPI.focusWin && window.petAPI.focusWin(); } catch (e) {}
     document.body.classList.add('fpon'); layout(); fpBar(); PP.refreshInteractive();
-    /* 默认锁住鼠标：移动鼠标就转向，准星对准东西单击就用；按 M 松开 */
+    /* 默认锁住鼠标：移动鼠标就转向，准星对准东西单击就用；按住 Alt 放出鼠标 */
     if (lookPref() && lastPT !== 'touch') lookGrab();
   }
-  function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再按 F 回到小窗口）' : '小窗口（按 F 全屏）', 1.4); }
+  function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再按 F11 回到小窗口）' : '小窗口（按 F 全屏）', 1.4); }
   function fpStop(quiet) {
     if (!fp) return; lookFree(); fpRemember(); const p = fp.p, q = fp.q; fp = null; PP.fpOn = false; vOpen = false; fpMenu = false; bigMap = null;
     if (p && G.pets.includes(p)) { if (p.action === 'fp') p.interrupt(true); if (!p.iw) { const at = nearFree(area(), q.u, q.v, q.lv); setIp(p, at[0], at[1], q.lv); } }
@@ -954,7 +960,7 @@
   }
   // 主角的位置跟着镜头走（屏幕坐标也一起改，不然别的地方会按旧的屏幕位置把它“吸”回去）
   function fpSync() { const p = fp.p, q = fp.q; p.ip = { u: q.u, v: q.v, lv: q.lv, z: q.z }; p.isleLv = q.lv; if (L) p.x = scrU(q.u, q.v); }
-  function fpRemember() { if (!fp || fp.air) return; const q = fp.q; S().fpLast = { u: +q.u.toFixed(2), v: +q.v.toFixed(2), lv: q.lv, yaw: +fp.yaw.toFixed(3), pitch: +fp.pitch.toFixed(3) }; PP.save.soon(); }
+  function fpRemember() { if (!fp || fp.air) return; const q = fp.q; S().fpLast = { u: +q.u.toFixed(2), v: +q.v.toFixed(2), lv: q.lv, z: +q.z.toFixed(2), yaw: +fp.yaw.toFixed(3), pitch: +fp.pitch.toFixed(3), t: Date.now() }; PP.save.soon(); }
   PP.fpOwns = (p) => !!fp && fp.p === p;
   A.fpCtl = function* () { const p = this; p.anim = 'idle'; while (fp && fp.p === p) yield 0.25; };
   // ---- 按钮：左上角一列三个小方块（☰ 菜单 / 🗺 地图 / ✕ 退出），菜单展开在画面里，不占外面的地方 ----
@@ -977,7 +983,7 @@
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
-          <div class="help">WASD / 方向键 走（A 左、D 右，←→ 转身）· 鼠标 看（默认锁住，移动就转头）· 空格 跳（跑起来再跳更高；能翻过栏杆、从阳台跳下去）· Shift 跑 · 按住 Ctrl 蹲下（X 切换蹲 / 站，蹲着能钻矮门、桌子底下） · E 或单击 用准星对着的东西 · Tab 大地图 · F 全屏 · 1～5 快捷栏 · C 坐下 · Z 躺下 · V 第一 / 第三人称 · 滚轮 视野宽窄（第三人称时是远近） · M 锁住 / 松开鼠标（松开时鼠标移到画面边上转头） · R 跑到屋顶外沿下不来时，回到刚才站的地面 · Q 退出 · Esc 老板键</div>
+          <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· E / F / 单击 互动 · 1～5 或滚轮 换快捷栏 · M 或 Tab 地图 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4); fpBarEl.style.transformOrigin = 'left top'; fpBarEl.style.transform = `scale(${sc.toFixed(3)})`;
@@ -1016,27 +1022,27 @@
     { const k = fpKeyMap[e.code]; if (k && !e.altKey && !e.metaKey) { fp.keys.add(k); if (k !== 'run' && k !== 'crouch') fp.auto = null; e.preventDefault(); return; } } // 按住 Ctrl 蹲着也能走
     if (e.code === 'Space' && !e.altKey && !e.metaKey) { fpJump(); e.preventDefault(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.code === 'Tab') { toggleMap(); e.preventDefault(); return; }
-    if (e.code === 'KeyE' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
-    if (e.code === 'KeyM') { lookToggle(); e.preventDefault(); return; }
+    /* 按键照成熟游戏来：E / F 互动（GTA / 原神）、M 或 Tab 地图、按住 Alt 放出鼠标（原神）、Ctrl / C 蹲（GTA）、V 视角、1～5 和滚轮快捷栏（我的世界）、F11 全屏、H 或 F1 按键说明 */
+    if (e.code === 'Tab' || e.code === 'KeyM') { toggleMap(); e.preventDefault(); return; }
+    if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
+    if (e.code === 'F11') { fpFullToggle(); e.preventDefault(); return; }
+    if (e.code === 'KeyH' || e.code === 'F1') { S().fpKeysHide = !S().fpKeysHide; PP.save.soon(); e.preventDefault(); return; }
     if (e.code === 'KeyR') { fpRescue(); e.preventDefault(); return; }
-    if (e.code === 'KeyV') { const s = S(); if (fpDist() >= 0.5) { s.fpDist3 = fpDist(); s.fpDist = 0; } else s.fpDist = s.fpDist3 || 8; PP.save.soon(); fpBar(); PP.ui.toast(fpDist() >= 0.5 ? '第三人称（滚轮拉远拉近，V 切回来）' : '第一人称（滚轮调视野，V 切第三人称）', 1.4); e.preventDefault(); return; }
-    if (e.code === 'KeyF') { fpFullToggle(); e.preventDefault(); return; }
-    if (e.code === 'KeyX') { fp.crouchT = !fp.crouchT; PP.ui.toast(fp.crouchT ? '蹲下了（再按 X 站起来；按住 Ctrl 也能蹲）' : '站起来了', 1.4); e.preventDefault(); return; }
-    if (e.code === 'KeyC' || e.code === 'KeyZ') { const w = e.code === 'KeyC' ? 'sit' : 'lie'; fp.pose = fp.pose === w ? null : w; fp.auto = null; PP.ui.toast(fp.pose === 'sit' ? '坐下歇会儿（慢慢回体力，走一步就起来）' : fp.pose === 'lie' ? '躺下（回体力更快，走一步就起来）' : '起来了', 1.4); e.preventDefault(); return; }
+    if (e.code === 'KeyV') { const s = S(), d = fpDist(); s.fpDist = d < 0.5 ? 6 : d < 9 ? 11 : 0; PP.save.soon(); fpBar(); PP.ui.toast(s.fpDist === 0 ? '第一人称' : s.fpDist === 6 ? '第三人称（近）· 再按 V 拉远' : '第三人称（远）· 再按 V 回第一人称', 1.2); e.preventDefault(); return; }
+    if (e.code === 'KeyC' || e.code === 'KeyX') { fp.crouchT = !fp.crouchT; PP.ui.toast(fp.crouchT ? '蹲下了（再按 C 站起来；按住 Ctrl 也能蹲）' : '站起来了', 1.2); e.preventDefault(); return; }
+    if (e.code === 'KeyZ') { fp.pose = !fp.pose ? 'sit' : fp.pose === 'sit' ? 'lie' : null; fp.auto = null; PP.ui.toast(fp.pose === 'sit' ? '坐下歇会儿（慢慢回体力，走一步就起来）' : fp.pose === 'lie' ? '躺下（回体力更快，走一步就起来）' : '起来了', 1.4); e.preventDefault(); return; }
     if (/^Digit[1-5]$/.test(e.code)) { fpSlot(+e.code.slice(5)); e.preventDefault(); return; }
     if (e.code === 'KeyQ') { fpStop(); e.preventDefault(); }
   });
-  window.addEventListener('keyup', (e) => { if (!fp) return; const k = fpKeyMap[e.code]; if (k) fp.keys.delete(k); });
+  window.addEventListener('keyup', (e) => { if (!fp) return; const k = fpKeyMap[e.code]; if (k) fp.keys.delete(k); if (e.key === 'Alt' && lookPref() && !fp.freeMouse && !fpMenu && !bigMap && !uiOpen()) { e.preventDefault(); lookGrab(); } }); // 松开 Alt：鼠标重新锁回画面（像原神）
   window.addEventListener('blur', () => { if (fp) fp.keys.clear(); });
   // 滚轮：拉远（第三人称）/ 拉近（第一人称）
   window.addEventListener('wheel', (e) => {
     if (!fp || (e.target && e.target.closest && e.target.closest('.panel,.menu,.fpmenu'))) return;
     e.preventDefault(); e.stopImmediatePropagation();
     if (bigMap) { bigMap.z = U.clamp((bigMap.z || 1) * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 1, 4); return; }
-    // 第一人称：滚轮调视野（往下滚看得更广）；第三人称：滚轮拉远拉近（像原神）
-    if (fpDist() >= 0.5) S().fpDist = U.clamp(fpDist() + (e.deltaY > 0 ? 1 : -1), 2, 14); else S().fpFov = U.clamp(fpFovD() + (e.deltaY > 0 ? 5 : -5), 50, 110);
-    PP.save.soon(); fpBar();
+    // 滚轮换快捷栏（像我的世界）；视野宽窄在设置里调，第三人称远近按 V
+    fpSlot(((S().fpSlot || 1) - 1 + (e.deltaY > 0 ? 1 : 4)) % 5 + 1);
   }, { capture: true, passive: false });
   /* 跳：站着起跳是普通高度；跑起来再跳更高（助跑越快跳得越高，最快时高出六成） */
   function fpJump() { if (!fp || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.18 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
@@ -1064,14 +1070,14 @@
   function lookFree() { if (document.pointerLockElement) { lookBye = true; try { document.exitPointerLock(); } catch (e) {} } }
   /* M：锁住 / 松开鼠标（锁住时移动鼠标就转头；松开时按住鼠标拖动转头，或者用 ← → 键） */
   function lookToggle() {
-    if (lookOn()) { fp && (fp.freeMouse = true); lookFree(); PP.ui.toast('鼠标松开了：移到画面边上也能转头，点东西就用；再按 M 锁住', 2.4); }
+    if (lookOn()) { fp && (fp.freeMouse = true); lookFree(); PP.ui.toast('鼠标松开了：移到画面边上也能转头，点东西就用；单击画面锁回去', 2.4); }
     else { if (fp) fp.freeMouse = false; S().fpMouse = true; lookGrab(); }
     PP.save.soon(); if (fp) fpBar();
   }
   document.addEventListener('pointerlockchange', () => {
     const on = lookOn(), self = lookBye; lookBye = false;
     if (document.pointerLockElement && (!fp || !lookPref() || fp.freeMouse || fpMenu || bigMap || uiOpen())) { if (fp && uiOpen()) fp.popFree = true; lookFree(); return; } // 刚锁上时已经关掉 / 退出 / 开了菜单
-    if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标就转头 · 按 M 松开', 2.4); } else if (!self && fp) { lookLostT = performance.now(); if (performance.now() - (PP.lastEscTap || -1e9) < 600 && PP.panic) PP.panic(); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键 // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
+    if (on) { lookT = performance.now(); PP.ui.toast('鼠标锁在画面里了：移动鼠标转向 · 按住 Alt 放出鼠标', 2.4); } else if (!self && fp) { lookLostT = performance.now(); if (performance.now() - (PP.lastEscTap || -1e9) < 600 && PP.panic) PP.panic(); } // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键 // 锁着鼠标时按 Esc：浏览器先吃掉这一下，用全局按键听到的那次来当老板键
     PP.refreshInteractive && PP.refreshInteractive(); if (fp) fpBar();
   });
   PP.lookLostRecently = () => performance.now() - lookLostT < 600;
@@ -1087,7 +1093,7 @@
   for (const t of ['mousedown', 'mouseup', 'click', 'dblclick']) window.addEventListener(t, (e) => {
     if (!lookOn() || fp.popFree) return; e.stopImmediatePropagation(); e.preventDefault();
     if (t === 'mousedown' && e.button === 0) fpUse(null);
-    if (t === 'mousedown' && e.button === 2) fpJump();
+    if (t === 'mousedown' && e.button === 2) fpUse(null); // 右键也是用（像我的世界）
   }, true);
   function fpDown(x, y) {
     if (bigMap) { mapClick(x, y); return; }
@@ -1122,7 +1128,7 @@
     if (lookOn() && uiOpen()) popCheck();
     const K = fp.keys, q = fp.q;
     /* 蹲下：按住 Ctrl 或按 X 切换。身子矮到 2.2，能钻矮门、桌子底下；头顶太低时松开也先不站起来 */
-    { const want = K.has('crouch') || !!fp.crouchT, hr = headroom(q.u, q.v, q.z); fp.crouch = want || (fp.crouch && hr < BODYH + 0.3); bodyNow = fp.crouch ? 2.2 : BODYH; }
+    { const want = K.has('crouch') || !!fp.crouchT, hr = headroom(q.u, q.v, q.z); fp.crouch = want || (fp.crouch && hr < BODYH + 0.3); bodyNow = fp.crouch ? CROUCH : BODYH; } // 站着是真实身高；矮的地方要自己蹲（不会自动蹲），蹲着的时候头顶太低就先站不起来
     let mv = (K.has('f') ? 1 : 0) - (K.has('b') ? 1 : 0), st = (K.has('r') ? 1 : 0) - (K.has('l') ? 1 : 0); const tn = (K.has('tr') ? 1 : 0) - (K.has('tl') ? 1 : 0);
     // 主角被派去干别的事（你点了床、菜地……）：镜头跟着它；你一按方向键就收回来
     if (p.action !== 'fp' && !p.action) { fp.q = Object.assign({}, fp.q, (() => { const q0 = ipOf(p); return { u: q0.u, v: q0.v, lv: q0.lv, z: q0.z != null ? q0.z : Z[q0.lv] }; })()); p.isleSpot = null; p.run('fp', A.fpCtl); }
@@ -1147,8 +1153,8 @@
         else { const want = Math.atan2(dv, du); let dy = Math.atan2(Math.sin(want - fp.yaw), Math.cos(want - fp.yaw)); fp.yaw += U.clamp(dy, -6 * dt, 6 * dt);
           const sp = RUN * 0.8 * fpSpd() * dt, k = Math.min(1, sp / d), u0 = q.u, v0 = q.v; fpMove(du * k, dv * k); fp.bob += dt * 10;
           // 自动跳：被矮东西（低于 3 格，比如菜地的木框、箱子）挡住走不动，就跳过去（像我的世界）
-          if (!fp.air && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du / d * 0.45, nv = q.v + dv / d * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + STEP && !blocked(nu, nv, g2.z)) fpJump(); }
-          au.prog = (au.prog || 0) + Math.hypot(q.u - u0, q.v - v0); au.t = (au.t || 0) + dt; if (au.t > 1.2) { if (au.prog < 0.6) { const last = au.pts[au.pts.length - 1], np = (au.retry || 0) < 3 && fpPlan(q, last.u, last.v, last.lv); if (np && np.length) fp.auto = { pts: np, i: 0, retry: (au.retry || 0) + 1 }; else { fp.auto = null; PP.ui.toast('前面过不去了，换个地方试试', 1.6); } } else { au.t = 0; au.prog = 0; } } } }
+          if (!fp.air && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du / d * 0.45, nv = q.v + dv / d * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + STEP && !blocked(nu, nv, g2.z) && wideTop(nu, nv, g2.z, du / d, dv / d)) fpJump(); }
+          au.prog = (au.prog || 0) + Math.hypot(q.u - u0, q.v - v0); au.t = (au.t || 0) + dt; if (au.t > 1.2) { if (au.prog < 0.6) { /* 卡住了：先往左或右让开半步（擦着家具边的时候），再重新找路 */ { const tt = au.pts[au.i] || au.pts[au.pts.length - 1], ddu = tt.u - q.u, ddv = tt.v - q.v, dl = Math.hypot(ddu, ddv) || 1; for (const sd of [1, -1]) { const nu = q.u - ddv / dl * 0.6 * sd, nv = q.v + ddu / dl * 0.6 * sd, gg = surf(nu, nv, q.z + STEP); if (isFinite(gg.z) && Math.abs(gg.z - q.z) <= STEP && !blocked(nu, nv, gg.z)) { q.u = nu; q.v = nv; q.z = gg.z; break; } } } const last = au.pts[au.pts.length - 1], np = (au.retry || 0) < 3 && fpPlan(q, last.u, last.v, last.lv); if (np && np.length) fp.auto = { pts: np, i: 0, retry: (au.retry || 0) + 1 }; else { fp.auto = null; PP.ui.toast('前面过不去了，换个地方试试', 1.6); } } else { au.t = 0; au.prog = 0; } } } }
     }
     if (mv || st) {
       const sp = (fp.crouch ? SPEED * 0.4 : K.has('run') ? RUN : SPEED * 0.8) * fpSpd() * dt, c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), n = Math.hypot(mv, st) || 1;
@@ -1156,14 +1162,14 @@
       const u0 = q.u, v0 = q.v, du = (c * mv - s2 * st) / n, dv = (s2 * mv + c * st) / n;
       fpMove(du * sp, dv * sp); if (!fp.air) fp.bob += dt * (K.has('run') ? 14 : 9);
       /* 自动跳（像我的世界）：被不高的东西（花盆边、长凳、箱子……不到 3 格）挡住、上面又站得下，就自己跳上去 */
-      if (!fp.air && S().fpAutoJump !== false && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du * 0.45, nv = q.v + dv * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + stepAt(q.u, q.v) && !blocked(nu, nv, g2.z) && headroom(nu, nv, g2.z) > CROUCH + 0.5) fpJump(); }
+      if (!fp.air && S().fpAutoJump !== false && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du * 0.45, nv = q.v + dv * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + stepAt(q.u, q.v) && !blocked(nu, nv, g2.z) && headroom(nu, nv, g2.z) > bodyNow + 0.3 && wideTop(nu, nv, g2.z, du, dv)) fpJump(); }
     }
     // 竖直方向：跳起来 / 掉下去 / 落地
     const stH = stepAt(q.u, q.v), g = surf(q.u, q.v, q.z + stH);
     if (fp.air) {
       fp.vz = Math.max(-70, fp.vz - GRAV * dt); let nz = q.z + fp.vz * dt;
       /* 往上跳时头顶碰到天花板 / 楼板就停住往下掉（以前会穿过天花板，落到楼上或屋顶上，镜头卡在楼板里看着像屋顶消失、乱闪） */
-      if (fp.vz > 0) { const hr = headroom(q.u, q.v, q.z); if (hr < 99) { const lim = q.z + Math.max(0, hr - (BODYH + 0.4)); if (nz > lim) { nz = lim; fp.vz = 0; } } }
+      if (fp.vz > 0) { const hr = headroom(q.u, q.v, q.z); if (hr < 99) { const lim = q.z + Math.max(0, hr - (bodyNow + 0.2)); if (nz > lim) { nz = lim; fp.vz = 0; } } }
       const g2 = surf(q.u, q.v, Math.max(nz, q.z) + STEP);
       if (fp.vz <= 0 && isFinite(g2.z) && nz <= g2.z && blocked(q.u, q.v, g2.z) && fp.okUV) { /* 落下来会嵌进东西里（空中往前飘进了窗台、桌边底下）：退回上一个能站的地方再落 */ q.u = fp.okUV[0]; q.v = fp.okUV[1]; }
       const g3b = fp.vz <= 0 ? surf(q.u, q.v, Math.max(nz, q.z) + STEP) : g2;
@@ -1188,7 +1194,7 @@
     const q = fp.q, walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto), b = walking ? Math.sin(fp.bob) * 0.16 : 0;
     const land = fp.land ? Math.max(0, 1 - (performance.now() - fp.land) / 260) * -0.9 : 0;
     // 弯腰：头顶空间不够就把眼睛放低（慢慢低下去、慢慢直起来）
-    const want = Math.min(U.clamp(headroom(q.u, q.v, q.z) - 0.7, fp.crouch ? 1.6 : CROUCH, EYE), fp.pose === 'sit' ? 4.4 : fp.pose === 'lie' ? 2.0 : fp.crouch ? 2.8 : EYE); fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
+    const want = fp.pose === 'sit' ? 4.4 : fp.pose === 'lie' ? 2.0 : fp.crouch ? 3.6 : EYE; // 眼睛高度只看你是站着、蹲着还是坐着躺着，不再碰到低处就自己矮下去 fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
     fp.camZ = fp.camZ == null || Math.abs(fp.camZ - q.z) > 4 ? q.z : fp.camZ + (q.z - fp.camZ) * 0.3;
     const head = [q.u, q.v, fp.camZ + fp.eyeH + b + land];
     // 第三人称：镜头往后拉，碰到墙、天花板就停在墙前面
@@ -1465,12 +1471,20 @@
     ctx.fillStyle = 'rgba(20,16,30,.55)'; ctx.fillRect(cx0 - 7 * us, cy0 - us * 1.5, 14 * us, 3 * us); ctx.fillRect(cx0 - us * 1.5, cy0 - 7 * us, 3 * us, 14 * us); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillRect(cx0 - 6 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 + 2 * us, cy0 - us / 2, 4 * us, us); ctx.fillRect(cx0 - us / 2, cy0 - 6 * us, us, 4 * us); ctx.fillRect(cx0 - us / 2, cy0 + 2 * us, us, 4 * us); }
     const fs = U.clamp(Math.min(w, h) / 34, 11, 18); ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     let ty = cy0 + 12 * us; const pill = (tx, a = 0.72) => { const tw = ctx.measureText(tx).width; ctx.fillStyle = `rgba(30,24,40,${a})`; ctx.fillRect(cx0 - tw / 2 - 8, ty, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, ty + 5); ty += fs + 16; };
-    if (fp.aim && fp.aimAt) { const tx = '点一下：' + fp.aim, tw = ctx.measureText(tx).width, ax = U.clamp(x0 + fp.aimAt[0] + 16, x0 + 4, x0 + w - tw - 20), ay = U.clamp(y0 + fp.aimAt[1] + 14, y0 + 4, y0 + h - fs - 14); ctx.save(); ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(30,24,40,.78)'; ctx.fillRect(ax, ay, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, ax + 8, ay + 5); ctx.restore(); }
-    else if (fp.aim) pill('单击：' + fp.aim);
-    if (!lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill(lookPref() && !fp.freeMouse ? '单击画面锁定鼠标（移动鼠标转向，准星对准东西单击就用）' : '鼠标没锁：移到画面边上转头，点东西就用 · 按 M 锁定', 0.6);
-    if (lookOn()) { const t2 = '准星对准东西单击就用 · 按 M 松开鼠标', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
+    if (fp.aim && fp.aimAt) { const tx = '单击：' + fp.aim, tw = ctx.measureText(tx).width, ax = U.clamp(x0 + fp.aimAt[0] + 16, x0 + 4, x0 + w - tw - 20), ay = U.clamp(y0 + fp.aimAt[1] + 14, y0 + 4, y0 + h - fs - 14); ctx.save(); ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(30,24,40,.78)'; ctx.fillRect(ax, ay, tw + 16, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, ax + 8, ay + 5); ctx.restore(); }
+    else if (fp.aim) { /* 互动提示：像原神 / GTA，前面一个按键方块 */ const tx = fp.aim, kw = fs * 1.5, tw = ctx.measureText(tx).width, bx = cx0 + 22 * us, by = cy0 - fs / 2 - 5; ctx.save(); ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(30,24,40,.72)'; ctx.fillRect(bx, by, kw + tw + 22, fs + 10); ctx.fillStyle = '#fff6d8'; ctx.fillRect(bx + 4, by + 3, kw, fs + 4); ctx.fillStyle = '#2a2030'; ctx.textAlign = 'center'; ctx.fillText('E', bx + 4 + kw / 2, by + 5); ctx.textAlign = 'left'; ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, bx + kw + 14, by + 5); ctx.restore(); }
+    if (!lookOn() && !fpMenu && !bigMap && lastPT !== 'touch') pill(lookPref() && !fp.freeMouse ? '单击画面锁定鼠标（移动鼠标转向）' : '鼠标没锁：移到画面边上转头，点东西就用', 0.6);
+    if (false) { const t2 = '', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
-    const age = (now - fpHintT) / 1000;
+    // 按键说明：默认一直显示在左下角（像很多游戏的按键提示），按 H 收起 / 展开
+    if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳（跑起来跳更高）'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['1～5 / 滚轮', '快捷栏'], ['M / Tab', '地图'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['F11', '全屏'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
+      const f3 = fs * 0.78; ctx.save(); ctx.font = PP.FONT(f3); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      if (S().fpKeysHide) { const t3 = 'H 显示按键说明', tw3 = ctx.measureText(t3).width; ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillRect(x0 + 8, y0 + h - f3 - 18, tw3 + 14, f3 + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(t3, x0 + 15, y0 + h - f3 / 2 - 13); }
+      else { const lh = f3 + 7, kwid = Math.max(...KS.map(([k]) => ctx.measureText(k).width)) + 12, twid = Math.max(...KS.map(([, t]) => ctx.measureText(t).width)), bh = KS.length * lh + 10, bx = x0 + 8, by = y0 + h - bh - 70;
+        ctx.fillStyle = 'rgba(30,24,40,.42)'; ctx.fillRect(bx, by, kwid + twid + 22, bh);
+        KS.forEach(([k, t], i) => { const yy = by + 5 + i * lh + lh / 2, kw2 = ctx.measureText(k).width + 8; ctx.fillStyle = 'rgba(255,246,216,.9)'; ctx.fillRect(bx + 6, yy - lh / 2 + 2, kw2, lh - 4); ctx.fillStyle = '#2a2030'; ctx.fillText(k, bx + 10, yy); ctx.fillStyle = '#fff6d8'; ctx.fillText(t, bx + kwid + 12, yy); }); }
+      ctx.restore(); }
+    const age = 99;
     if (age < 6) { ctx.globalAlpha = Math.min(1, 6 - age); ctx.textBaseline = 'bottom'; const tx = 'WASD 走 · 移动鼠标转向 · 准星对准东西单击 · M 松开鼠标· 空格跳 · E 用 · 1～5 快捷栏 · Tab 地图 · F 全屏 · Q 退出', tw = ctx.measureText(tx).width; ctx.fillStyle = 'rgba(30,24,40,.7)'; ctx.fillRect(cx0 - tw / 2 - 10, y0 + h - fs - 22, tw + 20, fs + 12); ctx.fillStyle = '#fff6d8'; ctx.fillText(tx, cx0, y0 + h - 14); ctx.globalAlpha = 1; }
     // 小地图（右上角）+ 在哪儿
     const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = `${F.NAME[fp.q.lv]} · ${rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;

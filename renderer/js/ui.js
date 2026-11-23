@@ -278,7 +278,7 @@
           <div class="muted">每个风景有自己的季节：沙漠、丛林一年都热，南极一直是冬天。</div>`,
         fp: () => `<div class="muted">在城堡里按 F 进第一人称。下面这些在第一人称的 ☰ 菜单里也能改。</div>
           ${chk('fpmouse', s.fpMouse !== false, '动鼠标就转头（关掉的话按住拖动才转）')}${chk('fpinvx', s.fpInvX, '左右反过来')}${chk('fpinvy', s.fpInvY, '上下反过来')}
-          ${chk('fpmap', s.fpMap !== false, '显示小地图')}${chk('fpajump', s.fpAutoJump !== false, '自动跳（碰到矮东西自己跳上去）')}${chk('fpfull', s.fpFull, '进去就全屏（游戏里按 F 切换）')}
+          ${chk('fpmap', s.fpMap !== false, '显示小地图')}${chk('fpajump', s.fpAutoJump !== false, '自动跳（碰到矮东西自己跳上去）')}${chk('fpfull', s.fpFull, '进去就全屏（游戏里按 F11 切换）')}
           <label>屋里的灯 <select class="lmode">${opt([['auto', '自动（天一暗就开）'], ['time', '按时段开'], ['on', '一直开着'], ['off', '一直关着']], s.lightMode || 'auto')}</select></label>
           ${(s.lightMode || 'auto') === 'time' ? `<label>从 <select class="lfrom">${opt(Array.from({ length: 24 }, (_, h) => [String(h), h + ':00']), String(s.lightFrom != null ? s.lightFrom : 18))}</select> 开到 <select class="lto">${opt(Array.from({ length: 25 }, (_, h) => [String(h), h === 24 ? '24:00' : h + ':00']), String(s.lightTo != null ? s.lightTo : 24))}</select></label>` : ''}
           <div class="muted">每间房门边的墙上有个电灯开关，第一人称里对准它点一下就能开 / 关这间的灯。</div>
