@@ -156,7 +156,7 @@
     const ru = (Y + X / 2) / 2, rv = (Y - X / 2) / 2, du = ru - CEN[0], dv = rv - CEN[1];
     return [du * k.c + dv * k.s + CEN[0], -du * k.s + dv * k.c + CEN[1]];
   }
-  const HALL_OUT = { u: 20.6, v: 21.6, lv: 1 }; // 门厅（铁身子 A）的大门外面
+  const HALL_OUT = { u: 25, v: 49.5, lv: 1 }; // 门厅南门外面的码头（客人、出门回来的伙伴都从码头上岸）
   function groundY() { if (!L) layout(); return Math.round(scrV(HALL_OUT.u, HALL_OUT.v, 0)); }
   function zone() { if (!L) layout(); return [L.vx0 + 4, L.vx1 - 4]; }
   const start = () => HALL_OUT;
@@ -388,7 +388,8 @@
   function glow(ctx, x, y, r, col = 'rgba(255,214,140,', a = 0.45) { const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col + a + ')'); g.addColorStop(1, col + '0)'); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
   const fishSpr = (() => { let c = null; return () => { if (c) return c; const a = PP.ART, s = a.spr(11, 7); s.ell(5, 3.5, 4.5, 2.6, (nx, ny) => (ny < -0.3 ? '#cfeafa' : ny > 0.4 ? '#7a9ad8' : '#a8c8f8')); s.set(2, 3, '#2a2026'); s.rect(9, 1, 2, 5, '#f2a6c2'); s.set(5, 0, '#f2a6c2'); s.set(5, 6, '#f2a6c2'); return (c = s.outline('#3a3a6a').canvas()); }; })();
   // 烟囱、排气管的顶（外部视角冒烟；锅炉柴越足冒得越多）
-  const CHIMS = [[16.6, 4.2, Z[3] + F.WH + 27.6], [22.9, 7.9, Z[3] + F.WH + 21], [6.4, 4.6, Z[3] + 21], [41.8, 3, Z[3] + 15], [2.4, 22.9, Z[3] + F.WH + 18]];
+  // 古树水城只有一根真烟囱：地窖石炉的烟道，伸出地窖屋顶的平台
+  const CHIMS = (() => { const r = F.RM.store; if (!r || !r.c) return []; const a = r.deg * Math.PI / 180, f = 4.35, s2 = -2.4; return [[r.c[0] + Math.cos(a) * f - Math.sin(a) * s2, r.c[1] + Math.sin(a) * f + Math.cos(a) * s2, Z[1] + 14.5]]; })();
 
   // ---------- 画 ----------
   // ---------- 俯视时的天空和远方（一整幅画：渐变的天、太阳光束或星月、远远在下面的田野、三层慢慢飘的积云） ----------
@@ -1701,7 +1702,7 @@
     const L0 = PP.LIFE, TN = L0 ? L0.TEMPN : {};
     if (pr.do === 'pot') { const f = L0 && L0.potInfo(pr.i); return f ? `${f.name}：${['种子', '发芽了', '开花了', '可以收获了'][f.stage]}${f.wet ? '' : ' · 该浇水了'}${f.stage === 2 && !f.pol ? ' · 等授粉' : ''}${f.tempOk ? '' : ' · 想要' + TN[f.temp]}（点开花房面板）` : `花盆 ${pr.i + 1}：空着，种一颗稀有种子`; }
     if (pr.do === 'valve') { const e = E(), t = e && e.gh ? e.gh.temp : 'mild'; return `暖气阀门：现在是「${TN[t] || '温和'}」${fort().fuel < 10 ? '（锅炉没柴了，暖气不热）' : ''}（点开调）`; }
-    if (pr.do === 'stoke') return `锅炉：柴还剩 ${Math.round(fort().fuel)}%（点一下去柴房抱柴来添）`;
+    if (pr.do === 'stoke') return `石炉：柴还剩 ${Math.round(fort().fuel)}%（点一下去柴房抱柴来添）`;
     if (pr.do === 'nest') return eggOut() ? '鸟巢：里面有一个蛋！' : '鸟巢：今天的蛋已经捡过了';
     return pr.label;
   }
@@ -1962,23 +1963,23 @@
   // 兼容：去某个地方（'house' 起居室 / 'gh' 花房 / false 庭院）
   A.isleHouse = function* (go) { const p = this; const t = go === 'house' || go === true ? roomSpot('living') : go === 'gh' ? roomSpot('green') : go === 'bed' ? roomSpot('bedroom') : { u: HALL_OUT.u + U.rand(-2, 4), v: HALL_OUT.v + U.rand(1, 5), lv: 1 }; if (!(yield* walkTo(p, t.u, t.v, null, t.lv))) { stuck(p); return; } yield U.rand(1, 3); };
   A.isleFurn = function* (k) { const pr = props().find((q) => q.f === k); if (pr) yield* A.isleUse.call(this, pr); };
-  // 抱柴：去柴房抱一捆，下楼到锅炉房添进去
+  // 抱柴：去柴房抱一捆，到地窖的石炉添进去
   function* fetchWood(p) {
     const wood = props().find((q) => q.do === 'wood'), boiler = props().find((q) => q.do === 'stoke');
-    /* 第一人称：你自己走。在柴堆旁 → 抱起一捆（手里拿着）；在锅炉旁 → 手里有柴就添进去 */
+    /* 第一人称：你自己走。在柴堆旁 → 抱起一捆（手里拿着）；在石炉旁 → 手里有柴就添进去 */
     if (fp && fp.p === p) {
       const near = (pr) => pr && Math.hypot(fp.q.u - pr.at[0], fp.q.v - pr.at[1]) < REACH + 1;
       if (near(boiler)) { if (!fp.wood) { PP.ui.toast('手里没有柴：先去柴堆（甲板层）抱一捆', 2.2); return false; }
         fp.wood = false; p.tool = null; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? -2 : 2); yield 0.3; }
-        const f = fort(); f.fuel = Math.min(100, f.fuel + 35); say(p, ['火旺起来了！', '翅膀要扇得有劲啦', '热水马上就好'], 2); PP.ui.toast(`锅炉 ${Math.round(f.fuel)}%`, 1.6); yield 1; return true; }
-      if (near(wood)) { p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; fp.wood = true; say(p, ['抱一捆柴！拿去地下的锅炉房', '嘿咻'], 2); yield 0.4; return true; }
+        const f = fort(); f.fuel = Math.min(100, f.fuel + 35); say(p, ['火旺起来了！', '屋里要暖和了', '热水马上就好'], 2); PP.ui.toast(`锅炉 ${Math.round(f.fuel)}%`, 1.6); yield 1; return true; }
+      if (near(wood)) { p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; fp.wood = true; say(p, ['抱一捆柴！拿去地窖的石炉', '嘿咻'], 2); yield 0.4; return true; }
       PP.ui.toast('离得有点远，走近一些再用', 1.4); return false;
     }
     if (!(yield* walkTo(p, wood.at[0], wood.at[1], null, 1))) { stuck(p); return false; }
-    face(p, 2, 25); p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; p.tool = { k: 'wood', t0: performance.now() }; say(p, ['抱一捆柴！', '嘿咻'], 1.4); yield 0.4;
-    if (!(yield* walkTo(p, boiler.at[0], boiler.at[1], null, 0))) { stuck(p); return false; }
-    face(p, 12, 15); p.tool = null; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? -2 : 2); fxAt(12 + U.rand(-1, 1), 12.6, Z[0] + 3, { vy: -40, icon: 'sparkle', life: 0.5 }); yield 0.3; }
-    const f = fort(); f.fuel = Math.min(100, f.fuel + 35); gain(p, `锅炉 ${Math.round(f.fuel)}%`); say(p, ['火旺起来了！', '翅膀要扇得有劲啦', '热水马上就好'], 2); yield 1;
+    face(p, wood.at[0], wood.at[1]); p.anim = 'eat'; for (let i = 0; i < 3; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 1); yield 0.3; } p.anim = 'idle'; p.tool = { k: 'wood', t0: performance.now() }; say(p, ['抱一捆柴！', '嘿咻'], 1.4); yield 0.4;
+    if (!(yield* walkTo(p, boiler.at[0], boiler.at[1], null, boiler.lv != null ? boiler.lv : 1))) { stuck(p); return false; }
+    face(p, boiler.at[0], boiler.at[1]); p.tool = null; for (let i = 0; i < 4; i++) { p.jolt(0, i % 2 ? -2 : 2); fxAt(boiler.at[0] + U.rand(-1, 1), boiler.at[1], Z[1] + 3, { vy: -40, icon: 'sparkle', life: 0.5 }); yield 0.3; }
+    const f = fort(); f.fuel = Math.min(100, f.fuel + 35); gain(p, `石炉 ${Math.round(f.fuel)}%`); say(p, ['火旺起来了！', '屋里要暖和了', '热水马上就好'], 2); yield 1;
     return true;
   }
   A.isleStoke = function* () { yield* fetchWood(this); };
@@ -1998,7 +1999,7 @@
     else if (k === 'craft') { face(p, pr.at[0], pr.at[1] - 3); for (let i = 0; i < 8; i++) { p.anim = i % 2 ? 'idle' : 'crouch'; p.jolt(0, i % 2 ? -1.5 : 1); PP.fx({ kind: 'dot', x: p.x + p.facing * 10, y: p.y - 14 * G.S, vx: U.rand(-30, 30), vy: U.rand(-40, -10), life: 0.5, col: '#e8c890', size: 2 }); yield 0.3; } p.anim = 'idle'; say(p, ['叮叮当当～', '做好一个小鸟屋！', '锯木头真好玩']); p.n.fun = Math.min(100, p.n.fun + 10); yield 1.2; }
     else if (k === 'store') { p.anim = 'eat'; for (let i = 0; i < 5; i++) { p.jolt(i % 2 ? 1.5 : -1.5, 0); yield 0.3; } p.anim = 'idle'; say(p, ['种子都分好格子了', '这个抽屉里是向日葵种子']); yield 1.5; }
     else if (k === 'tele') { p.look = [0, -1]; p.anim = 'sit'; const fx = wfx(); yield 1.5; say(p, night() ? ['看到好多星星！', '那颗最亮的是什么星？', '月亮好圆'] : fx.rain ? ['云好厚……'] : ['看到远处的热气球了', '那边的云像一条鱼', '天好蓝']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2.5; }
-    else if (k === 'helm') { face(p, 12, 18); p.anim = 'idle'; for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 2 : -2, 0); yield 0.35; } const pw = power(); say(p, pw > 0.7 ? ['翅膀扇得好有劲！', '往云少的地方飘一点'] : pw > 0.2 ? ['慢慢飘～', '锅炉的柴还够'] : ['翅膀没劲了……得去添柴', '蒸汽不够了']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2; }
+    else if (k === 'helm') { face(p, ...(F.RM.cockpit ? F.RM.cockpit.c : [12, 18])); p.anim = 'idle'; for (let i = 0; i < 6; i++) { p.jolt(i % 2 ? 2 : -2, 0); yield 0.35; } const pw = power(); say(p, wfx().rain > 0.3 ? ['帆收起一半，雨天慢慢飘', '往云少的地方转一点舵'] : ['风正好，帆鼓起来了！', '往那片云的方向转一点', '慢慢飘～']); p.n.fun = Math.min(100, p.n.fun + 10); yield 2; }
     else if (k === 'pump') { face(p, 37, 4); p.look = [0, -1]; yield 1.4; const wet = wfx().rain > 0.3; say(p, wet ? ['下雨了，屋顶的水槽在往水塔里灌水', '水塔满满的'] : ['水泵咕嘟咕嘟，把池子的水抽上去烧', '水塔的水是雨水和云里的雾接来的']); yield 2.4; }
     else if (k === 'nest') { face(p, NEST.u, NEST.v); p.anim = 'eat'; yield 0.6; if (eggOut()) { fort().egg = today(); dirty(); PP.econ.give('henegg', 1); p.tool = { k: 'egg', t0: performance.now() }; p.anim = 'jump'; p.jolt(0, -3); say(p, ['鸟巢里有个蛋！', '野鸟留下一个蛋～'], 2); if (PP.quest) PP.quest.on('egg'); yield 1.2; p.tool = null; } else { say(p, ['今天的蛋已经捡过了', '小鸟飞走了'], 2); yield 1; } p.anim = 'idle'; }
     else if (k === 'pot' || k === 'valve') { p.tool = { k: 'can', t0: performance.now(), pour: true }; for (let i = 0; i < 6; i++) { PP.fx({ x: p.x + p.facing * 14 * S2(), y: p.y - 12 * S2(), vy: 30, icon: 'drop', life: 0.4, s: 1 }); yield 0.25; } p.tool = null; if (k === 'pot' && pr.i != null && PP.LIFE) { const f = PP.LIFE.potInfo(pr.i); if (f && !f.wet) { PP.LIFE.potWater(pr.i); dirty(); gain(p, '浇好水了'); } else if (f && f.stage === 2 && !f.pol) { PP.LIFE.potPollinate(pr.i); gain(p, '授粉了'); } } p.think('flower', 1.4); yield 0.8; }

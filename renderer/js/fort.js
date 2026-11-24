@@ -773,9 +773,8 @@
     if (showLv(cut, 1)) {
       m.pk(PK.tap); m.cyl(TAP.u, TAP.v, 0, 3.6, 0.35, 0.3, C.COP2, M.metal, 8); m.box(TAP.u - 0.15, TAP.v - 0.8, 3.2, TAP.u + 0.15, TAP.v, 3.5, C.COP, M.metal); m.cyl(TAP.u, TAP.v - 1, 0, 1, 0.9, 1, '#8a5a3a', M.plank, 10); m.pk(0);
       m.pk(PK.mail); m.box(MAILB.u - 0.14, MAILB.v - 0.14, 0, MAILB.u + 0.14, MAILB.v + 0.14, 5, C.TIMBER, M.plank); m.box(MAILB.u - 0.9, MAILB.v - 0.55, 5, MAILB.u + 0.9, MAILB.v + 0.55, 6.9, '#e0604a', 0); m.box(MAILB.u + 0.9, MAILB.v - 0.1, 6, MAILB.u + 1, MAILB.v + 0.1, 7.6, C.GOLD, M.metal); m.pk(0);
-      LAMPS.forEach(([u, v], i) => { m.pk(PK.lamp + i); m.cyl(u, v, 0, 9.5, 0.17, 0.12, '#3a3448', M.metal, 5); m.box(u - 0.42, v - 0.42, 9.5, u + 0.42, v + 0.42, 11.8, '#ffe9a8', M.glow); m.cyl(u, v, 11.8, 13, 0.66, 0.05, '#3a3448', 0, 4); m.pk(0); });
+      LAMPS.forEach(([u, v], i) => { m.pk(PK.lamp + i); m.cyl(u, v, 0, 5.6, 0.12, 0.1, '#3a3448', M.metal, 5); m.box(u - 0.04, v - 0.04, 5.6, u + 0.04, v + 0.5, 5.7, '#3a3448', M.metal); m.box(u - 0.26, v + 0.24, 4.7, u + 0.26, v + 0.76, 5.5, '#ffe9a8', M.glow); m.cyl(u, v + 0.5, 5.5, 5.9, 0.4, 0.05, '#3a3448', 0, 4); m.pk(0); }); // 小提灯：灯柱顶上挑出一盏，不再是一大块发光的方块
       if (Pt.deco) (o.deco || []).forEach((id, i) => { if (id && SLOTS[i]) Pt.deco(m, id, SLOTS[i][0], SLOTS[i][1], 0, PK.deco + i); });
-      crateAt(m, 26.0, 21.8, 0, 0.8); crateAt(m, 26.2, 21.8, 1.6, 0.6, '#b88a5a'); /* 木箱堆在木桶旁边，不挡门厅门口的路 */ barrelAt(m, 27.4, 22, 0, 0.7); barrelAt(m, 28.6, 22.4, 0, 0.6);
     }
     // 露天楼梯：一段一段，带扶手和立柱
     for (const S of RAMPS) { if (!S.out || !(showLv(cut, S.a) && showLv(cut, S.b))) continue; const za = Z[S.a], zb = Z[S.b], ax = S.axis, [b0, b1] = ax === 'u' ? [S.v0, S.v1] : [S.u0, S.u1];
@@ -1156,6 +1155,12 @@
         const gap = gaps.some((g) => Math.abs(Math.atan2(Math.sin(am - g), Math.cos(am - g))) < 0.24);
         if (!gap) { const q0 = P1(a0, R1 - 0.15), q1 = P1(a1, R1 - 0.15); m.quad([q0[0], q0[1], z + 3.0], [q1[0], q1[1], z + 3.0], [q1[0], q1[1], z + 3.3], [q0[0], q0[1], z + 3.3], C.TIMBER, M.plank); if (i % 2 === 0) m.box(q0[0] - 0.1, q0[1] - 0.1, z, q0[0] + 0.1, q0[1] + 0.1, z + 3.1, C.TIMBER, M.plank); }
         if (i % 6 === 0 && lv > 1) { const b0 = P1(am, R1 - 0.4), b1 = P1(am, R0 + 0.2); m.quad([b0[0] - 0.15, b0[1] - 0.15, z - 0.8], [b0[0] + 0.15, b0[1] + 0.15, z - 0.8], [b1[0] + 0.15, b1[1] + 0.15, z - 4.5], [b1[0] - 0.15, b1[1] - 0.15, z - 4.5], C.TIMBER, M.plank); } } }
+    // 白帆：两根横桅从树干上伸出去，挂着两面帆（替代原来的翅膀：岛靠浮石浮着，帆借风转向，舵台拉绳）
+    if (!cut) for (const [deg, zTop, zBot, len] of [[0, 46, 24, 25], [205, 46, 35, 23]]) { const a = deg * D2R, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, P1 = (r, z, w = 0) => [cx + ux * r + nx * w, cy + uy * r + ny * w, z];
+      if (CITY) CITY.rootLine(m, [P1(7, zTop - 1), P1(16, zTop + 0.5), P1(len, zTop)], 0.5, 0.25, '#6a5040');
+      const N2 = 6; for (let k = 0; k < N2; k++) { const r0 = 10 + (len - 11) * k / N2, r1 = 10 + (len - 11) * (k + 1) / N2, b0 = Math.sin((k / N2) * Math.PI) * 1.4, b1 = Math.sin(((k + 1) / N2) * Math.PI) * 1.4, d0 = zBot + (zTop - zBot) * (k / N2) * 0.35, d1 = zBot + (zTop - zBot) * ((k + 1) / N2) * 0.35;
+        m.quad(P1(r0, zTop - 0.5, 0), P1(r1, zTop - 0.5, 0), P1(r1, d1, b1), P1(r0, d0, b0), snow ? '#eef2f4' : k % 2 ? '#f4efe2' : '#ece4d2', M.cloth); }
+      m.quad(P1(len - 1, zTop - 0.5), P1(len - 0.6, zTop - 0.5), P1(len - 0.6, zBot + (zTop - zBot) * 0.35), P1(len - 1, zBot + (zTop - zBot) * 0.35), '#8a7a5a', 0); }
     // 树冠：树干顶上分出五根大枝，枝头一大团一大团的叶子，盖住所有屋顶
     if (!cut) { const cols = LEAF(o); for (let k = 0; k < 6; k++) { const a = k * 1.047 + 0.3, b0 = [cx + Math.cos(a) * 3, cy + Math.sin(a) * 3, top - 2], mid = [cx + Math.cos(a) * 11, cy + Math.sin(a) * 11, top + 7], tip = [cx + Math.cos(a) * 18, cy + Math.sin(a) * 18, top + 10];
         if (CITY) CITY.rootLine(m, [b0, mid, tip], 1.8, 0.5, bark);
