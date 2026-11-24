@@ -1441,7 +1441,7 @@
     else if (kind === 'eat') { const k = ease(el / 0.5), bite = Math.max(0, Math.sin(el * Math.PI * 2 / 0.8)) ** 3; RT = { x: 78 - 22 * k, y: 92 - 4 * k - 8 * bite * k, r: -0.22 + 0.35 * k, k: 1 + 0.12 * k, g: 1 }; LT = { x: 22 + 20 * k, y: 120 - 30 * k - 8 * bite * k, r: 0.22 - 0.35 * k, k: 1 + 0.12 * k, g: 1 }; }
     else if (kind === 'snack') { RT = { x: 74, y: 90, r: -0.12, k: 1, g: 1 }; }
     else if (kind === 'rod' || kind === 'fish') { const f2 = p.fishing || fp.fish, phs = f2 && f2.ph, bite = phs === 'bite' || phs === 'nibble', reel = phs === 'reel';
-      RT = { x: 70, y: 90, r: 0.1 + (reel ? -0.25 : 0) + (bite ? Math.sin(t * 34) * 0.05 : 0), k: 1, g: 1 }; if (kind === 'fish' && el < 0.7) { const c = el / 0.7; RT.r += -0.9 * Math.sin(ease(c / 0.45) * Math.PI / 2) * (1 - ease((c - 0.45) / 0.55)) + 0.25 * ease((c - 0.45) / 0.55) * (1 - c); } // 刚抛竿：往后一扬、往前一甩
+      RT = { x: 72, y: 92, r: -0.38 + (reel ? -0.25 : 0) + (bite ? Math.sin(t * 34) * 0.05 : 0), k: 1, g: 1 }; if (kind === 'fish' && el < 0.7) { const c = el / 0.7; RT.r += -0.9 * Math.sin(ease(c / 0.45) * Math.PI / 2) * (1 - ease((c - 0.45) / 0.55)) + 0.25 * ease((c - 0.45) / 0.55) * (1 - c); } // 刚抛竿：往后一扬、往前一甩
       if (reel) { RT.x -= 1.5; LT = { x: 56 + Math.cos(t * 12) * 2.5, y: 98 + Math.sin(t * 12) * 2.5, r: 0.5, k: 1, g: 1 }; } }
     else if (kind === 'wood') { RT = { x: 64, y: 98, r: -0.5, k: 1, g: 1 }; LT = { x: 36, y: 98, r: 0.5, k: 1, g: 1 }; }
     if (tapK && !wk) { RT.x -= 6 * tapK; RT.y -= 12 * tapK; RT.k -= 0.12 * tapK; RT.r -= 0.25 * tapK; }
