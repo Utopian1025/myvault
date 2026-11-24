@@ -47,7 +47,7 @@
 - 设计原则（`DESIGN.md` 第 5 节）：城堡里每样东西都要挂在「火和热 / 水 / 吃的 / 飞」某条命脉上、有人用；看不出用途又不能用的不加。室内「温暖杂乱的小屋」风格在 `fort.js` 的 `COZY`/`cozy()`（置物架、挂着的香草和锅）、`HEARTH`（卧室壁炉 + 墙外砖烟囱 + 炉台座钟指真实时间）。
 - 钓鱼：`island.js` 的 `castPoint/fpFish/fishTick/bobNow`，浮漂在 `fort.js dyn` 里画（`o.bob`），锦鲤在蓄水池 `dyn`。
 
-- 外观：配色在 `fort.js` 的 `C`（「林间白石城」：浅石圆塔 `TOWER`、石板蓝 `TILE`、苔绿 `SHING`、铜绿 `COP`、白翅膀），`isle_models.js` 的 `HW` 跟着一致。守护大树 `giantTree()`（`GTREE`，城堡西北角）和外沿林子 `forest()` 在 `plants()` 开头；屋顶苔藓在 `tallRoof` 的 `mossOn`；只有有炉子的地方才画烟囱。
+- 外观：0.28 的「林间白石城」塔楼、`giantTree()`、翅膀都已被 0.29 的古树水城取代；配色见上面「古树水城」那条。
 
 ## 测试方法
 没有单元测试。用 Playwright + Chrome（swiftshader）打开 `renderer/index.html`，在页面里调 `PP.*` 再截图看：
