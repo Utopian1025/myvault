@@ -64,7 +64,11 @@
   const AREA = { z: Z, inF: F.AREA.inF, ramps: F.AREA.ramps, obst: () => F.AREA.obst(extraObs()), solid: () => F.AREA.solid(extraObs()) };
   const area = () => AREA;
   const Zf = (a, lv) => a.z[lv];
-  const rampT = (r, u, v) => U.clamp(((r.axis === 'u' ? u : v) - r.lo) / (r.hi - r.lo), 0, 1);
+  const rampT = (r, u, v) => (r.spiral ? 0 : U.clamp(((r.axis === 'u' ? u : v) - r.lo) / (r.hi - r.lo), 0, 1));
+  /* 螺旋楼梯（树心里的）：沿着弧线的一串点，每个点带自己的高度；两头是树干外面门口的一点 */
+  const spPt = (r, f) => { const ang = r.ang0 + (r.ang1 - r.ang0) * f, rr = (r.r0 + r.r1) / 2; return { u: r.cu + Math.cos(ang) * rr, v: r.cv + Math.sin(ang) * rr, z: Z[r.a] + (Z[r.b] - Z[r.a]) * f }; };
+  function rampArc(r, up) { if (!r.spiral) return []; const n = 30, out = [up ? r.landA : r.landB]; for (let k = 0; k <= n; k++) out.push(spPt(r, up ? k / n : 1 - k / n)); out.push(up ? r.landB : r.landA); return out.map((q) => ({ u: q.u != null ? q.u : q[0], v: q.v != null ? q.v : q[1], z: q.z != null ? q.z : Z[up ? (q === r.landA ? r.a : r.b) : (q === r.landB ? r.b : r.a)] })); }
+  const endsRaw = (S2) => { if (S2.spiral) return [S2.doorA, S2.doorB]; const mid = S2.axis === 'u' ? (S2.v0 + S2.v1) / 2 : (S2.u0 + S2.u1) / 2; return S2.axis === 'u' ? [[S2.lo, mid], [S2.hi, mid]] : [[mid, S2.lo], [mid, S2.hi]]; };
   const GS = 0.5, GN = 144, G0 = -10; // 网格从 -10 开始：伸出去的阳台、葡萄架也在格子里
   const gi = (u) => Math.round((u - G0) / GS), gu = (i) => i * GS + G0;
   let grids = {}, cells = {};
@@ -113,13 +117,14 @@
     while (q.length) { const c = q.shift(); if (c === to) break; for (const r of a.ramps) { const n = r.a === c ? r.b : r.b === c ? r.a : null; if (n != null && !(n in prev)) { prev[n] = [c, r]; q.push(n); } } }
     const out = []; let c = to; while (prev[c]) { out.unshift([prev[c][1], c]); c = prev[c][0]; } return out;
   }
-  const rampEnds = (r) => { const mid = r.axis === 'u' ? (r.v0 + r.v1) / 2 : (r.u0 + r.u1) / 2, sg = Math.sign(r.lo - r.hi), P = (e, s) => (r.axis === 'u' ? [e + s * 0.9, mid] : [mid, e + s * 0.9]); return [P(r.lo, sg), P(r.hi, -sg)]; };
+  const rampEnds = (r) => { if (r.spiral) return [r.doorA, r.doorB]; const mid = r.axis === 'u' ? (r.v0 + r.v1) / 2 : (r.u0 + r.u1) / 2, sg = Math.sign(r.lo - r.hi), P = (e, s) => (r.axis === 'u' ? [e + s * 0.9, mid] : [mid, e + s * 0.9]); return [P(r.lo, sg), P(r.hi, -sg)]; };
   function plan(a, ip, u, v, lv) {
     const pts = []; let cur = [ip.u, ip.v], cl = ip.lv;
     if (cl !== lv) for (const [r, to] of route(a, cl, lv)) {
       const [lo, hi] = rampEnds(r), [en, ex] = to === r.b ? [lo, hi] : [hi, lo];
       for (const q of pathIn(a, cl, cur, en)) pts.push({ u: q[0], v: q[1], lv: cl });
-      pts.push({ u: ex[0], v: ex[1], lv: to, ramp: r }); cur = ex; cl = to;
+      for (const q of rampArc(r, to === r.b)) pts.push({ u: q.u, v: q.v, z: q.z, lv: to, ramp: r }); // 螺旋楼梯：沿着弧线一圈圈走
+      pts.push({ u: ex[0], v: ex[1], lv: to, ramp: r.spiral ? null : r }); cur = ex; cl = to;
     }
     if (cl === lv) for (const q of pathIn(a, cl, cur, [u, v])) pts.push({ u: q[0], v: q[1], lv: cl });
     return pts;
@@ -194,8 +199,8 @@
     let left = (w.run ? RUN : SPEED) * (p.dizzy > 0 ? 0.5 : 1) * Math.min(1, 0.35 + w.t * 3) * dt, moved = 0, du = 0, dv = 0, onRamp = false;
     while (left > 0 && w.i < w.pts.length) {
       const t = w.pts[w.i], d = Math.hypot(t.u - q.u, t.v - q.v); onRamp = !!t.ramp; if (onRamp) left *= 0.8;
-      if (d <= left) { du += t.u - q.u; dv += t.v - q.v; q.u = t.u; q.v = t.v; q.lv = t.lv; p.isleLv = t.lv; q.z = Zf(a, t.lv); left -= d; moved += d; w.i++; }
-      else { const k = left / d; du += (t.u - q.u) * k; dv += (t.v - q.v) * k; q.u += (t.u - q.u) * k; q.v += (t.v - q.v) * k; moved += left; left = 0; if (t.ramp) { const r = t.ramp; q.z = a.z[r.a] + (a.z[r.b] - a.z[r.a]) * rampT(r, q.u, q.v); } else q.z = Zf(a, q.lv); }
+      if (d <= left) { du += t.u - q.u; dv += t.v - q.v; q.u = t.u; q.v = t.v; q.lv = t.lv; p.isleLv = t.lv; q.z = t.z != null ? t.z : Zf(a, t.lv); left -= d; moved += d; w.i++; }
+      else { const k = left / d; du += (t.u - q.u) * k; dv += (t.v - q.v) * k; q.u += (t.u - q.u) * k; q.v += (t.v - q.v) * k; moved += left; left = 0; if (t.z != null) q.z += (t.z - q.z) * k; else if (t.ramp) { const r = t.ramp; q.z = a.z[r.a] + (a.z[r.b] - a.z[r.a]) * rampT(r, q.u, q.v); } else q.z = Zf(a, q.lv); }
     }
     w.d += moved;
     const rd = rotUV(CEN[0] + du, CEN[1] + dv), sdx = ((rd[0] - CEN[0]) - (rd[1] - CEN[1])) * (mir() ? -1 : 1); if (Math.abs(sdx) > 0.02) p.facing = sdx > 0 ? 1 : -1;
@@ -697,8 +702,8 @@
   function neighbours(id) {
     if (!nbC) { nbC = {}; const add = (a, b, how) => { if (!a || !b || a === b) return; (nbC[a.id] = nbC[a.id] || new Map()).set(b.id, how); (nbC[b.id] = nbC[b.id] || new Map()).set(a.id, how); };
       for (const P of F.PASS) { const hit = new Set(); for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) { const x = P.r[0] - 0.6 + (P.r[2] - P.r[0] + 1.2) * i / 6, y = P.r[1] - 0.6 + (P.r[3] - P.r[1] + 1.2) * j / 6, w = P.F ? F.toW(P.F, x, y) : [x, y], r = F.roomAt(w[0], w[1], P.lv); if (r) hit.add(r); } const L2 = [...hit]; for (let i = 0; i < L2.length; i++) for (let j = i + 1; j < L2.length; j++) add(L2[i], L2[j], 'door'); }
-      for (const S2 of F.RAMPS) { const mid = S2.axis === 'u' ? (S2.v0 + S2.v1) / 2 : (S2.u0 + S2.u1) / 2, at = (t, lv) => { const P = S2.axis === 'u' ? [t, mid] : [mid, t]; return F.roomAt(P[0], P[1], lv); };
-        const ra = at(S2.lo - 0.8, S2.a) || at(S2.lo + 0.5, S2.a), rb = at(S2.hi + 0.8, S2.b) || at(S2.hi - 0.5, S2.b); add(ra, rb, 'stair'); } }
+      for (const S2 of F.RAMPS) { const [e0, e1] = endsRaw(S2), near = (p0, lv) => { for (const d of [0, 0.8, 1.6, 2.4]) for (let k = 0; k < 8; k++) { const r2 = F.roomAt(p0[0] + Math.cos(k * 0.785) * d, p0[1] + Math.sin(k * 0.785) * d, lv); if (r2) return r2; } return null; };
+        add(near(e0, S2.a), near(e1, S2.b), 'stair'); } }
     return [...(nbC[id] || new Map())].map(([k, how]) => ({ id: k, how, r: RM[k] }));
   }
   function goRoom(id) { const p = mainP(), r = RM[id]; setFocus(id); if (p && r) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; const q = roomSpot(id); p.run('isleGo', A.isleGo, q.u, q.v, q.lv); p._byYou = true; p._stayUntil = performance.now() + 25000; } }
@@ -770,8 +775,8 @@
     if (focus && RM[focus]) { const r = RM[focus], out = [], seen = new Set();
       for (const P of F.PASS) { if (P.lv !== r.lv) continue; const c = P.F ? F.toW(P.F, (P.r[0] + P.r[2]) / 2, (P.r[1] + P.r[3]) / 2) : [(P.r[0] + P.r[2]) / 2, (P.r[1] + P.r[3]) / 2]; if (!F.inRoom(r, c[0], c[1], -1.6)) continue;
         for (const n of neighbours(r.id)) { if (n.how !== 'door' || seen.has(n.id) || !F.inRoom(n.r, c[0], c[1], -1.6)) continue; seen.add(n.id); out.push({ u: c[0], v: c[1], z: Z[r.lv] + 4.5, t: '→ ' + n.r.nm, go: n.id }); } }
-      for (const S2 of F.RAMPS) { const mid = S2.axis === 'u' ? (S2.v0 + S2.v1) / 2 : (S2.u0 + S2.u1) / 2;
-        for (const n of neighbours(r.id)) { if (n.how !== 'stair' || seen.has(n.id)) continue; const lo = S2.axis === 'u' ? [S2.lo, mid] : [mid, S2.lo], hi = S2.axis === 'u' ? [S2.hi, mid] : [mid, S2.hi];
+      for (const S2 of F.RAMPS) {
+        for (const n of neighbours(r.id)) { if (n.how !== 'stair' || seen.has(n.id)) continue; const [lo, hi] = endsRaw(S2);
           const here = r.lv === S2.a ? lo : r.lv === S2.b ? hi : null, there = n.r.lv === S2.a ? lo : n.r.lv === S2.b ? hi : null; if (!here || !there || !F.inRoom(r, here[0], here[1], -1.5) || !F.inRoom(n.r, there[0], there[1], -1.5)) continue;
           seen.add(n.id); out.push({ u: here[0], v: here[1], z: Z[r.lv] + 5, t: (n.r.lv > r.lv ? '↑ ' : '↓ ') + n.r.nm, go: n.id }); } }
       for (const n of neighbours(r.id)) if (!seen.has(n.id)) out.push({ u: null, t: (n.how === 'stair' ? (n.r.lv > r.lv ? '↑ ' : '↓ ') : '→ ') + n.r.nm, go: n.id });
@@ -872,7 +877,7 @@
   let solidC = null;
   function solids() { const k = 's' + dirtyK; if (!solidC || solidC.k !== k) { const by = Z.map(() => []); for (const s of area().solid()) (by[s.o[0]] || []).push(s); solidC = { k, by }; } return solidC.by; }
   const hitO = (o, u, v, r) => (o[1] === 'c' ? Math.hypot(u - o[2], v - o[3]) < o[4] + r : u > o[1] - r && u < o[3] + r && v > o[2] - r && v < o[4] + r);
-  const inRampF = (r, u, v) => u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1;
+  const inRampF = (r, u, v) => (r.spiral ? (() => { const d = Math.hypot(u - r.cu, v - r.cv); return d >= r.r0 - 0.2 && d <= r.r1 + 0.2; })() : u >= r.u0 && u <= r.u1 && v >= r.v0 && v <= r.v1);
   const rampZ = (r, u, v) => Z[r.a] + (Z[r.b] - Z[r.a]) * rampT(r, u, v);
   // 脚下最高的面（不高过 zmax）：{ z, lv, ramp }；什么都没有 → z = -Infinity
   function surf(u, v, zmax) {
@@ -900,7 +905,7 @@
     }
     const by = solids();
     for (let L = 0; L < by.length; L++) { const zb = Z[L]; if (z + PH < zb || z > zb + 16) continue; for (const s of by[L]) { if (z + STEP >= zb + s.h || z + PH <= zb) continue; if (hitO(s.o, u, v, BODY)) return true; } }
-    for (const r of area().ramps) if (inRampF(r, u, v)) { const rz = rampZ(r, u, v); if (rz > z + STEP && rz < z + PH) return true; } // 楼梯的侧面
+    for (const r of area().ramps) if (!r.spiral && inRampF(r, u, v)) { const rz = rampZ(r, u, v); if (rz > z + STEP && rz < z + PH) return true; } // 楼梯的侧面
     return false;
   }
   // ---- 第一人称的“能站的地图”：每层每个 0.5 格，按真实模型算能不能站、会不会撞（自动走路、大地图都用它）----
@@ -939,7 +944,7 @@
   // 从这儿走到 (u,v,lv)：同一层直接找路；换层就先走到楼梯口、走楼梯、再接着走
   function fpPlan(from, u, v, lv) {
     const a = area(), pts = []; let cur = [from.u, from.v], cl = from.lv;
-    if (cl !== lv) for (const [r, to] of route(a, cl, lv)) { const [lo, hi] = rampEnds(r), [en, ex] = to === r.b ? [lo, hi] : [hi, lo]; const p1 = navPath(cl, cur, en); if (!p1) return null; for (const q of p1) pts.push({ u: q[0], v: q[1], lv: cl }); pts.push({ u: ex[0], v: ex[1], lv: to, ramp: r }); cur = ex; cl = to; }
+    if (cl !== lv) for (const [r, to] of route(a, cl, lv)) { const [lo, hi] = rampEnds(r), [en, ex] = to === r.b ? [lo, hi] : [hi, lo]; const p1 = navPath(cl, cur, en); if (!p1) return null; for (const q of p1) pts.push({ u: q[0], v: q[1], lv: cl }); for (const q of rampArc(r, to === r.b)) pts.push({ u: q.u, v: q.v, lv: to, ramp: r }); pts.push({ u: ex[0], v: ex[1], lv: to, ramp: r.spiral ? null : r }); cur = ex; cl = to; }
     const p2 = navPath(cl, cur, [u, v]); if (!p2) return null; for (const q of p2) pts.push({ u: q[0], v: q[1], lv: cl });
     return pts;
   }
