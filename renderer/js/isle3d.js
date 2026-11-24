@@ -317,7 +317,11 @@
       float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.12);
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
-    if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); o=vec4(lit, uPick>0.5?1.0:(uFP.w>0.0?clamp(0.32+0.55*fr,0.32,0.8):clamp(0.2+0.45*fr,0.2,0.6))); return; } // 俯视时更透，看得见水下的古城 // 正着往下看最透，斜着看反光多
+    // 水下的东西：从水面上往下看，越深越融进深蓝绿里（只看得见浅处的屋顶、露出来的塔尖）；人潜在水下时按距离看不远（十几格以外就看不清了）
+    if(uLake.z>0.0 && !lakeW && vW.z<uLake.w-0.05 && length(vW.xy-uLake.xy)<uLake.z){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); bool under=uFP.w>0.0 && eyeW.z<uLake.w;
+      vec3 deepC=vec3(0.05,0.17,0.21); float k=under? smoothstep(6.0,22.0,length(vW-eyeW)) : smoothstep(0.6,6.5,uLake.w-vW.z);
+      lit=mix(lit, deepC+lit*0.06, k*0.97*(1.0-clamp(emis,0.0,1.0)*0.55)); } // 灯笼、发光的石头在暗处还能透出一点光
+    if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); vec3 eyeW2=uFP.xyz/vec3(${MU},${MU},${MZ}); bool und=uFP.w>0.0 && eyeW2.z<uLake.w; o=vec4(lit, uPick>0.5?1.0:(und?0.35:clamp(0.55+0.35*fr,0.55,0.9))); return; } // 水是深的：从上面看大半看不透；潜到水下往上看才透亮 // 俯视时更透，看得见水下的古城 // 正着往下看最透，斜着看反光多
     o=vec4(lit,1.0);
   }`;
   const FSS = `#version 300 es
