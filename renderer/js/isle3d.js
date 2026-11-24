@@ -193,7 +193,8 @@
       float rx=-m.x*sy+m.y*cy, fw=m.x*cy+m.y*sy, up=m.z; float u2=up*cp-fw*sp, f2=up*sp+fw*cp; float nr=0.25, fr=600.0;
       gl_Position=vec4(rx*uFP2.z/uFP2.w, u2*uFP2.z, (f2*(fr+nr)-2.0*fr*nr)/(fr-nr), f2); }
     // 叠在同一个平面上的两块（墙的断面和门框、地板和下层屋顶的积雪……）：按每块自带的先后号挪一丁点深度，谁在前面就固定了，不会两张面轮流抢着显示（闪烁）
-    if(aW<0.0) gl_Position.z-=(-aW)*0.7e-6*gl_Position.w; }`;
+    // 第一人称：挪的是「真实距离」里固定的一丁点（远处稍大一点但仍远小于窗玻璃离墙的距离）；以前按屏幕深度挪，走远了几十格后墙会跳到窗户前面，一走一闪
+    if(aW<0.0){ if(uFP.w>0.0){ float st=max(0.002, gl_Position.w*3.5e-5); gl_Position.z-=(-aW)*st*(600.25/599.75); } else gl_Position.z-=(-aW)*0.7e-6*gl_Position.w; } }`;
   const VSS = `#version 300 es
   in vec3 aP; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
   void main(){ vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 s=(uL*m-uLo)*uLs; gl_Position=vec4(s.xy, -s.z, 1.0); }`;
@@ -254,7 +255,13 @@
       else { float w1=sin(q.x*2.1+q.y*1.3+t*1.4+ns(q*0.9+t*0.2)*3.0), w2=sin(-q.x*1.2+q.y*2.6-t*1.1+ns(q*1.3-t*0.15)*3.0), h=w1*0.5+w2*0.5;
         for(int i=0;i<4;i++){ float age=t-uRip[i].z; if(age<0.0||age>4.0) continue; float d=length(q-uRip[i].xy); h+=sin(d*6.0-age*7.5)*exp(-d*0.8)*exp(-age*0.9)*1.6*smoothstep(0.0,0.4,age*2.5-d+0.4); }
         vec3 deep=c*0.6, sh=c*1.12+vec3(0.04,0.09,0.1); c=mix(deep,sh,smoothstep(-0.7,0.9,h)); c+=0.4*pow(clamp(1.0-abs(h),0.0,1.0),7.0);
-        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.35*step(0.98,ns(q*6.0+vec2(t*0.25,-t*0.15)))*(1.0-uLit*0.6)*(1.0-uFP.w); emis=0.25; }
+        c=mix(c, mix(uSkyBot,uSkyTop,0.6), 0.22); c+=0.35*step(0.98,ns(q*6.0+vec2(t*0.25,-t*0.15)))*(1.0-uLit*0.6)*(1.0-uFP.w);
+        // 原神那种水：斜着看映着天（越平着看越像镜子），对着太阳有一片柔和的亮光在波纹上碎开
+        { float a1=q.x*2.1+q.y*1.3+t*1.4, a2=-q.x*1.2+q.y*2.6-t*1.1; vec2 dh=0.5*cos(a1)*vec2(2.1,1.3)+0.5*cos(a2)*vec2(-1.2,2.6); vec3 Nw=normalize(vec3(-dh*0.07,1.0));
+          vec3 Pw=vec3(vW.xy*${MU}, vW.z*${MZ}); vec3 Vv=uFP.w>0.0? normalize(uFP.xyz-Pw) : normalize(uVd); if(Vv.z<0.0) Vv=-Vv;
+          float frs=pow(1.0-clamp(Vv.z,0.0,1.0),4.0); c=mix(c, mix(uSkyBot,uSkyTop,0.35)*1.05, frs*0.55);
+          vec3 Ls=normalize(uSun); float sp=pow(max(dot(reflect(-Ls,Nw),Vv),0.0),48.0); c+=uSunCol*sp*0.55*(1.0-uLit)*(1.0-uInside); }
+        emis=0.25; }
     } else if(m==11){ float t=floor(vW.x*0.7)+floor(vW.y*0.7+vW.z*0.2); c*=0.88+0.2*mod(t,2.0);
     } else if(m==12){ c*=0.85+0.25*ns(vec2(hc*0.5,vW.z*0.6)); c+=0.12*smoothstep(0.8,1.0,fract(vW.z*0.2+hc*0.1));
     } else if(m==13){ // 墙纸：很淡的细竖条纹，菱形错开排着的小碎花（五瓣），远了就淡成底色
@@ -300,10 +307,10 @@
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
-      float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.84,0.9,1.16), vec3(1.05,1.0,0.9), b);
+      float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.93,0.95,1.08), vec3(1.05,1.0,0.9), b);
       float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,1.14); // 天空之城 / 原神：颜色干净饱满，暗面偏蓝而不是发灰
     } else { // 二次元的光：明暗两档之间软软地过渡；暗面偏冷的蓝紫，亮面偏暖
-      float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.84,0.92,1.16)*1.08, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
+      float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.94,0.96,1.07)*1.1, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
     // 屋里的灯：每间房一盏，开着的时候整间屋子暖暖地亮起来（只照到这间房的范围、这一层的高度里）
     for(int i=0;i<40;i++){ if(i>=uNRL) break; float k=uRLk[i]; if(k<=0.01) continue; vec4 a=uRLa[i], b=uRLb[i]; if(vW.z<b.z-0.05||vW.z>b.w+0.05) continue;
       vec2 d=vW.xy-a.xy; float far;

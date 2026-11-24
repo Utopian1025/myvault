@@ -130,6 +130,9 @@
     { id: 'dock', name: '码头', lv: 1, r: [22.2, 45.4, 25.8, 56.5], kind: 'dock' },
     { id: 'farmA', name: '梯田菜地', lv: 1, r: rectAt(7, 24.6, 6.95, 3.6), rot: 97, kind: 'farm' },
     { id: 'farmB', name: '梯田菜地', lv: 1, r: rectAt(42, 24.6, 6.95, 3.6), rot: 132, kind: 'farm' },
+    /* 菜园栈道（0.30）：从码头往东一条木栈道直通菜地，出门几步就到（以前要从厨房、餐厅后门绕） */
+    { id: 'walk1', name: '菜园栈道', lv: 1, r: [25.6, 48.4, 37.4, 50.6], kind: 'walk', rails: ['v1'] },
+    { id: 'walk2', name: '菜园栈道', lv: 1, r: [35.2, 45.2, 39.2, 50.6], kind: 'walk', rails: ['u1'] },
   ];
   const MD = {}; MODS.forEach((q) => { MD[q.id] = q; if (q.rot) q.rot *= Math.PI / 180; });
   const mFrame = (q) => (q.fr ? frameOf(q.fr) : q.rot ? q : null);
@@ -193,7 +196,9 @@
   const BAL_L = { u: 24, v: 55.2 }, NEST_L = (([u, v]) => ({ u, v }))(lp('store', -1.6, -3.4));
   const BALLOON = { u: BAL_L.u, v: BAL_L.v }, NEST = { u: NEST_L.u, v: NEST_L.v };
   const GPOTS = [lp('green', 1.8, 2.6), lp('green', -0.6, 2.6), lp('green', 1.8, -0.4), lp('green', -0.6, 0.2)];
-  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13 };
+  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13, lift: 170 };
+  /* 吊篮：挂在树干外面（θ72°，楼梯门旁边），一、二、三层回廊上各一站；坐上去直接到别的层（从高处掉下来不用绕一大圈走回去） */
+  const LIFT = { deg: 72, r: 9.55, stops: [1, 2, 3] }; LIFT.u = TC[0] + Math.cos(LIFT.deg * D2R) * LIFT.r; LIFT.v = TC[1] + Math.sin(LIFT.deg * D2R) * LIFT.r;
   const TREES_L = [];
   const PLOT_OB = PLOTS_L.flatMap(([id, u, v]) => rectObs(mFrame(MD[id]), 1, [u, v, u + PS, v + PS]));
   const FIXED = [...PLOT_OB, ...HIVES.map(([u, v]) => [2, 'c', u, v, 1.2]), [1, 'c', MAILB.u, MAILB.v, 0.6], [1, 'c', TAP.u, TAP.v, 0.8], ...LAMPS.map(([u, v]) => [1, 'c', u, v, 0.35]), [2, 'c', NEST.u, NEST.v, 1.2], [1, BAL_L.u - 1.6, BAL_L.v - 1.4, BAL_L.u + 1.6, BAL_L.v + 1.4]];
@@ -465,7 +470,9 @@
       if (r.pod) { /* 木头小屋：每隔几段一根木柱、半腰一圈木带、开几扇方窗（窗台上有花） */ const ro2 = rad + WT / 2;
         if (i % 3 === 0) { const p = pi(a, ro2 + 0.05); m.box(p[0] - 0.16, p[1] - 0.16, z, p[0] + 0.16, p[1] + 0.16, top, C.TIMBER, M.plank); }
         if (!fc) { const q0 = pi(a, ro2 + 0.04), q1 = pi(b, ro2 + 0.04); m.quad([q0[0], q0[1], z + 4.6], [q1[0], q1[1], z + 4.6], [q1[0], q1[1], z + 4.9], [q0[0], q0[1], z + 4.9], C.TIMBER, M.plank); }
-        if (i % 4 === 2 && !ringGap(r, (i + 1) % n) && !ringGap(r, (i + n - 1) % n) && top - z > 6) { const g0 = pi(a + (b - a) * 0.1, ro2 + 0.06), g1 = pi(b - (b - a) * 0.1, ro2 + 0.06); m.quad([g0[0], g0[1], z + 5.4], [g1[0], g1[1], z + 5.4], [g1[0], g1[1], z + 7.6], [g0[0], g0[1], z + 7.6], o.night ? '#ffe9a8' : C.GLASS, o.night ? M.glow : M.glass); const sp = pi(am, ro2 + 0.4); m.box(sp[0] - 0.4, sp[1] - 0.4, z + 5.0, sp[0] + 0.4, sp[1] + 0.4, z + 5.4, '#8a5a3a', M.plank); if (!o.snow) m.flower(sp[0], sp[1], z + 5.4, 0.8, ['#f2a6c2', '#ffd95a', '#ffffff'][i % 3], i); }
+        if (i % 4 === 2 && !ringGap(r, (i + 1) % n) && !ringGap(r, (i + n - 1) % n) && top - z > 6) { const g0 = pi(a + (b - a) * 0.14, ro2 + 0.12), g1 = pi(b - (b - a) * 0.14, ro2 + 0.12); /* 窗：玻璃离墙 0.12（不再贴着墙闪），外面一圈木窗框、中间十字窗棂；第一人称里也是不透明的（墙后面本来就是屋里） */ m.quad([g0[0], g0[1], z + 5.4], [g1[0], g1[1], z + 5.4], [g1[0], g1[1], z + 7.6], [g0[0], g0[1], z + 7.6], o.night ? '#ffe9a8' : '#7fa9c4', o.night ? M.glow : M.metal);
+          { const f0 = pi(a + (b - a) * 0.1, ro2 + 0.18), f1 = pi(b - (b - a) * 0.1, ro2 + 0.18), fm = pi(am, ro2 + 0.2), bx = (p, z0, z1, w) => m.box(p[0] - w, p[1] - w, z0, p[0] + w, p[1] + w, z1, C.TIMBER, M.plank);
+            bx(f0, z + 5.2, z + 7.8, 0.13); bx(f1, z + 5.2, z + 7.8, 0.13); bx(fm, z + 5.4, z + 7.6, 0.07); const tq = (zz, hh) => m.quad([f0[0], f0[1], zz], [f1[0], f1[1], zz], [f1[0], f1[1], zz + hh], [f0[0], f0[1], zz + hh], C.TIMBER, M.plank); tq(z + 7.6, 0.25); tq(z + 6.42, 0.14); } const sp = pi(am, ro2 + 0.4); m.box(sp[0] - 0.4, sp[1] - 0.4, z + 5.0, sp[0] + 0.4, sp[1] + 0.4, z + 5.4, '#8a5a3a', M.plank); if (!o.snow) m.flower(sp[0], sp[1], z + 5.4, 0.8, ['#f2a6c2', '#ffd95a', '#ffffff'][i % 3], i); }
       } else if (top - z > 6) {
         for (const zz of [3.4, 8, 12.6]) if (zz < h - 0.5) { const q0 = pi(a, ro + 0.06), q1 = pi(b, ro + 0.06); m.quad([q0[0], q0[1], z + zz], [q1[0], q1[1], z + zz], [q1[0], q1[1], z + zz + 0.35], [q0[0], q0[1], z + zz + 0.35], shade(r.out, 0.68), M.metal); const rv = pi(am, ro + 0.1); m.box(rv[0] - 0.07, rv[1] - 0.07, z + zz + 0.45, rv[0] + 0.07, rv[1] + 0.07, z + zz + 0.6, '#e0b070', M.metal); }
         if (i % 3 === 1 && !ringGap(r, (i + 1) % n) && !ringGap(r, (i + n - 1) % n)) { const pp = pi(am, ro + 0.05), face = Math.abs(nu) > Math.abs(nv) ? 'u' : 'v'; m.disc(pp[0], pp[1], z + 7.2, 0.95, face, '#3a3448', M.metal, 12); m.disc(pp[0] + nu * 0.04, pp[1] + nv * 0.04, z + 7.2, 0.7, face, o.night ? '#ffe9a8' : C.GLASS, o.night ? M.glow : M.glass, 12); const pq = pi(am, ri - 0.05); m.disc(pq[0], pq[1], z + 7.2, 0.7, face, C.GLASS, M.glass, 12); }
@@ -697,9 +704,15 @@
         if (q.kind === 'dock') { // 码头：木板铺面，桩子插进水里 / 岩顶，两边栏杆（钓鱼的地方东边断开），西边一道石阶下水
           slab(m, q, o, '#a8784a', '#7a5636', M.plank, { planks: true, th: 0.6 });
           for (let v = b + 1; v < d; v += 2.6) for (const u of [a + 0.25, c - 0.25]) m.cyl(u, v, -14, z - 0.6, 0.28, 0.28, '#5a4030', M.plank, 8);
-          for (const [u, sd] of [[a + 0.12, -1], [c - 0.12, 1]]) for (let v = b + 1.6; v < d - 0.2; v += 1.1) { if (sd > 0 && v > FISH.v - 1.6 && v < FISH.v + 1.6) continue; if (sd < 0 && v > 47 && v < 49.6) continue; m.box(u - 0.08, v - 0.08, z, u + 0.08, v + 0.08, z + 3.1, C.TIMBER, M.plank); m.box(u - 0.1, v - 0.55, z + 2.9, u + 0.1, v + 0.55, z + 3.2, C.TIMBER, M.plank); }
+          for (const [u, sd] of [[a + 0.12, -1], [c - 0.12, 1]]) for (let v = b + 1.6; v < d - 0.2; v += 1.1) { if (sd > 0 && v > FISH.v - 1.6 && v < FISH.v + 1.6) continue; if (sd > 0 && v > 48.1 && v < 50.9) continue; /* 菜园栈道的路口 */ if (sd < 0 && v > 47 && v < 49.6) continue; m.box(u - 0.08, v - 0.08, z, u + 0.08, v + 0.08, z + 3.1, C.TIMBER, M.plank); m.box(u - 0.1, v - 0.55, z + 2.9, u + 0.1, v + 0.55, z + 3.2, C.TIMBER, M.plank); }
           for (let k = 0; k < 9; k++) m.box(a - 1.2 - k * 0.0, 47.2 + 0.0, z - 0.6 - k * 1.1, a, 49.6, z - 0.2 - k * 1.1, k % 2 ? '#bdb39d' : '#b3a992', M.stone); // 下水的石阶
           for (let k = 0; k < 3; k++) { const v = d - 0.8 - k * 0.9; m.cyl(c - 0.6, v, z, z + 1.1, 0.35, 0.38, '#8a5a3a', M.plank, 8); }
+        }
+        if (q.kind === 'walk') { slab(m, q, o, '#b8885a', '#7a5636', M.plank, { planks: true, th: 0.5 }); const [a, b, c, d] = q.r, z = Z[q.lv];
+          for (let u = a + 0.6; u < c; u += 2.4) for (const v of [b + 0.3, d - 0.3]) m.cyl(u, v, -8, z - 0.5, 0.22, 0.22, '#5a4030', M.plank, 7);
+          for (const sd of q.rails || []) { const L2 = sd[0] === 'v' ? c - a : d - b, n = Math.floor(L2 / 1.2); for (let k = 0; k <= n; k++) { const t = k / n, x = sd === 'v1' ? a + (c - a) * t : sd === 'u1' ? c - 0.12 : a, y = sd === 'v1' ? d - 0.12 : b + (d - b) * t; m.box(x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 2.6, C.TIMBER, M.plank); }
+            sd === 'v1' ? m.box(a, d - 0.22, z + 2.5, c, d - 0.02, z + 2.75, C.TIMBER, M.plank) : m.box(c - 0.22, b, z + 2.5, c - 0.02, d, z + 2.75, C.TIMBER, M.plank); }
+          if (q.id === 'walk2') { const p = [c - 0.5, b + 0.6]; m.box(p[0] - 0.08, p[1] - 0.08, z, p[0] + 0.08, p[1] + 0.08, z + 4, C.TIMBER, M.plank); m.box(p[0] - 1.4, p[1] - 0.06, z + 3.0, p[0] - 0.08, p[1] + 0.06, z + 3.8, '#c89a5a', M.plank); } // 路牌：菜园
         }
         if (q.kind === 'farm') {
           slab(m, q, o, q.id === 'farmA' ? '#a8784a' : '#9a7048', '#7a5636', M.plank, { planks: true, beams: true, th: 1.4 });
@@ -1124,12 +1137,35 @@
     for (let k = 0; k < zs.length - 1; k++) { const z0 = zs[k], z1 = zs[k + 1]; if (z0 >= lim) break;
       for (let i = 0; i < N; i++) { const a0 = (i / N) * 6.2832, a1 = ((i + 1) / N) * 6.2832, am = (a0 + a1) / 2; if (isDoor(am, z0)) continue;
         const w0 = 1 + 0.05 * Math.sin(i * 1.7 + k), w1 = 1 + 0.05 * Math.sin((i + 1) * 1.7 + k), r0a = rOut(z0) * w0, r0b = rOut(z0) * w1, r1a = rOut(z1) * w0, r1b = rOut(z1) * w1;
-        m.quad([cx + Math.cos(a0) * r0a, cy + Math.sin(a0) * r0a, z0], [cx + Math.cos(a1) * r0b, cy + Math.sin(a1) * r0b, z0], [cx + Math.cos(a1) * r1b, cy + Math.sin(a1) * r1b, z1], [cx + Math.cos(a0) * r1a, cy + Math.sin(a0) * r1a, z1], (i + k) % 3 ? bark : bark2, M.plank);
+        m.quad([cx + Math.cos(a0) * r0a, cy + Math.sin(a0) * r0a, z0], [cx + Math.cos(a1) * r0b, cy + Math.sin(a1) * r0b, z0], [cx + Math.cos(a1) * r1b, cy + Math.sin(a1) * r1b, z1], [cx + Math.cos(a0) * r1a, cy + Math.sin(a0) * r1a, z1], H(i * 7 + 3, k * 13 + 1) < 0.62 ? bark : H(i, k * 5) < 0.5 ? '#86634a' : bark2, M.plank);
         if (z0 >= -1 && z1 <= 40) { const ri = TRUNK.hole; m.quad([cx + Math.cos(a0) * ri, cy + Math.sin(a0) * ri, z0], [cx + Math.cos(a1) * ri, cy + Math.sin(a1) * ri, z0], [cx + Math.cos(a1) * ri, cy + Math.sin(a1) * ri, z1], [cx + Math.cos(a0) * ri, cy + Math.sin(a0) * ri, z1], i % 2 ? inner : '#a8825a', M.plank); }
-        if (i % 4 === 0 && !snow) { const rr = rOut(z0) + 0.15, p = [cx + Math.cos(am) * rr, cy + Math.sin(am) * rr]; m.box(p[0] - 0.25, p[1] - 0.25, z0, p[0] + 0.25, p[1] + 0.25, z1, '#5f4a38', M.plank); } } } // 树皮上一道道竖棱
+      } }
+    /* 树皮：二十道弯弯的竖棱（三角形断面，一面亮一面暗），顺着树干微微拧着往上长；门洞那儿断开；树脚一圈苔藓 */
+    if (!snow) for (let q = 0; q < 20; q++) { const a0 = (q / 20) * 6.2832 + H(q, 71) * 0.2, wob = 0.1 + H(q, 72) * 0.12, dl = 0.07 + H(q, 73) * 0.05, out = 0.28 + H(q, 74) * 0.22;
+      const A = (z) => a0 + Math.sin(z * 0.11 + q) * wob + z * 0.004, pt = (a, r, z) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z], light = '#9a7450', dk = '#5a4130';
+      for (let z = -2; z < Math.min(top - 2, lim); z += 2.5) { const z1 = Math.min(z + 2.5, top - 2, lim), aa = A(z), ab = A(z1); if (isDoor(aa, z) || isDoor(ab, z1 - 0.01) || isDoor(aa + dl, z) || isDoor(aa - dl, z)) continue;
+        const ra = rOut(z) - 0.05, rb = rOut(z1) - 0.05; m.quad(pt(aa - dl, ra, z), pt(aa, ra + out, z), pt(ab, rb + out, z1), pt(ab - dl, rb, z1), light, M.plank); m.quad(pt(aa, ra + out, z), pt(aa + dl, ra, z), pt(ab + dl, rb, z1), pt(ab, rb + out, z1), dk, M.plank); } }
+    if (!snow && !cut) for (let q = 0; q < 26; q++) { const a = H(q, 81) * 6.2832, z = 0.3 + H(q, 82) * 3.5; if (isDoor(a, z) || isDoor(a, 0.5)) continue; const r = rOut(z) + 0.05; m.blob(cx + Math.cos(a) * r, cy + Math.sin(a) * r, z, 0.5 + H(q, 83) * 0.6, 0.35, ['#5f9a3e', '#76b04a', '#4f8a3a'][q % 3], M.grass, q); }
     // 门洞：门槛（树干壁那么厚的一段地板）、门框、门洞两侧的树干厚度
     for (const d of DOORS) { if (d.z0 >= lim) continue; for (let k = 0; k < 4; k++) { const a0 = d.a - 0.22 + k * 0.11, a1 = a0 + 0.11, P1 = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r], [p0, p1, p2, p3] = [P1(a0, 5.4), P1(a1, 5.4), P1(a1, 8.3), P1(a0, 8.3)]; m.quad([p0[0], p0[1], d.z0], [p1[0], p1[1], d.z0], [p2[0], p2[1], d.z0], [p3[0], p3[1], d.z0], '#a07a52', M.plank); m.quad([p0[0], p0[1], d.z0 - 0.6], [p3[0], p3[1], d.z0 - 0.6], [p2[0], p2[1], d.z0 - 0.6], [p1[0], p1[1], d.z0 - 0.6], '#6a4a30', M.plank); } for (const s2 of [-1, 1]) { const a = d.a + s2 * 0.2; for (const rr of [TRUNK.hole, 7.9]) void rr; m.quad([cx + Math.cos(a) * TRUNK.hole, cy + Math.sin(a) * TRUNK.hole, d.z0], [cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, d.z0], [cx + Math.cos(a) * 8, cy + Math.sin(a) * 8, d.z1], [cx + Math.cos(a) * TRUNK.hole, cy + Math.sin(a) * TRUNK.hole, d.z1], inner, M.plank); }
       for (const rr of [TRUNK.hole, 8]) { const A0 = [cx + Math.cos(d.a - 0.2) * rr, cy + Math.sin(d.a - 0.2) * rr], A1 = [cx + Math.cos(d.a + 0.2) * rr, cy + Math.sin(d.a + 0.2) * rr]; m.quad([A0[0], A0[1], d.z1], [A1[0], A1[1], d.z1], [A1[0], A1[1], d.z1 + 0.6], [A0[0], A0[1], d.z1 + 0.6], C.TIMBER, M.plank); } }
+    // 楼梯门好找：门两边一对暖黄的灯笼，门楣上挂一块木牌（上面刻着往上的箭头）
+    for (const d of DOORS) { if (d.z0 >= lim) continue; const P1 = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
+      for (const sg of [-1, 1]) { const p = P1(d.a + sg * 0.3, 8.7); m.box(p[0] - 0.05, p[1] - 0.05, d.z0 + 7.45, p[0] + 0.05, p[1] + 0.05, d.z0 + 8.4, C.TIMBER, M.metal); m.box(p[0] - 0.2, p[1] - 0.2, d.z0 + 6.7, p[0] + 0.2, p[1] + 0.2, d.z0 + 7.3, '#ffcf7a', M.glow); m.box(p[0] - 0.27, p[1] - 0.27, d.z0 + 7.3, p[0] + 0.27, p[1] + 0.27, d.z0 + 7.45, C.TIMBER, M.metal); m.box(p[0] - 0.25, p[1] - 0.25, d.z0 + 6.55, p[0] + 0.25, p[1] + 0.25, d.z0 + 6.7, C.TIMBER, M.metal); }
+      const s0 = P1(d.a - 0.17, 8.55), s1 = P1(d.a + 0.17, 8.55); m.quad([s0[0], s0[1], d.z1 + 0.6], [s1[0], s1[1], d.z1 + 0.6], [s1[0], s1[1], d.z1 + 2.0], [s0[0], s0[1], d.z1 + 2.0], '#c89a5a', M.plank);
+      const am = P1(d.a, 8.6), up = (zz, w) => { const q0 = P1(d.a - w, 8.6), q1 = P1(d.a + w, 8.6); m.quad([q0[0], q0[1], zz], [q1[0], q1[1], zz], [q1[0], q1[1], zz + 0.22], [q0[0], q0[1], zz + 0.22], '#5a3a22', M.plank); };
+      up(d.z1 + 1.55, 0.03); up(d.z1 + 1.25, 0.07); up(d.z1 + 0.95, 0.1); m.box(am[0] - 0.05, am[1] - 0.05, d.z1 + 0.75, am[0] + 0.05, am[1] + 0.05, d.z1 + 1.6, '#5a3a22', M.plank); }
+    // 吊篮：顶上一根横梁伸出来挂着滑轮，两根绳子垂到一楼；每层回廊外沿一个小站台（栏杆开个口、挂一个小铃铛），篮子停在一楼
+    { const a = LIFT.deg * D2R, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, P2 = (r, w) => [cx + ux * r + nx * w, cy + uy * r + ny * w], c0 = P2(LIFT.r, 0), zTop = Z[3] + 13;
+      if (!cut) { const b0 = P2(7.6, 0); m.box(Math.min(b0[0], c0[0]) - 0.2, Math.min(b0[1], c0[1]) - 0.2, zTop, Math.max(b0[0], c0[0]) + 0.2, Math.max(b0[1], c0[1]) + 0.2, zTop + 0.5, C.TIMBER, M.plank); m.cyl(c0[0], c0[1], zTop - 0.9, zTop - 0.1, 0.55, 0.55, '#8a7a6a', M.metal, 10); }
+      for (const sg of [-0.55, 0.55]) { const q = P2(LIFT.r, sg); m.box(q[0] - 0.04, q[1] - 0.04, Z[1] + 4.2, q[0] + 0.04, q[1] + 0.04, Math.min(zTop - 0.5, lim), '#c8b088', M.cloth); }
+      m.pk(PK.lift + 1); { const z = Z[1] + 0.3; m.box(c0[0] - 0.75, c0[1] - 0.75, z, c0[0] + 0.75, c0[1] + 0.75, z + 0.25, '#8a5a30', M.plank);
+        for (let k = 0; k < 4; k++) { const zz = z + 0.25 + k * 0.5; m.box(c0[0] - 0.8, c0[1] - 0.8, zz, c0[0] + 0.8, c0[1] + 0.8, zz + 0.42, k % 2 ? '#c8945a' : '#b88048', M.plank, k === 3 ? '#a8743a' : null); }
+        m.box(c0[0] - 0.62, c0[1] - 0.62, z + 0.3, c0[0] + 0.62, c0[1] + 0.62, z + 2.3, '#e8d8b0', M.cloth); m.box(c0[0] - 0.82, c0[1] - 0.82, z + 2.25, c0[0] + 0.82, c0[1] + 0.82, z + 2.5, '#7a5030', M.plank);
+        for (const sg of [-0.55, 0.55]) { const q = P2(LIFT.r, sg); m.box(q[0] - 0.05, q[1] - 0.05, z + 2.5, q[0] + 0.05, q[1] + 0.05, z + 4.2, '#c8b088', M.cloth); } }
+      for (const lv of [2, 3]) { if (Z[lv] >= lim) continue; m.pk(PK.lift + lv); const z = Z[lv], bp = P2(LIFT.r + 1.2, 0.9); m.box(bp[0] - 0.08, bp[1] - 0.08, z, bp[0] + 0.08, bp[1] + 0.08, z + 4.2, C.TIMBER, M.plank); m.box(bp[0] - 0.5, bp[1] - 0.08, z + 4.0, bp[0] + 0.08, bp[1] + 0.08, z + 4.2, C.TIMBER, M.plank); m.cyl(bp[0] - 0.4, bp[1], z + 3.2, z + 3.9, 0.3, 0.12, C.GOLD, M.metal, 8);
+        const pl = P2(LIFT.r, 0); m.box(pl[0] - 0.9, pl[1] - 0.9, z - 0.05, pl[0] + 0.9, pl[1] + 0.9, z + 0.06, '#c49a6a', M.plank); }
+      m.pk(0); }
     // 树心里：一楼的地板、心柱、楼梯每层到达的平台、顶上的天花板
     if (Z[1] < lim) for (let i = 0; i < N; i++) { const a0 = (i / N) * 6.2832, a1 = ((i + 1) / N) * 6.2832; m.tri([cx, cy, 0], [cx + Math.cos(a0) * TRUNK.hole, cy + Math.sin(a0) * TRUNK.hole, 0], [cx + Math.cos(a1) * TRUNK.hole, cy + Math.sin(a1) * TRUNK.hole, 0], '#9a7a58', M.plank); }
     m.cyl(cx, cy, -1, Math.min(40, lim), TRUNK.post, TRUNK.post, '#8a6a4a', M.plank, 12);
@@ -1148,7 +1184,7 @@
       if (CITY) CITY.rootLine(m, [P1(8.4, -4), P1(10, -14), P1(9.6, -24)], 1.6, 1.0, '#5f4a38'); }
     // 树腰回廊：三层，一圈木板（往外的板缝），外沿栏杆（小屋门口断开），下面一圈斜撑顶着树干
     for (const lv of [1, 2, 3]) { if (Z[lv] >= lim + 0.01 && !(cut && cut.lv === lv)) continue; if (cut && cut.lv < lv) continue; const z = Z[lv], R1 = GAL[lv], R0 = TRUNK.r - 0.1;
-      const gaps = ROOMS.filter((q) => q.pod && q.lv === lv && !q.noShell).map((q) => q.deg * D2R).concat(lv === 2 ? [RM.store.deg * D2R] : []);
+      const gaps = ROOMS.filter((q) => q.pod && q.lv === lv && !q.noShell).map((q) => q.deg * D2R).concat(lv === 2 ? [RM.store.deg * D2R] : []).concat([LIFT.deg * D2R]);
       for (let i = 0; i < 48; i++) { const a0 = (i / 48) * 6.2832, a1 = ((i + 1) / 48) * 6.2832, am = (a0 + a1) / 2, P1 = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r];
         const [p0, p1, p2, p3] = [P1(a0, R0), P1(a1, R0), P1(a1, R1), P1(a0, R1)];
         m.quad([p0[0], p0[1], z], [p1[0], p1[1], z], [p2[0], p2[1], z], [p3[0], p3[1], z], snow ? '#eef4fa' : i % 2 ? '#b88a5a' : '#a87a4a', snow ? M.snow : M.plank); m.quad([p3[0], p3[1], z - 0.8], [p2[0], p2[1], z - 0.8], [p2[0], p2[1], z], [p3[0], p3[1], z], '#7a5a3e', M.plank); m.quad([p0[0], p0[1], z - 0.8], [p1[0], p1[1], z - 0.8], [p2[0], p2[1], z - 0.8], [p3[0], p3[1], z - 0.8], '#6a4a30', M.plank);
@@ -1168,6 +1204,7 @@
       if (!snow) m.foliage(cx, cy, top + 13, 11, 6.5, cols, 90, 77, 1.2); }
   }
   function build(o) {
+    if (CITY) CITY.FLAT = MODS.filter((q) => q.kind === 'dock' || q.kind === 'walk' || q.kind === 'farm').map((q) => { const fr = mFrame(q), [a, b, c, d] = q.r, P4 = [[a, b], [c, b], [c, d], [a, d]].map(([x, y]) => toW(fr, x, y)); return [Math.min(...P4.map((p) => p[0])) - 0.8, Math.min(...P4.map((p) => p[1])) - 0.8, Math.max(...P4.map((p) => p[0])) + 0.8, Math.max(...P4.map((p) => p[1])) + 0.8]; });
     const m = new Mesh(), cut = o.cut || null;
     // 详细视图：只看一个房间，外面的船体、甲板模块、植物都不用建（反正也被裁掉），转视角时重建得快
     const F1 = o.focus && RM[o.focus];
@@ -1383,5 +1420,5 @@
   }
   const FALL = CITY ? (([u, v]) => [u, v])(polarW(-8, 31)) : [50, 38]; // 东边的瀑布
   const DECK = { v1: DK.v1 };
-  PP.FORT = { LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { LIFT, LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();

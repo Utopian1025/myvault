@@ -24,7 +24,9 @@
     const RINGS = [[1, 0.6], [0.995, -6], [0.97, -14], [0.9, -24], [0.76, -32], [0.56, -40], [0.34, -46], [0.14, -51]];
     for (let k = 0; k < N; k++) { const t0 = (k / N) * 6.2832, t1 = ((k + 1) / N) * 6.2832, j0 = H(k, 3) * 0.8, j1 = H(k + 1, 3) * 0.8;
       // 岩顶：盆地边到外沿，长满苔藓和草
-      m.quad(P(t0, basR(t0) + 0.2, 0.2 + j0 * 0.5), P(t1, basR(t1) + 0.2, 0.2 + j1 * 0.5), P(t1, rimR(t1), RINGS[0][1] + j1), P(t0, rimR(t0), RINGS[0][1] + j0), top, tm);
+      { const fl = (p) => { for (const f of (PP.CITY && PP.CITY.FLAT) || []) if (p[0] > f[0] && p[0] < f[2] && p[1] > f[1] && p[1] < f[3]) { p[2] = Math.min(p[2], -0.4); break; } return p; }; /* 码头、栈道、菜地底下的岩顶压低：不从木板里冒出来 */
+        const N2 = 3; for (let q = 0; q < N2; q++) { const ra0 = (k2) => basR(k2) + 0.2 + (rimR(k2) - basR(k2) - 0.2) * q / N2, ra1 = (k2) => basR(k2) + 0.2 + (rimR(k2) - basR(k2) - 0.2) * (q + 1) / N2, za = (j, f) => 0.2 + j * 0.5 + ((RINGS[0][1] + j) - (0.2 + j * 0.5)) * f;
+          m.quad(fl(P(t0, ra0(t0), za(j0, q / N2))), fl(P(t1, ra0(t1), za(j1, q / N2))), fl(P(t1, ra1(t1), za(j1, (q + 1) / N2))), fl(P(t0, ra1(t0), za(j0, (q + 1) / N2))), top, tm); } }
       for (let i = 0; i + 1 < RINGS.length; i++) { const [a, za] = RINGS[i], [b, zb] = RINGS[i + 1], ja = i === 0 ? j0 : 0, jb = i === 0 ? j1 : 0;
         m.quad(P(t0, rimR(t0) * a, za + ja), P(t1, rimR(t1) * a, za + jb), P(t1, rimR(t1) * b, zb), P(t0, rimR(t0) * b, zb), ['#a48c6a', '#95805f', '#b09776', '#8a7558'][(k + i) % 4] /* 天空之城那种暖褐色的岩层 */, M.stone); }
       m.tri(P(t0, rimR(t0) * 0.14, -51), P(t1, rimR(t1) * 0.14, -51), [CEN[0], CEN[1], -55], '#7a6650', M.stone); }
@@ -51,6 +53,13 @@
       m.quad([A1[0], A1[1], a[2] + ra], [A2[0], A2[1], a[2] + ra], [B2[0], B2[1], b[2] + rb], [B1[0], B1[1], b[2] + rb], col, M.plank);
       m.quad([A1[0], A1[1], a[2] - ra], [A1[0], A1[1], a[2] + ra], [B1[0], B1[1], b[2] + rb], [B1[0], B1[1], b[2] - rb], '#57432f', M.plank);
       m.quad([A2[0], A2[1], a[2] + ra], [A2[0], A2[1], a[2] - ra], [B2[0], B2[1], b[2] - rb], [B2[0], B2[1], b[2] + rb], '#57432f', M.plank); }
+    /* 草：岩顶上一丛丛小草（两片交叉的细叶，随风摆，人能穿过），中间点缀几朵小野花——像原神的草地，不是一整块平涂的绿 */
+    if (!snow) { const so = m.sway; m.sway = 0.35; const G = ['#5aa040', '#6fb44a', '#82c254', '#4f9638'], FL = ['#fff4f0', '#ffd95a', '#f2a6c2', '#b8a8f0'];
+      for (let k = 0; k < 520; k++) { const t = H(k, 21) * 6.2832, f = H(k, 22), r = basR(t) + 0.5 + (rimR(t) - basR(t) - 0.8) * f, [u, v] = P(t, r, 0); if (((PP.CITY && PP.CITY.FLAT) || []).some((q) => u > q[0] && u < q[2] && v > q[1] && v < q[3])) continue;
+        const z = 0.2 + 0.4 * f + 0.05, hh = 0.5 + H(k, 23) * 0.6, a0 = H(k, 24) * 3.14, col = G[k % 4];
+        for (const da of [0, 1.57]) { const cx = Math.cos(a0 + da) * 0.28, cy = Math.sin(a0 + da) * 0.28; m.tri([u - cx, v - cy, z], [u + cx, v + cy, z], [u + cx * 0.2, v + cy * 0.2, z + hh], col, M.grass); m.tri([u + cx, v + cy, z], [u - cx, v - cy, z], [u - cx * 0.3, v - cy * 0.3, z + hh * 0.8], col, M.grass); }
+        if (H(k, 25) < 0.16) { const fc = FL[k % 4]; m.tri([u - 0.14, v, z + hh], [u + 0.14, v, z + hh], [u, v + 0.14, z + hh + 0.06], fc, M.flat); m.tri([u - 0.14, v, z + hh], [u, v - 0.14, z + hh + 0.06], [u + 0.14, v, z + hh], fc, M.flat); } }
+      m.sway = so; }
   }
 
   /* ---------- 地形：下城（z −26）和东南的上城台地（z −16，挡土墙 + 台阶） ---------- */
