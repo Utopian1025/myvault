@@ -20,16 +20,16 @@
 
   /* ---------- 岛的岩体：外沿一圈长着苔藓的岩顶，峭壁往下收成尖 ---------- */
   function rock(m, o) {
-    const N = 96, snow = o.snow, top = snow ? '#eef4fa' : '#6f8a52', tm = snow ? M.snow : M.grass;
+    const N = 96, snow = o.snow, top = snow ? '#eef4fa' : '#68a844', tm = snow ? M.snow : M.grass;
     const RINGS = [[1, 0.6], [0.995, -6], [0.97, -14], [0.9, -24], [0.76, -32], [0.56, -40], [0.34, -46], [0.14, -51]];
     for (let k = 0; k < N; k++) { const t0 = (k / N) * 6.2832, t1 = ((k + 1) / N) * 6.2832, j0 = H(k, 3) * 0.8, j1 = H(k + 1, 3) * 0.8;
       // 岩顶：盆地边到外沿，长满苔藓和草
       m.quad(P(t0, basR(t0) + 0.2, 0.2 + j0 * 0.5), P(t1, basR(t1) + 0.2, 0.2 + j1 * 0.5), P(t1, rimR(t1), RINGS[0][1] + j1), P(t0, rimR(t0), RINGS[0][1] + j0), top, tm);
       for (let i = 0; i + 1 < RINGS.length; i++) { const [a, za] = RINGS[i], [b, zb] = RINGS[i + 1], ja = i === 0 ? j0 : 0, jb = i === 0 ? j1 : 0;
-        m.quad(P(t0, rimR(t0) * a, za + ja), P(t1, rimR(t1) * a, za + jb), P(t1, rimR(t1) * b, zb), P(t0, rimR(t0) * b, zb), ['#8a8274', '#7e776a', '#958c7c', '#857d70'][(k + i) % 4], M.stone); }
-      m.tri(P(t0, rimR(t0) * 0.14, -51), P(t1, rimR(t1) * 0.14, -51), [CEN[0], CEN[1], -55], '#6f685e', M.stone); }
+        m.quad(P(t0, rimR(t0) * a, za + ja), P(t1, rimR(t1) * a, za + jb), P(t1, rimR(t1) * b, zb), P(t0, rimR(t0) * b, zb), ['#a48c6a', '#95805f', '#b09776', '#8a7558'][(k + i) % 4] /* 天空之城那种暖褐色的岩层 */, M.stone); }
+      m.tri(P(t0, rimR(t0) * 0.14, -51), P(t1, rimR(t1) * 0.14, -51), [CEN[0], CEN[1], -55], '#7a6650', M.stone); }
     // 岩顶上的石块和灌木丛
-    for (let k = 0; k < 40; k++) { const t = (k / 40) * 6.2832 + H(k, 1) * 0.1, r = (basR(t) + rimR(t)) / 2 + (H(k, 2) - 0.5) * 1.5, [u, v] = P(t, r, 0); if (H(k, 4) < 0.5) m.blob(u, v, 0.4, 0.6 + H(k, 5) * 0.8, 0.5, snow ? '#e8eef4' : '#9a9282', M.stone, k); else if (!snow) m.foliage(u, v, 1.1, 0.9 + H(k, 6) * 0.6, 0.7, ['#4f8a44', '#5e9a4c', '#6aa858'], 16, k, 0.6); }
+    for (let k = 0; k < 40; k++) { const t = (k / 40) * 6.2832 + H(k, 1) * 0.1, r = (basR(t) + rimR(t)) / 2 + (H(k, 2) - 0.5) * 1.5, [u, v] = P(t, r, 0); if (H(k, 4) < 0.5) m.blob(u, v, 0.4, 0.6 + H(k, 5) * 0.8, 0.5, snow ? '#e8eef4' : '#b4a082', M.stone, k); else if (!snow) m.foliage(u, v, 1.1, 0.9 + H(k, 6) * 0.6, 0.7, ['#3f9440', '#5cb04a', '#80c450'], 16, k, 0.6); }
   }
 
   /* ---------- 浮石：岛底，被一圈粗根抱着，发着蓝光 ---------- */
@@ -84,7 +84,7 @@
   /* ---------- 工具：转个角度画、尖拱窗、拱门 ---------- */
   const W = () => PP.isleModels && PP.isleModels.parts.warp;
   const rot = (m, u, v, yaw, fn, z = FLOOR) => { const w = W(); if (w) w(m, [u, v, z], yaw, 0, 0, fn); else fn(); };
-  const GL = '#1f3540', TIM = '#4a3a2c', MOSS = '#5f8a52';
+  const GL = '#1f3540', TIM = '#4a3a2c', MOSS = '#5aa046';
   // 竖在 u = x 这面墙上（朝 +u）的一个窗：深色玻璃 + 窗框 + 十字窗棂 + 两扇百叶
   function win(m, x, v, z, w, h, shut) {
     m.box(x - 0.02, v - w / 2, z, x + 0.05, v + w / 2, z + h, GL, 0);
@@ -101,7 +101,7 @@
      石头砌的底层（拱门、小窗）；上面一两层是木筋墙（深色木条：立柱、横梁、斜撑，中间刷灰泥），每层往街上挑出去一点；
      很陡的屋顶（石板或红瓦），屋面上一个老虎窗，山墙上一根石头烟囱；有的门口挂着店铺招牌。塌了的只剩半截墙。
      正面（朝街）是 +u 那面 */
-  const PLAST = ['#e6dcc4', '#e8d6b4', '#dcd2bc', '#efe2c6', '#d8c8a8'], ROOF = ['#56606c', '#4e5864', '#8a4e3c', '#7a4a3a', '#5a5e62'], SHUT = ['#5a7a6a', '#8a5a4a', '#5a6a8a', '#7a6a4a'];
+  const PLAST = ['#e6dcc4', '#e8d6b4', '#dcd2bc', '#efe2c6', '#d8c8a8'], ROOF = ['#4a6a8c', '#3f5f80', '#b0583a', '#9a4e36', '#5a6c80'], SHUT = ['#5a7a6a', '#8a5a4a', '#5a6a8a', '#7a6a4a'];
   function mHouse(m, u, v, yaw, w, d, fl, k, broken, z0) {
     rot(m, u, v, yaw, () => { const a = u - d / 2, c = u + d / 2, b = v - w / 2, e = v + w / 2, G = 3.6, F = 3.2, pl = PLAST[k % PLAST.length], st = H(k, 5) < 0.5 ? '#c4b9a2' : '#b9ae98';
       m.box(a - 0.15, b - 0.15, z0, c + 0.15, e + 0.15, z0 + 0.5, '#a39985', M.stone);
@@ -146,7 +146,7 @@
   function cathedral(m) {
     const [u, v] = lm('cath'), t = LM2.cath[0] * D, z0 = UP.z;
     rot(m, u, v, t + Math.PI, () => { const L = 8, Wn = 3, Wa = 2.2, hN = 11, hA = 6.4, S = '#d6ccb4', S2 = '#c8bea6';
-      m.box(u - L, v - Wn, z0, u + L, v + Wn, z0 + hN, S, M.stone); m.gable(u - L, v - Wn - 0.2, u + L, v + Wn + 0.2, z0 + hN, 4.2, 'u', '#4e5a64', M.tile, 0.3, S, M.stone);
+      m.box(u - L, v - Wn, z0, u + L, v + Wn, z0 + hN, S, M.stone); m.gable(u - L, v - Wn - 0.2, u + L, v + Wn + 0.2, z0 + hN, 4.2, 'u', '#46647e', M.tile, 0.3, S, M.stone);
       for (const sd of [-1, 1]) { const y0 = sd > 0 ? v + Wn : v - Wn - Wa, y1 = sd > 0 ? v + Wn + Wa : v - Wn;
         m.box(u - L + 1, y0, z0, u + L - 0.5, y1, z0 + hA, S2, M.stone);
         for (let x = u - L + 2.2; x < u + L - 1; x += 2.6) { const yy = sd > 0 ? y1 : y0; m.box(x - 0.35, yy + (sd > 0 ? 0 : -1.1), z0, x + 0.35, yy + (sd > 0 ? 1.1 : 0), z0 + hA + 1.2, S, M.stone); // 扶壁
@@ -155,14 +155,14 @@
           rot(m, x + 1.3, v + sd * Wn, sd > 0 ? Math.PI / 2 : -Math.PI / 2, () => gothWin(m, x + 1.31, v + sd * Wn, z0 + hA + 1.4, 0.7, 2.2), 0); }
         m.quad([u - L + 1, y1 - (sd > 0 ? 0 : Wa), z0 + hA], [u + L - 0.5, y1 - (sd > 0 ? 0 : Wa), z0 + hA], [u + L - 0.5, sd > 0 ? v + Wn : v - Wn, z0 + hA + 1.6], [u - L + 1, sd > 0 ? v + Wn : v - Wn, z0 + hA + 1.6], '#56626c', M.tile); }
       // 后殿：半圆，锥形屋顶
-      m.cyl(u - L, v, z0, z0 + hN - 1, Wn, Wn, S, M.stone, 14, false); m.cyl(u - L, v, z0 + hN - 1, z0 + hN + 3, Wn + 0.3, 0.2, '#4e5a64', M.tile, 14);
+      m.cyl(u - L, v, z0, z0 + hN - 1, Wn, Wn, S, M.stone, 14, false); m.cyl(u - L, v, z0 + hN - 1, z0 + hN + 3, Wn + 0.3, 0.2, '#46647e', M.tile, 14);
       // 正面：两座钟楼 + 尖顶
       const fx = u + L;
       for (const sd of [-1, 1]) { const y = v + sd * (Wn + 1.2), s = 1.9, hT = 10; /* 尖顶在门厅地板下面一点，从码头往下能隐约看见 */ m.box(fx - 0.6, y - s, z0, fx + 3.2, y + s, z0 + hT, S, M.stone);
         for (let z = z0 + 4; z < z0 + hT; z += 4) m.box(fx - 0.7, y - s - 0.1, z, fx + 3.3, y + s + 0.1, z + 0.3, S2, M.stone);
         gothWin(m, fx + 3.21, y, z0 + hT - 4.2, 0.8, 2.4); gothWin(m, fx + 3.21, y, z0 + 6, 0.6, 2);
         for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.cyl(fx + 1.3 + dx * 1.6, y + dy * 1.6, z0 + hT, z0 + hT + 2.2, 0.28, 0.05, S2, M.stone, 6); // 小尖塔
-        const cx = fx + 1.3, sp = z0 + hT + 8.5; m.tri([cx - s, y - s, z0 + hT], [cx + s, y - s, z0 + hT], [cx, y, sp], '#5a6670', M.tile); m.tri([cx + s, y - s, z0 + hT], [cx + s, y + s, z0 + hT], [cx, y, sp], '#4e5a64', M.tile); m.tri([cx + s, y + s, z0 + hT], [cx - s, y + s, z0 + hT], [cx, y, sp], '#5a6670', M.tile); m.tri([cx - s, y + s, z0 + hT], [cx - s, y - s, z0 + hT], [cx, y, sp], '#4e5a64', M.tile);
+        const cx = fx + 1.3, sp = z0 + hT + 8.5; m.tri([cx - s, y - s, z0 + hT], [cx + s, y - s, z0 + hT], [cx, y, sp], '#52708a', M.tile); m.tri([cx + s, y - s, z0 + hT], [cx + s, y + s, z0 + hT], [cx, y, sp], '#46647e', M.tile); m.tri([cx + s, y + s, z0 + hT], [cx - s, y + s, z0 + hT], [cx, y, sp], '#52708a', M.tile); m.tri([cx - s, y + s, z0 + hT], [cx - s, y - s, z0 + hT], [cx, y, sp], '#46647e', M.tile);
         m.box(cx - 0.05, y - 0.05, sp, cx + 0.05, y + 0.05, sp + 1.2, '#8a7a4a', M.metal); m.box(cx - 0.05, y - 0.4, sp + 0.7, cx + 0.05, y + 0.4, sp + 0.82, '#8a7a4a', M.metal); }
       // 两塔之间：玫瑰窗 + 尖拱大门 + 山墙
       m.box(fx - 0.2, v - Wn, z0, fx + 0.6, v + Wn, z0 + hN + 1.5, S, M.stone);
@@ -179,7 +179,7 @@
       for (let k = 0; k < 5; k++) { const y = b + 1 + k * (w - 2) / 4; m.box(c - 0.4, y - 0.35, z0, c, y + 0.35, z0 + 3.8, S, M.stone); if (k < 4) { const ym = y + (w - 2) / 8; for (let j = 0; j <= 4; j++) { const a2 = (j / 4) * Math.PI, yy = ym - Math.cos(a2) * ((w - 2) / 8 - 0.35), zz = z0 + 2.6 + Math.sin(a2) * 0.9; m.box(c - 0.4, yy - 0.15, zz, c, yy + 0.15, zz + 0.3, '#c6baa0', M.stone); } } }
       m.box(a, b, z0 + 4.4, c, e, z0 + 9, '#e2d6bc', M.plaster); for (let k = 0; k < 4; k++) { const y = b + 1.4 + k * (w - 2.8) / 3; gothWin(m, c + 0.01, y, z0 + 5.4, 0.9, 2.2); }
       m.gable(a - 0.3, b - 0.3, c + 0.3, e + 0.3, z0 + 9, 4.6, 'u', '#8a4e3c', M.tile, 0.3, '#e2d6bc', M.plaster);
-      m.box(u - 0.9, v - 0.9, z0 + 11, u + 0.9, v + 0.9, z0 + 15, S, M.stone); m.disc(u + 0.92, v, z0 + 13.6, 0.7, 'u', '#f0e6cc', 0, 12); m.cyl(u, v, z0 + 15, z0 + 18, 1.2, 0.05, '#56606c', M.tile, 8); }, FLOOR);
+      m.box(u - 0.9, v - 0.9, z0 + 11, u + 0.9, v + 0.9, z0 + 15, S, M.stone); m.disc(u + 0.92, v, z0 + 13.6, 0.7, 'u', '#f0e6cc', 0, 12); m.cyl(u, v, z0 + 15, z0 + 18, 1.2, 0.05, '#4a6a8c', M.tile, 8); }, FLOOR);
   }
   // 集市广场：中间一座三层喷泉，四周几个塌了篷的摊子
   function market(m) {
@@ -193,7 +193,7 @@
     const [u, v] = lm('keep'), z = FLOOR, s = 4.2, hK = 12, S = '#c8bea6';
     m.box(u - s, v - s, z, u + s, v + s, z + hK, S, M.stone);
     for (let k = -3; k <= 3; k++) for (const [ax, sd] of [['u', -1], ['u', 1], ['v', -1], ['v', 1]]) { if (k % 2) continue; const p = k * s / 3.5; if (ax === 'u') m.box(u + sd * s - 0.4, v + p - 0.45, z + hK, u + sd * s + 0.4, v + p + 0.45, z + hK + 1, S, M.stone); else m.box(u + p - 0.45, v + sd * s - 0.4, z + hK, u + p + 0.45, v + sd * s + 0.4, z + hK + 1, S, M.stone); }
-    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = u + dx * s, y = v + dy * s; m.cyl(x, y, z, z + hK + 2, 1.6, 1.5, '#cfc5ae', M.stone, 12); m.cyl(x, y, z + hK + 2, z + hK + 5, 1.9, 0.1, '#4e5a64', M.tile, 12); gothWin(m, x + dx * 1.5, y, z + hK - 2, 0.4, 1.2, dx); }
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = u + dx * s, y = v + dy * s; m.cyl(x, y, z, z + hK + 2, 1.6, 1.5, '#cfc5ae', M.stone, 12); m.cyl(x, y, z + hK + 2, z + hK + 5, 1.9, 0.1, '#46647e', M.tile, 12); gothWin(m, x + dx * 1.5, y, z + hK - 2, 0.4, 1.2, dx); }
     for (let f = 0; f < 3; f++) for (const s2 of [-1, 1]) { m.box(u + s - 0.02, v + s2 * 1.6 - 0.3, z + 4 + f * 4, u + s + 0.05, v + s2 * 1.6 + 0.3, z + 5.4 + f * 4, GL, 0); }
     archDoor(m, u + s, v, z, 1.8, 3);
     m.blob(u, v, z + hK + 0.3, 2.4, 0.4, MOSS, M.grass, 9);
@@ -209,7 +209,7 @@
     m.box(u - s - 0.3, v - s - 0.3, top, u + s + 0.3, v + s + 0.3, top + 0.4, '#b0a690', M.stone);
     for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.box(u + x * (s - 0.3) - 0.3, v + y * (s - 0.3) - 0.3, top + 0.4, u + x * (s - 0.3) + 0.3, v + y * (s - 0.3) + 0.3, top + 3, S, M.stone);
     m.cyl(u, v, top + 0.6, top + 2.3, 0.85, 0.45, '#8a7a4a', M.metal, 10);
-    const sp = top + 7.5; m.tri([u - s, v - s, top + 3], [u + s, v - s, top + 3], [u, v, sp], '#5a6670', M.tile); m.tri([u + s, v - s, top + 3], [u + s, v + s, top + 3], [u, v, sp], '#4e5a64', M.tile); m.tri([u + s, v + s, top + 3], [u - s, v + s, top + 3], [u, v, sp], '#5a6670', M.tile); m.tri([u - s, v + s, top + 3], [u - s, v - s, top + 3], [u, v, sp], '#4e5a64', M.tile);
+    const sp = top + 7.5; m.tri([u - s, v - s, top + 3], [u + s, v - s, top + 3], [u, v, sp], '#52708a', M.tile); m.tri([u + s, v - s, top + 3], [u + s, v + s, top + 3], [u, v, sp], '#46647e', M.tile); m.tri([u + s, v + s, top + 3], [u - s, v + s, top + 3], [u, v, sp], '#52708a', M.tile); m.tri([u - s, v + s, top + 3], [u - s, v - s, top + 3], [u, v, sp], '#46647e', M.tile);
     m.blob(u - 1, v + 1.1, top + 3.2, 1, 0.35, MOSS, M.grass, 3);
   }
   // 天文台：圆塔，顶上一个玻璃穹顶（穹顶露出水面，以后当温室）
@@ -245,9 +245,9 @@
       if (k % 2 === 0) { const [cu, cv] = [(A[0] + B[0]) / 2 - nx * 0.7, (A[1] + B[1]) / 2 - ny * 0.7]; m.box(cu - 0.45, cv - 0.45, top, cu + 0.45, cv + 0.45, top + 1, '#c0b6a0', M.stone); }
       if (H(k, 42) < 0.3) m.blob((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, top, 0.8, 0.3, MOSS, M.grass, k); }
     for (let k = 0; k < 8; k++) { const t = (k / 8) * 6.2832 + 0.2; if (Math.abs(Math.atan2(Math.sin(t - gate), Math.cos(t - gate))) < 0.35) continue; const [u, v] = P(t, Rw(t), 0), hT = -3 + H(k, 44) * 2 - (H(k, 45) < 0.25 ? 7 : 0);
-      m.cyl(u, v, FLOOR, hT, 2, 1.9, '#c8bea8', M.stone, 14); if (hT > -6) m.cyl(u, v, hT, hT + 3.2, 2.3, 0.1, '#4e5a64', M.tile, 14); else m.blob(u, v, hT, 1.6, 0.4, MOSS, M.grass, k); }
+      m.cyl(u, v, FLOOR, hT, 2, 1.9, '#c8bea8', M.stone, 14); if (hT > -6) m.cyl(u, v, hT, hT + 3.2, 2.3, 0.1, '#46647e', M.tile, 14); else m.blob(u, v, hT, 1.6, 0.4, MOSS, M.grass, k); }
     const [u, v] = P(gate, Rw(gate), 0), ox = Math.cos(gate + Math.PI / 2), oy = Math.sin(gate + Math.PI / 2);
-    for (const s of [-1, 1]) { const x = u + ox * s * 3.2, y = v + oy * s * 3.2; m.cyl(x, y, FLOOR, -4, 2, 1.9, '#d2c8b2', M.stone, 14); m.cyl(x, y, -4, -1.6, 2.3, 0.1, '#4e5a64', M.tile, 14); }
+    for (const s of [-1, 1]) { const x = u + ox * s * 3.2, y = v + oy * s * 3.2; m.cyl(x, y, FLOOR, -4, 2, 1.9, '#d2c8b2', M.stone, 14); m.cyl(x, y, -4, -1.6, 2.3, 0.1, '#46647e', M.tile, 14); }
     for (let k = 0; k <= 8; k++) { const a = (k / 8) * Math.PI, off = -Math.cos(a) * 1.9, z = -12 + Math.sin(a) * 2.1, x = u + ox * off, y = v + oy * off; m.box(x - 0.5, y - 0.5, z, x + 0.5, y + 0.5, z + 0.7, '#d6ccb6', M.stone); }
     for (let k = -3; k <= 3; k++) { const x = u + ox * k * 0.5, y = v + oy * k * 0.5; m.box(x - 0.06, y - 0.06, FLOOR + 2, x + 0.06, y + 0.06, -11, '#3a3a40', M.metal); }
   }

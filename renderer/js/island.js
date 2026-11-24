@@ -304,10 +304,10 @@
   function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = []; for (let i = 0; i < B.length; i++) if (K[i] > 0.01) out.push({ a: B[i].a, b: B[i].b, k: K[i] * dayK }); return out.slice(0, 40); }
   function lightOpts() {
     const ph = phase(), fx = wfx(), dim = Math.min(1, (fx.cloud || 0) * 0.5 + (fx.rain ? 0.35 : 0) + (fx.snow ? 0.25 : 0) + (fx.dark || 0));
-    let sun = [1.0, 0.94, 0.8], sky = [0.5, 0.55, 0.68], gnd = [0.36, 0.33, 0.37], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.48, 0.72, 0.91], bot = [0.81, 0.92, 0.98];
-    if (ph === 'night') { sun = [0.22, 0.28, 0.5]; sky = [0.2, 0.24, 0.42]; gnd = [0.13, 0.13, 0.24]; lit = 1; dir = [0.4, 0.5, 0.7]; top = [0.07, 0.09, 0.2]; bot = [0.15, 0.19, 0.36]; }
-    else if (ph === 'dusk') { sun = [1.0, 0.56, 0.3]; sky = [0.5, 0.42, 0.56]; gnd = [0.34, 0.26, 0.32]; lit = 0.8; dir = [-0.8, 0.5, 0.36]; top = [0.42, 0.36, 0.6]; bot = [0.95, 0.63, 0.44]; }
-    else if (ph === 'dawn') { sun = [1.0, 0.76, 0.66]; sky = [0.54, 0.5, 0.62]; gnd = [0.36, 0.3, 0.36]; lit = 0.3; dir = [0.2, 0.75, 0.42]; top = [0.54, 0.66, 0.85]; bot = [0.97, 0.78, 0.72]; }
+    let sun = [1.06, 0.97, 0.82], sky = [0.47, 0.6, 0.84], gnd = [0.42, 0.42, 0.32], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.22, 0.53, 0.92], bot = [0.7, 0.87, 0.99]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
+    if (ph === 'night') { sun = [0.26, 0.34, 0.62]; sky = [0.2, 0.27, 0.5]; gnd = [0.12, 0.14, 0.26]; lit = 1; dir = [0.4, 0.5, 0.7]; top = [0.04, 0.08, 0.24]; bot = [0.12, 0.2, 0.42]; }
+    else if (ph === 'dusk') { sun = [1.08, 0.6, 0.32]; sky = [0.48, 0.42, 0.62]; gnd = [0.36, 0.26, 0.3]; lit = 0.8; dir = [-0.8, 0.5, 0.36]; top = [0.3, 0.32, 0.64]; bot = [1.0, 0.66, 0.42]; }
+    else if (ph === 'dawn') { sun = [1.04, 0.8, 0.66]; sky = [0.52, 0.54, 0.74]; gnd = [0.38, 0.32, 0.34]; lit = 0.3; dir = [0.2, 0.75, 0.42]; top = [0.42, 0.6, 0.9]; bot = [1.0, 0.8, 0.7]; }
     if (dim > 0) { sun = sun.map((x) => x * (1 - 0.7 * dim)); sky = sky.map((x, i) => x * (1 - 0.25 * dim) + [0.5, 0.52, 0.58][i] * 0.2 * dim); top = top.map((x, i) => x + ([0.55, 0.58, 0.64][i] - x) * dim * 0.8); bot = bot.map((x, i) => x + ([0.66, 0.68, 0.72][i] - x) * dim * 0.8); lit = Math.max(lit, dim * 0.6); }
     if (cut != null) { sky = sky.map((x, i) => x * 0.85 + [0.12, 0.1, 0.06][i]); if (ph === 'night') { sun = [0.42, 0.36, 0.3]; sky = [0.36, 0.3, 0.28]; } }
     // 夜里有人在床上睡觉：屋里关灯，只剩一点月光（不会看起来像天亮了）
@@ -395,7 +395,7 @@
   // ---------- 俯视时的天空和远方（一整幅画：渐变的天、太阳光束或星月、远远在下面的田野、三层慢慢飘的积云） ----------
   const hs2 = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
   function animeCloud(ctx, cx, cy, R, seed, night, al) {
-    const base = night ? 'rgba(64,72,112,' : 'rgba(190,198,230,', body = night ? 'rgba(118,128,168,' : 'rgba(255,255,255,', hl = night ? 'rgba(150,160,200,' : 'rgba(255,243,214,', n = 6 + Math.floor(hs2(seed, 1) * 5), P = [];
+    const base = night ? 'rgba(64,72,112,' : 'rgba(168,190,232,', body = night ? 'rgba(118,128,168,' : 'rgba(255,255,255,', hl = night ? 'rgba(150,160,200,' : 'rgba(255,253,244,', n = 6 + Math.floor(hs2(seed, 1) * 5), P = [];
     for (let k = 0; k < n; k++) { const t = k / (n - 1), up = Math.sin(t * Math.PI) * R * (0.7 + hs2(k, seed) * 0.6), rr = R * (0.42 + Math.sin(t * Math.PI) * 0.45 + hs2(seed, k) * 0.15); P.push([cx + (t - 0.5) * R * 3.4, cy - up * 0.6, rr]); }
     ctx.fillStyle = base + al + ')'; for (const [x, y, r] of P) { ctx.beginPath(); ctx.arc(x, y + r * 0.2, r, 0, 6.283); ctx.fill(); } ctx.fillRect(cx - R * 1.95, cy, R * 3.9, R * 0.3);
     ctx.fillStyle = body + al + ')'; for (const [x, y, r] of P) { ctx.beginPath(); ctx.arc(x, y, r * 0.9, 0, 6.283); ctx.fill(); }
@@ -1240,8 +1240,8 @@
   // ---- 镜头 ----
   function fpCam() { if (fp._camT === fp.last && fp._cam) return fp._cam; fp._camT = fp.last; return (fp._cam = fpCam1()); }
   function fpCam1() {
-    const q = fp.q, walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto), b = walking ? Math.sin(fp.bob) * 0.16 : 0;
-    const land = fp.land ? Math.max(0, 1 - (performance.now() - fp.land) / 260) * -0.9 : 0;
+    const q = fp.q, walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto), b = Math.sin(fp.bob) * 0.16 * (fp._cba = (fp._cba || 0) + ((walking ? 1 : 0) - (fp._cba || 0)) * 0.12);
+    const land = fp.land ? (() => { const k = (performance.now() - fp.land) / 420; return k >= 1 ? 0 : -0.9 * Math.sin(Math.min(1, k * 3) * Math.PI / 2) * (1 - k) * (1 - k); })() : 0; /* 落地：往下一沉再慢慢起来，不是一下弹回 */
     // 弯腰：头顶空间不够就把眼睛放低（慢慢低下去、慢慢直起来）
     const want = fp.pose === 'sit' ? 4.4 : fp.pose === 'lie' ? 2.0 : fp.crouch ? 3.6 : EYE; /* 眼睛高度只看你是站着、蹲着还是坐着躺着，不再碰到低处就自己矮下去 */ fp.eyeH = fp.eyeH == null ? want : fp.eyeH + (want - fp.eyeH) * 0.25;
     fp.camZ = fp.camZ == null || Math.abs(fp.camZ - q.z) > 4 ? q.z : fp.camZ + (q.z - fp.camZ) * 0.3;
@@ -1407,35 +1407,126 @@
     if (fp._wa !== a) { if (fp._wa && WORK_KIND[fp._wa] && (!a || a === 'fp')) fp._done = { t: now, tx: WORK_KIND[fp._wa][1].replace('正在', '') + '完成' }; fp._wa = a; fp._wt = now; }
     let kind = wk ? wk[0] : fp.wood ? 'wood' : fp.fish ? 'rod' : 'hand'; /* 手里拿什么看正在干什么（钓鱼拿鱼竿、浇水拿水壶），不用自己切 */ const el = wk ? (now - fp._wt) / 1000 : 0;
     if (wk && p.tool && p.tool.k === 'can') kind = 'water'; else if (wk && p.tool && p.tool.k === 'basket') kind = 'harvest';
-    const u = Math.max(4, Math.round(Math.min(w, h) / 55)), C = p.pal || {}, base = C.base || '#d9a066', light = C.light || '#f4dcb8', dark = C.dark || '#8a5a3a', K = '#2a2030';
-    const walking = !fp.air && (fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || fp.auto);
-    const bob = walking ? Math.sin(fp.bob) * u * 1.6 : Math.sin(t * 1.8) * u * 0.5, swayX = walking ? Math.cos(fp.bob * 0.5) * u * 1.2 : 0;
-    const useT = fp.useT ? Math.max(0, 1 - (now - fp.useT) / 350) : 0; // 刚按 E：往前伸一下
-    let hx = x0 + w * 0.8 + swayX, hy = y0 + h - u * 9 + bob - useT * u * 10, rot = -0.15;
-    if (kind === 'water' && wk) { hx -= u * 6; hy -= u * 6; rot = -0.15 - Math.min(1, el * 2) * 0.75; }
-    if (kind === 'sow' && wk) { const k = (t * 2.2) % 1; hy -= Math.sin(k * Math.PI) * u * 8; hx -= u * 4 * Math.sin(k * Math.PI); }
-    if (kind === 'harvest' && wk) { const k = (t * 2.6) % 1; hy -= Math.abs(Math.sin(k * Math.PI)) * u * 7; rot = -0.15 + Math.sin(t * 9) * 0.12; }
-    if (kind === 'use' && wk) { hy -= u * 8 + Math.sin(t * 8) * u * 2; hx -= u * 6; }
-    if (kind === 'eat' && wk) { const k = Math.min(1, el / 0.6); hx -= (hx - (x0 + w * 0.55)) * k; hy -= u * 10 * k; }
-    const R = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(ww), Math.round(hh)); };
-    ctx.save(); ctx.translate(hx, hy); ctx.rotate(rot);
-    // 胳膊 + 爪子（主角自己的毛色）
-    R(-u * 4, 0, u * 8, h, K); R(-u * 3, 0, u * 6, h, base); R(-u * 1, 0, u * 2, h, dark);
-    R(-u * 5, -u * 6, u * 10, u * 7, K); R(-u * 4, -u * 5, u * 8, u * 6, base);
-    R(-u * 3, -u * 3, u * 2, u * 2, light); R(-u * 0.5, -u * 4, u * 2, u * 2, light); R(u * 2, -u * 3, u * 1.5, u * 2, light);
-    // 手里的东西
-    if (kind === 'can' || kind === 'water') { R(-u * 9, -u * 14, u * 12, u * 9, K); R(-u * 8, -u * 13, u * 10, u * 7, '#7fb8d8'); R(-u * 8, -u * 13, u * 10, u * 2, '#a8d4ec'); R(-u * 15, -u * 12, u * 7, u * 2, K); R(-u * 17, -u * 13, u * 3, u * 3, '#5a8aa8');
-      if (kind === 'water' && el > 0.4) for (let i = 0; i < 6; i++) { const k = (t * 1.6 + i / 6) % 1; R(-u * 17 - k * u * 4, -u * 11 + k * u * 26, u * 1.2, u * 2, 'rgba(140,200,255,.9)'); } }
-    else if (kind === 'seed' || kind === 'sow') { R(-u * 5, -u * 12, u * 9, u * 8, K); R(-u * 4, -u * 11, u * 7, u * 6, '#c8a070'); R(-u * 2, -u * 12, u * 3, u * 2, '#8a6a40');
-      if (kind === 'sow') for (let i = 0; i < 5; i++) { const k = (t * 1.4 + i / 5) % 1; R(-u * 4 - k * u * 18 + i * u, -u * 12 - Math.sin(k * Math.PI) * u * 10 + k * u * 16, u * 1.2, u * 1.2, '#6a4a2a'); } }
-    else if (kind === 'harvest') { R(-u * 9, -u * 13, u * 14, u * 9, K); R(-u * 8, -u * 12, u * 12, u * 7, '#c89a5a'); R(-u * 8, -u * 12, u * 12, u * 1.5, '#a87a3a');
-      if (el > 0.8) { R(-u * 6, -u * 15, u * 3, u * 4, '#f08a3a'); R(-u * 5.5, -u * 17, u * 2, u * 2, '#4c9a48'); } if (el > 1.6) { R(-u * 1, -u * 15, u * 3, u * 4, '#f08a3a'); R(-u * 0.5, -u * 17, u * 2, u * 2, '#4c9a48'); } }
-    else if (kind === 'rod' || kind === 'fish') { const bite = p.fishing && (p.fishing.ph === 'bite' || p.fishing.ph === 'nibble'), jig = bite ? Math.sin(t * 30) * 0.08 : 0;
-      ctx.save(); ctx.rotate(-0.9 + jig - (p.fishing && p.fishing.ph === 'reel' ? 0.4 : 0)); R(-u * 0.8, -u * 40, u * 1.6, u * 40, K); R(-u * 0.4, -u * 39, u * 0.8, u * 38, '#a87a4a'); R(-u * 2, -u * 4, u * 4, u * 3, '#5a4a3a');
-      if (kind === 'fish') { ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -u * 40); ctx.quadraticCurveTo(-u * 6, -u * 20, -u * 10 + jig * u * 40, u * 4); ctx.stroke(); } ctx.restore(); }
-    else if (kind === 'wood') { for (let i = 0; i < 4; i++) { R(-u * 12, -u * 12 + i * u * 2.2, u * 16, u * 2.4, K); R(-u * 11.5, -u * 11.6 + i * u * 2.2, u * 15, u * 1.6, i % 2 ? '#a8784a' : '#8a5a3a'); R(-u * 11.5, -u * 11.6 + i * u * 2.2, u * 1.6, u * 1.6, '#e0b884'); } }
-    else if (kind === 'snack' || kind === 'eat') { const sc = kind === 'eat' ? Math.max(0.2, 1 - el / 2.5) : 1; R(-u * 5 * sc, -u * 11 * sc - u * 2, u * 10 * sc, u * 8 * sc, K); R(-u * 4 * sc, -u * 10 * sc - u * 2, u * 8 * sc, u * 6 * sc, '#d8a05a'); R(-u * 2 * sc, -u * 9 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); R(u * 1 * sc, -u * 7 * sc - u * 2, u * 1.5, u * 1.5, '#6a3a1a'); }
-    ctx.restore();
+    /* 手是矢量画的（圆润的掌心、四根指头、肉垫、明暗和轮廓光），每个姿势都是一个「目标」，手用弹簧慢慢追过去：
+       走路是 8 字形的轻晃、转头时手稍微落后、落地往下一沉、跳起来往上提；双手的活（抱柴、捧着吃、挎篮子、撒种）左手才从下面伸上来 */
+    const s = Math.min(w, h) / 82, sx = w / 100, sy = h / 100, C = p.pal || {}, base = C.base || '#d9a066', light = C.light || '#f4dcb8', dark = C.dark || '#8a5a3a';
+    const dt = U.clamp((now - (fp._hn || now)) / 1000, 0, 0.1); fp._hn = now;
+    const sm = (k) => 1 - Math.exp(-dt * k), ease = (x) => { x = U.clamp(x, 0, 1); return x * x * (3 - 2 * x); }, wave = (x) => 0.5 - 0.5 * Math.cos(x * Math.PI * 2);
+    const moving = fp.keys.has('f') || fp.keys.has('b') || fp.keys.has('l') || fp.keys.has('r') || !!fp.auto, walking = !fp.air && !fp.swim && moving;
+    fp._hwk = (fp._hwk || 0) + ((walking ? (fp.keys.has('run') ? 1.4 : 1) : 0) - (fp._hwk || 0)) * sm(6); // 走 / 停：晃动幅度慢慢起、慢慢收
+    // 转头时手稍微落后（惯性）
+    const yv = fp._hyaw == null ? 0 : (((fp.yaw - fp._hyaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI) / Math.max(dt, 1e-3), pv = fp._hpit == null ? 0 : (fp.pitch - fp._hpit) / Math.max(dt, 1e-3); fp._hyaw = fp.yaw; fp._hpit = fp.pitch;
+    fp._hlx = (fp._hlx || 0) + (U.clamp(-yv * 2.2, -9, 9) - (fp._hlx || 0)) * sm(8); fp._hly = (fp._hly || 0) + (U.clamp(pv * 2.2, -7, 7) - (fp._hly || 0)) * sm(8);
+    // 跳起 / 落地
+    if (fp._hair && !fp.air) fp._hvy = (fp._hvy || 0) + 55; fp._hair = fp.air;
+    fp._hvy = fp._hvy || 0; fp._hdy = fp._hdy || 0; { const tgt = fp.air ? -4 : 0, a3 = 160 * (tgt - fp._hdy) - 16 * fp._hvy; fp._hvy += a3 * dt; fp._hdy += fp._hvy * dt; }
+    const bobA = fp._hwk, ph = fp.bob || 0, br = Math.sin(t * 1.6) * 0.7; // br：站着时呼吸
+    const ofs = { x: Math.sin(ph * 0.5) * 2.2 * bobA + fp._hlx, y: Math.abs(Math.sin(ph * 0.5)) * 2.6 * bobA - 1.3 * bobA + br * (1 - Math.min(1, bobA)) + fp._hly + fp._hdy };
+    const tap = fp.useT ? U.clamp((now - fp.useT) / 420, 0, 1) : 1, tapK = tap < 1 ? Math.sin(tap * Math.PI) * (1 - tap * 0.4) : 0; // 刚点了一下：往前探一下再收回
+    // 右手、左手的目标姿势（屏幕上的位置按 s = 短边的 1%；r 转角；k 远近缩放；g 握着东西 / 张开）
+    const R0 = { x: 78, y: 92, r: -0.22, k: 1, g: 0 }, Lout = { x: 18, y: 135, r: 0.2, k: 1, g: 0 };
+    let RT = { ...R0 }, LT = { ...Lout };
+    const sit = fp.pose === 'sit' || fp.pose === 'lie'; if (sit) { RT.y += 6; RT.r -= 0.1; }
+    if (fp.crouch) RT.y += 3;
+    if (kind === 'hand' && fp.swim) { const k = moving ? (t * 1.3) % 1 : 0.15 + Math.sin(t * 1.2) * 0.1, sw = Math.sin(k * Math.PI * 2), out = wave(k);
+      RT = { x: 64 + out * 22, y: 80 - sw * 8, r: -0.6 + out * 0.9, k: 0.95, g: 0 }; LT = { x: 100 - (64 + out * 22), y: 80 - sw * 8, r: 0.6 - out * 0.9, k: 0.95, g: 0 }; }
+    else if (kind === 'can') { RT = { x: 74, y: 90, r: -0.12, k: 1, g: 1 }; }
+    else if (kind === 'water') { const k = ease(el / 0.6); RT = { x: 74 - 12 * k, y: 90 - 10 * k + Math.sin(t * 2.2) * 1.2 * k, r: -0.12 - 0.72 * k + Math.sin(t * 2.2) * 0.05 * k, k: 1, g: 1 }; }
+    else if (kind === 'seed' || kind === 'sow') { LT = { x: 30, y: 92, r: 0.25, k: 1, g: 1 };
+      if (kind === 'sow') { const c = (el * 0.95) % 1, dip = ease(c / 0.35), fling = ease((c - 0.45) / 0.3), back = ease((c - 0.8) / 0.2);
+        RT = { x: 70 - 26 * dip * (1 - fling) - 4 * fling + 0 * back, y: 92 - 2 * dip - 22 * fling * (1 - back), r: -0.22 + 0.5 * dip - 0.9 * fling * (1 - back), k: 1 - 0.12 * fling * (1 - back), g: dip > 0.5 && fling < 0.5 ? 1 : 0 }; fp._sowF = fling > 0.05 && back < 0.9 ? c : null; } }
+    else if (kind === 'harvest') { LT = { x: 28, y: 96, r: 0.15, k: 1, g: 1 }; const c = (el * 0.8) % 1, down = ease(c / 0.4), up = ease((c - 0.45) / 0.35), drop = ease((c - 0.82) / 0.18);
+      RT = { x: 66 - 30 * up * (1 - drop) * 0 - 34 * drop + 10 * down * (1 - up), y: 88 + 14 * down * (1 - up) - 12 * up + 6 * drop, r: -0.22 + 0.4 * down * (1 - up) - 0.3 * up, k: 1 - 0.15 * down * (1 - up), g: down > 0.6 || (up > 0 && drop < 0.6) ? 1 : 0 }; fp._hv = up > 0.1 && drop < 0.6; }
+    else if (kind === 'use') { const k = ease(el / 0.4), j = Math.sin(t * 7) * (0.5 + 0.5 * Math.sin(t * 2.3)); RT = { x: 64 + j * 1.5, y: 74 + j * 2, r: -0.45 + j * 0.12, k: 0.85, g: 0.6 }; RT.x = R0.x + (RT.x - R0.x) * k; RT.y = R0.y + (RT.y - R0.y) * k; RT.k = 1 + (RT.k - 1) * k; }
+    else if (kind === 'eat') { const k = ease(el / 0.5), bite = Math.max(0, Math.sin(el * Math.PI * 2 / 0.8)) ** 3; RT = { x: 78 - 22 * k, y: 92 - 4 * k - 8 * bite * k, r: -0.22 + 0.35 * k, k: 1 + 0.12 * k, g: 1 }; LT = { x: 22 + 20 * k, y: 120 - 30 * k - 8 * bite * k, r: 0.22 - 0.35 * k, k: 1 + 0.12 * k, g: 1 }; }
+    else if (kind === 'snack') { RT = { x: 74, y: 90, r: -0.12, k: 1, g: 1 }; }
+    else if (kind === 'rod' || kind === 'fish') { const f2 = p.fishing || fp.fish, phs = f2 && f2.ph, bite = phs === 'bite' || phs === 'nibble', reel = phs === 'reel';
+      RT = { x: 70, y: 90, r: 0.1 + (reel ? -0.25 : 0) + (bite ? Math.sin(t * 34) * 0.05 : 0), k: 1, g: 1 }; if (kind === 'fish' && el < 0.7) { const c = el / 0.7; RT.r += -0.9 * Math.sin(ease(c / 0.45) * Math.PI / 2) * (1 - ease((c - 0.45) / 0.55)) + 0.25 * ease((c - 0.45) / 0.55) * (1 - c); } // 刚抛竿：往后一扬、往前一甩
+      if (reel) { RT.x -= 1.5; LT = { x: 56 + Math.cos(t * 12) * 2.5, y: 98 + Math.sin(t * 12) * 2.5, r: 0.5, k: 1, g: 1 }; } }
+    else if (kind === 'wood') { RT = { x: 64, y: 98, r: -0.5, k: 1, g: 1 }; LT = { x: 36, y: 98, r: 0.5, k: 1, g: 1 }; }
+    if (tapK && !wk) { RT.x -= 6 * tapK; RT.y -= 12 * tapK; RT.k -= 0.12 * tapK; RT.r -= 0.25 * tapK; }
+    // 弹簧追目标（稍微欠阻尼：停下时有一点点回弹，不硬）
+    const spring = (st, tg, kk) => { for (const key of ['x', 'y', 'r', 'k', 'g']) { if (st[key] == null) { st[key] = tg[key]; st['v' + key] = 0; } const n = Math.max(1, Math.ceil(dt / 0.016)), h2 = dt / n; for (let i = 0; i < n; i++) { const a3 = kk * (tg[key] - st[key]) - 2 * Math.sqrt(kk) * 0.78 * st['v' + key]; st['v' + key] += a3 * h2; st[key] += st['v' + key] * h2; } } };
+    fp._hR = fp._hR || {}; fp._hL = fp._hL || { ...Lout }; spring(fp._hR, RT, kind === 'sow' || kind === 'harvest' || kind === 'eat' ? 260 : 150); spring(fp._hL, LT, 120);
+    // 画在一张离屏画布上：最后整体按光线（夜里、黄昏、水下）染一层色，不会染到别的东西
+    const cv = fp._hc = fp._hc || document.createElement('canvas'); if (cv.width !== Math.ceil(w) || cv.height !== Math.ceil(h)) { cv.width = Math.ceil(w); cv.height = Math.ceil(h); }
+    const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.lineJoin = g.lineCap = 'round';
+    const hx2 = (c) => { const n = parseInt(String(c).replace('#', '').slice(0, 6), 16) || 0; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }, mix = (a, b, k) => { const A2 = hx2(a), B2 = hx2(b); return `rgb(${A2.map((x, i) => Math.round(x + (B2[i] - x) * k)).join(',')})`; };
+    const fur = base, furD = mix(base, dark, 0.65), furL = mix(base, light, 0.55), line = mix(dark, '#2a1c24', 0.55), pad = mix(light, '#f0a0a0', 0.35);
+    const blob = (pts) => { g.beginPath(); const n = pts.length; for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; if (!i) g.moveTo(m[0], m[1]); else g.quadraticCurveTo(a[0], a[1], m[0], m[1]); } const a = pts[0], b = pts[1]; g.quadraticCurveTo(a[0], a[1], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); g.closePath(); };
+    const shade = (x1, y1, x2, y2, c0, c1, c2) => { const gr = g.createLinearGradient(x1, y1, x2, y2); gr.addColorStop(0, c0); gr.addColorStop(0.55, c1); gr.addColorStop(1, c2); return gr; };
+    const ol = (wid) => { g.strokeStyle = line; g.lineWidth = wid * s; g.stroke(); };
+    // 一只手：手腕在 (0,0)，胳膊往下伸出画面；mir = -1 是左手
+    function arm(st, mir, under) { g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k);
+      // 胳膊：上细下粗，侧面带一点毛边
+      g.beginPath(); g.moveTo(-5.2 * s, 0); g.bezierCurveTo(-6 * s, 14 * s, -8.5 * s, 30 * s, -10 * s, 60 * s); g.lineTo(10 * s, 60 * s); g.bezierCurveTo(8.5 * s, 30 * s, 6.2 * s, 14 * s, 5.4 * s, 0); g.closePath();
+      g.fillStyle = shade(-9 * s, 0, 9 * s, 0, furD, fur, furL); g.fill(); ol(0.7);
+      g.strokeStyle = mix(base, dark, 0.35); g.lineWidth = 0.5 * s; for (let i = 0; i < 4; i++) { const yy = (8 + i * 9) * s, xx = (-5.6 - i * 0.9) * s; g.beginPath(); g.moveTo(xx, yy); g.quadraticCurveTo(xx - 1.6 * s, yy + 1.5 * s, xx - 0.6 * s, yy + 4 * s); g.stroke(); }
+      g.globalAlpha = 0.35; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(3.6 * s, 18 * s, 1.1 * s, 9 * s, -0.08, 0, 6.283); g.fill(); g.globalAlpha = 1; // 轮廓光
+      // 掌心
+      blob([[-6.4 * s, -1 * s], [-7 * s, -7.5 * s], [-3 * s, -11.5 * s], [3.4 * s, -11.5 * s], [7 * s, -7 * s], [6.4 * s, -0.5 * s], [0, 1.6 * s]]);
+      const rg = g.createRadialGradient(-2 * s, -8 * s, 1 * s, 0, -5 * s, 9 * s); rg.addColorStop(0, furL); rg.addColorStop(0.6, fur); rg.addColorStop(1, furD); g.fillStyle = rg; g.fill(); ol(0.7);
+      if (!under) fingers(st, false); g.restore(); }
+    function fingers(st, front) { const gr = st.g; // 四根指头 + 大拇指；握着东西时往里卷
+      for (let i = 0; i < 4; i++) { const fx = (-5 + i * 3.3) * s, len = (i === 0 || i === 3 ? 3.6 : 4.4) * s * (1 - gr * 0.55), fy = -10.5 * s - (i === 1 || i === 2 ? 0.6 * s : 0), ang = (i - 1.5) * 0.12 * (1 - gr);
+        g.save(); g.translate(fx, fy); g.rotate(ang); g.beginPath(); g.ellipse(0, -len * 0.5, 1.75 * s, len * 0.5 + 1.4 * s, 0, 0, 6.283); g.fillStyle = shade(-1.8 * s, 0, 1.8 * s, 0, furD, fur, furL); g.fill(); ol(0.55);
+        if (!gr) { g.fillStyle = pad; g.beginPath(); g.ellipse(0, -len * 0.5 - 0.6 * s, 0.85 * s, 1.0 * s, 0, 0, 6.283); g.fill(); } g.restore(); }
+      g.save(); g.translate(6 * s, -5 * s); g.rotate(-0.9 + gr * 0.6); g.beginPath(); g.ellipse(0, -2.2 * s, 1.8 * s, 3.2 * s, 0, 0, 6.283); g.fillStyle = shade(-1.8 * s, 0, 1.8 * s, 0, furD, fur, furL); g.fill(); ol(0.55); g.restore();
+      if (!gr) { g.fillStyle = pad; g.beginPath(); g.ellipse(0.2 * s, -5.2 * s, 3.2 * s, 2.4 * s, 0, 0, 6.283); g.fill(); g.globalAlpha = 0.5; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(-0.8 * s, -6 * s, 1.1 * s, 0.6 * s, -0.3, 0, 6.283); g.fill(); g.globalAlpha = 1; } }
+    const inHand = (st, mir, fn) => { g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k); fn(); fingers(st, true); g.restore(); };
+    const toScreen = (st, mir, lx, ly) => { const c = Math.cos(st.r), sn = Math.sin(st.r), X = lx * st.k * mir, Y = ly * st.k; return [st.x * sx + X * c - Y * sn, st.y * sy + X * sn + Y * c]; };
+    // —— 手里的东西 ——
+    const can = () => { g.save(); g.translate(-13 * s, -10 * s); // 铜绿色的旧水壶：壶身、壶嘴、莲蓬头、提手
+      g.beginPath(); g.moveTo(-7 * s, -6 * s); g.lineTo(-17 * s, -15 * s); g.lineTo(-18.5 * s, -13.4 * s); g.lineTo(-7 * s, -1 * s); g.closePath(); g.fillStyle = shade(0, -15 * s, 0, 0, '#9cc9b9', '#5f9c8c', '#3f6f68'); g.fill(); ol(0.6);
+      g.save(); g.translate(-18.4 * s, -15 * s); g.rotate(-0.75); g.beginPath(); g.ellipse(0, 0, 1.6 * s, 3 * s, 0, 0, 6.283); g.fillStyle = '#c8a050'; g.fill(); ol(0.5); g.restore();
+      g.beginPath(); g.moveTo(-8 * s, -8 * s); g.lineTo(8 * s, -8 * s); g.quadraticCurveTo(9.5 * s, 2 * s, 7.5 * s, 7 * s); g.lineTo(-7.5 * s, 7 * s); g.quadraticCurveTo(-9.5 * s, 2 * s, -8 * s, -8 * s); g.closePath(); g.fillStyle = shade(-9 * s, 0, 9 * s, 0, '#3f6f68', '#6aa898', '#a8d8c4'); g.fill(); ol(0.7);
+      g.beginPath(); g.ellipse(0, -8 * s, 8 * s, 2 * s, 0, 0, 6.283); g.fillStyle = '#2f5650'; g.fill(); ol(0.5); g.fillStyle = 'rgba(200,160,80,.9)'; g.fillRect(-8.6 * s, 1.5 * s, 17.2 * s, 1.6 * s);
+      g.globalAlpha = 0.45; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(4.4 * s, -1.5 * s, 1 * s, 4.5 * s, 0.05, 0, 6.283); g.fill(); g.globalAlpha = 1;
+      g.beginPath(); g.moveTo(-4 * s, -8.5 * s); g.bezierCurveTo(-2 * s, -17 * s, 12 * s, -16 * s, 13 * s, 0); g.strokeStyle = line; g.lineWidth = 3 * s; g.stroke(); g.strokeStyle = '#5f9c8c'; g.lineWidth = 1.8 * s; g.stroke(); g.restore(); };
+    const pouch = () => { g.save(); g.translate(0, -12 * s); // 麻布种子袋，口上扎着绳，袋口露出几颗种子
+      blob([[-8 * s, 8 * s], [-9 * s, -2 * s], [-4 * s, -7 * s], [4 * s, -7 * s], [9 * s, -2 * s], [8 * s, 8 * s], [0, 10 * s]]); g.fillStyle = shade(-9 * s, 0, 9 * s, 0, '#9a7448', '#c9a46c', '#e2c590'); g.fill(); ol(0.7);
+      g.strokeStyle = 'rgba(120,90,50,.35)'; g.lineWidth = 0.4 * s; for (let i = -3; i <= 3; i++) { g.beginPath(); g.moveTo(i * 2.2 * s, -5 * s); g.lineTo(i * 2.4 * s, 8 * s); g.stroke(); }
+      g.beginPath(); g.ellipse(0, -7 * s, 4.5 * s, 1.6 * s, 0, 0, 6.283); g.fillStyle = '#5a4026'; g.fill(); for (let i = 0; i < 5; i++) { g.fillStyle = i % 2 ? '#e8d090' : '#a8743a'; g.beginPath(); g.ellipse((-2.6 + i * 1.3) * s, -7.4 * s + (i % 2) * 0.5 * s, 0.7 * s, 0.5 * s, i, 0, 6.283); g.fill(); }
+      g.strokeStyle = '#6a4a2a'; g.lineWidth = 0.9 * s; g.beginPath(); g.moveTo(-5 * s, -5 * s); g.quadraticCurveTo(0, -3.5 * s, 5 * s, -5 * s); g.stroke(); g.restore(); };
+    const basket = () => { g.save(); g.translate(2 * s, -14 * s); // 藤编小篮子，收的菜一样样堆进去
+      const n = Math.min(4, Math.floor(el / 0.75 + 0.6)), veg = [['#f08a3a', '#4c9a48'], ['#e04a3a', '#3f8a40'], ['#f0c040', '#5aa050'], ['#a04aa0', '#4c9a48']];
+      for (let i = 0; i < n; i++) { const vx = (-5 + i * 3.4) * s, vy = -5.5 * s - (i % 2) * 1.2 * s; g.fillStyle = veg[i][0]; g.beginPath(); g.ellipse(vx, vy, 2.6 * s, 2.3 * s, 0, 0, 6.283); g.fill(); ol(0.45); g.fillStyle = veg[i][1]; g.beginPath(); g.ellipse(vx, vy - 2.6 * s, 0.9 * s, 1.5 * s, 0.3, 0, 6.283); g.fill(); }
+      g.beginPath(); g.moveTo(-10 * s, -5 * s); g.lineTo(10 * s, -5 * s); g.lineTo(7.5 * s, 7 * s); g.lineTo(-7.5 * s, 7 * s); g.closePath(); g.fillStyle = shade(0, -5 * s, 0, 7 * s, '#d8a868', '#b8844a', '#8a5a30'); g.fill(); ol(0.7);
+      g.strokeStyle = 'rgba(90,56,26,.6)'; g.lineWidth = 0.5 * s; for (let i = 0; i < 3; i++) { const yy = (-2 + i * 3) * s; g.beginPath(); g.moveTo(-9.4 * s + i * 0.6 * s, yy); g.lineTo(9.4 * s - i * 0.6 * s, yy); g.stroke(); } for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(i * 2.2 * s, -5 * s); g.lineTo(i * 1.7 * s, 7 * s); g.stroke(); }
+      g.beginPath(); g.ellipse(0, -5 * s, 10 * s, 1.6 * s, 0, 0, 6.283); g.strokeStyle = line; g.lineWidth = 1.6 * s; g.stroke(); g.strokeStyle = '#d8a868'; g.lineWidth = 0.9 * s; g.stroke(); g.restore(); };
+    const rod = () => { // 鱼竿：软木握把、绕线轮、细长的竿身（越往上越细），竿尖的位置记下来给鱼线用
+      g.fillStyle = shade(-1.8 * s, 0, 1.8 * s, 0, '#a07448', '#d8b088', '#e8c8a0'); g.beginPath(); g.ellipse(0, -6 * s, 1.9 * s, 7 * s, 0, 0, 6.283); g.fill(); ol(0.5);
+      g.beginPath(); g.moveTo(-1.1 * s, -12 * s); g.lineTo(-0.25 * s, -78 * s); g.lineTo(0.25 * s, -78 * s); g.lineTo(1.1 * s, -12 * s); g.closePath(); g.fillStyle = shade(-1 * s, 0, 1 * s, 0, '#5a3a22', '#8a5a34', '#b88a5a'); g.fill(); ol(0.4);
+      for (let i = 0; i < 4; i++) { const yy = (-24 - i * 14) * s; g.strokeStyle = '#c8c8c8'; g.lineWidth = 0.4 * s; g.beginPath(); g.arc(-1.2 * s, yy, 0.9 * s, 0, 6.283); g.stroke(); }
+      g.save(); g.translate(-3.2 * s, -1 * s); g.beginPath(); g.arc(0, 0, 3 * s, 0, 6.283); g.fillStyle = shade(-3 * s, 0, 3 * s, 0, '#5a6a70', '#9aaab0', '#cfd8dc'); g.fill(); ol(0.5); g.rotate(t * (p.fishing && p.fishing.ph === 'reel' ? 14 : 0)); g.strokeStyle = '#3a3a40'; g.lineWidth = 0.8 * s; g.beginPath(); g.moveTo(0, 0); g.lineTo(-3.5 * s, 0); g.stroke(); g.restore(); };
+    const logs = () => { g.save(); g.translate(0, -12 * s); for (let i = 0; i < 3; i++) { const yy = (-i * 4.6 + (i === 2 ? 0 : 0)) * s, xx = (i === 2 ? 0 : (i ? 3 : -3)) * s; // 两只手抱着的三根柴
+        g.beginPath(); g.rect(xx - 13 * s, yy - 2.4 * s, 24 * s, 4.8 * s); g.fillStyle = shade(0, yy - 2.4 * s, 0, yy + 2.4 * s, '#a87a4a', '#7a5030', '#4f321e'); g.fill(); ol(0.5);
+        g.strokeStyle = 'rgba(40,24,12,.4)'; g.lineWidth = 0.4 * s; g.beginPath(); g.moveTo(xx - 10 * s, yy - 0.6 * s); g.lineTo(xx + 6 * s, yy - 0.9 * s); g.stroke();
+        g.beginPath(); g.ellipse(xx + 11 * s, yy, 1.5 * s, 2.4 * s, 0, 0, 6.283); g.fillStyle = '#e2bc88'; g.fill(); ol(0.45); g.strokeStyle = 'rgba(140,90,50,.7)'; g.lineWidth = 0.35 * s; g.beginPath(); g.ellipse(xx + 11 * s, yy, 0.8 * s, 1.3 * s, 0, 0, 6.283); g.stroke(); } g.restore(); };
+    const bun = (bites) => { g.save(); g.translate(-2 * s, -14 * s); // 小圆面包：咬一口少一块
+      g.beginPath(); g.rect(-20 * s, -20 * s, 40 * s, 40 * s); for (let i = 0; i < bites; i++) { const a = -1.2 + i * 0.75; g.moveTo(Math.cos(a) * 8 * s + 3 * s, Math.sin(a) * 6 * s); g.arc(Math.cos(a) * 8 * s, Math.sin(a) * 6 * s, 3 * s, 0, 6.283, true); } g.clip('evenodd');
+      g.beginPath(); g.ellipse(0, 0, 8 * s, 6 * s, 0, 0, 6.283); g.fillStyle = shade(0, -6 * s, 0, 6 * s, '#f0c070', '#d8984a', '#a8682a'); g.fill(); ol(0.6);
+      g.globalAlpha = 0.5; g.fillStyle = '#fff4d0'; g.beginPath(); g.ellipse(-2.4 * s, -3 * s, 3 * s, 1.3 * s, -0.3, 0, 6.283); g.fill(); g.globalAlpha = 1; g.fillStyle = '#f8ecd0'; for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse((-4 + i * 2) * s, (-1.5 + (i % 2) * 2) * s, 0.5 * s, 0.3 * s, i, 0, 6.283); g.fill(); } g.restore(); };
+    const veg1 = () => { g.fillStyle = '#f08a3a'; g.beginPath(); g.ellipse(0, -13 * s, 2.6 * s, 2.3 * s, 0, 0, 6.283); g.fill(); ol(0.45); g.fillStyle = '#4c9a48'; g.beginPath(); g.ellipse(0.4 * s, -15.8 * s, 1 * s, 1.6 * s, 0.3, 0, 6.283); g.fill(); };
+    const twoL = LT !== Lout || fp._hL.y < 128; // 左手在画面里
+    // 画的先后：先左手（远一点），再右手；握着的东西夹在掌心和卷起的指头之间
+    g.shadowColor = 'rgba(20,10,30,.28)'; g.shadowBlur = 3 * s; g.shadowOffsetY = 1.2 * s;
+    const L = fp._hL, Rh = fp._hR, Lheld = kind === 'seed' || kind === 'sow' ? pouch : kind === 'harvest' ? basket : null;
+    if (twoL) { arm(L, -1, true); g.shadowColor = 'transparent'; inHand(L, -1, Lheld || (() => {})); g.shadowColor = 'rgba(20,10,30,.28)'; }
+    if (kind === 'wood') { arm(Rh, 1, true); g.shadowColor = 'transparent'; const mx = (L.x + Rh.x) / 2 * sx, my = Math.min(L.y, Rh.y) * sy; g.save(); g.translate(mx, my); logs(); g.restore(); inHand(L, -1, () => {}); inHand(Rh, 1, () => {}); }
+    else if (kind === 'eat') { arm(Rh, 1, true); g.shadowColor = 'transparent'; const mx = (L.x + Rh.x) / 2 * sx, my = Math.min(L.y, Rh.y) * sy + 2 * s; g.save(); g.translate(mx, my); bun(Math.min(4, Math.floor(el / 0.8))); g.restore(); inHand(L, -1, () => {}); inHand(Rh, 1, () => {}); }
+    else { const held = kind === 'can' || kind === 'water' ? can : kind === 'rod' || kind === 'fish' ? rod : kind === 'snack' ? () => bun(0) : kind === 'harvest' && fp._hv ? veg1 : null;
+      arm(Rh, 1, !!held || Rh.g > 0.3); g.shadowColor = 'transparent'; if (held || Rh.g > 0.3) inHand(Rh, 1, held || (() => {})); }
+    g.shadowColor = 'transparent';
+    // 浇水：从莲蓬头洒下来的一串水（屏幕上往下落）
+    if (kind === 'water' && el > 0.45) { const [tx, ty] = toScreen(Rh, 1, -31.4 * s, -25 * s); for (let i = 0; i < 26; i++) { const k = ((t * 1.7 + i / 26) % 1), spread = (i % 5 - 2) * 1.4 * s; const px = tx - k * 4 * s + spread * k * 2, py = ty + k * k * 40 * s + k * 6 * s; g.globalAlpha = 0.75 * (1 - k); g.fillStyle = '#bfe6ff'; g.beginPath(); g.ellipse(px, py, 0.6 * s, 1.4 * s, 0, 0, 6.283); g.fill(); } g.globalAlpha = 1; }
+    // 撒种：甩手那一下，种子划着弧线往前下方飞出去
+    if (kind === 'sow' && fp._sowF != null) { const c = fp._sowF, [tx, ty] = toScreen(Rh, 1, 0, -12 * s); for (let i = 0; i < 9; i++) { const k = U.clamp((c - 0.5) / 0.4 + i * 0.03, 0, 1); if (k <= 0) continue; const px = tx - k * (18 + i * 3) * s, py = ty - Math.sin(k * Math.PI) * (6 + i % 3) * s + k * k * 26 * s; g.globalAlpha = 1 - k * 0.7; g.fillStyle = i % 2 ? '#e8d090' : '#a8743a'; g.beginPath(); g.ellipse(px, py, 0.7 * s, 0.5 * s, i, 0, 6.283); g.fill(); } g.globalAlpha = 1; }
+    fp._tip = kind === 'rod' || kind === 'fish' ? toScreen(Rh, 1, 0, -78 * s).map((v, i) => v + (i ? y0 : x0)) : null;
+    // 按光线染色：夜里偏蓝暗、黄昏偏暖、水下偏青
+    const ph2 = phase(), tint = fp.under ? 'rgba(30,110,140,.38)' : ph2 === 'night' ? 'rgba(28,36,80,.42)' : ph2 === 'dusk' ? 'rgba(255,140,90,.16)' : null;
+    if (tint) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = tint; g.fillRect(0, 0, cv.width, cv.height); g.globalCompositeOperation = 'source-over'; }
+    ctx.drawImage(cv, x0, y0);
     // 正在干什么 + 进度条（准星上方）；做完闪一下
     const cx = x0 + w / 2, cy = y0 + h / 2, fs = U.clamp(Math.min(w, h) / 34, 11, 18);
     ctx.font = PP.FONT(fs); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
@@ -1479,7 +1570,7 @@
       ctx.globalAlpha = 1; }
     // 0.5) 远处一圈大积云（二次元那种）：底部偏蓝紫的阴影、中间雪白、顶上被太阳照亮的一道亮边；离得很远，跟着视线转
     { const CL = 14; for (let i = 0; i < CL; i++) { const az = hs(i, 91) * 6.283 + now / 1000 * 0.004, el = 0.05 + hs(i, 92) * 0.16, c0 = far(az, el); if (!c0 || c0[1] < y0 - h * 0.3 || c0[1] > y0 + h * 1.2) continue;
-        const R = h * (0.09 + hs(i, 93) * 0.1), night = nightK > 0.5, base = night ? [70, 80, 120] : [196, 204, 232], body = night ? [120, 130, 170] : [255, 255, 255], hl = night ? [150, 160, 200] : [255, 244, 214];
+        const R = h * (0.09 + hs(i, 93) * 0.1), night = nightK > 0.5, base = night ? [70, 80, 120] : [170, 192, 234], body = night ? [120, 130, 170] : [255, 255, 255], hl = night ? [150, 160, 200] : [255, 253, 244];
         const n2 = 7 + Math.floor(hs(i, 94) * 5); ctx.globalAlpha = night ? 0.55 : 0.92;
         for (let k = 0; k < n2; k++) { const ox = (k / (n2 - 1) - 0.5) * R * 3.2, up = Math.sin((k / (n2 - 1)) * Math.PI) * R * (0.8 + hs(k, i) * 0.6), rr = R * (0.45 + Math.sin((k / (n2 - 1)) * Math.PI) * 0.45 + hs(i, k) * 0.15), cx = c0[0] + ox, cy = c0[1] - up * 0.6;
           ctx.fillStyle = `rgb(${base.join(',')})`; ctx.beginPath(); ctx.arc(cx, cy + rr * 0.18, rr, 0, 6.283); ctx.fill(); }
@@ -1572,9 +1663,9 @@
         if (ngt) { const tw = 0.5 + 0.5 * Math.sin(now / 300 + a.ph * 3); if (tw < 0.15) continue; const g = ctx.createRadialGradient(px, py, 0, px, py, sz * 3); g.addColorStop(0, `rgba(230,255,150,${0.9 * tw})`); g.addColorStop(1, 'rgba(230,255,150,0)'); ctx.fillStyle = g; ctx.fillRect(px - sz * 3, py - sz * 3, sz * 6, sz * 6); }
         else if (indoor) { const tw = 0.4 + 0.6 * Math.abs(Math.sin(now / 900 + a.ph * 2)), r2 = sz * 0.35; ctx.fillStyle = `rgba(255,236,190,${0.55 * tw})`; ctx.beginPath(); ctx.arc(px + Math.sin(now / 2200 + a.ph) * 6, py + Math.cos(now / 2600 + a.ph) * 5, r2, 0, 6.283); ctx.fill(); }
         else { ctx.save(); ctx.translate(px, py); ctx.rotate(now / 600 + a.ph); ctx.scale(1, 0.55 + 0.45 * Math.sin(now / 300 + a.ph)); ctx.fillStyle = i % 3 ? 'rgba(255,196,214,.85)' : 'rgba(255,240,246,.9)'; ctx.beginPath(); ctx.ellipse(0, 0, sz, sz * 0.6, 0, 0, 6.283); ctx.fill(); ctx.restore(); } } } catch (e) {}
-    if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) {} }
+    if (cam.third < 0.6) { try { drawHands(ctx, x0, y0, w, h, now); } catch (e) { fp._herr = String(e && e.stack || e); } }
     try { /* 鱼线：从右下角手里的鱼竿尖拉到浮漂；咬钩时浮漂那儿一圈圈水花 */ const bb = bobNow(now); if (bb) { const mx = (bb.u - cam.eye[0]) * 2.83, my = (bb.v - cam.eye[1]) * 2.83, mz = (POOL.z + 0.3 - bb.dip - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp;
-        if (f2 > 1) { const bx = x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), by = y0 + h / 2 - (u2 * f) / f2 * (h / 2); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x0 + w * 0.7, y0 + h * 0.46); ctx.quadraticCurveTo((x0 + w * 0.7 + bx) / 2, Math.max(y0 + h * 0.46, by) + h * 0.06, bx, by); ctx.stroke();
+        if (f2 > 1) { const bx = x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), by = y0 + h / 2 - (u2 * f) / f2 * (h / 2); ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.2; ctx.beginPath(); const tp = fp._tip || [x0 + w * 0.7, y0 + h * 0.46]; ctx.moveTo(tp[0], tp[1]); ctx.quadraticCurveTo((tp[0] + bx) / 2, Math.max(tp[1], by) + h * 0.06, bx, by); ctx.stroke();
           if (fp.fish && fp.fish.ph === 'bite') { const k = (now % 500) / 500; ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - k)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(bx, by + 4, 8 + k * 26, (8 + k * 26) * 0.35, 0, 0, 6.283); ctx.stroke(); } } }
       /* 钓上来了：那条鱼拿在手里给你看两秒半（图鉴里那张像素画），旁边写着名字 */
       const cs = fp.catchShow; if (cs && now - cs.t < 2600 && PP.FISHDEX && cs.id) { const im = PP.FISHDEX.sprite(cs.id), k = Math.min(1, (now - cs.t) / 250), sw = Math.min(w, h) * 0.42 * k, sh = sw * im.height / im.width, cx = x0 + w * 0.62, cy = y0 + h * 0.64 + Math.sin(now / 90) * 3; ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(cx, cy); ctx.rotate(-0.25 + Math.sin(now / 120) * 0.06); ctx.drawImage(im, -sw / 2, -sh / 2, sw, sh); ctx.restore(); ctx.font = PP.FONT(Math.min(w, h) / 22); ctx.textAlign = 'center'; ctx.fillStyle = '#fff6d8'; ctx.strokeStyle = 'rgba(30,24,40,.8)'; ctx.lineWidth = 4; ctx.strokeText(cs.name, cx, cy + sh / 2 + 8); ctx.fillText(cs.name, cx, cy + sh / 2 + 8); } } catch (e) {}

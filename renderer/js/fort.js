@@ -34,9 +34,9 @@
   /* 配色「林间白石城」：石灰白的墙、浅色石头的圆塔（长着苔藓）、石板蓝和苔绿的屋顶、生了铜绿的铜件、深胡桃木、白色的翅膀。
      整体是森林里的淡色石头房子：颜色不抢，靠绿植、暖灯、花点缀 */
   const C = {
-    CREAM: '#f0e6d2', CREAM2: '#e2d4ba', STONE: '#cbc2ae', STONE2: '#a89f8c', BRICK: '#c8a284', IRON: '#9a978c', IRON2: '#7e7c74', RUST: '#9a8268', RUST2: '#857058', COP: '#6f9e8c', COP2: '#5b8778',
-    TILE: '#5f7482', TILE2: '#53677a', SHING: '#6f8a66', TIMBER: '#4e3c30', WOOD: '#b8936a', WOOD2: '#a68058', GOLD: '#d4b46a', GLASS: '#c6e8f2', WING: '#f4f0e6', WING2: '#d6cfbf', PLANK: '#9a7a58', MOSS: '#6f9a4a',
-    TOWER: '#d2c8b2', TOWER2: '#c4b9a2',
+    CREAM: '#f7ebd0', CREAM2: '#ecd8b4', STONE: '#dcc9a2', STONE2: '#b59c74', BRICK: '#cf8f68', IRON: '#9a978c', IRON2: '#7e7c74', RUST: '#9a8268', RUST2: '#857058', COP: '#4fae98', COP2: '#3a917e',
+    TILE: '#3d72a0', TILE2: '#33628c', SHING: '#c9653f', TIMBER: '#5c3b26', WOOD: '#c9965c', WOOD2: '#b0804a', GOLD: '#e2bc5a', GLASS: '#bfeaf6', WING: '#f4f0e6', WING2: '#d6cfbf', PLANK: '#a8794a', MOSS: '#6aae3c',
+    TOWER: '#e8d8b4', TOWER2: '#d6c39c',
   };
 
   // ---------- 房间 ----------
@@ -47,7 +47,7 @@
   const A = TC, B = TC; // 老代码里的塔心：现在就是树心
   const GAL = { 1: 11.5, 2: 11, 3: 11 }; // 树腰回廊的外半径（L1 树脚平台、L2、L3）
   const TRUNK = { r: 8, hole: 6, post: 1.6 };
-  const POD = (id, nm, lv, deg, rad, o = {}) => { const rc = o.rc != null ? o.rc : GAL[lv] + rad - 0.6, [u, v] = polarW(deg, rc); return R(id, nm, lv, Object.assign({ c: [u, v, rad], r: [u - rad, v - rad, u + rad, v + rad] /* 外接正方形：给按长方形算的家具代码用 */, deg, rc, pod: true, out: '#ece2cc', om: M.plaster, in: '#f2e6cf', im: M.wallpaper, fl: '#b88a5a', fm: M.plank, roof: 'cone', h: 11 }, o)); };
+  const POD = (id, nm, lv, deg, rad, o = {}) => { const rc = o.rc != null ? o.rc : GAL[lv] + rad - 0.6, [u, v] = polarW(deg, rc); return R(id, nm, lv, Object.assign({ c: [u, v, rad], r: [u - rad, v - rad, u + rad, v + rad] /* 外接正方形：给按长方形算的家具代码用 */, deg, rc, pod: true, out: '#f7ebd0', om: M.plaster, in: '#f6e8cc', im: M.wallpaper, fl: '#b88a5a', fm: M.plank, roof: 'cone', h: 11 }, o)); };
   const ROOMS = [
     POD('hall', '门厅', 1, 90, 5.5, { fl: '#9a8a78', fm: M.stone }),
     POD('kitchen', '厨房', 1, 36, 5, { rc: 15.9, h: WH, fl: '#c8b098', fm: M.tile }),
@@ -578,8 +578,8 @@
         return; }
       // 锥形的木瓦屋顶：出檐一圈，屋面上几块苔藓，顶上一根小木尖
       const ov = rad + 0.9, hR = rad * 1.25;
-      m.cyl(cu, cv, z, z + 0.4, ov, ov, C.TIMBER, M.plank, 28); m.cyl(cu, cv, z + 0.4, z + 0.4 + hR, ov, 0.2, snow ? '#e8eef4' : (r.lv % 2 ? C.SHING : '#7a6a52'), snow ? M.snow : M.tile, 28);
-      if (!snow) for (let k = 0; k < 4; k++) { const a = k * 1.7 + rad, f = 0.35 + H(k, rad) * 0.4; m.blob(cu + Math.cos(a) * ov * (1 - f), cv + Math.sin(a) * ov * (1 - f), z + 0.4 + hR * f, 0.8, 0.3, ['#6f9a4a', '#7fa85a'][k % 2], M.grass, k); }
+      m.cyl(cu, cv, z, z + 0.4, ov, ov, C.TIMBER, M.plank, 28); m.cyl(cu, cv, z + 0.4, z + 0.4 + hR, ov, 0.2, snow ? '#e8eef4' : (r.lv === 2 ? C.TILE : C.SHING), snow ? M.snow : M.tile, 28);
+      if (!snow) for (let k = 0; k < 4; k++) { const a = k * 1.7 + rad, f = 0.35 + H(k, rad) * 0.4; m.blob(cu + Math.cos(a) * ov * (1 - f), cv + Math.sin(a) * ov * (1 - f), z + 0.4 + hR * f, 0.8, 0.3, ['#6aae3c', '#8cc44a'][k % 2], M.grass, k); }
       m.cyl(cu, cv, z + 0.4 + hR, z + 1.8 + hR, 0.12, 0.05, C.TIMBER, M.plank, 5); return; }
     m.cyl(cu, cv, z, z + 1, rad + 0.6, rad + 0.6, C.STONE2, M.stone, 28, !up, o.snow ? '#eef4fa' : '#9a8e7e'); // 上面还有房间：不封口（楼上的地板就是顶，楼梯井那儿是空的）
     if (up) { const n = Math.round(rad * 4); for (let i = 0; i < n; i += 2) { const a = (i / n) * 6.2832, x = cu + Math.cos(a) * (rad + 0.3), y = cv + Math.sin(a) * (rad + 0.3); m.box(x - 0.4, y - 0.4, z + 1, x + 0.4, y + 0.4, z + 2, C.STONE, M.stone); } return; }
@@ -857,7 +857,7 @@
   }
   // ---------- 植物：城堡和植物长在一起 ----------
   // 爬山虎顺着墙往上爬、小树从台子边上斜着长出来、根和藤从底下垂下去、平屋顶和檐口上长草开花
-  const LEAF = (o) => (o.season === 'autumn' ? ['#d8823a', '#c8582e', '#e0a040', '#8a9a3a'] : o.season === 'spring' ? ['#7ac85a', '#9ad86a', '#5aa64e', '#f2c6d2'] : ['#4c8a40', '#5aa64e', '#6aa858', '#3e7a3a']);
+  const LEAF = (o) => (o.season === 'autumn' ? ['#d8823a', '#c8582e', '#e0a040', '#8a9a3a'] : o.season === 'spring' ? ['#7ccf4e', '#a2e05e', '#58b048', '#f6c4d6'] : ['#3f8f3a', '#5cb048', '#7cc44e', '#2f7a3a']);
   /* 这个点在不在某间屋子里面（爬藤、树叶不能长进屋里：墙外贴着别的房间或小隔间的地方，藤就不长） */
   const inAnyRoom = (x, y, z) => ROOMS.some((r) => z > Z[r.lv] + 0.2 && z < Z[r.lv] + roomH(r) + 0.5 && inRoom(r, x, y, 0.1));
   function vine(m, o, pts, seed, r = 0.55) {
@@ -1116,7 +1116,7 @@
   /* ---------- 古树：空心的树干（里面是螺旋楼梯）、五条大根、三层树腰回廊、树冠 ---------- */
   const ROOT_DEG = [-88, -33, 62, 120, 207]; // 五条大根都从两间小屋之间的空档拱出水面，不顶着谁的墙和门
   function treeHome(m, cut, o) {
-    const [cx, cy] = TC, snow = o.snow, bark = '#6b5442', bark2 = '#5a4535', inner = '#b08a62', N = 36, top = 46;
+    const [cx, cy] = TC, snow = o.snow, bark = '#7d5b3e', bark2 = '#664730', inner = '#c09060', N = 36, top = 46;
     const rOut = (z) => (z < -2 ? 8 + Math.min(4, (-2 - z) * 0.16) : z > 32 ? 8 - (z - 32) * 0.16 : 8); // 水下越往下越粗，30 往上慢慢收
     const DOORS = [[1, 90], [2, 180], [3, 270]].map(([lv, deg]) => ({ z0: Z[lv], z1: Z[lv] + 10, a: deg * D2R }));
     const isDoor = (a, z) => DOORS.some((d) => z >= d.z0 - 0.01 && z < d.z1 && Math.abs(Math.atan2(Math.sin(a - d.a), Math.cos(a - d.a))) < 0.2);

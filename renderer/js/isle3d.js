@@ -300,10 +300,10 @@
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
-      float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.86,0.88,1.1), vec3(1.05,1.0,0.9), b);
-      float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,0.86); // 稍微灰一点，和猫屋那种柔和的颜色一致
+      float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.84,0.9,1.16), vec3(1.05,1.0,0.9), b);
+      float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,1.14); // 天空之城 / 原神：颜色干净饱满，暗面偏蓝而不是发灰
     } else { // 二次元的光：明暗两档之间软软地过渡；暗面偏冷的蓝紫，亮面偏暖
-      float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.88,0.9,1.1)*1.06, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
+      float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.84,0.92,1.16)*1.08, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
     // 屋里的灯：每间房一盏，开着的时候整间屋子暖暖地亮起来（只照到这间房的范围、这一层的高度里）
     for(int i=0;i<40;i++){ if(i>=uNRL) break; float k=uRLk[i]; if(k<=0.01) continue; vec4 a=uRLa[i], b=uRLb[i]; if(vW.z<b.z-0.05||vW.z>b.w+0.05) continue;
       vec2 d=vW.xy-a.xy; float far;
@@ -314,7 +314,7 @@
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
     if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     if(uPost<0.5 && uPick<0.5){ // 调色：稍微鲜艳一点；第一人称里物体边上一圈淡淡的天光、远处融进天色（空气感）
-      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.12);
+      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.2);
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
     // 水下的东西：从水面上往下看，越深越融进深蓝绿里（只看得见浅处的屋顶、露出来的塔尖）；人潜在水下时按距离看不远（十几格以外就看不清了）
