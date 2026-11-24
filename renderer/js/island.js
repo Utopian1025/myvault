@@ -1310,9 +1310,10 @@
     const V = voxels(), tz = (q.z != null ? q.z : Z[q.lv]) + 3, du = q.u - eye[0], dv = q.v - eye[1], dz = tz - eye[2], d = Math.hypot(du, dv, dz / 2.45);
     if (d > 45) return (o._see = false);
     if (!V) return (o._see = (F.roomAt(q.u, q.v, q.lv) || null) === (F.roomAt(fp.q.u, fp.q.v, fp.q.lv) || null));
-    const n = Math.ceil(d / 0.2); let ok = true;
-    for (let i = 2; i < n - 3; i++) { const k = i / n; if (vAt(V, eye[0] + du * k, eye[1] + dv * k, eye[2] + dz * k)) { ok = false; break; } }
-    return (o._see = ok);
+    /* 身子中间、左边、右边、头顶四条视线都没被挡才画（伙伴是一张平的图，半个身子在墙后面时整张画在墙前面就像穿模；宁可等它整个走出来再出现） */
+    const L0 = Math.hypot(du, dv) || 1, px = -dv / L0 * 0.7, py = du / L0 * 0.7, ray = (tu, tv, tz2) => { const a = tu - eye[0], b = tv - eye[1], c = tz2 - eye[2], dd = Math.hypot(a, b, c / 2.45), n = Math.ceil(dd / 0.2); for (let i = 2; i < n - 3; i++) { const k = i / n; if (vAt(V, eye[0] + a * k, eye[1] + b * k, eye[2] + c * k)) return false; } return true; };
+    const z0 = (q.z != null ? q.z : Z[q.lv]);
+    return (o._see = ray(q.u, q.v, tz) && ray(q.u + px, q.v + py, tz) && ray(q.u - px, q.v - py, tz) && ray(q.u, q.v, z0 + 5.5));
   }
   /* 准星对着的伙伴（画在画面上的纸片人：按屏幕位置和远近判断） */
   function aimPet(x, y) {
