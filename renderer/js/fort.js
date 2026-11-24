@@ -132,7 +132,7 @@
     { id: 'farmB', name: '梯田菜地', lv: 1, r: rectAt(42, 24.6, 6.95, 3.6), rot: 132, kind: 'farm' },
     /* 菜园栈道（0.30）：从码头往东一条木栈道直通菜地，出门几步就到（以前要从厨房、餐厅后门绕） */
     { id: 'walk1', name: '菜园栈道', lv: 1, r: [25.6, 48.4, 37.4, 50.6], kind: 'walk', rails: ['v1'] },
-    { id: 'walk2', name: '菜园栈道', lv: 1, r: [35.2, 45.2, 39.2, 50.6], kind: 'walk', rails: ['u1'] },
+    { id: 'walk2', name: '菜园栈道', lv: 1, r: [33.6, 42.6, 38.2, 50.6], kind: 'walk', rails: ['u1'], railFrom: 47.4 }, // 北头接到菜地靠树那一侧的小路口
   ];
   const MD = {}; MODS.forEach((q) => { MD[q.id] = q; if (q.rot) q.rot *= Math.PI / 180; });
   const mFrame = (q) => (q.fr ? frameOf(q.fr) : q.rot ? q : null);
@@ -710,8 +710,8 @@
         }
         if (q.kind === 'walk') { slab(m, q, o, '#b8885a', '#7a5636', M.plank, { planks: true, th: 0.5 }); const [a, b, c, d] = q.r, z = Z[q.lv];
           for (let u = a + 0.6; u < c; u += 2.4) for (const v of [b + 0.3, d - 0.3]) m.cyl(u, v, -8, z - 0.5, 0.22, 0.22, '#5a4030', M.plank, 7);
-          for (const sd of q.rails || []) { const L2 = sd[0] === 'v' ? c - a : d - b, n = Math.floor(L2 / 1.2); for (let k = 0; k <= n; k++) { const t = k / n, x = sd === 'v1' ? a + (c - a) * t : sd === 'u1' ? c - 0.12 : a, y = sd === 'v1' ? d - 0.12 : b + (d - b) * t; m.box(x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 2.6, C.TIMBER, M.plank); }
-            sd === 'v1' ? m.box(a, d - 0.22, z + 2.5, c, d - 0.02, z + 2.75, C.TIMBER, M.plank) : m.box(c - 0.22, b, z + 2.5, c - 0.02, d, z + 2.75, C.TIMBER, M.plank); }
+          for (const sd of q.rails || []) { const b2 = q.railFrom || b, L2 = sd[0] === 'v' ? c - a : d - b2, n = Math.floor(L2 / 1.2); for (let k = 0; k <= n; k++) { const t = k / n, x = sd === 'v1' ? a + (c - a) * t : sd === 'u1' ? c - 0.12 : a, y = sd === 'v1' ? d - 0.12 : b2 + (d - b2) * t; m.box(x - 0.08, y - 0.08, z, x + 0.08, y + 0.08, z + 2.6, C.TIMBER, M.plank); }
+            sd === 'v1' ? m.box(a, d - 0.22, z + 2.5, c, d - 0.02, z + 2.75, C.TIMBER, M.plank) : m.box(c - 0.22, b2, z + 2.5, c - 0.02, d, z + 2.75, C.TIMBER, M.plank); }
           if (q.id === 'walk2') { const p = [c - 0.5, b + 0.6]; m.box(p[0] - 0.08, p[1] - 0.08, z, p[0] + 0.08, p[1] + 0.08, z + 4, C.TIMBER, M.plank); m.box(p[0] - 1.4, p[1] - 0.06, z + 3.0, p[0] - 0.08, p[1] + 0.06, z + 3.8, '#c89a5a', M.plank); } // 路牌：菜园
         }
         if (q.kind === 'farm') {
