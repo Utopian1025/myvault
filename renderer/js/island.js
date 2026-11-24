@@ -1561,7 +1561,7 @@
       const dyaw = (fp._lastYaw == null ? 0 : fp.yaw - fp._lastYaw), dpit = (fp._lastPit == null ? 0 : fp.pitch - fp._lastPit); fp._lastYaw = fp.yaw; fp._lastPit = fp.pitch; const indoor = !!F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
       for (const a of (fp.under ? [] : P2)) { /* 水下不飘花瓣 */ a.x -= dyaw * 0.35 * a.z; a.y += dpit * 0.35 * a.z; if (ngt) { a.x += Math.sin(now / 1300 + a.ph) * 0.0006; a.y += Math.cos(now / 1700 + a.ph) * 0.0005; } else { a.x += 0.0009 * a.z; a.y += 0.0011 * a.z; }
         a.x = ((a.x % 1) + 1) % 1; a.y = ((a.y % 1) + 1) % 1; }
-      const nShow = indoor ? (ngt ? 6 : 28) : P2.length; // 屋里白天：空气里漂着一点点被阳光照亮的灰尘
+      const nShow = fp.under ? 0 : indoor ? (ngt ? 6 : 28) : P2.length; /* 水下不飘花瓣 */ // 屋里白天：空气里漂着一点点被阳光照亮的灰尘
       for (let i = 0; i < nShow; i++) { const a = P2[i], px = x0 + a.x * w, py = y0 + a.y * h, sz = (2 + a.z * 5) * Math.min(w, h) / 500;
         if (ngt) { const tw = 0.5 + 0.5 * Math.sin(now / 300 + a.ph * 3); if (tw < 0.15) continue; const g = ctx.createRadialGradient(px, py, 0, px, py, sz * 3); g.addColorStop(0, `rgba(230,255,150,${0.9 * tw})`); g.addColorStop(1, 'rgba(230,255,150,0)'); ctx.fillStyle = g; ctx.fillRect(px - sz * 3, py - sz * 3, sz * 6, sz * 6); }
         else if (indoor) { const tw = 0.4 + 0.6 * Math.abs(Math.sin(now / 900 + a.ph * 2)), r2 = sz * 0.35; ctx.fillStyle = `rgba(255,236,190,${0.55 * tw})`; ctx.beginPath(); ctx.arc(px + Math.sin(now / 2200 + a.ph) * 6, py + Math.cos(now / 2600 + a.ph) * 5, r2, 0, 6.283); ctx.fill(); }

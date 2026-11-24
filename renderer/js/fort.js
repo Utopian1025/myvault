@@ -167,9 +167,10 @@
   const plotC = (i) => [...mW(PLOTS_L[i][0], PLOTS_L[i][1] + PS / 2, PLOTS_L[i][2] + PS / 2), 2.4];
   // 林中湖（模块 id 还叫 cistern，老存档、伙伴的去处都认这个名字）
   // 林中湖：形状是一圈不规则的圆，水面比岸低一点，湖底 19 格深
-  const LAKE = { u: 42.4, v: 37.9, rx: 6.8, ry: 7.0, z: -0.8, bot: -19 };
+  // 古树水城：水 = 整个盆地（第①步底层在 fort_city.js）
+  const CITY = PP.CITY, LAKE = CITY ? { u: CITY.CEN[0], v: CITY.CEN[1], rx: CITY.RB, ry: CITY.RB, z: CITY.WL, bot: CITY.FLOOR } : { u: 42.4, v: 37.9, rx: 6.8, ry: 7.0, z: -0.8, bot: -19 };
   const lakeR = (a) => 1 + 0.07 * Math.sin(3 * a + 1.3) + 0.05 * Math.sin(5 * a + 0.4);
-  const inLake = (u, v, m = 0) => { const x = (u - LAKE.u) / LAKE.rx, y = (v - LAKE.v) / LAKE.ry; return Math.hypot(x, y) < lakeR(Math.atan2(y, x)) - m / 7; };
+  const inLake = CITY ? (u, v, m = 0) => CITY.inBasin(u, v, m) : (u, v, m = 0) => { const x = (u - LAKE.u) / LAKE.rx, y = (v - LAKE.v) / LAKE.ry; return Math.hypot(x, y) < lakeR(Math.atan2(y, x)) - m / 7; };
   const POOL_L = { u0: LAKE.u - 4.8, v0: LAKE.v - 5, u1: LAKE.u + 4.8, v1: LAKE.v + 5 };
   const POOL = { z: LAKE.z, lv: 1 };
   const FISH = { lv: 1, u: 36.0, v: 32.8 }, BOB = { u: 40.2, v: 35.9 };
@@ -741,7 +742,7 @@
           HIVES_L.forEach(([u, v]) => { m.pk(PK.hive); m.box(u - 0.15, v - 0.15, z, u + 0.15, v + 0.15, z + 1.2, C.TIMBER, M.plank); for (let k = 0; k < 3; k++) m.box(u - 1, v - 0.9, z + 1.2 + k * 1.5, u + 1, v + 0.9, z + 2.6 + k * 1.5, k % 2 ? '#f4ead8' : '#e8dcc4', M.plank); m.gable(u - 1.2, v - 1.1, u + 1.2, v + 1.1, z + 5.7, 1, 'u', snow ? '#e4ecf4' : C.TILE2, snow ? M.snow : M.tile, 0.2); m.box(u - 0.3, v + 0.88, z + 1.5, u + 0.3, v + 0.95, z + 1.75, '#3a2630', 0); m.pk(0); });
           if (!snow) for (let k = 0; k < 9; k++) m.flower(a + 1 + (k % 5) * 1.3, d - 1 - Math.floor(k / 5) * 1.1, z, 1.4 + (k % 3) * 0.4, ['#f2a6c2', '#ffd95a', '#c8a0f0', '#ffffff'][k % 4], k);
         }
-        if (q.kind === 'pool') lakeScene(m, q, o);
+        if (q.kind === 'pool' && !CITY) lakeScene(m, q, o);
       });
     }
     // 小院上的东西（世界坐标）
@@ -1113,7 +1114,7 @@
     const m = new Mesh(), cut = o.cut || null;
     // 详细视图：只看一个房间，外面的船体、甲板模块、植物都不用建（反正也被裁掉），转视角时重建得快
     const F1 = o.focus && RM[o.focus];
-    if (!F1) { deckAndHull(m, cut, o); modules(m, cut, o); }
+    if (!F1) { if (CITY) CITY.build(m, o, { pkFish: PK.fish }); else deckAndHull(m, cut, o); if (o.cityOnly || PP.CITY_ONLY) return m; modules(m, cut, o); } // 底层：古树水城的岩体、浮石、水下古城、水面
     for (const r of ROOMS) if (showLv(cut, r.lv) && (!F1 || r === F1)) { if (isRound(r)) roundRoom(m, r, cut, o); else inFrame(m, r.rot ? r : null, () => leanWrap(m, Z[r.lv], r.lean, () => rectRoom(m, r, cut, o))); }
     for (const p of PASS) if (showLv(cut, p.lv)) inFrame(m, p.F, () => passage(m, p, cut, o));
     for (const op of OPEN) { if (!showLv(cut, op[0])) continue; const z = Z[op[0]]; inFrame(m, frameOf(op[6]), () => { m.box(op[1], op[2], z - 1, op[3], op[4], z, '#8a7e70', M.stone, o.snow ? '#eef4fa' : '#9a8a6e', o.snow ? M.snow : M.stone); for (let a = op[1] + 1.2; a < op[3] - 0.6; a += 2.6) for (const b of [op[2] + 1, op[4] - 1]) if (!roomAt(...toW(frameOf(op[6]), a, b), op[0] - 1)) /* 底下就是房间（屋顶花园在餐厅顶上）就不用斜撑 */ m.quad([a, b, z - 1], [a + 0.25, b, z - 1], [a + 0.25 + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], [a + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], C.TIMBER, M.plank); }); }
