@@ -953,7 +953,7 @@
   // 脚底一小圈（站得住）、身体一圈（撞不撞）
   const FOOT = (() => { const o = [[0, 0]]; for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * 0.15, Math.sin(a / 12 * 6.283) * 0.15]); return o; })(); /* 和身子那一圈同方向、往里收一点：墙上的薄护墙板先碰到身子，脚就踩不上去（以前会顺着墙「爬台阶」爬上楼板） */ // 脚底 = 整个身体底面：身子有一部分在箱子上方，就算站在箱子上（不会落到箱子旁边、被箱子夹住）
   // 检测半径比身子小一点：方块会把表面往外“撑”出最多一格（0.25），扣掉一半，贴墙走时不会比看上去更早撞到
-  const BODYC = (() => { const R = 0.3, o = []; /* 身体半径 0.3：贴墙时镜头离墙远一点，不会一脸贴进树皮里 */ for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * R, Math.sin(a / 12 * 6.283) * R]); o.push([0, 0]); return o; })();
+  const BODYC = (() => { const R = 0.2, o = []; for (let a = 0; a < 12; a++) o.push([Math.cos(a / 12 * 6.283) * R, Math.sin(a / 12 * 6.283) * R]); o.push([0, 0]); return o; })();
   // 头顶还有多高的空（身子正上方一小圈里最近的实心方块）：门框、雨棚、横梁低了就弯腰
   function headroom(u, v, z) { const V = voxels(); if (!V) return 99; let best = 99; for (const [du, dv] of FOOT) { const i = Math.floor((u + du - V.u0) / VX), j = Math.floor((v + dv - V.v0) / VX); if (i < 0 || j < 0 || i >= V.nx || j >= V.ny) continue; for (let k = Math.max(0, Math.floor((z + BODYH - V.z0) / VZ)), k1 = Math.min(V.nz - 1, Math.floor((z + PH + 1 - V.z0) / VZ)); k <= k1; k++) if (V.g[(k * V.ny + j) * V.nx + i] === 1) { best = Math.min(best, V.z0 + k * VZ - z); break; } } return best; }
   // 能迈上去多高：平地 1 格（一级台阶），楼梯上 1.75（城堡里的楼梯一级比较高）
