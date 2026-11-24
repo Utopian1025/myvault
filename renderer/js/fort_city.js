@@ -219,8 +219,12 @@
     for (let z = FLOOR + 5; z < top - 1; z += 5) m.cyl(u, v, z, z + 0.5, r + 0.2, r + 0.2, '#bfb59f', M.stone, 22, false);
     for (let k = 0; k < 6; k++) { const a = k * 1.05, zz = FLOOR + 5.5 + (k % 3) * 5.5; rot(m, u + Math.cos(a) * r, v + Math.sin(a) * r, a, () => gothWin(m, u + Math.cos(a) * r + 0.01, v + Math.sin(a) * r, zz, 0.7, 2), 0); }
     m.cyl(u, v, top, top + 0.6, r + 0.35, r + 0.35, '#b8ae98', M.stone, 22);
-    m.ball(u, v, top + 0.6, r, r * 1.6, '#c8eef6', M.glass, 6, 18, 0, 3, true);
-    for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.2832; for (let j = 0; j < 5; j++) { const e0 = (j / 5) * 1.5708, e1 = ((j + 1) / 5) * 1.5708; m.box(u + Math.cos(a) * Math.cos(e0) * r - 0.06, v + Math.sin(a) * Math.cos(e0) * r - 0.06, top + 0.6 + Math.sin(e0) * r * 1.6, u + Math.cos(a) * Math.cos(e1) * r + 0.06, v + Math.sin(a) * Math.cos(e1) * r + 0.06, top + 0.6 + Math.sin(e1) * r * 1.6, '#8a7a4a', M.metal); } }
+    // 玻璃穹顶：自己一片片拼（朝门厅那边留一个门洞，人从门厅走进温室）
+    const door = Math.atan2(40.4 - v, 24 - u);
+    for (let k = 0; k < 20; k++) for (let j = 0; j < 6; j++) { const a0 = (k / 20) * 6.2832, a1 = ((k + 1) / 20) * 6.2832, e0 = (j / 6) * 1.5708, e1 = ((j + 1) / 6) * 1.5708, am = (a0 + a1) / 2;
+      if (j < 3 && Math.abs(Math.atan2(Math.sin(am - door), Math.cos(am - door))) < 0.36) continue;
+      const Q = (a, e) => [u + Math.cos(a) * Math.cos(e) * r, v + Math.sin(a) * Math.cos(e) * r, top + 0.6 + Math.sin(e) * r * 1.6]; m.quad(Q(a0, e0), Q(a1, e0), Q(a1, e1), Q(a0, e1), '#c8eef6', M.glass); }
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.2832; for (let j = 0; j < 5; j++) { if (j < 3 && Math.abs(Math.atan2(Math.sin(a - door), Math.cos(a - door))) < 0.4) continue; const e0 = (j / 5) * 1.5708, e1 = ((j + 1) / 5) * 1.5708; m.box(u + Math.cos(a) * Math.cos(e0) * r - 0.06, v + Math.sin(a) * Math.cos(e0) * r - 0.06, top + 0.6 + Math.sin(e0) * r * 1.6, u + Math.cos(a) * Math.cos(e1) * r + 0.06, v + Math.sin(a) * Math.cos(e1) * r + 0.06, top + 0.6 + Math.sin(e1) * r * 1.6, '#8a7a4a', M.metal); } }
   }
   // 石拱桥：跨过一条旧水渠，三个半圆拱，桥面两边有矮栏
   function bridge(m) {
