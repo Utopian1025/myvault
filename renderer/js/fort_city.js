@@ -54,7 +54,7 @@
   }
 
   /* ---------- 地形：下城（z −26）和东南的上城台地（z −16，挡土墙 + 台阶） ---------- */
-  const UP = { t0: 48 * D, t1: 112 * D, r0: 12.5, r1: 24.5, z: -16 }; // 上城：教堂在这儿，尖顶刚好戳出水面
+  const UP = { t0: 48 * D, t1: 112 * D, r0: 12.5, r1: 24.5, z: -21.5 }; // 上城：教堂在这儿（整个沉在门厅底下，尖顶离水面还有一截） // 上城：教堂在这儿，尖顶刚好戳出水面
   const angIn = (t, a, b) => { const x = Math.atan2(Math.sin(t - a), Math.cos(t - a)), w = Math.atan2(Math.sin(b - a), Math.cos(b - a)); return x >= 0 && x <= w; };
   const inUp = (u, v) => { const [t, r] = polar(u, v); return angIn(t, UP.t0, UP.t1) && r > UP.r0 && r < UP.r1; };
   const groundZ = (u, v) => (inUp(u, v) ? UP.z : FLOOR);
@@ -130,7 +130,7 @@
       if (H(k, 12) < 0.35) { const sv = v - w * 0.28; m.box(c + 0.05, sv - 0.05, z0 + 3.0, c + 1.4, sv + 0.05, z0 + 3.12, '#2a2622', M.metal); m.box(c + 0.6, sv - 0.04, z0 + 2.2, c + 1.3, sv + 0.04, z0 + 2.95, ['#8a5a3a', '#5a6a7a', '#7a6a3a'][k % 3], M.plank); } }, z0);
   }
   // 沿着放射街两边、环街外侧排一排房子（朝街），上城台地上几栋，避开地标
-  const LM2 = { cath: [82, 18.5], hall: [-14, 20], keep: [205, 17.5], mkt: [-20, 14.6], clock: [-46, 18.5], obs: [115, 23.5], bridge: [150, 15.5], gate: [90, 25] };
+  const LM2 = { cath: [82, 18.5], hall: [-14, 20], keep: [205, 17.5], mkt: [-20, 14.6], clock: [-80, 21], obs: [115, 23.5], bridge: [150, 15.5], gate: [90, 25] };
   const lm = (k) => P(LM2[k][0] * D, LM2[k][1], 0);
   function houses(m) {
     let k = 0; const used = [];
@@ -158,7 +158,7 @@
       m.cyl(u - L, v, z0, z0 + hN - 1, Wn, Wn, S, M.stone, 14, false); m.cyl(u - L, v, z0 + hN - 1, z0 + hN + 3, Wn + 0.3, 0.2, '#4e5a64', M.tile, 14);
       // 正面：两座钟楼 + 尖顶
       const fx = u + L;
-      for (const sd of [-1, 1]) { const y = v + sd * (Wn + 1.2), s = 1.9, hT = 12.5; /* 尖顶只露出水面一个尖 */ m.box(fx - 0.6, y - s, z0, fx + 3.2, y + s, z0 + hT, S, M.stone);
+      for (const sd of [-1, 1]) { const y = v + sd * (Wn + 1.2), s = 1.9, hT = 10; /* 尖顶在门厅地板下面一点，从码头往下能隐约看见 */ m.box(fx - 0.6, y - s, z0, fx + 3.2, y + s, z0 + hT, S, M.stone);
         for (let z = z0 + 4; z < z0 + hT; z += 4) m.box(fx - 0.7, y - s - 0.1, z, fx + 3.3, y + s + 0.1, z + 0.3, S2, M.stone);
         gothWin(m, fx + 3.21, y, z0 + hT - 4.2, 0.8, 2.4); gothWin(m, fx + 3.21, y, z0 + 6, 0.6, 2);
         for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) m.cyl(fx + 1.3 + dx * 1.6, y + dy * 1.6, z0 + hT, z0 + hT + 2.2, 0.28, 0.05, S2, M.stone, 6); // 小尖塔
@@ -190,10 +190,10 @@
   }
   // 领主城堡：方形主楼、四角圆塔（锥顶）、城垛
   function keep(m) {
-    const [u, v] = lm('keep'), z = FLOOR, s = 4.2, hK = 15, S = '#c8bea6';
+    const [u, v] = lm('keep'), z = FLOOR, s = 4.2, hK = 12, S = '#c8bea6';
     m.box(u - s, v - s, z, u + s, v + s, z + hK, S, M.stone);
     for (let k = -3; k <= 3; k++) for (const [ax, sd] of [['u', -1], ['u', 1], ['v', -1], ['v', 1]]) { if (k % 2) continue; const p = k * s / 3.5; if (ax === 'u') m.box(u + sd * s - 0.4, v + p - 0.45, z + hK, u + sd * s + 0.4, v + p + 0.45, z + hK + 1, S, M.stone); else m.box(u + p - 0.45, v + sd * s - 0.4, z + hK, u + p + 0.45, v + sd * s + 0.4, z + hK + 1, S, M.stone); }
-    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = u + dx * s, y = v + dy * s; m.cyl(x, y, z, z + hK + 3, 1.6, 1.5, '#cfc5ae', M.stone, 12); m.cyl(x, y, z + hK + 3, z + hK + 7, 1.9, 0.1, '#4e5a64', M.tile, 12); gothWin(m, x + dx * 1.5, y, z + hK - 2, 0.4, 1.2, dx); }
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const x = u + dx * s, y = v + dy * s; m.cyl(x, y, z, z + hK + 2, 1.6, 1.5, '#cfc5ae', M.stone, 12); m.cyl(x, y, z + hK + 2, z + hK + 5, 1.9, 0.1, '#4e5a64', M.tile, 12); gothWin(m, x + dx * 1.5, y, z + hK - 2, 0.4, 1.2, dx); }
     for (let f = 0; f < 3; f++) for (const s2 of [-1, 1]) { m.box(u + s - 0.02, v + s2 * 1.6 - 0.3, z + 4 + f * 4, u + s + 0.05, v + s2 * 1.6 + 0.3, z + 5.4 + f * 4, GL, 0); }
     archDoor(m, u + s, v, z, 1.8, 3);
     m.blob(u, v, z + hK + 0.3, 2.4, 0.4, MOSS, M.grass, 9);
