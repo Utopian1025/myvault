@@ -196,8 +196,15 @@
   const BAL_L = { u: 24, v: 55.2 }, NEST_L = (([u, v]) => ({ u, v }))(lp('store', -1.6, -3.4));
   const BALLOON = { u: BAL_L.u, v: BAL_L.v }, NEST = { u: NEST_L.u, v: NEST_L.v };
   const GPOTS = [lp('green', 1.8, 2.6), lp('green', -0.6, 2.6), lp('green', 1.8, -0.4), lp('green', -0.6, 0.2)];
-  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13, lift: 170 };
+  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13, lift: 170, relic: 180 };
   /* 吊篮：挂在树干外面（θ72°，楼梯门旁边），一、二、三层回廊上各一站；坐上去直接到别的层（从高处掉下来不用绕一大圈走回去） */
+  /* 古城遗物：八件东西散在水下古城的地标前面，发着微光，潜下去才拿得到（像原神的宝箱、塞尔达的呀哈哈）；拿了就记进 E().relics */
+  const RELICS = (() => { if (!PP.CITY) return []; const Cc = PP.CITY, L2 = Cc.LM, at = (deg, r) => { const u = TC[0] + Math.cos(deg * D2R) * r, v = TC[1] + Math.sin(deg * D2R) * r; return [u, v, Cc.groundZ(u, v) + 0.4]; };
+    return [['candle', '教堂的银烛台', '烛台底下刻着一行小字：「愿灯火替我们守着这座城。」', 'cath', '#e8eef8'], ['seal', '市政厅的铜印章', '印章上是一棵大树——原来这座城的城徽就是头顶这棵古树。', 'hall', '#e0a050'],
+      ['shield', '领主的家徽盾', '盾上画着一块浮在云上的石头，下面写着「它托起了我们」。', 'keep', '#c8504a'], ['jar', '集市的钱罐', '罐子里是一枚枚刻着鱼的小铜币——那时候大家也拿小鱼干当钱吗？', 'mkt', '#d8b050'],
+      ['bell', '钟塔的钟锤', '钟锤上缠着水草。据说城沉下去那天，钟一直响到最后。', 'clock', '#b0a080'], ['astro', '天文台的星盘', '星盘上的星星连起来，正好是今晚头顶的那几颗。', 'obs', '#90c0f0'],
+      ['boat', '桥下的船铃', '小船早就朽了，只剩一个铃。摇一下，声音在水里传得很远。', 'bridge', '#a0d0c0'], ['shard', '浮石的碎片', '一小块会发光的石头，轻得像羽毛——就是它让整座岛浮在天上。', null, '#7fd8ff']].map(([id, nm, desc, lmK, col], i) => {
+      const p = lmK ? at(L2[lmK][0], L2[lmK][1] - (lmK === 'obs' ? 6 : 4)) : at(Cc.CRACK.t, Cc.CRACK.r - 2.4); return { i, id, nm, desc, col, u: p[0], v: p[1], z: p[2] }; }); })();
   const LIFT = { deg: 72, r: 9.55, stops: [1, 2, 3] }; LIFT.u = TC[0] + Math.cos(LIFT.deg * D2R) * LIFT.r; LIFT.v = TC[1] + Math.sin(LIFT.deg * D2R) * LIFT.r;
   const TREES_L = [];
   const PLOT_OB = PLOTS_L.flatMap(([id, u, v]) => rectObs(mFrame(MD[id]), 1, [u, v, u + PS, v + PS]));
@@ -1398,6 +1405,12 @@
     if (showLv(cut, 1)) { const Zo = Z[1]; for (let i = 0; i < 4; i++) { const h = 0.9 + Math.sin(t * 9 + i * 2.1) * 0.4 + (o.fire || 0.6) * 0.8, [fu, fv] = lp('store', 3.2, -2.9 + i * 0.4); m.cyl(fu, fv, Zo + 0.6, Zo + 0.6 + h, 0.22, 0.02, i % 2 ? '#ffb040' : '#ff7a30', M.glow, 5); } } // 地窖石炉里的火
     if (showLv(cut, 1)) { const Zk = Z[1]; if (o.cooking) for (let i = 0; i < 6; i++) { const h = 1.4 + Math.sin(t * 9 + i * 2.1) * 0.5, [ku, kv] = lp('kitchen', 3.5, -2.4 + i * 0.3); m.cyl(ku, kv, Zk + 3.0, Zk + 3.0 + h, 0.26, 0.02, i % 2 ? '#ffb040' : '#ff7a30', M.glow, 5); }
     }
+    if (showLv(cut, 1)) for (const r of RELICS) { if (o.relics && o.relics[r.id]) continue; /* 古城遗物：一个小石台，上面浮着一件发光的东西，慢慢转、慢慢上下飘 */
+      m.pk(PK.relic + r.i); m.box(r.u - 0.7, r.v - 0.7, r.z - 0.4, r.u + 0.7, r.v + 0.7, r.z + 0.4, '#8a9a98', M.stone); m.box(r.u - 0.55, r.v - 0.55, r.z + 0.4, r.u + 0.55, r.v + 0.55, r.z + 0.6, '#c8a860', M.metal);
+      const zz = r.z + 1.6 + Math.sin(t * 1.3 + r.i) * 0.25, a = t * 0.6 + r.i, c = Math.cos(a) * 0.45, s2 = Math.sin(a) * 0.45;
+      m.tri([r.u + c, r.v + s2, zz], [r.u - s2, r.v + c, zz], [r.u, r.v, zz + 0.75], r.col, M.glow); m.tri([r.u - s2, r.v + c, zz], [r.u - c, r.v - s2, zz], [r.u, r.v, zz + 0.75], r.col, M.glow); m.tri([r.u - c, r.v - s2, zz], [r.u + s2, r.v - c, zz], [r.u, r.v, zz + 0.75], r.col, M.glow); m.tri([r.u + s2, r.v - c, zz], [r.u + c, r.v + s2, zz], [r.u, r.v, zz + 0.75], r.col, M.glow);
+      m.tri([r.u - s2, r.v + c, zz], [r.u + c, r.v + s2, zz], [r.u, r.v, zz - 0.75], r.col, M.glow); m.tri([r.u - c, r.v - s2, zz], [r.u - s2, r.v + c, zz], [r.u, r.v, zz - 0.75], r.col, M.glow); m.tri([r.u + s2, r.v - c, zz], [r.u - c, r.v - s2, zz], [r.u, r.v, zz - 0.75], r.col, M.glow); m.tri([r.u + c, r.v + s2, zz], [r.u + s2, r.v - c, zz], [r.u, r.v, zz - 0.75], r.col, M.glow);
+      m.pk(0); }
     if (showLv(cut, 1)) for (let i = 0; i < 7; i++) { /* 湖里的锦鲤：在古城的柱子之间转圈，有深有浅 */
       const L = LAKE, a = t * (0.22 + i * 0.05) * (i % 2 ? 1 : -1) + i * 1.9, r = 13 + (i % 4) * 2.6, cu = L.u + Math.cos(a) * r, cv = L.v + Math.sin(a) * r, z = L.z - 0.6 - [0.2, 3, 6.5, 1.2, 10, 4.5, 13][i] + Math.sin(t * 0.7 + i) * 0.4;
       const du = -Math.sin(a) * (i % 2 ? 1 : -1), dv = Math.cos(a) * (i % 2 ? 1 : -1), l = Math.hypot(du, dv) || 1, ux = du / l, vx = dv / l, col = ['#f07a3a', '#f4f0e6', '#e8b040', '#d8484a', '#f4f0e6', '#f07a3a', '#e8b040'][i], spot = ['#f4f0e6', '#e84a3a', '#f4f0e6', '#2a2030', '#e84a3a', '#2a2030', '#f4f0e6'][i];
@@ -1420,5 +1433,5 @@
   }
   const FALL = CITY ? (([u, v]) => [u, v])(polarW(-8, 31)) : [50, 38]; // 东边的瀑布
   const DECK = { v1: DK.v1 };
-  PP.FORT = { LIFT, LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { RELICS, LIFT, LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();
