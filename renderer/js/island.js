@@ -1090,6 +1090,7 @@
   /* 跳：站着起跳是普通高度；跑起来再跳更高（助跑越快跳得越高，最快时高出六成） */
   /* 叶子滑翔伞（像原神的风之翼、塞尔达的滑翔伞）：在空中、离地面有点高时按空格打开，慢慢往下飘、往看着的方向飞；再按一次收起；落地、掉进水里自动收起 */
   function fpGlideKey() { if (!fp || fp.swim || !fp.air) return; if (fp.glide) { fp.glide = false; return; } const g = surf(fp.q.u, fp.q.v, fp.q.z); if (isFinite(g.z) && fp.q.z - g.z < 3) return; fp.glide = true; fp.glideT = performance.now(); if (!S().glideKnown) { S().glideKnown = true; PP.save.soon(); PP.ui.toast('打开了叶子滑翔伞：WASD 控制方向，再按空格收起', 2.4); } }
+  const onFloorish = (u, v, g) => g.z > -0.5 && !blocked(u, v, g.z) && headroom(u, v, g.z) > BODYH - 0.5; // 上岸的落脚点：够高、站得下
   function fpJump() { if (!fp || fp.swim || fp.air || fp.p.action !== 'fp') return; const k = U.clamp((fp.spd || 0) / RUN, 0, 1); fp.vz = JUMP * (fp.crouch ? 0.7 : 1 + 0.18 * k * k); fp.air = true; fp.fallZ = fp.q.z; }
   // ---- 鼠标：锁住（转头）/ 拖动 / 触屏滑 ----
   // 鼠标转头：把鼠标锁在画面里（光标藏起来），移动鼠标 = 转头，单击 = 用准星对着的东西；M 或菜单开关；Alt 先松开鼠标；Esc 是老板键
@@ -1220,7 +1221,8 @@
       let nz = q.z + fp.vz * dt; if (nz > floatZ) { nz = Math.min(nz, floatZ + (up ? 0.5 : 0.15)); if (fp.vz > 0) fp.vz *= 0.5; } // 浮到水面就停（头露出水面），按住空格也只是冒个头
       if (isFinite(g0.z) && nz < g0.z) { nz = g0.z; fp.vz = Math.max(0, fp.vz); }
       /* 游到岸边往上浮：岸比水面高一点，按空格（或往前游）就爬上岸 */
-      if ((up || mv) && q.z > floatZ - 1.5) { const c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), nu = q.u + c * 0.8, nv = q.v + s2 * 0.8, g2 = surf(nu, nv, LK.z + 2.4); if (isFinite(g2.z) && g2.z > LK.z - 0.3 && !blocked(nu, nv, g2.z)) { q.u = nu; q.v = nv; nz = g2.z; fp.swim = false; fp.vz = 0; } }
+      if ((up || mv) && q.z > floatZ - 1.5) { const c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw); let done = false; /* 爬上岸：前面 0.8～2.6 格（左右也找找）有能站的地方就翻上去——矮墙、回廊栏杆都能翻（像原神、塞尔达随处能爬上岸） */
+        for (let d = 0.8; d <= 2.6 && !done; d += 0.3) for (const sd of [0, 0.6, -0.6, 1.2, -1.2]) { const nu = q.u + c * d - s2 * sd, nv = q.v + s2 * d + c * sd, g2 = surf(nu, nv, LK.z + 5); if (isFinite(g2.z) && g2.z > LK.z - 0.3 && g2.z < LK.z + 2.4 && !blocked(nu, nv, g2.z) && onFloorish(nu, nv, g2)) { q.u = nu; q.v = nv; nz = g2.z; q.lv = g2.lv; fp.swim = false; fp.vz = 0; done = true; break; } } }
       q.z = nz; q.lv = 1; fp.air = false; fp.under = q.z + EYE < LK.z; fp.bob += dt * 3;
       p.anim = 'walk'; fpSync(); return;
     }
@@ -1418,7 +1420,8 @@
     if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
   }
   function liftGo(lv) {
-    if (!fp) return; const LF = F.LIFT, a = LF.deg * Math.PI / 180, u = 24 + Math.cos(a) * (LF.r - 1.3), v = 24 + Math.sin(a) * (LF.r - 1.3), g = surf(u, v, Z[lv] + 2);
+    if (!fp) return; const LF = F.LIFT; let a = (LF.deg + 9) * Math.PI / 180, u = 24 + Math.cos(a) * 10, v = 24 + Math.sin(a) * 10, g = surf(u, v, Z[lv] + 2); /* 下篮子站到回廊上（吊篮旁边一步），不是站进篮子里或树皮里 */
+    for (const dd of [9, -9, 15, -15, 22]) { a = (LF.deg + dd) * Math.PI / 180; u = 24 + Math.cos(a) * 10; v = 24 + Math.sin(a) * 10; g = surf(u, v, Z[lv] + 2); if (isFinite(g.z) && Math.abs(g.z - Z[lv]) < 0.6 && !blocked(u, v, g.z)) break; }
     fp.fade = performance.now(); fp.q.u = u; fp.q.v = v; fp.q.lv = lv; fp.q.z = isFinite(g.z) ? g.z : Z[lv]; fp.air = false; fp.vz = 0; fp.swim = false; fp.auto = null; fp._cam = null; fp.camZ = null; fp.yaw = a + Math.PI; fpSync();
     PP.ui.toast(`吊篮嘎吱嘎吱地把你送到了${F.NAME[lv]}`, 1.6); PP.sfx && PP.sfx('pop');
   }
