@@ -242,12 +242,16 @@
     for (let k = 0; k < 6; k++) { const a = k * 1.05, zz = FLOOR + 5.5 + (k % 3) * 5.5; rot(m, u + Math.cos(a) * r, v + Math.sin(a) * r, a, () => gothWin(m, u + Math.cos(a) * r + 0.01, v + Math.sin(a) * r, zz, 0.7, 2), 0); }
     m.cyl(u, v, top, top + 0.6, r + 0.35, r + 0.35, '#b8ae98', M.stone, 22);
     // 玻璃穹顶：自己一片片拼（朝门厅那边留一个门洞，人从门厅走进温室）
-    const door = Math.atan2(40.4 - v, 24 - u);
+    const door = Math.atan2(40.4 - v, 24 - u), door2 = door + Math.PI * 0.85, isD = (a, w) => Math.abs(Math.atan2(Math.sin(a - door), Math.cos(a - door))) < w || Math.abs(Math.atan2(Math.sin(a - door2), Math.cos(a - door2))) < w; // 0.36：外面也开一扇门，从草地直接走进温室
     for (let k = 0; k < 20; k++) for (let j = 0; j < 6; j++) { const a0 = (k / 20) * 6.2832, a1 = ((k + 1) / 20) * 6.2832, e0 = (j / 6) * 1.5708, e1 = ((j + 1) / 6) * 1.5708, am = (a0 + a1) / 2;
-      if (j < 3 && Math.abs(Math.atan2(Math.sin(am - door), Math.cos(am - door))) < 0.36) continue;
+      if (j < 3 && isD(am, 0.36)) continue;
       const Q = (a, e) => [u + Math.cos(a) * Math.cos(e) * r, v + Math.sin(a) * Math.cos(e) * r, top + 0.6 + Math.sin(e) * r * 1.6]; m.quad(Q(a0, e0), Q(a1, e0), Q(a1, e1), Q(a0, e1), '#c8eef6', M.glass); }
-    for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.2832; for (let j = 0; j < 5; j++) { if (j < 3 && Math.abs(Math.atan2(Math.sin(a - door), Math.cos(a - door))) < 0.4) continue; const e0 = (j / 5) * 1.5708, e1 = ((j + 1) / 5) * 1.5708; m.box(u + Math.cos(a) * Math.cos(e0) * r - 0.06, v + Math.sin(a) * Math.cos(e0) * r - 0.06, top + 0.6 + Math.sin(e0) * r * 1.6, u + Math.cos(a) * Math.cos(e1) * r + 0.06, v + Math.sin(a) * Math.cos(e1) * r + 0.06, top + 0.6 + Math.sin(e1) * r * 1.6, '#8a7a4a', M.metal); } }
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.2832; for (let j = 0; j < 5; j++) { if (j < 3 && isD(a, 0.4)) continue; const e0 = (j / 5) * 1.5708, e1 = ((j + 1) / 5) * 1.5708; m.box(u + Math.cos(a) * Math.cos(e0) * r - 0.06, v + Math.sin(a) * Math.cos(e0) * r - 0.06, top + 0.6 + Math.sin(e0) * r * 1.6, u + Math.cos(a) * Math.cos(e1) * r + 0.06, v + Math.sin(a) * Math.cos(e1) * r + 0.06, top + 0.6 + Math.sin(e1) * r * 1.6, '#8a7a4a', M.metal); } }
   }
+  function greenDoor(m) { const [u, v] = lm('obs'), r = 5.5, top = -0.4, d2 = Math.atan2(40.4 - v, 24 - u) + Math.PI * 0.85, ca = Math.cos(d2), sa = Math.sin(d2), tx = -sa, ty = ca;
+    for (let k = 0; k <= 10; k++) { const a = (k / 10) * Math.PI, w = -Math.cos(a) * 1.7, zz = top + 0.6 + 3.4 + Math.sin(a) * 1.7, x = u + ca * (r + 0.1) + tx * w, y = v + sa * (r + 0.1) + ty * w; m.box(x - 0.28, y - 0.28, zz - 0.28, x + 0.28, y + 0.28, zz + 0.28, '#c8bea8', M.stone); }
+    for (const sg of [-1, 1]) { const x = u + ca * (r + 0.1) + tx * 1.75 * sg, y = v + sa * (r + 0.1) + ty * 1.75 * sg; m.box(x - 0.3, y - 0.3, GT, x + 0.3, y + 0.3, top + 4.0, '#c2b8a2', M.stone); m.blob(x, y, GT + 0.2, 0.5, 0.3, MOSS, M.grass, 3); }
+    for (let k = 0; k < 4; k++) { const x = u + ca * (r + 1.2 + k * 1.3), y = v + sa * (r + 1.2 + k * 1.3); m.box(x - 0.6, y - 0.6, GT - 0.05, x + 0.6, y + 0.6, GT + 0.06, '#b8ae98', M.stone); } } // 门口几块踏脚石
   // 石拱桥：跨过一条旧水渠，三个半圆拱，桥面两边有矮栏
   function bridge(m) {
     const [u, v] = lm('bridge'), t = LM2.bridge[0] * D;
@@ -352,7 +356,7 @@
     for (let k = 0; k < 18; k++) { const t = H(k, 171) * 6.2832, r = 13 + H(k, 172) * 11, [u, v] = P(t, r, 0); if (!inBasin(u, v, 2) || inPond(u, v, 2)) continue; const z1 = groundZ(u, v) + 2 + H(k, 173) * 6; rootLine(m, [[u, v, CEIL], [u + (H(k, 174) - 0.5) * 3, v + (H(k, 175) - 0.5) * 3, (CEIL + z1) / 2], [u + (H(k, 176) - 0.5) * 4, v + (H(k, 177) - 0.5) * 4, z1]], 0.7, 0.2, '#6b5442'); } // 从水洞顶上垂下来的根
   }
   function build(m, o, opt = {}) {
-    rock(m, o); ground(m, o); pond(m, o); temples(m); cityNature(m, o); floatStone(m, o); basin(m, o); houses(m); cathedral(m); townHall(m); market(m); keep(m); clockTower(m); observatory(m); bridge(m); cityWall(m); lamps(m); weeds(m, o); outflow(m, o); water(m, o, opt.pkFish);
+    rock(m, o); ground(m, o); pond(m, o); temples(m); cityNature(m, o); floatStone(m, o); basin(m, o); houses(m); cathedral(m); townHall(m); market(m); keep(m); clockTower(m); observatory(m); greenDoor(m); bridge(m); cityWall(m); lamps(m); weeds(m, o); outflow(m, o); water(m, o, opt.pkFish);
   }
   PP.CITY = { GT, CEIL, POND, inPond, TEMPLES, build, CEN, WL, FLOOR, RB, RI, rimR, basR, inBasin, polar, LM: LM2, lm, UP, groundZ, CRACK, STONE, TRUNK_R, streetAt, rootLine };
 })();
