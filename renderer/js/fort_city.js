@@ -15,6 +15,12 @@
   const TRUNK_R = 9.2; // 树干（连板根）占着广场中央
   const CRACK = { t: 32 * D, r: 11.6, w: 2.2, l: 3.6 }; // 广场上被树根拱开的裂口，往下能看见浮石
   const STONE = { z: -40, r: 3.6 };
+  /* 0.36：盆地不再是一整片湖——填成泥土、青草、苔藓的地面（GT），古城沉在地面下面的水洞里；
+     只留一个方形石砌的池塘（像《天空之城》里机器人园丁领着走过石桥时，往观赏池里一看，下面是一整座沉在水里的城），
+     池塘是唯一能下水、钓鱼、上岸的地方 */
+  const GT = -0.15, CEIL = -1.25, POND = { u0: 21, v0: 0, u1: 29, v1: 8 };
+  const inPond = (u, v, mg = 0) => u > POND.u0 - mg && u < POND.u1 + mg && v > POND.v0 - mg && v < POND.v1 + mg;
+  const TEMPLES = [[10, 14.2], [122, 13.6], [238, 15.4], [-58, 14.5]].map(([d, r]) => [CEN[0] + Math.cos(d * Math.PI / 180) * r, CEN[1] + Math.sin(d * Math.PI / 180) * r]); // 四座能游进去的柱廊小神殿
   const inBasin = (u, v, m = 0) => { const [t, r] = polar(u, v); return r < basR(t) - m; };
   // 地标（θ 度、半径）
 
@@ -150,7 +156,7 @@
   const lm = (k) => P(LM2[k][0] * D, LM2[k][1], 0);
   function houses(m) {
     let k = 0; const used = [];
-    const ok = (u, v, rr) => { if (!inBasin(u, v, 3.2)) return false; for (const key of Object.keys(LM2)) { const L = lm(key), lim = key === 'cath' ? 9.5 : key === 'keep' ? 7.5 : key === 'mkt' ? 4.6 : 6; if (Math.hypot(L[0] - u, L[1] - v) < lim + rr) return false; } return !used.some(([x, y, q]) => Math.hypot(x - u, y - v) < q + rr); };
+    const ok = (u, v, rr) => { if (!inBasin(u, v, 3.2)) return false; if (TEMPLES.some(([x, y]) => Math.hypot(x - u, y - v) < 5.2 + rr)) return false; for (const key of Object.keys(LM2)) { const L = lm(key), lim = key === 'cath' ? 9.5 : key === 'keep' ? 7.5 : key === 'mkt' ? 4.6 : 6; if (Math.hypot(L[0] - u, L[1] - v) < lim + rr) return false; } return !used.some(([x, y, q]) => Math.hypot(x - u, y - v) < q + rr); };
     const put = (u, v, yaw, w, d, fl) => { const rr = Math.max(w, d) * 0.6; if (!ok(u, v, rr) || polar(u, v)[1] < 12) return; used.push([u, v, rr]); mHouse(m, u, v, yaw, w, d, fl, k, H(k, 34) < 0.22, groundZ(u, v)); k++; };
     for (const a of STREETS) for (let r = 13.5; r < 25; r += 5.2) for (const s of [-1, 1]) { const off = 4.2, [u, v] = P(a, r, 0), nx = -Math.sin(a) * s * off, ny = Math.cos(a) * s * off, yaw = a + (s > 0 ? -Math.PI / 2 : Math.PI / 2);
       put(u + nx, v + ny, yaw, 4.2 + H(k, 31) * 1.2, 4.4 + H(k, 32), 1 + Math.floor(H(k, 33) * 2.2)); }
@@ -216,7 +222,7 @@
   }
   // 钟塔：方塔从城里一直伸出水面，塔顶四面钟、尖顶（城里最高的东西之一，露在水面上像个灯标）
   function clockTower(m) {
-    const [u, v] = lm('clock'), s = 2.4, top = 5.6, S = '#d0c6b0';
+    const [u, v] = lm('clock'), s = 2.4, top = -10.2, S = '#d0c6b0'; // 尖顶刚好在池塘水面底下：从池边往下一看就是它
     m.box(u - s - 0.4, v - s - 0.4, FLOOR, u + s + 0.4, v + s + 0.4, FLOOR + 1.4, '#b8ae98', M.stone);
     m.box(u - s, v - s, FLOOR, u + s, v + s, top, S, M.stone);
     for (let z = FLOOR + 6; z < top - 2; z += 6) m.box(u - s - 0.15, v - s - 0.15, z, u + s + 0.15, v + s + 0.15, z + 0.4, '#bdb39d', M.stone);
@@ -260,7 +266,7 @@
       m.quad([A[0] - nx, A[1] - ny, top], [A[0] + nx, A[1] + ny, top], [B[0] + nx, B[1] + ny, top], [B[0] - nx, B[1] - ny, top], '#b0a690', M.stone);
       if (k % 2 === 0) { const [cu, cv] = [(A[0] + B[0]) / 2 - nx * 0.7, (A[1] + B[1]) / 2 - ny * 0.7]; m.box(cu - 0.45, cv - 0.45, top, cu + 0.45, cv + 0.45, top + 1, '#c0b6a0', M.stone); }
       if (H(k, 42) < 0.3) m.blob((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, top, 0.8, 0.3, MOSS, M.grass, k); }
-    for (let k = 0; k < 8; k++) { const t = (k / 8) * 6.2832 + 0.2; if (Math.abs(Math.atan2(Math.sin(t - gate), Math.cos(t - gate))) < 0.35) continue; const [u, v] = P(t, Rw(t), 0), hT = -3 + H(k, 44) * 2 - (H(k, 45) < 0.25 ? 7 : 0);
+    for (let k = 0; k < 8; k++) { const t = (k / 8) * 6.2832 + 0.2; if (Math.abs(Math.atan2(Math.sin(t - gate), Math.cos(t - gate))) < 0.35) continue; const [u, v] = P(t, Rw(t), 0), hT = -7.2 + H(k, 44) * 2 - (H(k, 45) < 0.25 ? 7 : 0);
       m.cyl(u, v, FLOOR, hT, 2, 1.9, '#c8bea8', M.stone, 14); if (hT > -6) m.cyl(u, v, hT, hT + 3.2, 2.3, 0.1, '#46647e', M.tile, 14); else m.blob(u, v, hT, 1.6, 0.4, MOSS, M.grass, k); }
     const [u, v] = P(gate, Rw(gate), 0), ox = Math.cos(gate + Math.PI / 2), oy = Math.sin(gate + Math.PI / 2);
     for (const s of [-1, 1]) { const x = u + ox * s * 3.2, y = v + oy * s * 3.2; m.cyl(x, y, FLOOR, -4, 2, 1.9, '#d2c8b2', M.stone, 14); m.cyl(x, y, -4, -1.6, 2.3, 0.1, '#46647e', M.tile, 14); }
@@ -281,20 +287,72 @@
   }
   // 水面：整个盆地一层（第二遍半透明画，看得见底下的城）
   function water(m, o, PKF) {
-    const N = 96; if (PKF != null) m.pk(PKF);
-    for (let k = 0; k < N; k++) { const t0 = (k / N) * 6.2832, t1 = ((k + 1) / N) * 6.2832; m.tri([CEN[0], CEN[1], WL], P(t0, basR(t0) + 0.3, WL), P(t1, basR(t1) + 0.3, WL), o.snow ? '#7fb8c8' : '#3f9aa8', M.lake); }
-    m.pk(0);
+    if (PKF != null) m.pk(PKF); m.quad([POND.u0, POND.v0, WL], [POND.u1, POND.v0, WL], [POND.u1, POND.v1, WL], [POND.u0, POND.v1, WL], o.snow ? '#7fb8c8' : '#3f9aa8', M.lake); m.pk(0); // 水面只在池塘里
   }
   // 出水口：东边城墙的缺口，水流过岩顶，挂成瀑布从峭壁落下去
   function outflow(m, o) {
     const t = -8 * D, ax = Math.cos(t), ay = Math.sin(t), [u0, v0] = P(t, basR(t) - 0.5, 0), [u1, v1] = P(t, rimR(t) + 0.6, 0), nx = -ay * 1.2, ny = ax * 1.2;
-    m.quad([u0 + nx, v0 + ny, WL + 0.05], [u0 - nx, v0 - ny, WL + 0.05], [u1 - nx, v1 - ny, 0.2], [u1 + nx, v1 + ny, 0.2], '#5ab4d8', M.water);
+    void u0; void v0; // 地下水从峭壁的石缝里涌出来
     if (!o.snow) { m.quad([u1 + nx, v1 + ny, 0.2], [u1 - nx, v1 - ny, 0.2], [u1 - nx + ax * 1.2, v1 - ny + ay * 1.2, -30], [u1 + nx + ax * 1.2, v1 + ny + ay * 1.2, -30], '#7ac8e8', M.water);
       for (let k = 0; k < 8; k++) m.ball(u1 + ax * 1.4 + (H(k, 1) - 0.5) * 2, v1 + ay * 1.4 + (H(k, 2) - 0.5) * 2, -30 + H(k, 3) * 2, 0.7 + H(k, 4) * 0.6, 0.5, '#f4f8fc', 0, 3, 6); }
   }
 
-  function build(m, o, opt = {}) {
-    rock(m, o); floatStone(m, o); basin(m, o); houses(m); cathedral(m); townHall(m); market(m); keep(m); clockTower(m); observatory(m); bridge(m); cityWall(m); lamps(m); weeds(m, o); outflow(m, o); water(m, o, opt.pkFish);
+  /* 地面：一格 1.5 见方，青草为主，夹着苔藓（深绿、软）、泥土小路和裸土（棕）；下面一层是水洞的顶（暗色岩石，挂着根和苔） */
+  function ground(m, o) {
+    const S2 = 1.5, snow = o.snow, busy = (u, v) => (PP.CITY.BUSY || []).some(([x, y, r]) => Math.hypot(u - x, v - y) < r);
+    const nz = (u, v, f) => (Math.sin(u * f + Math.sin(v * f * 1.3) * 1.7) + Math.sin(v * f * 0.8 - u * f * 0.6 + 1.3)) * 0.25 + 0.5;
+    for (let x = CEN[0] - 27; x < CEN[0] + 27; x += S2) for (let y = CEN[1] - 27; y < CEN[1] + 27; y += S2) {
+      const u = x + S2 / 2, v = y + S2 / 2; if (!inBasin(u, v, -0.3) || inPond(u, v, 0.1)) continue; const [, r] = polar(u, v); if (r < 7.4) continue;
+      const path = Math.abs(((Math.atan2(v - CEN[1], u - CEN[0]) / D + 360) % 72) - 36) < 2.4 + (r > 18 ? 1 : 0) || Math.abs(r - 12.6) < 0.7, moss = nz(u, v, 0.35), dirt = nz(u, v, 0.21);
+      const col = snow ? '#eef4fa' : path ? (H(x, y) < 0.5 ? '#a8865e' : '#9c7c56') : moss > 0.68 ? (H(x, y) < 0.5 ? '#5f8a46' : '#6a944e') : dirt > 0.72 ? '#8e7454' : (H(x, y) < 0.33 ? '#86ac62' : H(x, y) < 0.66 ? '#8eb46a' : '#7ea45a');
+      const mat = snow ? M.snow : path || dirt > 0.72 ? M.soil : M.grass; const j = (H(x * 3, y) - 0.5) * 0.06;
+      m.quad([x, y, GT + j], [x + S2, y, GT + j], [x + S2, y + S2, GT + j], [x, y + S2, GT + j], col, mat);
+      m.quad([x, y + S2, CEIL], [x + S2, y + S2, CEIL], [x + S2, y, CEIL], [x, y, CEIL], H(x, y * 2) < 0.5 ? '#4e4a40' : '#58534a', M.stone); }
+    // 地上：一丛丛小草、野花、苔藓垫、几块长着苔的石头，避开屋子和回廊
+    if (!snow) { const so = m.sway; m.sway = 0.35; const G = ['#7aa45a', '#8cb466', '#9cc070', '#6e9a52'], FL = ['#fff4f0', '#ffd95a', '#f2a6c2', '#b8a8f0'];
+      for (let k = 0; k < 900; k++) { const t = H(k, 121) * 6.2832, r = 8.4 + H(k, 122) * (basR(t) - 9), [u, v] = P(t, r, 0); if (inPond(u, v, 1.2) || busy(u, v) || ((PP.CITY.FLAT || []).some((q) => u > q[0] && u < q[2] && v > q[1] && v < q[3]))) continue;
+        const hh = 0.45 + H(k, 123) * 0.6, a0 = H(k, 124) * 3.14, col = G[k % 4]; for (const da of [0, 1.57]) { const cx = Math.cos(a0 + da) * 0.26, cy = Math.sin(a0 + da) * 0.26; m.tri([u - cx, v - cy, GT], [u + cx, v + cy, GT], [u + cx * 0.2, v + cy * 0.2, GT + hh], col, M.grass); }
+        if (H(k, 125) < 0.12) { const fc = FL[k % 4]; m.tri([u - 0.13, v, GT + hh], [u + 0.13, v, GT + hh], [u, v + 0.13, GT + hh + 0.05], fc, M.flat); m.tri([u - 0.13, v, GT + hh], [u, v - 0.13, GT + hh + 0.05], [u + 0.13, v, GT + hh], fc, M.flat); } }
+      m.sway = so;
+      for (let k = 0; k < 70; k++) { const t = H(k, 131) * 6.2832, r = 9 + H(k, 132) * (basR(t) - 10), [u, v] = P(t, r, 0); if (inPond(u, v, 1.5) || busy(u, v)) continue; if (k % 3 === 0) { m.blob(u, v, GT, 0.5 + H(k, 133) * 0.5, 0.35, '#a09a88', M.stone, k); m.blob(u + 0.1, v - 0.05, GT + 0.3, 0.45, 0.16, '#6a9a4a', M.grass, k + 1); } else m.blob(u, v, GT, 0.7 + H(k, 134) * 0.9, 0.16, k % 2 ? '#5f8a46' : '#6f9a52', M.grass, k); } }
   }
-  PP.CITY = { build, CEN, WL, FLOOR, RB, RI, rimR, basR, inBasin, polar, LM: LM2, lm, UP, groundZ, CRACK, STONE, TRUNK_R, streetAt, rootLine };
+  /* 池塘：一圈长苔的大石块做沿（比地面高一点，石缝里长草），南边几级石阶走下水，一座小小的石拱桥从西到东跨过去 */
+  function pond(m, o) {
+    const { u0, v0, u1, v1 } = POND, W2 = 0.9, rimC = ['#b8ae98', '#aea48e', '#c2b8a2'], top = 0.45;
+    const blk = (a, b, c, d, k) => { m.box(a, b, CEIL - 0.4, c, d, top, rimC[k % 3], M.stone); if (!o.snow && H(k, 7) < 0.55) m.blob((a + c) / 2, (b + d) / 2, top, Math.min(c - a, d - b) * 0.45, 0.14, H(k, 8) < 0.5 ? '#6a9a4a' : '#7aa858', M.grass, k); };
+    let k = 0; for (let x = u0 - W2; x < u1 + W2 - 0.01; x += 1.25, k++) { const x1 = Math.min(x + 1.25, u1 + W2); blk(x, v0 - W2, x1, v0, k); if (x1 <= 24 || x >= 26) blk(x, v1, x1, v1 + W2, k + 3); }
+    for (let y = v0; y < v1 - 0.01; y += 1.25, k++) { const y1 = Math.min(y + 1.25, v1); blk(u0 - W2, y, u0, y1, k); blk(u1, y, u1 + W2, y1, k + 5); }
+    for (let s2 = 0; s2 < 4; s2++) m.box(24, v1 - 0.45 - s2 * 0.6, CEIL - 0.4, 26, v1 + W2 - s2 * 0.6, top - 0.15 - s2 * 0.5, s2 % 2 ? '#bdb39c' : '#b3a992', M.stone); // 下水的石阶
+    for (let i = 0; i <= 12; i++) { const t = i / 12, x = u0 - W2 + (u1 - u0 + 2 * W2) * t, zz = top + Math.sin(t * Math.PI) * 1.4; m.box(x - 0.36, 3.2, zz - 0.35, x + 0.36, 4.8, zz, i % 2 ? '#c8bea8' : '#beb49e', M.stone); if (i % 2 === 0) for (const yy of [3.1, 4.75]) m.box(x - 0.08, yy, zz, x + 0.08, yy + 0.15, zz + 0.9, '#b0a690', M.stone); } // 小石拱桥
+    if (!o.snow) for (let i = 0; i < 18; i++) { const side = i % 4, t = H(i, 9), u = side < 2 ? u0 + (u1 - u0) * t : side === 2 ? u0 + 0.3 : u1 - 0.3, v = side < 2 ? (side ? v1 - 0.3 : v0 + 0.3) : v0 + (v1 - v0) * t; m.blob(u, v, WL + 0.05, 0.4, 0.1, '#4f8a3a', M.flat, i); } // 池边漂着的苔和睡莲叶
+  }
+  /* 柱廊小神殿：一圈八根柱子顶着圆顶，台基三级，中间一个石台（古城遗物就放在这里）；没有墙，从哪边都能游进去 */
+  function temples(m) {
+    for (const [u, v] of TEMPLES) { const z = groundZ(u, v), R2 = 3.4;
+      for (let s2 = 0; s2 < 3; s2++) m.cyl(u, v, z, z + 0.4 * (s2 + 1), R2 + 1.2 - s2 * 0.45, R2 + 1.2 - s2 * 0.45, s2 % 2 ? '#d2c8b2' : '#c8bea8', M.stone, 20);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * 6.2832, x = u + Math.cos(a) * R2, y = v + Math.sin(a) * R2; m.cyl(x, y, z + 1.2, z + 1.6, 0.42, 0.38, '#d8cebb', M.stone, 10); m.cyl(x, y, z + 1.6, z + 7.4, 0.3, 0.27, '#e0d6c2', M.stone, 10); m.cyl(x, y, z + 7.4, z + 7.9, 0.34, 0.42, '#d8cebb', M.stone, 10); }
+      m.cyl(u, v, z + 7.9, z + 8.6, R2 + 0.55, R2 + 0.55, '#cfc5ae', M.stone, 22); m.ball(u, v, z + 8.6, R2 + 0.3, 2.4, '#7a9a90', M.tile, 6, 18); m.cyl(u, v, z + 10.8, z + 11.6, 0.25, 0.05, '#b8a060', M.metal, 8);
+      m.cyl(u, v, z + 1.2, z + 2.6, 0.7, 0.6, '#cfc5ae', M.stone, 12); m.blob(u + 1.2, v - 0.8, z + 8.7, 1.1, 0.4, MOSS, M.grass, Math.round(u)); }
+  }
+  /* 城里的自然（0.36）：不再是一片通铺的石板——苔藓地、细沙、碎石、断掉的柱子、一大片一大片摇摆的海带、彩色的海葵，
+     还有大树的根从水洞顶上垂下来，扎进古城里 */
+  function cityNature(m, o) {
+    if (o.snow) return;
+    for (let k = 0; k < 160; k++) { const t = H(k, 141) * 6.2832, r = 11 + H(k, 142) * 14, [u, v] = P(t, r, 0); if (!inBasin(u, v, 2)) continue; const z = groundZ(u, v) + 0.05;
+      if (k % 4 === 0) m.blob(u, v, z, 1.2 + H(k, 143) * 1.6, 0.12, ['#4f7a3e', '#5f8a46', '#6a8a4a'][k % 3], M.grass, k); // 苔藓地
+      else if (k % 4 === 1) m.blob(u, v, z, 1 + H(k, 144) * 1.4, 0.08, '#c8b890', M.soil, k); // 细沙
+      else if (k % 4 === 2) for (let j = 0; j < 4; j++) m.box(u + (H(k, j) - 0.5) * 1.6, v + (H(j, k) - 0.5) * 1.6, z - 0.1, u + (H(k, j) - 0.5) * 1.6 + 0.5, v + (H(j, k) - 0.5) * 1.6 + 0.4, z + 0.2 + H(k + j, 3) * 0.35, '#b8ae98', M.stone); // 碎石
+      else { const hh = 1.2 + H(k, 145) * 3; m.cyl(u, v, z, z + hh, 0.4, 0.37, '#d8cebb', M.stone, 10); if (H(k, 146) < 0.5) m.cyl(u + 1.2, v + 0.4, z, z + 0.7, 0.4, 0.4, '#d0c6b0', M.stone, 10); } } // 断柱
+    const so = m.sway; m.sway = 0.6;
+    for (let i = 0; i < 26; i++) { const t = H(i, 151) * 6.2832, r = 12 + H(i, 152) * 12, [cu, cv] = P(t, r, 0); if (!inBasin(cu, cv, 2)) continue; // 海带林
+      for (let j = 0; j < 7; j++) { const u = cu + (H(i, j + 10) - 0.5) * 3, v = cv + (H(j, i + 10) - 0.5) * 3, z0 = groundZ(u, v), hgt = 8 + H(i, j + 20) * 9; let px = u, py = v, pz = z0;
+        for (let q = 0; q < 7; q++) { const nx = u + Math.sin(q * 0.8 + i + j) * 0.5, ny = v + Math.cos(q * 0.6 + j) * 0.4, nz2 = Math.min(CEIL - 1, z0 + hgt * (q + 1) / 7); m.quad([px - 0.22, py, pz], [px + 0.22, py, pz], [nx + 0.18, ny, nz2], [nx - 0.18, ny, nz2], q % 2 ? '#4a7a3a' : '#5a8a44', M.leaf); px = nx; py = ny; pz = nz2; } } }
+    m.sway = so;
+    for (let k = 0; k < 40; k++) { const t = H(k, 161) * 6.2832, r = 11 + H(k, 162) * 14, [u, v] = P(t, r, 0); if (!inBasin(u, v, 2)) continue; const z = groundZ(u, v); m.ball(u, v, z + 0.3, 0.35 + H(k, 163) * 0.3, 0.3, ['#e88a9a', '#f0b060', '#b88ad8', '#7ad0c0'][k % 4], M.flat, 5, 8); } // 海葵
+    for (let k = 0; k < 18; k++) { const t = H(k, 171) * 6.2832, r = 13 + H(k, 172) * 11, [u, v] = P(t, r, 0); if (!inBasin(u, v, 2) || inPond(u, v, 2)) continue; const z1 = groundZ(u, v) + 2 + H(k, 173) * 6; rootLine(m, [[u, v, CEIL], [u + (H(k, 174) - 0.5) * 3, v + (H(k, 175) - 0.5) * 3, (CEIL + z1) / 2], [u + (H(k, 176) - 0.5) * 4, v + (H(k, 177) - 0.5) * 4, z1]], 0.7, 0.2, '#6b5442'); } // 从水洞顶上垂下来的根
+  }
+  function build(m, o, opt = {}) {
+    rock(m, o); ground(m, o); pond(m, o); temples(m); cityNature(m, o); floatStone(m, o); basin(m, o); houses(m); cathedral(m); townHall(m); market(m); keep(m); clockTower(m); observatory(m); bridge(m); cityWall(m); lamps(m); weeds(m, o); outflow(m, o); water(m, o, opt.pkFish);
+  }
+  PP.CITY = { GT, CEIL, POND, inPond, TEMPLES, build, CEN, WL, FLOOR, RB, RI, rimR, basR, inBasin, polar, LM: LM2, lm, UP, groundZ, CRACK, STONE, TRUNK_R, streetAt, rootLine };
 })();

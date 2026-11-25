@@ -281,10 +281,10 @@
   function canTrip(p) {
     if (!p || p.d.wild) return '只有认养的伙伴才能出门探险';
     if (p.d.trip) return '已经在外面了';
-    if (lvOf(p) < 2) return 'Lv2 才能出门探险（多喂喂它）';
-    if (listless(p) || p.n.hunger < 40 || p.n.thirst < 40) return '肚子饿 / 口渴，没力气出门（先喂饱它）';
-    if (p.n.energy < 25) return '太困了，先睡一觉';
-    return null;
+    /* 0.36：说清楚到底差什么（以前只说「没喂饱」，不知道缺哪样） */
+    const miss = []; if (lvOf(p) < 2) miss.push(`等级到 Lv2（现在 Lv${lvOf(p)}，多喂喂、多陪它玩就升级）`);
+    if (p.n.hunger < 40) miss.push(`饱腹到 40（现在 ${Math.round(p.n.hunger)}：喂吃的）`); if (p.n.thirst < 40) miss.push(`口渴到 40（现在 ${Math.round(p.n.thirst)}：喂水、或者让它去水槽喝水）`); if (p.n.energy < 25) miss.push(`精力到 25（现在 ${Math.round(p.n.energy)}：让它睡一觉）`);
+    return miss.length ? '还差：' + miss.join('；') : null;
   }
   function startTrip(p, to, min, bento) {
     const why = canTrip(p); if (why) { PP.ui.toast(`${p.name}：${why}`); return false; }

@@ -205,6 +205,7 @@
   const FS = `#version 300 es
   precision highp float; precision highp sampler2DShadow; precision highp sampler3D;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
+  uniform vec4 uFP2; uniform vec4 uPond; uniform float uDay; uniform vec3 uStone;
   uniform sampler3D uVox; uniform vec3 uVoxO; uniform vec3 uVoxS; uniform float uVoxOn;
   float vd(vec3 p){ vec3 t=(p-uVoxO)/uVoxS; if(t.x<0.0||t.y<0.0||t.z<0.0||t.x>1.0||t.y>1.0||t.z>1.0) return 0.0; return texture(uVox,t).r; }
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
@@ -321,6 +322,9 @@
       aoK=1.0-clamp(occ,0.0,1.0)*0.66;
       float upB=max(max(vd(pp+vec3(0.0,0.0,2.5)),vd(pp+vec3(0.0,0.0,5.0))),max(vd(pp+vec3(0.0,0.0,9.0)),vd(pp+vec3(0.0,0.0,15.0)))); skyV=1.0-clamp(upB*1.3,0.0,1.0)*0.42; }
     amb*=aoK*skyV;
+    /* 苔藓（0.36）：露天的石头、瓦、木头、树根朝上的那面，一片一片长着苔（世界坐标里的低频花纹，不闪）；屋里的地板头顶有顶（skyV 低）就不长 */
+    if(uPick<0.5 && !lakeW && (m==3||m==16||m==1||m==21||m==2||m==17) && n.z>0.45 && (uVoxOn>0.5 ? skyV>0.82 : (m==1||m==21))){ float mz=ns(vW.xy*0.32+vec2(vW.z*0.11,0.0))*0.65+ns(vW.xy*1.1)*0.35; float mk=smoothstep(0.5,0.72,mz)*smoothstep(0.45,0.85,n.z)*(m==2||m==17?0.6:0.85);
+      c=mix(c, mix(vec3(0.36,0.52,0.25), vec3(0.47,0.6,0.3), ns(vW.xy*2.3)), mk); }
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
       float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.93,0.95,1.08), vec3(1.05,1.0,0.9), b);
@@ -343,11 +347,19 @@
       float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,0.96); lit=lit*0.94+vec3(0.035,0.035,0.04); /* 原神 / 塞尔达：明亮但柔和，饱和度不往上推；暗部稍微提亮一点，不压得很死 */
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
-    // 水下的东西：从水面上往下看，越深越融进深蓝绿里（只看得见浅处的屋顶、露出来的塔尖）；人潜在水下时按距离看不远（十几格以外就看不清了）
+    /* 水下古城（0.36）：古城在地面底下的水洞里，不吃太阳的阴影，自己有一套光——
+       白天阳光从池口透进来（池口正下方一道道光柱更亮）、晚上是淡淡的月光；城中央的浮石发蓝光；人潜下去时头上的探照灯照亮看着的地方；
+       远处慢慢融进水色（以前从上面往下看大半被压成深蓝绿，现在看得清） */
     if(uLake.z>0.0 && !lakeW && vW.z<uLake.w-0.05 && length(vW.xy-uLake.xy)<uLake.z){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); bool under=uFP.w>0.0 && eyeW.z<uLake.w;
-      vec3 deepC=vec3(0.05,0.17,0.21); float k=under? smoothstep(6.0,22.0,length(vW-eyeW)) : smoothstep(0.6,6.5,uLake.w-vW.z);
-      lit=mix(lit, deepC+lit*0.06, k*0.97*(1.0-clamp(emis,0.0,1.0)*0.55)); } // 灯笼、发光的石头在暗处还能透出一点光
-    if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); vec3 eyeW2=uFP.xyz/vec3(${MU},${MU},${MZ}); bool und=uFP.w>0.0 && eyeW2.z<uLake.w; o=vec4(lit, uPick>0.5?1.0:(und?0.35:clamp(0.55+0.35*fr,0.55,0.9))); return; } // 水是深的：从上面看大半看不透；潜到水下往上看才透亮 // 俯视时更透，看得见水下的古城 // 正着往下看最透，斜着看反光多
+      vec3 sunUW=mix(vec3(0.17,0.25,0.36), vec3(0.6,0.84,0.88), uDay);
+      vec2 pc=clamp(vW.xy, uPond.xy, uPond.zw); float dP=length(vW.xy-pc), shaft=uPond.z>uPond.x ? exp(-dP*0.085) : 0.0;
+      vec3 Lw=sunUW*(0.8+0.45*shaft) + mix(vec3(0.45,0.55,0.85), vec3(1.0,0.95,0.82), uDay)*shaft*(0.35+0.3*max(n.z,0.0));
+      float dS=length(vW-uStone); Lw+=vec3(0.35,0.75,0.95)*2.2/(1.0+dS*dS*0.004);
+      if(under){ vec3 Pw=vec3(vW.xy*${MU}, vW.z*${MZ}), dv=Pw-uFP.xyz; float dd=length(dv); vec3 fwd=vec3(cos(uFP2.x)*cos(uFP2.y), sin(uFP2.x)*cos(uFP2.y), sin(uFP2.y)); float cone=smoothstep(0.8,0.96,dot(dv/max(dd,0.01),fwd)); Lw+=vec3(1.0,0.95,0.82)*(0.35+cone*2.4)/(1.0+dd*dd*0.0012); }
+      lit=c*Lw*(0.7+0.3*aoK) + c*emis*0.8;
+      vec3 deepC=mix(vec3(0.03,0.07,0.14), vec3(0.1,0.34,0.4), uDay); float k=under? smoothstep(12.0,40.0,length(vW-eyeW)) : smoothstep(8.0,30.0,uLake.w-vW.z)*0.6;
+      lit=mix(lit, deepC, k*(1.0-clamp(emis,0.0,1.0)*0.5)); }
+    if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); vec3 eyeW2=uFP.xyz/vec3(${MU},${MU},${MZ}); bool und=uFP.w>0.0 && eyeW2.z<uLake.w; o=vec4(lit, uPick>0.5?1.0:(und?0.3:clamp(0.32+0.5*fr,0.32,0.85))); return; } /* 池水清：正着往下看几乎透明，看得见底下的城 */ // 水是深的：从上面看大半看不透；潜到水下往上看才透亮 // 俯视时更透，看得见水下的古城 // 正着往下看最透，斜着看反光多
     o=vec4(lit,1.0);
   }`;
   const FSS = `#version 300 es
@@ -432,7 +444,7 @@
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
     if (u.uVoxOn) { const on = !!(voxT && o.vox !== false); gl.uniform1f(u.uVoxOn, on ? 1 : 0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, on ? voxT.tex : null); gl.uniform1i(u.uVox, 1); if (on) { gl.uniform3fv(u.uVoxO, voxT.o); gl.uniform3fv(u.uVoxS, voxT.s); } gl.activeTexture(gl.TEXTURE0); }
     if (u.uGP) gl.uniform1f(u.uGP, 0);
-    if (u.uLake) gl.uniform4fv(u.uLake, o.lake || [0, 0, 0, 0]); // 湖：圆心、半径、水面高度（水下光斑、发蓝）
+    if (u.uLake) gl.uniform4fv(u.uLake, o.lake || [0, 0, 0, 0]); if (u.uPond) gl.uniform4fv(u.uPond, o.pond || [0, 0, 0, 0]); if (u.uDay) gl.uniform1f(u.uDay, o.day != null ? o.day : 1); if (u.uStone) gl.uniform3fv(u.uStone, o.stone || [0, 0, -999]); // 湖：圆心、半径、水面高度（水下光斑、发蓝）
     for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
     if (!o.pickAt && !o.mode && u.uGP && (o.fp || o.lake)) { gl.uniform1f(u.uGP, 1); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.depthMask(false);
       for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }

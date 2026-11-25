@@ -605,3 +605,17 @@ body.fpon .hud, body.fpon .orb, body.fpon .dock, body.fpon .sdock, body.fpon .pe
 .potcard .pc-bar span { position: absolute; top: 16px; transform: translateX(-50%); font-size: 11px; color: #6a5a4a; white-space: nowrap; }
 .potcard .pc-st { margin: 6px 0 10px; padding-left: 18px; line-height: 1.8; }
 .potcard .bad { color: #c8503a; }
+
+/* 伙伴状态栏（0.36）：城堡画面上方，每个伙伴一行 */
+.petbar { position: fixed; z-index: 44; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; padding: 4px 8px; border-radius: 10px; background: rgba(28, 30, 44, .62); color: #fff8e8; font-size: 11px; pointer-events: auto; box-shadow: 0 2px 10px rgba(0, 0, 0, .2); max-width: min(96vw, 720px); }
+.petbar .prow { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.petbar .prow b { min-width: 3em; } .petbar .prow small { opacity: .7; }
+.petbar .prow span { display: inline-flex; align-items: center; gap: 2px; }
+.petbar .pbar { display: inline-block; width: 38px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .2); overflow: hidden; }
+.petbar .pbar > i { display: block; height: 100%; border-radius: 3px; }
+.petbar button { font-size: 10px; padding: 0 6px; height: 18px; border-radius: 9px; }
+.petbar em { font-style: normal; opacity: .9; overflow: hidden; text-overflow: ellipsis; max-width: 30em; }
+.petbar em.no { color: #ffd0a0; } .petbar em.ok { color: #c8f0c0; }
+.shrinepop .wishform { display: flex; gap: 4px; padding: 4px 6px; } .shrinepop .wishin { flex: 1; min-width: 160px; }
+.shrinepop .wishrow { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 2px 6px; font-size: 12px; }
+.shrinepop .sp-sub { padding: 4px 6px 0; font-size: 11px; color: var(--muted); }

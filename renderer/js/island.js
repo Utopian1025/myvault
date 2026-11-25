@@ -333,10 +333,10 @@
   function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } try { relicFit(); } catch (e) {} }
     const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
-    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), msaa: !pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
+    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), msaa: !pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null, pond: PP.CITY && PP.CITY.POND ? [PP.CITY.POND.u0, PP.CITY.POND.v0, PP.CITY.POND.u1, PP.CITY.POND.v1] : null, day: phase() === 'night' ? 0 : phase() === 'day' ? 1 : 0.5, stone: PP.CITY ? [PP.CITY.CEN[0] + Math.cos(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.CEN[1] + Math.sin(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.STONE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), relics: E().relics || {} });
+    const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
@@ -420,7 +420,26 @@
     // 三层积云：远处小而淡、慢；城堡背后大一点；最下面一片云海
     for (const [ly, cnt, sz, sp, al] of [[0.28, 5, 0.07, 3, 0.55], [0.5, 4, 0.11, 6, 0.8], [0.86, 7, 0.13, 10, 0.92]]) for (let i = 0; i < cnt; i++) { const R = h * sz * (0.8 + hs2(i, ly * 10) * 0.5), span = w + R * 8, xx = x0 - R * 4 + ((hs2(i, ly * 7) * span + t * sp * K) % span), yy = y0 + h * ly + (hs2(i, ly * 3) - 0.5) * h * 0.08; animeCloud(ctx, xx, yy, R, i * 13 + ly * 100, ngt, al * (ngt ? 0.38 : 1)); }
   }
+  /* 伙伴状态栏（0.36）：城堡里一直在画面上方显示每个伙伴的饱腹、口渴、精力、快乐（一格一格的小条），
+     下面一行写清楚能不能出门探险、不能的话差什么；点「喂」直接打开背包喂它 */
+  let petBarEl = null, petBarK = '', petBarT = 0;
+  function petBar() {
+    const show = G.isle && L && S().petBar !== false, now = performance.now();
+    if (!show) { if (petBarEl) { petBarEl.remove(); petBarEl = null; petBarK = ''; } return; }
+    if (now - petBarT < 500 && petBarEl) return; petBarT = now;
+    const pets = G.pets.filter((p) => !p.d.wild).slice(0, 4); if (!pets.length) return;
+    const bar = (v, c) => `<i class="pbar"><i style="width:${Math.max(0, Math.min(100, v))}%;background:${v < 25 ? '#e0604a' : v < 45 ? '#e8b040' : c}"></i></i>`;
+    const rows = pets.map((p) => { const n = p.n, why = PP.econ.canTrip ? PP.econ.canTrip(p) : null, lv = PP.econ.lvOf ? PP.econ.lvOf(p) : '';
+      return `<div class="prow"><b>${esc(p.name)}</b><small>Lv${lv}</small><span title="饱腹">🍙${bar(n.hunger, '#7ab85a')}</span><span title="口渴">💧${bar(n.thirst, '#5aa8d8')}</span><span title="精力">⚡${bar(n.energy, '#c8a84a')}</span><span title="快乐">😊${bar(n.fun, '#e88ab0')}</span>
+        <button data-feed="${p.uid != null ? p.uid : esc(p.name)}">喂</button><em class="${why ? 'no' : 'ok'}">${why ? '探险：' + esc(why) : p.d.trip ? '在外面探险' : '探险：✓ 可以出门'}</em></div>`; }).join('');
+    const k = rows + (fp ? 'f' : 'i') + [L.vx0, L.vy0, L.vw].join(',');
+    if (!petBarEl) { petBarEl = document.createElement('div'); petBarEl.className = 'petbar'; document.getElementById('ui').appendChild(petBarEl);
+      petBarEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
+      petBarEl.addEventListener('click', (ev) => { const b = ev.target.closest('button[data-feed]'); if (!b) return; const p = G.pets.find((q) => String(q.uid != null ? q.uid : q.name) === b.dataset.feed); if (fp) lookFree(); PP.econ.openPanel('bag', { pet: p }); }); }
+    if (k !== petBarK) { petBarK = k; petBarEl.innerHTML = rows; petBarEl.style.left = (L.vx0 + L.vw / 2) + 'px'; petBarEl.style.top = (L.vy0 + (fp ? 8 : 6)) + 'px'; PP.refreshInteractive && PP.refreshInteractive(); }
+  }
   function renderBack(ctx) {
+    try { petBar(); } catch (e) {}
     for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
     if (G.isle) { followTick(); watchdog(); }
     if (!G.isle) return;
@@ -988,7 +1007,7 @@
     /* 默认锁住鼠标：移动鼠标就转向，准星对准东西单击就用；按住 Alt 放出鼠标 */
     if (lookPref() && lastPT !== 'touch') lookGrab();
   }
-  function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再按 F11 回到小窗口）' : '小窗口（按 F 全屏）', 1.4); }
+  function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再点右上角 ⛶ 回到小窗口）' : '小窗口（右上角 ⛶ 全屏）', 1.4); }
   function fpStop(quiet) {
     if (!fp) return; lookFree(); fpRemember(); const p = fp.p, q = fp.q; fp = null; PP.fpOn = false; vOpen = false; fpMenu = false; bigMap = null;
     if (p && G.pets.includes(p)) { if (p.action === 'fp') p.interrupt(true); if (!p.iw) { const at = nearFree(area(), q.u, q.v, q.lv); setIp(p, at[0], at[1], q.lv); } }
@@ -1010,7 +1029,7 @@
     const fk = [s.fpHands, s.fpAutoJump, s.fpFull, fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
     if (fpBarEl.dataset.k !== fk) { fpBarEl.dataset.k = fk;
       const I = (a, ic, key, tip, x = '') => `<button data-a="${a}" ${x} title="${tip}"><i>${ic}</i><small>${key}</small></button>`; /* 像原神：右上角一排圆图标，下面标着按键；小地图在左上角，点一下打开大地图 */
-      fpBarEl.innerHTML = I('map', '🗺', 'Tab', '大地图：点哪儿就自动走过去', on(bigMap)) + I('menu', '⚙', 'P', '设置：视角、镜头、鼠标、画质', on(fpMenu)) + I('full', s.fpFull ? '🗗' : '⛶', 'F11', s.fpFull ? '回到小窗口' : '铺满整个窗口', on(s.fpFull)) + I('out', '✕', 'Q', '回到上帝视角', 'class="primary"')
+      fpBarEl.innerHTML = I('map', '🗺', 'Tab', '大地图：点哪儿就自动走过去', on(bigMap)) + I('menu', '⚙', 'P', '设置：视角、镜头、鼠标、画质', on(fpMenu)) + I('full', s.fpFull ? '🗗' : '⛶', '全屏', s.fpFull ? '回到小窗口' : '铺满整个窗口', on(s.fpFull)) + I('out', '✕', 'Q', '回到上帝视角', 'class="primary"')
         + (fpMenu ? `<div class="fpmenu">
           <div class="r"><span>视角</span><button data-a="god">上帝</button><button data-a="first" ${on(d < 0.5)}>第一人称</button><button data-a="third" ${on(d >= 0.5)}>第三人称</button><small>V 切换</small></div>
           <div class="r"><span>视野</span><button data-a="fovn" ${fpFovD() <= 50 ? 'disabled' : ''}>窄</button><b>${fpFovD()}°</b><button data-a="fovp" ${fpFovD() >= 110 ? 'disabled' : ''}>广</button><small>第一人称滚轮</small></div>
@@ -1023,7 +1042,7 @@
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
           <div class="r"><span>显示手</span><button data-a="hands" ${on(s.fpHands !== false)}>${s.fpHands !== false ? '开' : '关'}</button><small>关掉时只显示手里拿的东西</small></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
-          <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高；在空中再按一下打开叶子滑翔伞）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· 准星对着东西 E / F / 单击，自动做对的事（种菜、浇水、收菜、钓鱼、摸摸伙伴）· 滚轮 镜头远近 · B 自己吃点东西 · M 或 Tab 地图 · P 设置 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
+          <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高；在空中再按一下打开叶子滑翔伞）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· 准星对着东西 E / F / 单击，自动做对的事（种菜、浇水、收菜、钓鱼、摸摸伙伴）· 滚轮 镜头远近 · B 自己吃点东西 · M 或 Tab 地图 · P 设置 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · 右上角 ⛶ 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
         </div>` : '');
     }
     const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.75, 1.4), pk = [sc.toFixed(3), L.vx0, L.vy0, L.vw].join('|');
@@ -1064,10 +1083,9 @@
     { const k = fpKeyMap[e.code]; if (k && !e.altKey && !e.metaKey) { fp.keys.add(k); if (k !== 'run' && k !== 'crouch') fp.auto = null; e.preventDefault(); return; } } // 按住 Ctrl 蹲着也能走
     if (e.code === 'Space' && !e.altKey && !e.metaKey) { if (!e.repeat) fpGlideKey(); fp.keys.add('up'); fpJump(); e.preventDefault(); return; }
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    /* 按键照成熟游戏来：E / F 互动（GTA / 原神）、M 或 Tab 地图、按住 Alt 放出鼠标（原神）、Ctrl / C 蹲（GTA）、V 视角、滚轮镜头远近（原神）；没有快捷栏，看着东西点一下就做对的事、F11 全屏、H 或 F1 按键说明 */
+    /* 按键照成熟游戏来：E / F 互动（GTA / 原神）、M 或 Tab 地图、按住 Alt 放出鼠标（原神）、Ctrl / C 蹲（GTA）、V 视角、滚轮镜头远近（原神）；没有快捷栏，看着东西点一下就做对的事、H 或 F1 按键说明 */
     if (e.code === 'Tab' || e.code === 'KeyM') { toggleMap(); e.preventDefault(); return; }
     if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') { fpUse(null); e.preventDefault(); return; }
-    if (e.code === 'F11') { fpFullToggle(); e.preventDefault(); return; }
     if (e.code === 'KeyP') { fpAct('menu'); fpBar(); e.preventDefault(); return; } // P：设置（视角、镜头、画质）
     if (e.code === 'KeyH' || e.code === 'F1') { S().fpKeysHide = !S().fpKeysHide; PP.save.soon(); e.preventDefault(); return; }
     if (e.code === 'KeyR') { fpRescue(); e.preventDefault(); return; }
@@ -1220,9 +1238,10 @@
       fp.vz += ((up ? 26 : 0) - (down ? 22 : 0) + (q.z < floatZ ? 6 : -14)) * dt; fp.vz *= Math.pow(0.12, dt); // 水里有浮力、有阻力
       let nz = q.z + fp.vz * dt; if (nz > floatZ) { nz = Math.min(nz, floatZ + (up ? 0.5 : 0.15)); if (fp.vz > 0) fp.vz *= 0.5; } // 浮到水面就停（头露出水面），按住空格也只是冒个头
       if (isFinite(g0.z) && nz < g0.z) { nz = g0.z; fp.vz = Math.max(0, fp.vz); }
-      /* 游到岸边往上浮：岸比水面高一点，按空格（或往前游）就爬上岸 */
-      if ((up || mv) && q.z > floatZ - 1.5) { const c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw); let done = false; /* 爬上岸：前面 0.8～2.6 格（左右也找找）有能站的地方就翻上去——矮墙、回廊栏杆都能翻（像原神、塞尔达随处能爬上岸） */
-        for (let d = 0.8; d <= 2.6 && !done; d += 0.3) for (const sd of [0, 0.6, -0.6, 1.2, -1.2]) { const nu = q.u + c * d - s2 * sd, nv = q.v + s2 * d + c * sd, g2 = surf(nu, nv, LK.z + 5); if (isFinite(g2.z) && g2.z > LK.z - 0.3 && g2.z < LK.z + 2.4 && !blocked(nu, nv, g2.z) && onFloorish(nu, nv, g2)) { q.u = nu; q.v = nv; nz = g2.z; q.lv = g2.lv; fp.swim = false; fp.vz = 0; done = true; break; } } }
+      const CY2 = PP.CITY, underPond = !CY2 || !CY2.POND || CY2.inPond(q.u, q.v, -0.4); /* 0.36：古城在地面底下的水洞里，头顶是洞顶；只有游到池塘底下才能浮上去 */
+      if (!underPond) { const cap = (CY2.CEIL || -1.25) - 0.15 - BODYH; if (nz > cap) { nz = cap; if (fp.vz > 0) fp.vz = 0; } }
+      fp.atPond = underPond && q.z > floatZ - 1.2; // 浮在池塘水面：可以按 E 上岸
+      if (fp.atPond && !fp.pondHint) { fp.pondHint = true; PP.ui.toast('浮到池塘水面了：按 E 上岸', 2.4); } if (!fp.atPond) fp.pondHint = false;
       q.z = nz; q.lv = 1; fp.air = false; fp.under = q.z + EYE < LK.z; fp.bob += dt * 3;
       p.anim = 'walk'; fpSync(); return;
     }
@@ -1413,6 +1432,24 @@
     if (showL && (kind === 'wood' || kind === 'eat')) { const mid = { x: (R.x + Lh.x) / 2, y: Math.min(R.y, Lh.y) - (kind === 'eat' ? 16 : 10), r: 0, k: (R.k + Lh.k) / 2 }; emit(HS.item(kind === 'wood' ? 'logs' : 'bun'), frame(mid, 1, kind === 'eat' ? 0.2 : 0.1)); }
     return m;
   }
+  /* 神龛（0.36）：上香（一炷香烧半小时，烟袅袅；全家心情变好，每天第一次上香得一点福气）、许愿（写下来挂在许愿架上）、还愿（愿望实现了回来谢一谢） */
+  const shrineE = () => { const e = E(); return (e.shrine = e.shrine || { incense: 0, day: '', wishes: [] }); };
+  function shrinePop(x, y) {
+    const sh = shrineE(), lit = Date.now() - (sh.incense || 0) < 30 * 60000, open2 = sh.wishes.filter((w) => !w.done), done = sh.wishes.filter((w) => w.done).length;
+    const el = document.createElement('div'); el.className = 'seedpick shrinepop';
+    el.innerHTML = `<div class="sp-head"><b>神龛</b><small>${lit ? '香还在烧，青烟袅袅' : '香炉里是凉的'}</small></div>
+      <div class="sp-list"><button class="sp" data-a="incense" ${lit ? 'disabled' : ''}>🪔<b>上香</b></button><button class="sp" data-a="wish">🙏<b>许愿</b></button></div>
+      <div class="wishform" style="display:none"><input class="wishin" maxlength="40" placeholder="写下你的心愿（40 字以内）"><button class="sp small" data-a="wishok">挂上许愿牌</button></div>
+      ${open2.length ? `<div class="sp-sub">还没还的愿（实现了就点「还愿」）：</div>` + open2.slice(-6).map((w) => `<div class="wishrow"><span>「${esc(w.text)}」<small>${new Date(w.t).toLocaleDateString()}</small></span><button class="sp small" data-a="repay" data-id="${w.id}">还愿</button></div>`).join('') : ''}
+      ${done ? `<div class="sp-sub">已经还了 ${done} 个愿 ✓</div>` : ''}`;
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a, pets = G.pets.filter((q) => !q.d.wild);
+      if (a === 'incense') { sh.incense = Date.now(); const today = new Date().toDateString(), first = sh.day !== today; sh.day = today; for (const q of pets) q.n.fun = Math.min(100, q.n.fun + 10); if (first) PP.econ.addFish(10, '上香得到的福气'); PP.save.soon(); PP.hud && PP.hud.close(); PP.ui.toast(`点上三炷香，青烟慢慢飘起来…（全家心情 +10${first ? '，今天的福气 +10 小鱼干' : ''}）`, 3); if (fp) gain(fp.p, '心情 +10'); dirtyK++; return; }
+      if (a === 'wish') { const f = el.querySelector('.wishform'); f.style.display = 'flex'; el.querySelector('.wishin').focus(); return; }
+      if (a === 'wishok') { const t = (el.querySelector('.wishin').value || '').trim(); if (!t) { PP.ui.toast('先写下心愿', 1.2); return; } sh.wishes.push({ id: Date.now().toString(36), text: t, t: Date.now(), done: false }); PP.save.soon(); PP.hud && PP.hud.close(); PP.ui.toast(`许下心愿：「${t}」——写在木牌上挂好了。愿望实现了记得回来还愿`, 3.4); return; }
+      if (a === 'repay') { const w = sh.wishes.find((q) => q.id === b.dataset.id); if (!w) return; w.done = true; w.doneT = Date.now(); for (const q of pets) q.n.fun = Math.min(100, q.n.fun + 15); PP.econ.addFish(20, '还愿'); PP.save.soon(); PP.hud && PP.hud.close(); PP.ui.toast(`还愿：「${w.text}」✓ 谢谢保佑（全家心情 +15，+20 小鱼干）`, 3.4); if (fp) gain(fp.p, '心情 +15'); } });
+    el.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') { const b = el.querySelector('[data-a=wishok]'); b && b.click(); } }, true);
+    if (PP.hud) PP.hud.pop(el, { x, y }); popCheck(); lookFree && fp && lookFree();
+  }
   function liftPop(from, x, y) {
     const el = document.createElement('div'); el.className = 'seedpick';
     el.innerHTML = `<div class="sp-head"><b>吊篮去哪层？</b></div><div class="sp-list">${[1, 2, 3].map((lv) => `<button class="sp" data-lv="${lv}" ${lv === from ? 'disabled' : ''}>${['', '🌊', '🌿', '🌳'][lv]}<b>${F.NAME[lv]}</b></button>`).join('')}</div>`;
@@ -1425,15 +1462,26 @@
     fp.fade = performance.now(); fp.q.u = u; fp.q.v = v; fp.q.lv = lv; fp.q.z = isFinite(g.z) ? g.z : Z[lv]; fp.air = false; fp.vz = 0; fp.swim = false; fp.auto = null; fp._cam = null; fp.camZ = null; fp.yaw = a + Math.PI; fpSync();
     PP.ui.toast(`吊篮嘎吱嘎吱地把你送到了${F.NAME[lv]}`, 1.6); PP.sfx && PP.sfx('pop');
   }
+  /* 古城之池（0.36）：唯一的入口。站在池边点水面 → 选「钓鱼」还是「下潜」；在水下游回池塘底下、浮到水面 → 按 E「上岸」 */
+  function pondOut() { const P0 = PP.CITY && PP.CITY.POND; if (!P0 || !fp) return; const cu = (P0.u0 + P0.u1) / 2, g = surf(cu - 1, P0.v1 + 1.6, 3); fp.q.u = cu - 1; fp.q.v = P0.v1 + 1.6; fp.q.z = isFinite(g.z) ? g.z : 0; fp.q.lv = 1; fp.swim = false; fp.under = false; fp.atPond = false; fp.vz = 0; fp.air = false; fp.fade = performance.now(); fp.yaw = -Math.PI / 2; fp._cam = null; fp.camZ = null; fpSync(); PP.ui.toast('爬上岸了，抖一抖身上的水', 1.6); }
+  function pondDive() { const P0 = PP.CITY && PP.CITY.POND; if (!P0 || !fp) return; if (fp.fish) fpFish(); fp.q.u = (P0.u0 + P0.u1) / 2 + 1.5; fp.q.v = (P0.v0 + P0.v1) / 2 + 2.2; fp.q.z = F.LAKE.z - EYE - 2; fp.q.lv = 1; fp.swim = true; fp.air = false; fp.vz = -8; fp.pitch = -0.9; fp.fade = performance.now(); fp._cam = null; fp.camZ = null; fpSync(); PP.ui.toast('扑通——下潜！空格往上浮，Ctrl / C 往下潜；游回池塘底下浮上来就能上岸', 3.2); }
+  function pondPop(x, y) {
+    const el = document.createElement('div'); el.className = 'seedpick';
+    el.innerHTML = `<div class="sp-head"><b>古城之池</b></div><div class="sp-list"><button class="sp" data-a="fish">🎣<b>钓鱼</b></button><button class="sp" data-a="dive">🤿<b>下潜</b></button></div>`;
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b) return; PP.hud && PP.hud.close(); if (b.dataset.a === 'fish') fpFish(); else pondDive(); });
+    if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
+  }
   function fpUse(at) {
     fp.useT = performance.now();
     const x = at ? at[0] - L.vx0 : L.vw / 2, y = at ? at[1] - L.vy0 : L.vh / 2;
     if (fp.fish) { fpFish(); return; } // 正在钓鱼：点哪儿都是收竿（随时都能收）
+    if (fp.swim) { if (fp.atPond) pondOut(); else PP.ui.toast(PP.CITY && PP.CITY.POND ? '这里头顶是水洞的顶——游回池塘底下（顶上透光的那个方口）再浮上去' : '', 2.2); return; }
     { const o = aimPet(L.vx0 + x, L.vy0 + y); if (o) { foodPop(o, L.vx0 + x, L.vy0 + y); return; } }
     const h = hotFromId(fpPick(x, y));
-    if (h && h.k === 'fish') { fpFish(); return; } // 对着水面点一下：抛竿
+    if (h && h.k === 'fish') { const P0 = PP.CITY && PP.CITY.POND; if (P0 && Math.hypot(fp.q.u - (P0.u0 + P0.u1) / 2, fp.q.v - (P0.v0 + P0.v1) / 2) > 9) { PP.ui.toast('走到池边再用', 1.4); return; } pondPop(at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; } // 对着池塘点一下：钓鱼还是下潜
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
     if (h.k === 'relic') { const r = h.r; if (Math.hypot(r.u - fp.q.u, r.v - fp.q.v) > REACH + 2.5 || Math.abs(r.z - fp.q.z) > 9) { PP.ui.toast('游近一点再捡', 1.4); return; } relicGet(r); return; }
+    if (h.k === 'shrine') { const S2 = F.SHRINE; if (S2 && Math.hypot(S2.u + 1.3 - fp.q.u, S2.v - fp.q.v) > REACH + 3) { PP.ui.toast('走到神龛前面再拜', 1.4); return; } shrinePop(at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; }
     if (h.k === 'lift') { const LF = F.LIFT; if (Math.hypot(LF.u - fp.q.u, LF.v - fp.q.v) > REACH + 2) { PP.ui.toast('走到吊篮跟前再坐', 1.4); return; } liftPop(h.lv, at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; }
     if (h.k === 'plot' && !nearPlot(fp.q.u, fp.q.v, h.i)) { PP.ui.toast('离菜地远了点，走到菜地边上再用', 1.4); return; }
     if (h.k === 'switch') { const w = F.switches()[h.i], p0 = w && (w.round ? [w.u, w.v] : F.toW(w.fr, w.ax === 'v' ? w.s : w.at, w.ax === 'v' ? w.at : w.s)); if (p0 && Math.hypot(p0[0] - fp.q.u, p0[1] - fp.q.v) > REACH + 1) { PP.ui.toast('够不着开关，走到门边再按', 1.4); return; } toggleLight(h.i); return; }
@@ -1763,7 +1811,7 @@
     // 天空
     const sg = ctx.createLinearGradient(0, y0, 0, y0 + h); sg.addColorStop(0, c3(lo.skyTop || [0.48, 0.72, 0.91])); sg.addColorStop(1, c3(lo.skyBot || [0.81, 0.92, 0.98])); ctx.fillStyle = sg; ctx.fillRect(x0, y0, w, h);
     try { drawBelow(ctx, x0, y0, w, h, now, lo); } catch (e) {}
-    const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), relics: E().relics || {} });
+    const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null; lastScenes = [s.gpu, dynMesh]; lastLO = lo;
     const pix = fpQ() === 'pixel'; let vmM = null; try { const hm = S().fpHands !== false && fpCam().third < 0.6 ? buildVM() : null; vmM = hm && hm.p.length ? (vmGpu = g3.upload(hm, vmGpu)) : null; } catch (e) { vmM = null; fp._herr = String(e && e.stack || e); }
     let cv = g3.draw(lastScenes, fpOpts(vmM ? { vm: vmM } : null)); if (cv && pix && pixOn()) cv = outline(cv);
@@ -1818,7 +1866,7 @@
     if (false) { const t2 = '', fs2 = fs * 0.85; ctx.save(); ctx.font = PP.FONT(fs2); ctx.textBaseline = 'top'; const tw2 = ctx.measureText(t2).width; ctx.fillStyle = 'rgba(30,24,40,.6)'; ctx.fillRect(cx0 - tw2 / 2 - 8, y0 + 8, tw2 + 16, fs2 + 8); ctx.fillStyle = '#fff6d8'; ctx.fillText(t2, cx0, y0 + 12); ctx.restore(); }
     // 刚进来：一行操作提示，6 秒后淡掉（菜单 ☰ 里有完整说明）
     // 按键说明：默认一直显示在左下角（像很多游戏的按键提示），按 H 收起 / 展开
-    if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳 · 空中再按：滑翔伞'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['滚轮', '镜头远近'], ['B', '自己吃点东西'], ['M / Tab', '地图'], ['P', '设置'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['F11', '全屏'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
+    if (!bigMap) { const KS = [['WASD', '移动'], ['空格', '跳 · 空中再按：滑翔伞'], ['Shift', '跑'], ['Ctrl / C', '蹲下'], ['E / F / 单击', '互动'], ['滚轮', '镜头远近'], ['B', '自己吃点东西'], ['M / Tab', '地图'], ['P', '设置'], ['V', '切换视角'], ['Z', '坐下 / 躺下'], ['按住 Alt', '放出鼠标'], ['R', '回到地面'], ['Q', '退出第一人称'], ['Esc', '老板键'], ['H', '隐藏说明']];
       const f3 = fs * 0.72; ctx.save(); ctx.font = PP.FONT(f3); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       if (S().fpKeysHide) { const t3 = 'H 显示按键说明', tw3 = ctx.measureText(t3).width; ctx.fillStyle = 'rgba(30,24,40,.5)'; ctx.fillRect(x0 + 8, y0 + h - f3 - 18, tw3 + 14, f3 + 10); ctx.fillStyle = '#fff6d8'; ctx.fillText(t3, x0 + 15, y0 + h - f3 / 2 - 13); }
       else { const lh = f3 + 7, rows = Math.ceil(KS.length / 2), kwid = Math.max(...KS.map(([k]) => ctx.measureText(k).width)) + 12, twid = Math.max(...KS.map(([, t]) => ctx.measureText(t).width)), colW = kwid + twid + 18, bh = rows * lh + 10, bx = x0 + 8, by = y0 + h - bh - 8;
@@ -1953,7 +2001,7 @@
     for (const lv of order) { const [gu, gv] = toUV(x, y, a.z[lv]); if (!free(a, gu, gv, lv)) continue; if (cut == null && F.roomAt(gu, gv, lv)) continue; return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
     return null;
   }
-  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '林中湖：钓鱼（钓到的鱼会记进图鉴）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' }, [PK.lift + 1]: { k: 'lift', lv: 1, label: '吊篮：坐上去，到二层、三层', cur: 'use' }, [PK.lift + 2]: { k: 'lift', lv: 2, label: '吊篮站：去一层、三层', cur: 'use' }, [PK.lift + 3]: { k: 'lift', lv: 3, label: '吊篮站：去一层、二层', cur: 'use' } };
+  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '古城之池：钓鱼 / 下潜（往下看，水底是一整座古城）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' }, [PK.shrine]: { k: 'shrine', label: '神龛：上香 · 许愿 · 还愿', cur: 'use' }, [PK.lift + 1]: { k: 'lift', lv: 1, label: '吊篮：坐上去，到二层、三层', cur: 'use' }, [PK.lift + 2]: { k: 'lift', lv: 2, label: '吊篮站：去一层、三层', cur: 'use' }, [PK.lift + 3]: { k: 'lift', lv: 3, label: '吊篮站：去一层、二层', cur: 'use' } };
   function hot(x, y) {
     hover = null;
     if (fp) { if (L && x >= L.vx0 && x <= L.vx1 && y >= L.vy0 && y <= L.vy1) return (hover = { k: 'fp', isle: true, cur: 'crosshair' }); return null; }
@@ -2022,6 +2070,7 @@
     if (h.k === 'prop' && h.pr.do === 'pot' && PP.LIFE) { potCard(h.pr.i != null ? h.pr.i : h.pr.id - 160); return; } // 花盆：弹出这株植物自己的卡片
     if (h.k === 'prop') { const pk = { cookp: 'cook', dex: 'plant', craft: 'craft', store: 'bag', pot: 'gh', valve: 'gh' }[h.pr.do]; if (pk) PP.econ.openPanel(pk); if (cut == null && h.pr.at[2] !== 1) setCut(h.pr.at[2], true); go('isleUse', A.isleUse, h.pr); return; }
     if (h.k === 'deco') { go('isleSit', A.isleSit, { id: h.id, i: h.i, u: SLOTS[h.i][0], v: SLOTS[h.i][1] }); return; }
+    if (h.k === 'shrine') { shrinePop(x, y); return; }
     if (h.k === 'lift') { if (fp) liftPop(h.lv, x, y); else PP.ui.toast('吊篮：进第一人称（👁 → 第一人称）后点它，就能直接去别的楼层', 2.4); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }
     if (h.k === 'fish') { if (p && p.fishing) { if (p.fishing.ph === 'bite') p.fishing.helped = true; return; } go('isleFish', A.isleFish); return; }
