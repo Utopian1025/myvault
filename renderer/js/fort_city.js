@@ -20,7 +20,7 @@
 
   /* ---------- 岛的岩体：外沿一圈长着苔藓的岩顶，峭壁往下收成尖 ---------- */
   function rock(m, o) {
-    const N = 96, snow = o.snow, top = snow ? '#eef4fa' : '#68a844', tm = snow ? M.snow : M.grass;
+    const N = 96, snow = o.snow, top = snow ? '#eef4fa' : '#86ac62', tm = snow ? M.snow : M.grass;
     const RINGS = [[1, 0.6], [0.995, -6], [0.97, -14], [0.9, -24], [0.76, -32], [0.56, -40], [0.34, -46], [0.14, -51]];
     for (let k = 0; k < N; k++) { const t0 = (k / N) * 6.2832, t1 = ((k + 1) / N) * 6.2832, j0 = H(k, 3) * 0.8, j1 = H(k + 1, 3) * 0.8;
       // 岩顶：盆地边到外沿，长满苔藓和草
@@ -31,9 +31,9 @@
         m.quad(P(t0, rimR(t0) * a, za + ja), P(t1, rimR(t1) * a, za + jb), P(t1, rimR(t1) * b, zb), P(t0, rimR(t0) * b, zb), ['#a48c6a', '#95805f', '#b09776', '#8a7558'][(k + i) % 4] /* 天空之城那种暖褐色的岩层 */, M.stone); }
       m.tri(P(t0, rimR(t0) * 0.14, -51), P(t1, rimR(t1) * 0.14, -51), [CEN[0], CEN[1], -55], '#7a6650', M.stone); }
     // 岩顶上的石块和灌木丛
-    for (let k = 0; k < 40; k++) { const t = (k / 40) * 6.2832 + H(k, 1) * 0.1, r = (basR(t) + rimR(t)) / 2 + (H(k, 2) - 0.5) * 1.5, [u, v] = P(t, r, 0); if (H(k, 4) < 0.5) m.blob(u, v, 0.4, 0.6 + H(k, 5) * 0.8, 0.5, snow ? '#e8eef4' : '#b4a082', M.stone, k); else if (!snow) m.foliage(u, v, 1.1, 0.9 + H(k, 6) * 0.6, 0.7, ['#3f9440', '#5cb04a', '#80c450'], 16, k, 0.6); }
+    for (let k = 0; k < 40; k++) { const t = (k / 40) * 6.2832 + H(k, 1) * 0.1, r = (basR(t) + rimR(t)) / 2 + (H(k, 2) - 0.5) * 1.5, [u, v] = P(t, r, 0); if (H(k, 4) < 0.5) m.blob(u, v, 0.4, 0.6 + H(k, 5) * 0.8, 0.5, snow ? '#e8eef4' : '#b4a082', M.stone, k); else if (!snow) m.foliage(u, v, 1.1, 0.9 + H(k, 6) * 0.6, 0.7, ['#6a9a50', '#7cac5c', '#90bc6a'], 16, k, 0.6); }
     /* 草：岩顶上一丛丛小草（两片交叉的细叶，随风摆，人能穿过），中间点缀几朵小野花——像原神的草地，不是一整块平涂的绿 */
-    if (!snow) { const so = m.sway; m.sway = 0.35; const G = ['#5aa040', '#6fb44a', '#82c254', '#4f9638'], FL = ['#fff4f0', '#ffd95a', '#f2a6c2', '#b8a8f0'];
+    if (!snow) { const so = m.sway; m.sway = 0.35; const G = ['#7aa45a', '#8cb466', '#9cc070', '#6e9a52'], FL = ['#fff4f0', '#ffd95a', '#f2a6c2', '#b8a8f0'];
       for (let k = 0; k < 520; k++) { const t = H(k, 21) * 6.2832, f = H(k, 22), r = basR(t) + 0.5 + (rimR(t) - basR(t) - 0.8) * f, [u, v] = P(t, r, 0); if (((PP.CITY && PP.CITY.FLAT) || []).some((q) => u > q[0] && u < q[2] && v > q[1] && v < q[3])) continue;
         const z = 0.2 + 0.4 * f + 0.05, hh = 0.5 + H(k, 23) * 0.6, a0 = H(k, 24) * 3.14, col = G[k % 4];
         for (const da of [0, 1.57]) { const cx = Math.cos(a0 + da) * 0.28, cy = Math.sin(a0 + da) * 0.28; m.tri([u - cx, v - cy, z], [u + cx, v + cy, z], [u + cx * 0.2, v + cy * 0.2, z + hh], col, M.grass); m.tri([u + cx, v + cy, z], [u - cx, v - cy, z], [u - cx * 0.3, v - cy * 0.3, z + hh * 0.8], col, M.grass); }
@@ -100,7 +100,7 @@
   /* ---------- 工具：转个角度画、尖拱窗、拱门 ---------- */
   const W = () => PP.isleModels && PP.isleModels.parts.warp;
   const rot = (m, u, v, yaw, fn, z = FLOOR) => { const w = W(); if (w) w(m, [u, v, z], yaw, 0, 0, fn); else fn(); };
-  const GL = '#1f3540', TIM = '#4a3a2c', MOSS = '#5aa046';
+  const GL = '#1f3540', TIM = '#4a3a2c', MOSS = '#7aa060';
   // 竖在 u = x 这面墙上（朝 +u）的一个窗：深色玻璃 + 窗框 + 十字窗棂 + 两扇百叶
   function win(m, x, v, z, w, h, shut) {
     m.box(x - 0.02, v - w / 2, z, x + 0.05, v + w / 2, z + h, GL, 0);
@@ -117,7 +117,7 @@
      石头砌的底层（拱门、小窗）；上面一两层是木筋墙（深色木条：立柱、横梁、斜撑，中间刷灰泥），每层往街上挑出去一点；
      很陡的屋顶（石板或红瓦），屋面上一个老虎窗，山墙上一根石头烟囱；有的门口挂着店铺招牌。塌了的只剩半截墙。
      正面（朝街）是 +u 那面 */
-  const PLAST = ['#e6dcc4', '#e8d6b4', '#dcd2bc', '#efe2c6', '#d8c8a8'], ROOF = ['#4a6a8c', '#3f5f80', '#b0583a', '#9a4e36', '#5a6c80'], SHUT = ['#5a7a6a', '#8a5a4a', '#5a6a8a', '#7a6a4a'];
+  const PLAST = ['#e6dcc4', '#e8d6b4', '#dcd2bc', '#efe2c6', '#d8c8a8'], ROOF = ['#5e7890', '#546c84', '#a86a52', '#94604c', '#66788a'], SHUT = ['#5a7a6a', '#8a5a4a', '#5a6a8a', '#7a6a4a'];
   function mHouse(m, u, v, yaw, w, d, fl, k, broken, z0) {
     rot(m, u, v, yaw, () => { const a = u - d / 2, c = u + d / 2, b = v - w / 2, e = v + w / 2, G = 3.6, F = 3.2, pl = PLAST[k % PLAST.length], st = H(k, 5) < 0.5 ? '#c4b9a2' : '#b9ae98';
       m.box(a - 0.15, b - 0.15, z0, c + 0.15, e + 0.15, z0 + 0.5, '#a39985', M.stone);

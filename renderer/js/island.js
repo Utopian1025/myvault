@@ -304,7 +304,7 @@
   function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); if (k > 0.01) out.push({ a: B[i].a, b: B[i].b, k }); } return out.slice(0, 40); }
   function lightOpts() {
     const ph = phase(), fx = wfx(), dim = Math.min(1, (fx.cloud || 0) * 0.5 + (fx.rain ? 0.35 : 0) + (fx.snow ? 0.25 : 0) + (fx.dark || 0));
-    let sun = [1.06, 0.97, 0.82], sky = [0.52, 0.6, 0.78], gnd = [0.46, 0.43, 0.34], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.22, 0.53, 0.92], bot = [0.7, 0.87, 0.99]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
+    let sun = [1.02, 0.96, 0.86], sky = [0.58, 0.63, 0.74], gnd = [0.5, 0.47, 0.4], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.38, 0.62, 0.88], bot = [0.8, 0.9, 0.97]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
     if (ph === 'night') { sun = [0.26, 0.34, 0.62]; sky = [0.2, 0.27, 0.5]; gnd = [0.12, 0.14, 0.26]; lit = 1; dir = [0.4, 0.5, 0.7]; top = [0.04, 0.08, 0.24]; bot = [0.12, 0.2, 0.42]; }
     else if (ph === 'dusk') { sun = [1.08, 0.6, 0.32]; sky = [0.48, 0.42, 0.62]; gnd = [0.36, 0.26, 0.3]; lit = 0.8; dir = [-0.8, 0.5, 0.36]; top = [0.3, 0.32, 0.64]; bot = [1.0, 0.66, 0.42]; }
     else if (ph === 'dawn') { sun = [1.04, 0.8, 0.66]; sky = [0.52, 0.54, 0.74]; gnd = [0.38, 0.32, 0.34]; lit = 0.3; dir = [0.2, 0.75, 0.42]; top = [0.42, 0.6, 0.9]; bot = [1.0, 0.8, 0.7]; }

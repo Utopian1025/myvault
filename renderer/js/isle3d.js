@@ -18,6 +18,7 @@
       col = C(col);
       const ax = (b[0] - a[0]) * MU, ay = (b[1] - a[1]) * MU, az = (b[2] - a[2]) * MZ, bx = (c[0] - a[0]) * MU, by = (c[1] - a[1]) * MU, bz = (c[2] - a[2]) * MZ;
       let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+      if (this.nFn) { const nn = this.nFn([(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]); if (nn) { nx = nn[0]; ny = nn[1]; nz = nn[2]; } } // 树冠：按整团的球面受光（原神的做法），叶子不再各自乱亮乱暗
       for (const q of [a, b, c]) { this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(nx, ny, nz); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); }
       return this;
     }
@@ -102,7 +103,7 @@
     leaf(c, a, tilt, s, col, sw = 1) {
       const ca = Math.cos(a), sa = Math.sin(a), t1 = [-sa * s * 0.5, ca * s * 0.5, 0], t2 = [ca * s * 0.42 * Math.cos(tilt), sa * s * 0.42 * Math.cos(tilt), s * 1.15 * Math.sin(tilt)];
       const P = (i, j) => [c[0] + t1[0] * i + t2[0] * j, c[1] + t1[1] * i + t2[1] * j, c[2] + t1[2] * i + t2[2] * j];
-      const o = this.sway; this.sway = sw; this.tri(P(-1, -0.6), P(1, -0.6), P(0, 1.3), col, 8); this.tri(P(-1, -0.6), P(0, -1.2), P(1, -0.6), col, 8); this.sway = o; return this;
+      const o = this.sway; this.sway = sw; const N = 7, ctr = P(0, 0.05); for (let k = 0; k < N; k++) { const a0 = (k / N) * 6.2832, a1 = ((k + 1) / N) * 6.2832; this.tri(ctr, P(Math.cos(a0) * 1.05, Math.sin(a0) * 1.15), P(Math.cos(a1) * 1.05, Math.sin(a1) * 1.15), col, 8); } this.sway = o; return this; // 圆润的叶片（七边形，像一片小圆叶），不尖
     }
     // 一蓬叶子：n 片叶子贴在椭球面上，颜色深浅不一；里面垫一个暗色的芯，不会透
     foliage(u, v, z, r, rz, cols, n = 60, seed = 1, ls = 0.7) {
@@ -111,7 +112,8 @@
       const big = Math.max(r, rz), nl = big > 1.3 ? Math.min(6, 2 + Math.floor(big * 0.9)) : 1, lobes = [];
       if (nl === 1) lobes.push([u, v, z, r, rz]);
       else { lobes.push([u, v, z + rz * 0.12, r * 0.62, rz * 0.62]); for (let k = 1; k < nl; k++) { const f = (k / (nl - 1)) * 6.2832 + R(k + 300) * 1.2, d = 0.42 + R(k + 310) * 0.18, hz = (R(k + 320) - 0.45) * 0.7; lobes.push([u + Math.cos(f) * r * d, v + Math.sin(f) * r * d, z + rz * hz, r * (0.48 + R(k + 330) * 0.16), rz * (0.5 + R(k + 340) * 0.16)]); } }
-      const o = this.sway; this.sway = 0.5; for (const [a, b, c, rr, rzz] of lobes) this.blob(a, b, c, rr * 0.9, rzz * 0.9, C(cols[0]).map((x) => x * 0.6), 8, seed + a, 4, 7); this.sway = o;
+      const nf0 = this.nFn; this.nFn = (q) => { let best = null, bd = 1e9; for (const L of lobes) { const d = ((q[0] - L[0]) / L[3]) ** 2 + ((q[1] - L[1]) / L[3]) ** 2 + ((q[2] - L[2]) / L[4]) ** 2; if (d < bd) { bd = d; best = L; } } const x = (q[0] - best[0]) * MU / best[3], y = (q[1] - best[1]) * MU / best[3], zz = (q[2] - best[2]) * MZ / best[4] + 0.25, l = Math.hypot(x, y, zz) || 1; return [x / l, y / l, zz / l]; };
+      const o = this.sway; this.sway = 0.5; for (const [a, b, c, rr, rzz] of lobes) this.blob(a, b, c, rr * 0.92, rzz * 0.92, C(cols[0]).map((x) => x * 0.82), 8, seed + a, 4, 7); this.sway = o;
       const inside = (q, skip) => lobes.some((L, k) => k !== skip && ((q[0] - L[0]) / (L[3] * 0.92)) ** 2 + ((q[1] - L[1]) / (L[3] * 0.92)) ** 2 + ((q[2] - L[2]) / (L[4] * 0.92)) ** 2 < 1);
       let id = 0;
       lobes.forEach(([a, b, c, rr, rzz], k) => {
@@ -119,12 +121,12 @@
         for (let i = 0; i < want; i++, id++) {
           const t = Math.acos(1 - 1.8 * R(id)), f = R(id + 500) * 6.2832, kk = 0.9 + 0.2 * R(id + 900), q = [a + Math.sin(t) * Math.cos(f) * rr * kk, b + Math.sin(t) * Math.sin(f) * rr * kk, c + Math.cos(t) * rzz * kk];
           if (nl > 1 && inside(q, k)) continue;
-          const up = Math.cos(t), sh = (0.62 + 0.5 * Math.max(0, up)) * (0.85 + 0.3 * R(id + 33)), ci = up > 0.45 && cols.length > 1 ? 1 + Math.floor(R(id + 77) * (cols.length - 1)) : Math.floor(R(id + 77) * cols.length);
+          const up = Math.cos(t), sh = (0.88 + 0.14 * Math.max(0, up)) * (0.95 + 0.1 * R(id + 33)), /* 叶子之间的明暗差小一点：整团像一个柔软的球，不碎 */ ci = up > 0.45 && cols.length > 1 ? 1 + Math.floor(R(id + 77) * (cols.length - 1)) : Math.floor(R(id + 77) * cols.length);
           const col = C(cols[ci]).map((x) => Math.min(1, x * sh));
-          this.leaf(q, f + (R(id + 5) - 0.5) * 1.2, 0.15 + (1 - t / 3.14) * 0.55, ls * (0.6 + 0.35 * R(id + 9)), col, 0.6 + 0.6 * R(id + 3));
+          this.leaf(q, f + (R(id + 5) - 0.5) * 1.2, 0.15 + (1 - t / 3.14) * 0.55, ls * (0.62 + 0.3 * R(id + 9)), col, 0.6 + 0.6 * R(id + 3));
         }
       });
-      return this;
+      this.nFn = nf0; return this;
     }
     // 草丛：一撮细长的草叶
     tuft(u, v, z, h, n = 5, col = '#5aa64e', seed = 1) {
@@ -320,7 +322,7 @@
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
       float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.93,0.95,1.08), vec3(1.05,1.0,0.9), b);
-      float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,1.14); // 天空之城 / 原神：颜色干净饱满，暗面偏蓝而不是发灰
+      float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,0.98); // 天空之城 / 原神：颜色干净饱满，暗面偏蓝而不是发灰
     } else { // 二次元的光：明暗两档之间软软地过渡；暗面偏冷的蓝紫，亮面偏暖
       float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.94,0.96,1.07)*1.1, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
     { /* 高光：金属亮、瓦片有一点光泽、石头微微反光（太阳照到的地方才有） */ float ks= m==12?0.42 : (m==1||m==21)?0.13 : (m==3||m==16)?0.05 : 0.0, shin= m==12?42.0 : (m==1||m==21)?26.0 : 12.0;
@@ -336,7 +338,7 @@
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
     if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     if(uPost<0.5 && uPick<0.5){ // 调色：稍微鲜艳一点；第一人称里物体边上一圈淡淡的天光、远处融进天色（空气感）
-      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.13);
+      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,0.96); lit=lit*0.94+vec3(0.035,0.035,0.04); /* 原神 / 塞尔达：明亮但柔和，饱和度不往上推；暗部稍微提亮一点，不压得很死 */
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
     // 水下的东西：从水面上往下看，越深越融进深蓝绿里（只看得见浅处的屋顶、露出来的塔尖）；人潜在水下时按距离看不远（十几格以外就看不清了）

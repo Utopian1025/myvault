@@ -34,8 +34,8 @@
   /* 配色「林间白石城」：石灰白的墙、浅色石头的圆塔（长着苔藓）、石板蓝和苔绿的屋顶、生了铜绿的铜件、深胡桃木、白色的翅膀。
      整体是森林里的淡色石头房子：颜色不抢，靠绿植、暖灯、花点缀 */
   const C = {
-    CREAM: '#f7ebd0', CREAM2: '#ecd8b4', STONE: '#dcc9a2', STONE2: '#b59c74', BRICK: '#cf8f68', IRON: '#9a978c', IRON2: '#7e7c74', RUST: '#9a8268', RUST2: '#857058', COP: '#4fae98', COP2: '#3a917e',
-    TILE: '#3d72a0', TILE2: '#33628c', SHING: '#c9653f', TIMBER: '#5c3b26', WOOD: '#c9965c', WOOD2: '#b0804a', GOLD: '#e2bc5a', GLASS: '#bfeaf6', WING: '#f4f0e6', WING2: '#d6cfbf', PLANK: '#a8794a', MOSS: '#6aae3c',
+    CREAM: '#f7ebd0', CREAM2: '#ecd8b4', STONE: '#dcc9a2', STONE2: '#b59c74', BRICK: '#c49478', IRON: '#9a978c', IRON2: '#7e7c74', RUST: '#9a8268', RUST2: '#857058', COP: '#78a89a', COP2: '#628f84',
+    TILE: '#6283a0', TILE2: '#56758f', SHING: '#c08066', TIMBER: '#5c3b26', WOOD: '#c29a6c', WOOD2: '#a9845c', GOLD: '#d8bc78', GLASS: '#cce6ee', WING: '#f4f0e6', WING2: '#d6cfbf', PLANK: '#a8805a', MOSS: '#86a868',
     TOWER: '#e8d8b4', TOWER2: '#d6c39c',
   };
 
@@ -604,7 +604,7 @@
       // 锥形的木瓦屋顶：出檐一圈，屋面上几块苔藓，顶上一根小木尖
       const ov = rad + 0.9, hR = rad * 1.25;
       m.cyl(cu, cv, z, z + 0.4, ov, ov, C.TIMBER, M.plank, 28); m.cyl(cu, cv, z + 0.4, z + 0.4 + hR, ov, 0.2, snow ? '#e8eef4' : (r.lv === 2 ? C.TILE : C.SHING), snow ? M.snow : M.tile, 28);
-      if (!snow) for (let k = 0; k < 4; k++) { const a = k * 1.7 + rad, f = 0.35 + H(k, rad) * 0.4; m.blob(cu + Math.cos(a) * ov * (1 - f), cv + Math.sin(a) * ov * (1 - f), z + 0.4 + hR * f, 0.8, 0.3, ['#6aae3c', '#8cc44a'][k % 2], M.grass, k); }
+      if (!snow) for (let k = 0; k < 4; k++) { const a = k * 1.7 + rad, f = 0.35 + H(k, rad) * 0.4; m.blob(cu + Math.cos(a) * ov * (1 - f), cv + Math.sin(a) * ov * (1 - f), z + 0.4 + hR * f, 0.8, 0.3, ['#86a868', '#9cb878'][k % 2], M.grass, k); }
       m.cyl(cu, cv, z + 0.4 + hR, z + 1.8 + hR, 0.12, 0.05, C.TIMBER, M.plank, 5); return; }
     m.cyl(cu, cv, z, z + 1, rad + 0.6, rad + 0.6, C.STONE2, M.stone, 28, !up, o.snow ? '#eef4fa' : '#9a8e7e'); // 上面还有房间：不封口（楼上的地板就是顶，楼梯井那儿是空的）
     if (up) { const n = Math.round(rad * 4); for (let i = 0; i < n; i += 2) { const a = (i / n) * 6.2832, x = cu + Math.cos(a) * (rad + 0.3), y = cv + Math.sin(a) * (rad + 0.3); m.box(x - 0.4, y - 0.4, z + 1, x + 0.4, y + 0.4, z + 2, C.STONE, M.stone); } return; }
@@ -888,7 +888,7 @@
   }
   // ---------- 植物：城堡和植物长在一起 ----------
   // 爬山虎顺着墙往上爬、小树从台子边上斜着长出来、根和藤从底下垂下去、平屋顶和檐口上长草开花
-  const LEAF = (o) => (o.season === 'autumn' ? ['#d8823a', '#c8582e', '#e0a040', '#8a9a3a'] : o.season === 'spring' ? ['#7ccf4e', '#a2e05e', '#58b048', '#f6c4d6'] : ['#3f8f3a', '#5cb048', '#7cc44e', '#2f7a3a']);
+  const LEAF = (o) => (o.season === 'autumn' ? ['#d8823a', '#c8582e', '#e0a040', '#8a9a3a'] : o.season === 'spring' ? ['#8cc06a', '#a8cc7c', '#74ac5e', '#f2cad6'] : ['#5f9a4c', '#78b25a', '#94c46a', '#548c46']);
   /* 这个点在不在某间屋子里面（爬藤、树叶不能长进屋里：墙外贴着别的房间或小隔间的地方，藤就不长） */
   const inAnyRoom = (x, y, z) => ROOMS.some((r) => z > Z[r.lv] + 0.2 && z < Z[r.lv] + roomH(r) + 0.5 && inRoom(r, x, y, 0.1));
   function vine(m, o, pts, seed, r = 0.55) {
@@ -1210,6 +1210,17 @@
         if (!gap && i % 8 === 4 && !cut) { const q = P1(am, R1 - 0.15); m.box(q[0] - 0.07, q[1] - 0.07, z + 3.3, q[0] + 0.07, q[1] + 0.07, z + 5.3, C.TIMBER, M.metal); m.cyl(q[0], q[1], z + 4.5, z + 4.85, 0.16, 0.24, '#f2c070', M.glow, 8, false); m.cyl(q[0], q[1], z + 4.85, z + 5.2, 0.24, 0.16, '#f2c070', M.glow, 8, false); m.cyl(q[0], q[1], z + 5.2, z + 5.32, 0.18, 0.18, C.TIMBER, M.metal, 8); m.cyl(q[0], q[1], z + 4.4, z + 4.5, 0.17, 0.17, C.TIMBER, M.metal, 8); } // 回廊栏杆上隔一段一盏小灯笼
         if (!gap) { const q0 = P1(a0, R1 - 0.15), q1 = P1(a1, R1 - 0.15); m.quad([q0[0], q0[1], z + 3.0], [q1[0], q1[1], z + 3.0], [q1[0], q1[1], z + 3.3], [q0[0], q0[1], z + 3.3], C.TIMBER, M.plank); if (i % 2 === 0) m.box(q0[0] - 0.1, q0[1] - 0.1, z, q0[0] + 0.1, q0[1] + 0.1, z + 3.1, C.TIMBER, M.plank); }
         if (i % 6 === 0 && lv > 1) { const b0 = P1(am, R1 - 0.4), b1 = P1(am, R0 + 0.2); m.quad([b0[0] - 0.15, b0[1] - 0.15, z - 0.8], [b0[0] + 0.15, b0[1] + 0.15, z - 0.8], [b1[0] + 0.15, b1[1] + 0.15, z - 4.5], [b1[0] - 0.15, b1[1] - 0.15, z - 4.5], C.TIMBER, M.plank); } } }
+    /* 树托着房子（0.34）：每间圆木屋底下，从树干长出一根粗枝，到屋子下面分成三根「手指」，往上捧住屋子的底边，指尖冒出一小撮叶子——
+       房子是长在树上的，不是挂在回廊上的 */
+    const tubeP = (pts0, r0, r1, col) => { const pts = []; for (let i = 0; i + 1 < pts0.length; i++) { const p0 = pts0[Math.max(0, i - 1)], p1 = pts0[i], p2 = pts0[i + 1], p3 = pts0[Math.min(pts0.length - 1, i + 2)]; for (let k = 0; k < 4; k++) { const t = k / 4, t2 = t * t, t3 = t2 * t; pts.push([0, 1, 2].map((j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3))); } } pts.push(pts0[pts0.length - 1]);
+      const n = 8, rings = pts.map((p, i) => { const q = pts[Math.min(pts.length - 1, i + 1)], o2 = pts[Math.max(0, i - 1)], d = [q[0] - o2[0], q[1] - o2[1], q[2] - o2[2]], L = Math.hypot(...d) || 1, t = d.map((x) => x / L), up = Math.abs(t[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; let x = [t[1] * up[2] - t[2] * up[1], t[2] * up[0] - t[0] * up[2], t[0] * up[1] - t[1] * up[0]]; const xl = Math.hypot(...x); x = x.map((v) => v / xl); const y = [t[1] * x[2] - t[2] * x[1], t[2] * x[0] - t[0] * x[2], t[0] * x[1] - t[1] * x[0]], r = r0 + (r1 - r0) * i / (pts.length - 1);
+        return Array.from({ length: n }, (_, k) => { const a2 = (k / n) * 6.2832; return [p[0] + (x[0] * Math.cos(a2) + y[0] * Math.sin(a2)) * r, p[1] + (x[1] * Math.cos(a2) + y[1] * Math.sin(a2)) * r, p[2] + (x[2] * Math.cos(a2) + y[2] * Math.sin(a2)) * r]; }); });
+      for (let i = 0; i + 1 < rings.length; i++) for (let k = 0; k < n; k++) { const A = rings[i][k], B = rings[i][(k + 1) % n], Cc = rings[i + 1][(k + 1) % n], Dd = rings[i + 1][k]; m.quad(A, B, Cc, Dd, k % 2 ? col : bark2, M.plank); } };
+    if (!cut) for (const r of ROOMS) { if (!r.pod || r.noShell || !r.c) continue; if (ROOMS.some((q) => q !== r && q.c && q.lv === r.lv - 1 && Math.hypot(q.c[0] - r.c[0], q.c[1] - r.c[1]) < 1)) continue; // 叠在别的屋子上面的不用托
+      const z0 = Z[r.lv], a = r.deg * D2R, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, rc = r.rc, rad = r.c[2], P1 = (rr, z, w = 0) => [cx + ux * rr + nx * w, cy + uy * rr + ny * w, z];
+      const hub = P1(rc - rad * 0.15, z0 - 1.9); tubeP([P1(7.4, z0 - 7), P1(9.5, z0 - 5.2), P1(rc - rad * 0.7, z0 - 2.8), hub], 0.85, 0.5, bark);
+      for (const ph of [-0.95, 0, 0.95]) { const e = P1(rc + Math.cos(ph) * (rad + 0.3), z0 + 0.15, Math.sin(ph) * (rad + 0.3)), mid = P1(rc + Math.cos(ph) * rad * 0.62, z0 - 1.25, Math.sin(ph) * rad * 0.62); tubeP([hub, mid, e], 0.42, 0.15, bark);
+        if (!snow) m.foliage(e[0] + ux * 0.4, e[1] + uy * 0.4, z0 + 0.7, 0.85, 0.55, LEAF(o), 14, Math.round(r.deg * 7 + ph * 10), 0.55); } }
     // 白帆：两根横桅从树干上伸出去，挂着两面帆（替代原来的翅膀：岛靠浮石浮着，帆借风转向，舵台拉绳）
     if (!cut) for (const [deg, zTop, zBot, len] of [[0, 46, 24, 25], [205, 46, 35, 23]]) { const a = deg * D2R, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, P1 = (r, z, w = 0) => [cx + ux * r + nx * w, cy + uy * r + ny * w, z];
       if (CITY) CITY.rootLine(m, [P1(7, zTop - 1), P1(16, zTop + 0.5), P1(len, zTop)], 0.5, 0.25, '#6a5040');
