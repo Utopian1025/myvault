@@ -322,7 +322,7 @@
   }
   const DPR = () => window.devicePixelRatio || 1;
   // 像素块最多 2 个屏幕点：放大时看得清细节，不会越放越糊
-  const pixOn = () => !(G.save && S().islePix === false), pixD = () => (pixOn() ? Math.min(Math.max(2, Math.round(DPR() * 2)), Math.max(1, Math.round(L.u * DPR() * 0.3))) : 1), pixK = () => pixD() / DPR();
+  const pixOn = () => !!(G.save && S().islePix === true), /* 0.32：默认精细（按屏幕实际像素画、平滑光照），像素风要自己在设置里打开 */ pixD = () => (pixOn() ? Math.min(Math.max(2, Math.round(DPR() * 2)), Math.max(1, Math.round(L.u * DPR() * 0.3))) : 1), pixK = () => pixD() / DPR();
   function clipOf() {
     const r = focus && RM[focus]; if (!r) return null; const top = Z[r.lv] + F.roomH(r) + 0.6;
     const lo = Z[r.lv] - 1.2; if (r.c) return [r.c[0], r.c[1], 1, 0, 1, 1, top, r.c[2] + 0.9, lo];
@@ -333,7 +333,7 @@
   function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } try { relicFit(); } catch (e) {} }
     const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
-    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
+    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), msaa: !pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
     const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), relics: E().relics || {} });

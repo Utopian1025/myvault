@@ -282,7 +282,8 @@
           <label>屋里的灯 <select class="lmode">${opt([['auto', '自动（天一暗就开）'], ['time', '按时段开'], ['on', '一直开着'], ['off', '一直关着']], s.lightMode || 'auto')}</select></label>
           ${(s.lightMode || 'auto') === 'time' ? `<label>从 <select class="lfrom">${opt(Array.from({ length: 24 }, (_, h) => [String(h), h + ':00']), String(s.lightFrom != null ? s.lightFrom : 18))}</select> 开到 <select class="lto">${opt(Array.from({ length: 25 }, (_, h) => [String(h), h === 24 ? '24:00' : h + ':00']), String(s.lightTo != null ? s.lightTo : 24))}</select></label>` : ''}
           <div class="muted">每间房门边的墙上有个电灯开关，第一人称里对准它点一下就能开 / 关这间的灯。</div>
-          <label>画质 <select class="fpq">${opt([['fine', '精细'], ['pixel', '像素风']], s.fpQ || 'fine')}</select></label>
+          <label>第一人称画质 <select class="fpq">${opt([['fine', '精细'], ['pixel', '像素风']], s.fpQ || 'fine')}</select></label>
+          <label>城堡视图画质 <select class="isleq">${opt([['fine', '精细（按屏幕实际像素画）'], ['pixel', '像素风（一块块的）']], s.islePix === true ? 'pixel' : 'fine')}</select></label>
           <label>视野 <select class="fpfov">${(() => { const v = U.clamp(+s.fpFov || 78, 50, 110), L = [[60, '窄 60°'], [78, '适中 78°'], [90, '宽 90°'], [105, '很宽 105°']]; if (!L.some(([k]) => k === v)) L.push([v, '现在 ' + v + '°']); return opt(L.sort((a, b) => a[0] - b[0]), v); })()}</select></label>`,
       };
       const draw = () => {
@@ -306,7 +307,7 @@
         on('.fpmouse', 'onchange', (e) => { s.fpMouse = e.target.checked; sv(); }); on('.fpinvx', 'onchange', (e) => { s.fpInvX = e.target.checked; sv(); }); on('.fpinvy', 'onchange', (e) => { s.fpInvY = e.target.checked; sv(); });
         on('.lmode', 'onchange', (e) => { s.lightMode = e.target.value; sv(); draw(); }); on('.lfrom', 'onchange', (e) => { s.lightFrom = +e.target.value; sv(); }); on('.lto', 'onchange', (e) => { s.lightTo = +e.target.value; sv(); });
         on('.fpmap', 'onchange', (e) => { s.fpMap = e.target.checked; sv(); }); on('.fpajump', 'onchange', (e) => { s.fpAutoJump = e.target.checked; sv(); }); on('.fpfull', 'onchange', (e) => { s.fpFull = e.target.checked; sv(); });
-        on('.fpq', 'onchange', (e) => { s.fpQ = e.target.value; sv(); }); on('.fpfov', 'onchange', (e) => { s.fpFov = +e.target.value; sv(); });
+        on('.fpq', 'onchange', (e) => { s.fpQ = e.target.value; sv(); }); on('.isleq', 'onchange', (e) => { s.islePix = e.target.value === 'pixel'; sv(); PP.isle && PP.isle.redraw && PP.isle.redraw(); }); on('.fpfov', 'onchange', (e) => { s.fpFov = +e.target.value; sv(); });
         b.querySelectorAll('[data-r]').forEach((x) => (x.onclick = () => R(x.dataset.r)));
       };
       box.querySelector('.stabs').addEventListener('click', (e) => { const t = e.target.closest('[data-t]'); if (t) { cur = t.dataset.t; draw(); } });
