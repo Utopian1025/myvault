@@ -1390,7 +1390,7 @@
     const Fv = [cy * cp, sy * cp, sp], Uv = [-cy * sp, -sy * sp, cp], Rv = [-sy, cy, 0], E = [cam.eye[0] * MU, cam.eye[1] * MU, cam.eye[2] * MZ];
     const f = 1 / Math.tan(cam.fov / 2), asp = ps.w / ps.h, D = 2.3, K = 1.9, m = new g3.Mesh();
     const hx = (c) => { const n = parseInt(String(c).replace('#', '').slice(0, 6), 16) || 0; return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }, mixc = (a, b, k) => { const A = hx(a), B = hx(b); return A.map((x, i) => x + (B[i] - x) * k); };
-    const fur = mixc(ps.pal[0], ps.pal[1], 0.12), furD = mixc(ps.pal[0], ps.pal[2], 0.25), SLV = hx('#6fa7b4'), CUF = hx('#f3ead6');
+    const fur = mixc(ps.pal[0], ps.pal[1], 0.12), furD = mixc(ps.pal[0], ps.pal[2], 0.25), SLV = hx('#6fa7b4'), CUF = hx('#e8dcc0');
     function hand(st, mir) {
       const xn = (st.x / 100) * 2 - 1, yn = 1 - (st.y / 100) * 2, rx0 = xn * D * asp / f, uy0 = yn * D / f, cr = Math.cos(st.r), sr = Math.sin(st.r), k = (st.k || 1) * K, tilt = 0.45, ct = Math.cos(tilt), stt = Math.sin(tilt);
       const W = (a, b, c) => { a *= mir; let b2 = b * ct - c * stt, c2 = b * stt + c * ct; const a3 = a * cr + b2 * sr, b3 = -a * sr + b2 * cr; const X = rx0 + a3 * k, Y = uy0 + b3 * k, Zf = D + c2 * k; return [(E[0] + Rv[0] * X + Uv[0] * Y + Fv[0] * Zf) / MU, (E[1] + Rv[1] * X + Uv[1] * Y + Fv[1] * Zf) / MU, (E[2] + Rv[2] * X + Uv[2] * Y + Fv[2] * Zf) / MZ]; };
@@ -1402,8 +1402,8 @@
         for (let i = 0; i < n; i++) { const a0 = (i / n) * 6.2832, a1 = ((i + 1) / n) * 6.2832, Q = (p, r, a) => [p[0] + (x[0] * Math.cos(a) + y[0] * Math.sin(a)) * r, p[1] + (x[1] * Math.cos(a) + y[1] * Math.sin(a)) * r, p[2] + (x[2] * Math.cos(a) + y[2] * Math.sin(a)) * r]; T(Q(p0, r0, a0), Q(p0, r0, a1), Q(p1, r1, a1), col); T(Q(p0, r0, a0), Q(p1, r1, a1), Q(p1, r1, a0), col); } };
       const g = U.clamp(st.g || 0, 0, 1);
       // 袖子、袖口
-      tube([0.02, -1.4, 0.25], [0, -0.06, 0], 0.2, 0.15, SLV, 12); tube([0, -0.12, 0], [0, 0.06, 0], 0.165, 0.16, CUF, 12); tube([0, -0.13, 0], [0, -0.12, 0], 0.15, 0.165, CUF, 12);
-      for (let i = 0; i < 10; i++) { const a = (i / 10) * 6.2832; tube([Math.cos(a) * 0.162, -0.11, Math.sin(a) * 0.162], [Math.cos(a) * 0.158, 0.05, Math.sin(a) * 0.158], 0.012, 0.012, mixc('#f3ead6', '#c8b898', 0.5), 4); } // 罗纹
+      tube([0.02, -1.4, 0.25], [0, -0.06, 0], 0.2, 0.15, SLV, 12); tube([0, -0.12, 0], [0, 0.04, 0], 0.152, 0.148, CUF, 12); tube([0, -0.13, 0], [0, -0.12, 0], 0.14, 0.152, CUF, 12);
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * 6.2832; tube([Math.cos(a) * 0.15, -0.11, Math.sin(a) * 0.15], [Math.cos(a) * 0.146, 0.03, Math.sin(a) * 0.146], 0.01, 0.01, mixc('#e8dcc0', '#b8a888', 0.5), 4); } // 罗纹
       // 手掌：一个扁扁的圆胖椭球 + 手背上一点鼓起
       ell([0, 0.2, 0.02], [0.14, 0.17, 0.075], fur); ell([0, 0.2, -0.03], [0.1, 0.11, 0.04], mixc(ps.pal[0], ps.pal[1], 0.3), 5, 8);
       // 四根手指：每根两节，握东西时往前（往掌心）卷
@@ -1531,7 +1531,7 @@
     const ofs = { x: Math.sin(ph * 0.5) * 2.2 * bobA + fp._hlx, y: Math.abs(Math.sin(ph * 0.5)) * 2.6 * bobA - 1.3 * bobA + br * (1 - Math.min(1, bobA)) + fp._hly + fp._hdy };
     const tap = fp.useT ? U.clamp((now - fp.useT) / 420, 0, 1) : 1, tapK = tap < 1 ? Math.sin(tap * Math.PI) * (1 - tap * 0.4) : 0; // 刚点了一下：往前探一下再收回
     // 右手、左手的目标姿势（屏幕上的位置按 s = 短边的 1%；r 转角；k 远近缩放；g 握着东西 / 张开）
-    const R0 = { x: 77, y: 86, r: -0.2, k: 1.1, g: 0 }, Lout = { x: 18, y: 135, r: 0.2, k: 1, g: 0 };
+    const R0 = { x: 78, y: 91, r: -0.25, k: 1.05, g: 0.35 }, Lout = { x: 18, y: 135, r: 0.2, k: 1, g: 0 };
     let RT = { ...R0 }, LT = { ...Lout };
     const sit = fp.pose === 'sit' || fp.pose === 'lie'; if (sit) { RT.y += 6; RT.r -= 0.1; }
     if (fp.crouch) RT.y += 3;
