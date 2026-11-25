@@ -2380,5 +2380,6 @@
     };
     if (!G.isle) { PP.setView && PP.setView('isle'); setTimeout(run, 1400); } else run();
   }
+  Object.assign(fpDebug, { liftGo: (lv) => liftGo(lv), glide: () => fpGlideKey(), hot: () => (fp ? hotFromId(fpPick(L.vw / 2, L.vh / 2)) : null), use: () => fpUse(null), relicGet: (i) => relicGet(F.RELICS[i]), props: () => props() }); // 试玩脚本用
   PP.isle = { questGo, fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();
