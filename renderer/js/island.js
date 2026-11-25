@@ -962,7 +962,9 @@
   const stepAt = (u, v) => (area().ramps.some((r) => u > r.u0 - 0.4 && u < r.u1 + 0.4 && v > r.v0 - 0.4 && v < r.v1 + 0.4) ? 1.75 : STEP);
   const lvAt = (z) => { let lv = 0; for (let L = 0; L < Z.length; L++) if (Z[L] <= z + STEP) lv = L; return lv; };
   // ---- 开始 / 结束 ----
-  function fpStart() {
+  /* 3D 手：进第一人称时在后台把 9 种握拳程度的手先算好（每种第一次要算 0.3 秒），之后只查表，不卡 */
+  function handWarm() { const HS = PP.HANDS; if (!HS || !fp) return; const C = fp.p.pal || {}, pal = [C.base || '#d9a066', C.light || '#f4dcb8', C.dark || '#8a5a3a']; let i = 0; const step = () => { if (!fp || i > 8) return; try { HS.hand(i / 8, pal); } catch (e) {} i++; setTimeout(step, 350); }; setTimeout(step, 600); }
+  function fpStart() { setTimeout(handWarm, 0);
     if (!G.isle) { PP.setView && PP.setView('isle'); setTimeout(fpStart, 300); return; }
     const p = mainP(); if (!p) { PP.ui.toast('主角现在不在城堡里'); return; }
     if (fedit) furnEdit(false);
@@ -1385,36 +1387,28 @@
      手腕在屏幕上的位置、转角、握拳程度都来自 drawHands 里的弹簧（fp._vmPose），换算到镜头前 2.2 的地方 */
   let vmGpu = null;
   function buildVM() {
-    const ps = fp._vmPose; if (!ps || !ps.R || ps.R.x == null) return null;
+    const ps = fp._vmPose, HS = PP.HANDS; if (!ps || !ps.R || ps.R.x == null || !HS) return null;
     const cam = fpCam(), MU = 2.83, MZ = 1.155, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
     const Fv = [cy * cp, sy * cp, sp], Uv = [-cy * sp, -sy * sp, cp], Rv = [-sy, cy, 0], E = [cam.eye[0] * MU, cam.eye[1] * MU, cam.eye[2] * MZ];
     const f = 1 / Math.tan(cam.fov / 2), asp = ps.w / ps.h, D = 2.3, K = 1.9, m = new g3.Mesh();
-    const hx = (c) => { const n = parseInt(String(c).replace('#', '').slice(0, 6), 16) || 0; return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }, mixc = (a, b, k) => { const A = hx(a), B = hx(b); return A.map((x, i) => x + (B[i] - x) * k); };
-    const fur = mixc(ps.pal[0], ps.pal[1], 0.12), furD = mixc(ps.pal[0], ps.pal[2], 0.25), SLV = hx('#6fa7b4'), CUF = hx('#e8dcc0');
-    function hand(st, mir) {
-      const xn = (st.x / 100) * 2 - 1, yn = 1 - (st.y / 100) * 2, rx0 = xn * D * asp / f, uy0 = yn * D / f, cr = Math.cos(st.r), sr = Math.sin(st.r), k = (st.k || 1) * K, tilt = 0.45, ct = Math.cos(tilt), stt = Math.sin(tilt);
-      const W = (a, b, c) => { a *= mir; let b2 = b * ct - c * stt, c2 = b * stt + c * ct; const a3 = a * cr + b2 * sr, b3 = -a * sr + b2 * cr; const X = rx0 + a3 * k, Y = uy0 + b3 * k, Zf = D + c2 * k; return [(E[0] + Rv[0] * X + Uv[0] * Y + Fv[0] * Zf) / MU, (E[1] + Rv[1] * X + Uv[1] * Y + Fv[1] * Zf) / MU, (E[2] + Rv[2] * X + Uv[2] * Y + Fv[2] * Zf) / MZ]; };
-      const T = (A, B, C, col) => (mir > 0 ? m.tri(W(...A), W(...B), W(...C), col, 0) : m.tri(W(...A), W(...C), W(...B), col, 0));
-      // 椭球（局部坐标）
-      const ell = (c, r, col, la = 7, lo = 10) => { for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const P = (ii, jj) => { const th = (ii / la) * Math.PI - Math.PI / 2, ph = (jj / lo) * 6.2832; return [c[0] + Math.cos(th) * Math.cos(ph) * r[0], c[1] + Math.sin(th) * r[1], c[2] + Math.cos(th) * Math.sin(ph) * r[2]]; }; const a = P(i, j), b = P(i + 1, j), c2 = P(i + 1, j + 1), d = P(i, j + 1); T(a, c2, b, col); T(a, d, c2, col); } };
-      // 圆台（两点之间）
-      const tube = (p0, p1, r0, r1, col, n = 10) => { const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(...d) || 1, z = d.map((x) => x / L), t0 = Math.abs(z[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]; let x = [z[1] * t0[2] - z[2] * t0[1], z[2] * t0[0] - z[0] * t0[2], z[0] * t0[1] - z[1] * t0[0]]; const xl = Math.hypot(...x); x = x.map((q) => q / xl); const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
-        for (let i = 0; i < n; i++) { const a0 = (i / n) * 6.2832, a1 = ((i + 1) / n) * 6.2832, Q = (p, r, a) => [p[0] + (x[0] * Math.cos(a) + y[0] * Math.sin(a)) * r, p[1] + (x[1] * Math.cos(a) + y[1] * Math.sin(a)) * r, p[2] + (x[2] * Math.cos(a) + y[2] * Math.sin(a)) * r]; T(Q(p0, r0, a0), Q(p0, r0, a1), Q(p1, r1, a1), col); T(Q(p0, r0, a0), Q(p1, r1, a1), Q(p1, r1, a0), col); } };
-      const g = U.clamp(st.g || 0, 0, 1);
-      // 袖子、袖口
-      tube([0.02, -1.4, 0.25], [0, -0.06, 0], 0.2, 0.15, SLV, 12); tube([0, -0.12, 0], [0, 0.04, 0], 0.152, 0.148, CUF, 12); tube([0, -0.13, 0], [0, -0.12, 0], 0.14, 0.152, CUF, 12);
-      for (let i = 0; i < 10; i++) { const a = (i / 10) * 6.2832; tube([Math.cos(a) * 0.15, -0.11, Math.sin(a) * 0.15], [Math.cos(a) * 0.146, 0.03, Math.sin(a) * 0.146], 0.01, 0.01, mixc('#e8dcc0', '#b8a888', 0.5), 4); } // 罗纹
-      // 手掌：一个扁扁的圆胖椭球 + 手背上一点鼓起
-      ell([0, 0.2, 0.02], [0.14, 0.17, 0.075], fur); ell([0, 0.2, -0.03], [0.1, 0.11, 0.04], mixc(ps.pal[0], ps.pal[1], 0.3), 5, 8);
-      // 四根手指：每根两节，握东西时往前（往掌心）卷
-      for (let i = 0; i < 4; i++) { const fx = -0.1 + i * 0.066, len = i === 0 || i === 3 ? 0.085 : 0.1, base = [fx, 0.33 - (i === 0 || i === 3 ? 0.015 : 0), 0.02], spread = (i - 1.5) * 0.05 * (1 - g);
-        const a1 = 0.15 + g * 1.3, a2 = 0.25 + g * 1.5, j1 = [base[0] + spread * len * 3, base[1] + Math.cos(a1) * len, base[2] + Math.sin(a1) * len], j2 = [j1[0] + spread * len * 2, j1[1] + Math.cos(a1 + a2) * len * 0.85, j1[2] + Math.sin(a1 + a2) * len * 0.85];
-        tube(base, j1, 0.034, 0.031, fur, 8); ell(j1, [0.032, 0.032, 0.032], fur, 5, 8); tube(j1, j2, 0.031, 0.027, fur, 8); ell(j2, [0.028, 0.03, 0.028], i === 3 ? furD : fur, 5, 8); ell(base, [0.035, 0.03, 0.035], fur, 5, 8); }
-      // 拇指：从手掌内侧斜着伸出来
-      { const b0 = [0.12, 0.12, 0.05], a = 0.7 - g * 0.3, j1 = [b0[0] + Math.cos(a) * 0.07, b0[1] + Math.sin(a) * 0.07, b0[2] + 0.02 + g * 0.05], j2 = [j1[0] + Math.cos(a + 0.4) * 0.06 - g * 0.04, j1[1] + Math.sin(a + 0.4) * 0.06, j1[2] + 0.02 + g * 0.05];
-        tube(b0, j1, 0.04, 0.034, fur, 8); ell(j1, [0.034, 0.034, 0.034], fur, 5, 8); tube(j1, j2, 0.034, 0.028, fur, 8); ell(j2, [0.029, 0.03, 0.029], furD, 5, 8); }
-    }
-    hand(ps.R, 1); if (ps.twoL && ps.L && ps.L.x != null && ps.L.y < 125) hand(ps.L, -1);
+    // 局部（a 右、b 上、c 前）→ 世界：先绕横轴往前倾一点、再按弹簧给的转角转，最后放到手腕在屏幕上的那个点（镜头前 D 远）
+    const frame = (st, mir, tilt = 0.45) => { const xn = (st.x / 100) * 2 - 1, yn = 1 - (st.y / 100) * 2, rx0 = xn * D * asp / f, uy0 = yn * D / f, cr = Math.cos(st.r), sr = Math.sin(st.r), k = (st.k || 1) * K, ct = Math.cos(tilt), stt = Math.sin(tilt);
+      const rot = (a, b, c) => { a *= mir; const b2 = b * ct - c * stt, c2 = b * stt + c * ct; return [a * cr + b2 * sr, -a * sr + b2 * cr, c2]; };
+      const pos = (p) => { const [a, b, c] = rot(p[0], p[1], p[2]), X = rx0 + a * k, Y = uy0 + b * k, Zf = D + c * k; return [(E[0] + Rv[0] * X + Uv[0] * Y + Fv[0] * Zf) / MU, (E[1] + Rv[1] * X + Uv[1] * Y + Fv[1] * Zf) / MU, (E[2] + Rv[2] * X + Uv[2] * Y + Fv[2] * Zf) / MZ]; };
+      const nor = (n) => { const [a, b, c] = rot(n[0], n[1], n[2]); return [Rv[0] * a + Uv[0] * b + Fv[0] * c, Rv[1] * a + Uv[1] * b + Fv[1] * c, Rv[2] * a + Uv[2] * b + Fv[2] * c]; };
+      const scr = (p) => { const [a, b, c] = rot(p[0], p[1], p[2]), X = rx0 + a * k, Y = uy0 + b * k, Zf = D + c * k; return [ps.x0 + ps.w / 2 + X * f / asp / Zf * (ps.w / 2), ps.y0 + ps.h / 2 - Y * f / Zf * (ps.h / 2)]; };
+      return { pos, nor, scr }; };
+    const emit = (geo, fr) => { for (let i = 0; i + 2 < geo.length; i += 3) { const a = geo[i], b = geo[i + 1], c = geo[i + 2]; m.triN(fr.pos(a[0]), fr.pos(b[0]), fr.pos(c[0]), fr.nor(a[1]), fr.nor(b[1]), fr.nor(c[1]), a[2], b[2], c[2], a[3] || 0); } };
+    const kind = ps.kind, R = ps.R, Lh = ps.L, frR = frame(R, 1), showL = ps.twoL && Lh && Lh.x != null && Lh.y < 125, frL = showL ? frame(Lh, -1) : null;
+    emit(HS.hand(R.g || 0, ps.pal), frR); if (showL) emit(HS.hand(Lh.g || 0, ps.pal), frL);
+    // 手里的东西
+    fp._tip = null;
+    if (kind === 'can' || kind === 'water') emit(HS.item('can'), frR);
+    else if (kind === 'rod' || kind === 'fish') { emit(HS.item('rod'), frR); fp._tip = frR.scr(HS.rodTip()); }
+    else if (kind === 'snack') emit(HS.item('bun'), frame({ x: R.x - 4, y: R.y - 12, r: 0, k: R.k }, 1, 0.2));
+    if (showL && (kind === 'seed' || kind === 'sow')) emit(HS.item('pouch'), frL);
+    if (showL && kind === 'harvest') emit(HS.item('basket'), frL);
+    if (showL && (kind === 'wood' || kind === 'eat')) { const mid = { x: (R.x + Lh.x) / 2, y: Math.min(R.y, Lh.y) - (kind === 'eat' ? 16 : 10), r: 0, k: (R.k + Lh.k) / 2 }; emit(HS.item(kind === 'wood' ? 'logs' : 'bun'), frame(mid, 1, kind === 'eat' ? 0.2 : 0.1)); }
     return m;
   }
   function liftPop(from, x, y) {
@@ -1569,7 +1563,7 @@
        平时看到的是手背（自己的手从第一人称看就是手背），握东西时四个指头卷过来盖在东西前面 */
     const SLV = '#6fa7b4', SLV_D = '#4f8796', SLV_L = '#9cc9d2', CUFF = '#f3ead6', CUFF_D = '#d8ccb0';
     const showPaw = false; /* 0.33：手改成 3D 模型（buildVM），这里只画手里拿的东西 */
-    fp._vmPose = { R: Object.assign({}, fp._hR), L: Object.assign({}, fp._hL), twoL: LT !== Lout || fp._hL.y < 128, w, h, pal: [base, light, dark] };
+    fp._vmPose = { R: Object.assign({}, fp._hR), L: Object.assign({}, fp._hL), twoL: LT !== Lout || fp._hL.y < 128, w, h, pal: [base, light, dark], kind, el, x0, y0 };
     function arm(st, mir, under) { if (!showPaw) return; g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k);
       // 袖子：微微张开的筒，暗面在外侧
       g.beginPath(); g.moveTo(-7.4 * s, 5 * s); g.bezierCurveTo(-8.6 * s, 22 * s, -10.5 * s, 40 * s, -12 * s, 64 * s); g.lineTo(12.5 * s, 64 * s); g.bezierCurveTo(10.6 * s, 40 * s, 8.8 * s, 22 * s, 7.6 * s, 5 * s); g.closePath();
@@ -1645,17 +1639,19 @@
     // 画的先后：先左手（远一点），再右手；握着的东西夹在掌心和卷起的指头之间
     g.shadowColor = 'rgba(20,10,30,.28)'; g.shadowBlur = 3 * s; g.shadowOffsetY = 1.2 * s;
     const L = fp._hL, Rh = fp._hR, Lheld = kind === 'seed' || kind === 'sow' ? pouch : kind === 'harvest' ? basket : null;
+    if (!PP.HANDS || S().fpHands === false) { /* 关掉手的时候还用平面的手持物；开着时手和手里的东西都是 3D（buildVM） */
     if (twoL) { arm(L, -1, true); g.shadowColor = 'transparent'; inHand(L, -1, Lheld || (() => {})); g.shadowColor = 'rgba(20,10,30,.28)'; }
     if (kind === 'wood') { arm(Rh, 1, true); g.shadowColor = 'transparent'; const mx = (L.x + Rh.x) / 2 * sx, my = Math.min(L.y, Rh.y) * sy; g.save(); g.translate(mx, my); logs(); g.restore(); inHand(L, -1, () => {}); inHand(Rh, 1, () => {}); }
     else if (kind === 'eat') { arm(Rh, 1, true); g.shadowColor = 'transparent'; const mx = (L.x + Rh.x) / 2 * sx, my = Math.min(L.y, Rh.y) * sy + 2 * s; g.save(); g.translate(mx, my); bun(Math.min(4, Math.floor(el / 0.8))); g.restore(); inHand(L, -1, () => {}); inHand(Rh, 1, () => {}); }
     else { const held = kind === 'can' || kind === 'water' ? can : kind === 'rod' || kind === 'fish' ? rod : kind === 'snack' ? () => bun(0) : kind === 'harvest' && fp._hv ? veg1 : null;
       arm(Rh, 1, !!held || Rh.g > 0.3); g.shadowColor = 'transparent'; if (held || Rh.g > 0.3) inHand(Rh, 1, held || (() => {})); }
+    }
     g.shadowColor = 'transparent';
     // 浇水：从莲蓬头洒下来的一串水（屏幕上往下落）
     if (kind === 'water' && el > 0.45) { const [tx, ty] = toScreen(Rh, 1, -31.4 * s, -25 * s); for (let i = 0; i < 26; i++) { const k = ((t * 1.7 + i / 26) % 1), spread = (i % 5 - 2) * 1.4 * s; const px = tx - k * 4 * s + spread * k * 2, py = ty + k * k * 40 * s + k * 6 * s; g.globalAlpha = 0.75 * (1 - k); g.fillStyle = '#bfe6ff'; g.beginPath(); g.ellipse(px, py, 0.6 * s, 1.4 * s, 0, 0, 6.283); g.fill(); } g.globalAlpha = 1; }
     // 撒种：甩手那一下，种子划着弧线往前下方飞出去
     if (kind === 'sow' && fp._sowF != null) { const c = fp._sowF, [tx, ty] = toScreen(Rh, 1, 0, -12 * s); for (let i = 0; i < 9; i++) { const k = U.clamp((c - 0.5) / 0.4 + i * 0.03, 0, 1); if (k <= 0) continue; const px = tx - k * (18 + i * 3) * s, py = ty - Math.sin(k * Math.PI) * (6 + i % 3) * s + k * k * 26 * s; g.globalAlpha = 1 - k * 0.7; g.fillStyle = i % 2 ? '#e8d090' : '#a8743a'; g.beginPath(); g.ellipse(px, py, 0.7 * s, 0.5 * s, i, 0, 6.283); g.fill(); } g.globalAlpha = 1; }
-    fp._tip = kind === 'rod' || kind === 'fish' ? toScreen(Rh, 1, 0, -78 * s).map((v, i) => v + (i ? y0 : x0)) : null;
+    if (!PP.HANDS || S().fpHands === false) fp._tip = kind === 'rod' || kind === 'fish' ? toScreen(Rh, 1, 0, -78 * s).map((v, i) => v + (i ? y0 : x0)) : null;
     // 按光线染色：夜里偏蓝暗、黄昏偏暖、水下偏青
     const ph2 = phase(), tint = fp.under ? 'rgba(30,110,140,.38)' : ph2 === 'night' ? 'rgba(28,36,80,.42)' : ph2 === 'dusk' ? 'rgba(255,140,90,.16)' : null;
     if (tint) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = tint; g.fillRect(0, 0, cv.width, cv.height); g.globalCompositeOperation = 'source-over'; }

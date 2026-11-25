@@ -22,6 +22,8 @@
       for (const q of [a, b, c]) { this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(nx, ny, nz); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); }
       return this;
     }
+    // 带每个顶点自己法线和颜色的三角形（光滑曲面：第一人称的手、手里的东西）
+    triN(a, b, c, na, nb, nc, ca, cb, cc, mat = 0) { const P = [a, b, c], N = [na, nb, nc], Cc = [C(ca), C(cb), C(cc)]; for (let i = 0; i < 3; i++) { const q = P[i], n = N[i], col = Cc[i]; this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(n[0], n[1], n[2]); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); } return this; }
     quad(a, b, c, d, col, mat) { const s0 = this.sway; if (s0 === 0) { this._bk = ((this._bk || 0) + 1) % 13; this.sway = mat === MAT.snow ? -0.0001 : -(1 + this._bk); } this.tri(a, b, c, col, mat); this.tri(a, c, d, col, mat); this.sway = s0; return this; }
     box(u0, v0, z0, u1, v1, z1, col, mat = 0, top, topMat) {
       // 每块方块一个先后号（存在摆动值里，用负数）：重合的面谁在前就固定了（见着色器）；积雪排最后，永远被地板盖住
