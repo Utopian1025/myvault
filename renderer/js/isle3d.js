@@ -199,8 +199,10 @@
   in vec3 aP; uniform mat3 uL; uniform vec3 uLs; uniform vec3 uLo;
   void main(){ vec3 m=vec3(aP.xy*${MU}, aP.z*${MZ}); vec3 s=(uL*m-uLo)*uLs; gl_Position=vec4(s.xy, -s.z, 1.0); }`;
   const FS = `#version 300 es
-  precision highp float; precision highp sampler2DShadow;
+  precision highp float; precision highp sampler2DShadow; precision highp sampler3D;
   in vec3 vW; in vec3 vN; in vec3 vC; in float vM; in vec3 vS; in float vD;
+  uniform sampler3D uVox; uniform vec3 uVoxO; uniform vec3 uVoxS; uniform float uVoxOn;
+  float vd(vec3 p){ vec3 t=(p-uVoxO)/uVoxS; if(t.x<0.0||t.y<0.0||t.z<0.0||t.x>1.0||t.y>1.0||t.z>1.0) return 0.0; return texture(uVox,t).r; }
   uniform vec3 uVd; uniform sampler2DShadow uSh; uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform vec3 uGndCol;
   uniform vec4 uRLa[40]; uniform vec4 uRLb[40]; uniform float uRLk[40]; uniform int uNRL; uniform float uLit; uniform float uTime; uniform float uCut; uniform float uPick; uniform float uH; uniform vec4 uPet[4]; uniform vec4 uPetZ[4]; uniform vec3 uRip[4]; uniform vec4 uLake; uniform vec3 uSkyTop; uniform vec3 uSkyBot; uniform float uRain; uniform float uInside; uniform float uShadow; uniform float uPost; uniform float uMode; uniform float uCel; uniform float uOcc; uniform float uGP; uniform vec4 uClip; uniform vec4 uClipS; uniform float uClipLo; uniform vec4 uFP;
   out vec4 o;
@@ -303,14 +305,26 @@
       vec2 q=vW.xy*0.9; float k1=ns(q+vec2(t*0.35,t*0.2)), k2=ns(q*1.7-vec2(t*0.25,-t*0.3)); float cs=pow(1.0-abs(k1-k2),10.0);
       c=mix(c, c*vec3(0.62,0.86,0.92)+vec3(0.02,0.08,0.1), clamp(dep/12.0,0.25,0.85)); c+=cs*vec3(0.55,0.8,0.75)*exp(-dep*0.06)*(n.z>0.3?1.0:0.5); emis=max(emis,0.18); } }
     float nl=max(dot(n,uSun),0.0);
-    float sh=1.0; if(uShadow>0.5 && vS.x>0.0&&vS.x<1.0&&vS.y>0.0&&vS.y<1.0){ float s=0.0; for(int i=-1;i<=1;i++) for(int j=-1;j<=1;j++) s+=texture(uSh, vec3(vS.xy+vec2(float(i),float(j))/2048.0*1.3, vS.z-0.0025)); sh=s/9.0; }
+    float sh=1.0; if(uShadow>0.5 && vS.x>0.0&&vS.x<1.0&&vS.y>0.0&&vS.y<1.0){ /* 软阴影：12 个采样点撒成泊松圆盘，边缘柔和（以前是 3×3 的方格） */
+      const vec2 PD[12]=vec2[12](vec2(-0.326,-0.406),vec2(-0.840,-0.074),vec2(-0.696,0.457),vec2(-0.203,0.621),vec2(0.962,-0.195),vec2(0.473,-0.480),vec2(0.519,0.767),vec2(0.185,-0.893),vec2(0.507,0.064),vec2(0.896,0.412),vec2(-0.322,-0.933),vec2(-0.792,-0.598));
+      float s=0.0; for(int i=0;i<12;i++) s+=texture(uSh, vec3(vS.xy+PD[i]*(2.4/2048.0), vS.z-0.0025)); sh=s/12.0; }
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
+    /* 体素「光追」（0.31）：整座城堡做成一张 3D 体素图，每个点沿法线和两侧打几条短光线，看身边被东西挡住多少（墙角、桌底、屋檐下变暗）；
+       再往正上方打一条光线看头顶有没有屋顶、树冠（有的话天光进不来，屋里、树荫下自然暗一层） */
+    float aoK=1.0, skyV=1.0;
+    if(uVoxOn>0.5 && uPick<0.5 && !lakeW && m!=6 && m!=10){ vec3 nw=normalize(vec3(n.x*${MU},n.y*${MU},n.z*${MZ})); vec3 tA=normalize(cross(nw, abs(nw.z)<0.9?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0))), tB=cross(nw,tA); vec3 pp=vW+nw*0.35;
+      float occ=vd(pp+nw*0.45)*0.28+vd(pp+nw*1.0)*0.22+vd(pp+nw*2.0)*0.14+vd(pp+nw*0.8+tA*0.9)*0.14+vd(pp+nw*0.8-tA*0.9)*0.14+vd(pp+nw*0.8+tB*0.9)*0.12+vd(pp+nw*0.8-tB*0.9)*0.12;
+      aoK=1.0-clamp(occ,0.0,1.0)*0.8;
+      float upB=max(max(vd(pp+vec3(0.0,0.0,2.5)),vd(pp+vec3(0.0,0.0,5.0))),max(vd(pp+vec3(0.0,0.0,9.0)),vd(pp+vec3(0.0,0.0,15.0)))); skyV=1.0-clamp(upB*1.3,0.0,1.0)*0.55; }
+    amb*=aoK*skyV;
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
       float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.93,0.95,1.08), vec3(1.05,1.0,0.9), b);
       float lu=dot(lit,vec3(0.3,0.55,0.15)); lit=mix(vec3(lu),lit,1.14); // 天空之城 / 原神：颜色干净饱满，暗面偏蓝而不是发灰
     } else { // 二次元的光：明暗两档之间软软地过渡；暗面偏冷的蓝紫，亮面偏暖
       float b=smoothstep(0.06,0.34,L); vec3 dark=c*amb*vec3(0.94,0.96,1.07)*1.1, bright=c*(amb+uSunCol*(0.55+0.45*L))*vec3(1.03,1.0,0.95); lit=mix(dark,bright,b); }
+    { /* 高光：金属亮、瓦片有一点光泽、石头微微反光（太阳照到的地方才有） */ float ks= m==12?0.42 : (m==1||m==21)?0.13 : (m==3||m==16)?0.05 : 0.0, shin= m==12?42.0 : (m==1||m==21)?26.0 : 12.0;
+      if(ks>0.0 && uPick<0.5){ vec3 Hh=normalize(normalize(uSun)+V); lit+=uSunCol*pow(max(dot(n,Hh),0.0),shin)*ks*sh*(1.0-uLit)*aoK; } }
     // 屋里的灯：每间房一盏，开着的时候整间屋子暖暖地亮起来（只照到这间房的范围、这一层的高度里）
     for(int i=0;i<40;i++){ if(i>=uNRL) break; float k=uRLk[i]; if(k<=0.01) continue; vec4 a=uRLa[i], b=uRLb[i]; if(vW.z<b.z-0.05||vW.z>b.w+0.05) continue;
       vec2 d=vW.xy-a.xy; float far;
@@ -318,6 +332,7 @@
       else { vec2 l=vec2(d.x*a.z+d.y*a.w, -d.x*a.w+d.y*a.z); if(abs(l.x)>b.x+0.3||abs(l.y)>b.y+0.3) continue; far=length(l/vec2(b.x,b.y))*0.75; }
       vec3 lp=vec3(a.xy, b.w-2.4), L2=normalize(lp-vW); float df=0.45+0.55*max(dot(n,L2),0.0);
       lit+=c*vec3(1.0,0.8,0.55)*k*df*(1.05-0.45*clamp(far,0.0,1.0))*0.95; }
+    lit*=mix(1.0,aoK,0.35); // 太阳光也被墙角吃掉一点（接触阴影）
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
     if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     if(uPost<0.5 && uPick<0.5){ // 调色：稍微鲜艳一点；第一人称里物体边上一圈淡淡的天光、远处融进天色（空气感）
@@ -411,6 +426,7 @@
     { const L = (o.rlights || []).slice(0, 40), A4 = new Float32Array(160), B4 = new Float32Array(160), K = new Float32Array(40); L.forEach((q, i) => { A4.set(q.a, i * 4); B4.set(q.b, i * 4); K[i] = q.k; }); if (u['uRLa[0]']) { gl.uniform4fv(u['uRLa[0]'], A4); gl.uniform4fv(u['uRLb[0]'], B4); gl.uniform1fv(u['uRLk[0]'], K); } if (u.uNRL) gl.uniform1i(u.uNRL, L.length); }
     gl.uniform3fv(u.uSkyTop, o.skyTop || [0.48, 0.72, 0.91]); gl.uniform3fv(u.uSkyBot, o.skyBot || [0.81, 0.92, 0.98]);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0);
+    if (u.uVoxOn) { const on = !!(voxT && o.vox !== false); gl.uniform1f(u.uVoxOn, on ? 1 : 0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_3D, on ? voxT.tex : null); gl.uniform1i(u.uVox, 1); if (on) { gl.uniform3fv(u.uVoxO, voxT.o); gl.uniform3fv(u.uVoxS, voxT.s); } gl.activeTexture(gl.TEXTURE0); }
     if (u.uGP) gl.uniform1f(u.uGP, 0);
     if (u.uLake) gl.uniform4fv(u.uLake, o.lake || [0, 0, 0, 0]); // 湖：圆心、半径、水面高度（水下光斑、发蓝）
     for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
@@ -423,5 +439,12 @@
     return cv;
   }
   function alpha(x, y) { if (!gl) return 0; const px = new Uint8Array(4); gl.readPixels(Math.round(x), Math.round(cv.height - y), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); return px[3]; }
-  PP.g3 = { Mesh, MAT, hex, init, upload, draw, alpha, canvas: () => cv, ok: () => init() };
+  /* 体素图：碰撞用的 0.25 格体素，2×2×2 合成一格（实心 1、树叶 0.45 的平均），传成 3D 纹理（线性插值，遮蔽过渡是软的） */
+  let voxT = null;
+  function setVox(V, vx, vz) { if (!init() || !V) return; const nx = Math.ceil(V.nx / 2), ny = Math.ceil(V.ny / 2), nz = Math.ceil(V.nz / 2), d = new Uint8Array(nx * ny * nz), g = V.g, NX = V.nx, NY = V.ny, NZ = V.nz;
+    for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let sum = 0; for (let c = 0; c < 8; c++) { const a = 2 * i + (c & 1), b = 2 * j + ((c >> 1) & 1), e = 2 * k + (c >> 2); if (a >= NX || b >= NY || e >= NZ) continue; const q = g[(e * NY + b) * NX + a]; if (q === 1) sum += 1; else if (q === 2) sum += 0.45; } d[(k * ny + j) * nx + i] = Math.min(255, Math.round(sum / 8 * 255 * 1.6)); }
+    if (!voxT) { voxT = { tex: gl.createTexture() }; } gl.bindTexture(gl.TEXTURE_3D, voxT.tex); gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage3D(gl.TEXTURE_3D, 0, gl.R8, nx, ny, nz, 0, gl.RED, gl.UNSIGNED_BYTE, d);
+    for (const [k2, v2] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_3D, k2, v2);
+    gl.bindTexture(gl.TEXTURE_3D, null); voxT.o = [V.u0, V.v0, V.z0]; voxT.s = [nx * 2 * vx, ny * 2 * vx, nz * 2 * vz]; }
+  PP.g3 = { setVox, Mesh, MAT, hex, init, upload, draw, alpha, canvas: () => cv, ok: () => init() };
 })();

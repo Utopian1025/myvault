@@ -329,7 +329,9 @@
     const a = r.rot || 0, [x0, y0, x1, y1] = r.r, c = r.rot ? F.toW(r, (x0 + x1) / 2, (y0 + y1) / 2) : [(x0 + x1) / 2, (y0 + y1) / 2];
     return [c[0], c[1], Math.cos(a), Math.sin(a), (x1 - x0) / 2 + 0.9, (y1 - y0) / 2 + 0.9, top, 0, lo];
   }
-  function viewOpts() { const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
+  let voxSent = null;
+  function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } }
+    const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
     return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
   function render3d() {
@@ -1346,6 +1348,33 @@
     PP.econ.addFish(30, '找到古城遗物'); gain(fp.p, '+30 小鱼干'); fp.relicShow = { r, t: performance.now(), n, all }; PP.sfx && PP.sfx('pop'); PP.save.soon();
     if (n === all) setTimeout(() => { PP.econ.addFish(200, '古城的秘密都找齐了'); PP.ui.toast('八件古城遗物都找齐了！+200 小鱼干——这座城的故事，你都知道了', 4); }, 2600);
   }
+  /* 光晕和逆光（0.31）：会发光的东西（码头灯笼、楼梯门灯笼、古城遗物、开着的屋里灯、地窖石炉）在画面上叠一圈柔和的光（看得见才画，用体素视线判断），夜里更亮；
+     对着太阳看、太阳没被挡住时，画面上有一团耀光、几道光芒和一串淡淡的镜头光斑（像原神里抬头看太阳） */
+  let glowPts = null, glowKey = '';
+  function fpGlow(ctx, x0, y0, w, h, now, cam, cyw, syw, cp, sp, f) {
+    const V = voxels(), ph = phase(), nightK = ph === 'night' ? 1 : ph === 'dusk' || ph === 'dawn' ? 0.6 : 0.18;
+    const P = (u, v, z) => { const mx = (u - cam.eye[0]) * 2.83, my = (v - cam.eye[1]) * 2.83, mz = (z - cam.eye[2]) * 1.155, rx = -mx * syw + my * cyw, fw = mx * cyw + my * syw, u2 = mz * cp - fw * sp, f2 = mz * sp + fw * cp; return f2 < 1 ? null : [x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), y0 + h / 2 - (u2 * f) / f2 * (h / 2), f2]; };
+    const seen = (u, v, z) => { if (!V) return true; const du = u - cam.eye[0], dv = v - cam.eye[1], dz = z - cam.eye[2], d = Math.hypot(du, dv, dz / 2.45), n = Math.ceil(d / 0.3); for (let i = 2; i < n - 2; i++) { const k = i / n; if (vAt(V, cam.eye[0] + du * k, cam.eye[1] + dv * k, cam.eye[2] + dz * k)) return false; } return true; };
+    const K = lightK, got = E().relics || {}, key = K.map((k) => (k > 0.5 ? 1 : 0)).join('') + Object.keys(got).join(',');
+    if (!glowPts || glowKey !== key) { glowKey = key; glowPts = [];
+      for (const [u, v] of F.LAMPS) glowPts.push([u, v + 0.5, 5.1, [255, 214, 140], 1]);
+      for (const [lv, deg] of [[1, 90], [2, 180], [3, 270]]) for (const sg of [-1, 1]) { const a = deg * Math.PI / 180 + sg * 0.3; glowPts.push([24 + Math.cos(a) * 8.7, 24 + Math.sin(a) * 8.7, Z[lv] + 7, [255, 206, 130], 0.8]); }
+      for (const r of F.RELICS || []) if (!got[r.id]) { const n2 = parseInt(r.col.slice(1), 16); glowPts.push([r.u, r.v, r.z + 1.6, [(n2 >> 16) & 255, (n2 >> 8) & 255, n2 & 255], 1.3, true]); }
+      F.lightBoxes().forEach((b, i) => { if (K[i] > 0.5) { const c2 = b.a; glowPts.push([c2[0], c2[1], b.b[3] - 2.6, [255, 220, 160], 1.1]); } });
+      const st = F.RM.store; if (st && st.c) { const a = st.deg * Math.PI / 180, fu = st.c[0] + Math.cos(a) * 3.2, fv = st.c[1] + Math.sin(a) * 3.2; glowPts.push([fu, fv, Z[1] + 1.5, [255, 150, 70], 1.2]); } }
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; const S0 = Math.min(w, h);
+    for (const [u, v, z, col, pw, under] of glowPts) { const q = P(u, v, z); if (!q || q[2] > 260) continue; if (q[0] < x0 - 80 || q[0] > x0 + w + 80 || q[1] < y0 - 80 || q[1] > y0 + h + 80) continue; if (!seen(u, v, z)) continue;
+      const dist = q[2] / 2.83, R2 = U.clamp(S0 * 0.9 / (dist + 4), 6, S0 * 0.22) * pw, al = (under ? 0.55 : 0.18 + 0.5 * nightK) * pw; const gr = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], R2);
+      gr.addColorStop(0, `rgba(${col[0]},${col[1]},${col[2]},${Math.min(0.9, al)})`); gr.addColorStop(0.25, `rgba(${col[0]},${col[1]},${col[2]},${al * 0.35})`); gr.addColorStop(1, `rgba(${col[0]},${col[1]},${col[2]},0)`); ctx.fillStyle = gr; ctx.fillRect(q[0] - R2, q[1] - R2, R2 * 2, R2 * 2); }
+    // 逆光：太阳的方向和天上画的太阳一致（方位 0.9、仰角 0.42）
+    if (nightK < 0.5 && !fp.under) { const az = 0.9, el = 0.42, dx = Math.cos(az) * Math.cos(el), dy = Math.sin(az) * Math.cos(el), dz = Math.sin(el) / 1.155 * 2.83, q = P(cam.eye[0] + dx * 4000, cam.eye[1] + dy * 4000, cam.eye[2] + dz * 4000);
+      if (q && q[0] > x0 - w * 0.3 && q[0] < x0 + w * 1.3 && q[1] > y0 - h * 0.3 && q[1] < y0 + h * 1.3) { let clear = true; if (V) for (let d = 1.5; d < 60; d += 0.5) if (vAt(V, cam.eye[0] + dx * d, cam.eye[1] + dy * d, cam.eye[2] + dz * d * 0.41)) { clear = false; break; }
+        fp._sunK = (fp._sunK || 0) + ((clear ? 1 : 0) - (fp._sunK || 0)) * 0.15; const k = fp._sunK * (1 - Math.min(1, Math.hypot(q[0] - (x0 + w / 2), q[1] - (y0 + h / 2)) / (w * 0.75)));
+        if (k > 0.02) { const R3 = S0 * 0.5, g2 = ctx.createRadialGradient(q[0], q[1], 0, q[0], q[1], R3); g2.addColorStop(0, `rgba(255,250,230,${0.85 * k})`); g2.addColorStop(0.12, `rgba(255,236,190,${0.4 * k})`); g2.addColorStop(1, 'rgba(255,230,180,0)'); ctx.fillStyle = g2; ctx.fillRect(q[0] - R3, q[1] - R3, R3 * 2, R3 * 2);
+          for (let i = 0; i < 8; i++) { const a = i * 0.785 + 0.2, L2 = S0 * (0.2 + (i % 2) * 0.14); ctx.strokeStyle = `rgba(255,244,214,${0.18 * k})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0] + Math.cos(a) * L2, q[1] + Math.sin(a) * L2); ctx.stroke(); }
+          const cx = x0 + w / 2, cy = y0 + h / 2; for (const [t2, r2, c3] of [[0.55, 0.05, '200,230,255'], [0.9, 0.025, '255,220,180'], [1.3, 0.07, '180,255,220'], [1.6, 0.035, '255,200,230']]) { const gx = q[0] + (cx - q[0]) * t2 * 1.4, gy = q[1] + (cy - q[1]) * t2 * 1.4, rr = S0 * r2; const g3b = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr); g3b.addColorStop(0, `rgba(${c3},${0.16 * k})`); g3b.addColorStop(1, `rgba(${c3},0)`); ctx.fillStyle = g3b; ctx.fillRect(gx - rr, gy - rr, rr * 2, rr * 2); } } } }
+    ctx.restore();
+  }
   function liftPop(from, x, y) {
     const el = document.createElement('div'); el.className = 'seedpick';
     el.innerHTML = `<div class="sp-head"><b>吊篮去哪层？</b></div><div class="sp-list">${[1, 2, 3].map((lv) => `<button class="sp" data-lv="${lv}" ${lv === from ? 'disabled' : ''}>${['', '🌊', '🌿', '🌳'][lv]}<b>${F.NAME[lv]}</b></button>`).join('')}</div>`;
@@ -1707,6 +1736,7 @@
       vis.push({ o, me, d: f2, sx: x0 + w / 2 + (rx * f / (w / h)) / f2 * (w / 2), sy: y0 + h / 2 - (u2 * f) / f2 * (h / 2), px: (PH * 1.155 * f / f2) * (h / 2) }); }
     vis.sort((a, b) => b.d - a.d); fp.vis = vis; // 留给「准星对着哪个伙伴」用
     for (const v of vis) { const o = v.o, keep = [o.x, o.y, o.scaleMul, o.isleHide, o.hopY]; o.x = v.sx; o.y = v.sy; o.hopY = 0; o._backView = v.me; /* 第三人称：主角背对着镜头 */ o.scaleMul = U.clamp(v.px / ((PP.SPR.HUMAN && PP.SPR.HUMAN.has(o.d.species) ? 37 : 28) * G.S), 0.15, 10); o.isleHide = false; try { o.render(ctx); if (!v.me && v.d < 60 && (o.bubble || o.d.note)) { o._fpDraw = true; o.renderOverlay(ctx); } } catch (e) {} o._fpDraw = false; o._backView = false; [o.x, o.y, o.scaleMul, o.isleHide, o.hopY] = keep; }
+    try { fpGlow(ctx, x0, y0, w, h, now, cam, cyw, syw, cp, sp, f); } catch (e) {}
     if (fp.under) try { /* 水下：整个画面泛蓝绿、越往下越暗；头顶斜斜的几道光；小气泡往上冒 */
       const LK = F.LAKE, dep = U.clamp((LK.z - (fp.q.z + EYE)) / 18, 0, 1), gr = ctx.createLinearGradient(0, y0, 0, y0 + h);
       gr.addColorStop(0, `rgba(40,120,135,${0.22 + dep * 0.25})`); gr.addColorStop(1, `rgba(8,40,52,${0.4 + dep * 0.38})`); /* 越深越暗 */ ctx.fillStyle = gr; ctx.fillRect(x0, y0, w, h);
