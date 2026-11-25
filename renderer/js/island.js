@@ -1019,7 +1019,7 @@
           <div class="r"><span>左右反过来</span><button data-a="invx" ${on(s.fpInvX)}>${s.fpInvX ? '开' : '关'}</button><span>上下反过来</span><button data-a="invy" ${on(s.fpInvY)}>${s.fpInvY ? '开' : '关'}</button></div>
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
-          <div class="r"><span>显示手</span><button data-a="hands" ${on(s.fpHands === true)}>${s.fpHands === true ? '开' : '关'}</button><small>关掉时只显示手里拿的东西</small></div>
+          <div class="r"><span>显示手</span><button data-a="hands" ${on(s.fpHands !== false)}>${s.fpHands !== false ? '开' : '关'}</button><small>关掉时只显示手里拿的东西</small></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
           <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高；在空中再按一下打开叶子滑翔伞）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· 准星对着东西 E / F / 单击，自动做对的事（种菜、浇水、收菜、钓鱼、摸摸伙伴）· 滚轮 镜头远近 · B 自己吃点东西 · M 或 Tab 地图 · P 设置 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
         </div>` : '');
@@ -1047,7 +1047,7 @@
     else if (a === 'drag') { s.fpDrag = s.fpDrag === 'grab' ? 'look' : 'grab'; sv(); }
     else if (a === 'qfine' || a === 'qpix') { s.fpQ = a === 'qpix' ? 'pixel' : 'fine'; sv(); }
     else if (a === 'mini') { s.fpMap = s.fpMap === false; sv(); }
-    else if (a === 'hands') { s.fpHands = s.fpHands !== true; sv(); }
+    else if (a === 'hands') { s.fpHands = s.fpHands === false; sv(); }
     else if (a === 'ajump') { s.fpAutoJump = s.fpAutoJump === false; sv(); }
     if (fp) fpBar();
   }
@@ -1380,6 +1380,43 @@
           const cx = x0 + w / 2, cy = y0 + h / 2; for (const [t2, r2, c3] of [[0.55, 0.05, '200,230,255'], [0.9, 0.025, '255,220,180'], [1.3, 0.07, '180,255,220'], [1.6, 0.035, '255,200,230']]) { const gx = q[0] + (cx - q[0]) * t2 * 1.4, gy = q[1] + (cy - q[1]) * t2 * 1.4, rr = S0 * r2; const g3b = ctx.createRadialGradient(gx, gy, 0, gx, gy, rr); g3b.addColorStop(0, `rgba(${c3},${0.16 * k})`); g3b.addColorStop(1, `rgba(${c3},0)`); ctx.fillStyle = g3b; ctx.fillRect(gx - rr, gy - rr, rr * 2, rr * 2); } } } }
     ctx.restore();
   }
+  /* ---- 第一人称的手：3D 模型（0.33）----
+     袖子（青绿针织）+ 奶白罗纹袖口 + 圆润的手掌 + 四根两节的手指 + 拇指，颜色跟着主角的毛色；
+     手腕在屏幕上的位置、转角、握拳程度都来自 drawHands 里的弹簧（fp._vmPose），换算到镜头前 2.2 的地方 */
+  let vmGpu = null;
+  function buildVM() {
+    const ps = fp._vmPose; if (!ps || !ps.R || ps.R.x == null) return null;
+    const cam = fpCam(), MU = 2.83, MZ = 1.155, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    const Fv = [cy * cp, sy * cp, sp], Uv = [-cy * sp, -sy * sp, cp], Rv = [-sy, cy, 0], E = [cam.eye[0] * MU, cam.eye[1] * MU, cam.eye[2] * MZ];
+    const f = 1 / Math.tan(cam.fov / 2), asp = ps.w / ps.h, D = 2.3, K = 1.9, m = new g3.Mesh();
+    const hx = (c) => { const n = parseInt(String(c).replace('#', '').slice(0, 6), 16) || 0; return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; }, mixc = (a, b, k) => { const A = hx(a), B = hx(b); return A.map((x, i) => x + (B[i] - x) * k); };
+    const fur = mixc(ps.pal[0], ps.pal[1], 0.12), furD = mixc(ps.pal[0], ps.pal[2], 0.25), SLV = hx('#6fa7b4'), CUF = hx('#f3ead6');
+    function hand(st, mir) {
+      const xn = (st.x / 100) * 2 - 1, yn = 1 - (st.y / 100) * 2, rx0 = xn * D * asp / f, uy0 = yn * D / f, cr = Math.cos(st.r), sr = Math.sin(st.r), k = (st.k || 1) * K, tilt = 0.45, ct = Math.cos(tilt), stt = Math.sin(tilt);
+      const W = (a, b, c) => { a *= mir; let b2 = b * ct - c * stt, c2 = b * stt + c * ct; const a3 = a * cr + b2 * sr, b3 = -a * sr + b2 * cr; const X = rx0 + a3 * k, Y = uy0 + b3 * k, Zf = D + c2 * k; return [(E[0] + Rv[0] * X + Uv[0] * Y + Fv[0] * Zf) / MU, (E[1] + Rv[1] * X + Uv[1] * Y + Fv[1] * Zf) / MU, (E[2] + Rv[2] * X + Uv[2] * Y + Fv[2] * Zf) / MZ]; };
+      const T = (A, B, C, col) => (mir > 0 ? m.tri(W(...A), W(...B), W(...C), col, 0) : m.tri(W(...A), W(...C), W(...B), col, 0));
+      // 椭球（局部坐标）
+      const ell = (c, r, col, la = 7, lo = 10) => { for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const P = (ii, jj) => { const th = (ii / la) * Math.PI - Math.PI / 2, ph = (jj / lo) * 6.2832; return [c[0] + Math.cos(th) * Math.cos(ph) * r[0], c[1] + Math.sin(th) * r[1], c[2] + Math.cos(th) * Math.sin(ph) * r[2]]; }; const a = P(i, j), b = P(i + 1, j), c2 = P(i + 1, j + 1), d = P(i, j + 1); T(a, c2, b, col); T(a, d, c2, col); } };
+      // 圆台（两点之间）
+      const tube = (p0, p1, r0, r1, col, n = 10) => { const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(...d) || 1, z = d.map((x) => x / L), t0 = Math.abs(z[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]; let x = [z[1] * t0[2] - z[2] * t0[1], z[2] * t0[0] - z[0] * t0[2], z[0] * t0[1] - z[1] * t0[0]]; const xl = Math.hypot(...x); x = x.map((q) => q / xl); const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+        for (let i = 0; i < n; i++) { const a0 = (i / n) * 6.2832, a1 = ((i + 1) / n) * 6.2832, Q = (p, r, a) => [p[0] + (x[0] * Math.cos(a) + y[0] * Math.sin(a)) * r, p[1] + (x[1] * Math.cos(a) + y[1] * Math.sin(a)) * r, p[2] + (x[2] * Math.cos(a) + y[2] * Math.sin(a)) * r]; T(Q(p0, r0, a0), Q(p0, r0, a1), Q(p1, r1, a1), col); T(Q(p0, r0, a0), Q(p1, r1, a1), Q(p1, r1, a0), col); } };
+      const g = U.clamp(st.g || 0, 0, 1);
+      // 袖子、袖口
+      tube([0.02, -1.4, 0.25], [0, -0.06, 0], 0.2, 0.15, SLV, 12); tube([0, -0.12, 0], [0, 0.06, 0], 0.165, 0.16, CUF, 12); tube([0, -0.13, 0], [0, -0.12, 0], 0.15, 0.165, CUF, 12);
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * 6.2832; tube([Math.cos(a) * 0.162, -0.11, Math.sin(a) * 0.162], [Math.cos(a) * 0.158, 0.05, Math.sin(a) * 0.158], 0.012, 0.012, mixc('#f3ead6', '#c8b898', 0.5), 4); } // 罗纹
+      // 手掌：一个扁扁的圆胖椭球 + 手背上一点鼓起
+      ell([0, 0.2, 0.02], [0.14, 0.17, 0.075], fur); ell([0, 0.2, -0.03], [0.1, 0.11, 0.04], mixc(ps.pal[0], ps.pal[1], 0.3), 5, 8);
+      // 四根手指：每根两节，握东西时往前（往掌心）卷
+      for (let i = 0; i < 4; i++) { const fx = -0.1 + i * 0.066, len = i === 0 || i === 3 ? 0.085 : 0.1, base = [fx, 0.33 - (i === 0 || i === 3 ? 0.015 : 0), 0.02], spread = (i - 1.5) * 0.05 * (1 - g);
+        const a1 = 0.15 + g * 1.3, a2 = 0.25 + g * 1.5, j1 = [base[0] + spread * len * 3, base[1] + Math.cos(a1) * len, base[2] + Math.sin(a1) * len], j2 = [j1[0] + spread * len * 2, j1[1] + Math.cos(a1 + a2) * len * 0.85, j1[2] + Math.sin(a1 + a2) * len * 0.85];
+        tube(base, j1, 0.034, 0.031, fur, 8); ell(j1, [0.032, 0.032, 0.032], fur, 5, 8); tube(j1, j2, 0.031, 0.027, fur, 8); ell(j2, [0.028, 0.03, 0.028], i === 3 ? furD : fur, 5, 8); ell(base, [0.035, 0.03, 0.035], fur, 5, 8); }
+      // 拇指：从手掌内侧斜着伸出来
+      { const b0 = [0.12, 0.12, 0.05], a = 0.7 - g * 0.3, j1 = [b0[0] + Math.cos(a) * 0.07, b0[1] + Math.sin(a) * 0.07, b0[2] + 0.02 + g * 0.05], j2 = [j1[0] + Math.cos(a + 0.4) * 0.06 - g * 0.04, j1[1] + Math.sin(a + 0.4) * 0.06, j1[2] + 0.02 + g * 0.05];
+        tube(b0, j1, 0.04, 0.034, fur, 8); ell(j1, [0.034, 0.034, 0.034], fur, 5, 8); tube(j1, j2, 0.034, 0.028, fur, 8); ell(j2, [0.029, 0.03, 0.029], furD, 5, 8); }
+    }
+    hand(ps.R, 1); if (ps.twoL && ps.L && ps.L.x != null && ps.L.y < 125) hand(ps.L, -1);
+    return m;
+  }
   function liftPop(from, x, y) {
     const el = document.createElement('div'); el.className = 'seedpick';
     el.innerHTML = `<div class="sp-head"><b>吊篮去哪层？</b></div><div class="sp-list">${[1, 2, 3].map((lv) => `<button class="sp" data-lv="${lv}" ${lv === from ? 'disabled' : ''}>${['', '🌊', '🌿', '🌳'][lv]}<b>${F.NAME[lv]}</b></button>`).join('')}</div>`;
@@ -1531,7 +1568,8 @@
     /* 0.30 重画：袖子（针织袖口）盖住前臂，只露出一只圆圆的小爪子；两档平涂的明暗 + 一道亮边（像原神的卡通光），
        平时看到的是手背（自己的手从第一人称看就是手背），握东西时四个指头卷过来盖在东西前面 */
     const SLV = '#6fa7b4', SLV_D = '#4f8796', SLV_L = '#9cc9d2', CUFF = '#f3ead6', CUFF_D = '#d8ccb0';
-    const showPaw = S().fpHands === true; /* 0.31：默认不画手（原神、塞尔达都不画），只画手里拿的东西；设置里可以打开 */
+    const showPaw = false; /* 0.33：手改成 3D 模型（buildVM），这里只画手里拿的东西 */
+    fp._vmPose = { R: Object.assign({}, fp._hR), L: Object.assign({}, fp._hL), twoL: LT !== Lout || fp._hL.y < 128, w, h, pal: [base, light, dark] };
     function arm(st, mir, under) { if (!showPaw) return; g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k);
       // 袖子：微微张开的筒，暗面在外侧
       g.beginPath(); g.moveTo(-7.4 * s, 5 * s); g.bezierCurveTo(-8.6 * s, 22 * s, -10.5 * s, 40 * s, -12 * s, 64 * s); g.lineTo(12.5 * s, 64 * s); g.bezierCurveTo(10.6 * s, 40 * s, 8.8 * s, 22 * s, 7.6 * s, 5 * s); g.closePath();
@@ -1728,7 +1766,8 @@
     try { drawBelow(ctx, x0, y0, w, h, now, lo); } catch (e) {}
     const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), relics: E().relics || {} });
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null; lastScenes = [s.gpu, dynMesh]; lastLO = lo;
-    const pix = fpQ() === 'pixel'; let cv = g3.draw(lastScenes, fpOpts()); if (cv && pix && pixOn()) cv = outline(cv);
+    const pix = fpQ() === 'pixel'; let vmM = null; try { const hm = S().fpHands !== false && fpCam().third < 0.6 ? buildVM() : null; vmM = hm && hm.p.length ? (vmGpu = g3.upload(hm, vmGpu)) : null; } catch (e) { vmM = null; fp._herr = String(e && e.stack || e); }
+    let cv = g3.draw(lastScenes, fpOpts(vmM ? { vm: vmM } : null)); if (cv && pix && pixOn()) cv = outline(cv);
     if (cv) { ctx.imageSmoothingEnabled = !pix; const k = fpK(); ctx.drawImage(cv, x0, y0, cv.width * k, cv.height * k); ctx.imageSmoothingEnabled = false; }
     // 动物：同一个房间（或者都在外面）才看得见，按远近画成立着的纸片；第三人称时也画出主角自己
     const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(cam.fov / 2), myRoom = F.roomAt(fp.q.u, fp.q.v, fp.q.lv);

@@ -433,6 +433,8 @@
     if (!o.pickAt && !o.mode && u.uGP && (o.fp || o.lake)) { gl.uniform1f(u.uGP, 1); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE); gl.depthMask(false);
       for (const s of scenes) { if (!s) continue; gl.bindVertexArray(s.vao); gl.drawArrays(gl.TRIANGLES, 0, s.count); }
       gl.depthMask(true); gl.disable(gl.BLEND); gl.uniform1f(u.uGP, 0); }
+    /* 第一人称的手（0.33）：真正的 3D 模型，和场景同一套光照阴影；先清掉深度再画，贴着墙也不会戳进墙里 */
+    if (o.vm && !o.pickAt && !o.mode) { gl.clear(gl.DEPTH_BUFFER_BIT); if (u.uVoxOn) gl.uniform1f(u.uVoxOn, 0); gl.bindVertexArray(o.vm.vao); gl.drawArrays(gl.TRIANGLES, 0, o.vm.count); }
     gl.bindVertexArray(null);
     if (o.pickAt) { const px = new Uint8Array(4); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.FRAMEBUFFER, null); return px[3] ? px[0] : -1; }
     if (typeof ms !== 'undefined' && ms) { gl.bindFramebuffer(gl.READ_FRAMEBUFFER, ms); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null); gl.blitFramebuffer(0, 0, W, H, 0, 0, W, H, gl.COLOR_BUFFER_BIT, gl.NEAREST); gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
