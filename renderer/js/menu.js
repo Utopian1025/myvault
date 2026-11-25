@@ -92,7 +92,7 @@
     const ec = PP.econ && PP.econ.E();
     const econMenu = ec ? { label: '小鱼干 · 成长', hint: T(`${ec.fish} 条${PP.econ.unread() ? ' · 有信' : ''}`), sub: [
       { id: 'econ:bag', label: '背包（零食、收成、装扮）' }, { id: 'econ:shop', label: '商店' }, { id: 'econ:trip', label: '探险' },
-      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和城堡' },
+      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:plant', label: '植物图鉴' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和城堡' },
       '-', { id: 'mode:isle', label: '去城堡（种地、进小屋）' },
     ] } : null;
     const viewMenu = { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
