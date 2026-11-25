@@ -351,13 +351,13 @@
        白天阳光从池口透进来（池口正下方一道道光柱更亮）、晚上是淡淡的月光；城中央的浮石发蓝光；人潜下去时头上的探照灯照亮看着的地方；
        远处慢慢融进水色（以前从上面往下看大半被压成深蓝绿，现在看得清） */
     if(uLake.z>0.0 && !lakeW && vW.z<uLake.w-0.05 && length(vW.xy-uLake.xy)<uLake.z){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); bool under=uFP.w>0.0 && eyeW.z<uLake.w;
-      vec3 sunUW=mix(vec3(0.17,0.25,0.36), vec3(0.6,0.84,0.88), uDay);
+      vec3 sunUW=mix(vec3(0.12,0.18,0.28), vec3(0.3,0.46,0.52), uDay);
       vec2 pc=clamp(vW.xy, uPond.xy, uPond.zw); float dP=length(vW.xy-pc), shaft=uPond.z>uPond.x ? exp(-dP*0.085) : 0.0;
-      vec3 Lw=sunUW*(0.8+0.45*shaft) + mix(vec3(0.45,0.55,0.85), vec3(1.0,0.95,0.82), uDay)*shaft*(0.35+0.3*max(n.z,0.0));
-      float dS=length(vW-uStone); Lw+=vec3(0.35,0.75,0.95)*2.2/(1.0+dS*dS*0.004);
-      if(under){ vec3 Pw=vec3(vW.xy*${MU}, vW.z*${MZ}), dv=Pw-uFP.xyz; float dd=length(dv); vec3 fwd=vec3(cos(uFP2.x)*cos(uFP2.y), sin(uFP2.x)*cos(uFP2.y), sin(uFP2.y)); float cone=smoothstep(0.8,0.96,dot(dv/max(dd,0.01),fwd)); Lw+=vec3(1.0,0.95,0.82)*(0.35+cone*2.4)/(1.0+dd*dd*0.0012); }
+      vec3 Lw=sunUW*(0.75+0.35*shaft) + mix(vec3(0.3,0.38,0.6), vec3(0.85,0.82,0.7), uDay)*shaft*(0.22+0.25*max(n.z,0.0));
+      float dS=length(vW-uStone); Lw+=vec3(0.3,0.65,0.85)*1.4/(1.0+dS*dS*0.004);
+      if(under){ vec3 Pw=vec3(vW.xy*${MU}, vW.z*${MZ}), dv=Pw-uFP.xyz; float dd=length(dv); vec3 fwd=vec3(cos(uFP2.x)*cos(uFP2.y), sin(uFP2.x)*cos(uFP2.y), sin(uFP2.y)); float cone=smoothstep(0.8,0.96,dot(dv/max(dd,0.01),fwd)); Lw+=vec3(1.0,0.95,0.82)*(0.08+cone*1.3)/(1.0+dd*dd*0.0016); }
       lit=c*Lw*(0.7+0.3*aoK) + c*emis*0.8;
-      vec3 deepC=mix(vec3(0.03,0.07,0.14), vec3(0.1,0.34,0.4), uDay); float k=under? smoothstep(12.0,40.0,length(vW-eyeW)) : smoothstep(4.0,28.0,uLake.w-vW.z)*0.72; lit*=mix(1.0,0.72,smoothstep(2.0,24.0,uLake.w-vW.z)); // 越深越暗、越蓝
+      vec3 deepC=mix(vec3(0.03,0.07,0.14), vec3(0.1,0.34,0.4), uDay); float k=under? smoothstep(10.0,36.0,length(vW-eyeW)) : smoothstep(3.0,26.0,uLake.w-vW.z)*0.8; lit*=mix(1.0,0.55,smoothstep(2.0,24.0,uLake.w-vW.z)); // 越深越暗、越蓝
       lit=mix(lit, deepC, k*(1.0-clamp(emis,0.0,1.0)*0.5)); }
     if(lakeW){ vec3 Vw=uFP.w>0.0? normalize(uFP.xyz/vec3(${MU},${MU},${MZ})-vW) : normalize(uVd); float fr=pow(1.0-abs(Vw.z),2.0); vec3 eyeW2=uFP.xyz/vec3(${MU},${MU},${MZ}); bool und=uFP.w>0.0 && eyeW2.z<uLake.w; o=vec4(lit, uPick>0.5?1.0:(und?0.3:clamp(0.32+0.5*fr,0.32,0.85))); return; } /* 池水清：正着往下看几乎透明，看得见底下的城 */ // 水是深的：从上面看大半看不透；潜到水下往上看才透亮 // 俯视时更透，看得见水下的古城 // 正着往下看最透，斜着看反光多
     o=vec4(lit,1.0);
