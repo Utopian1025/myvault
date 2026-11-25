@@ -75,10 +75,10 @@
   function item(kind, t) {
     if (itemCache.has(kind)) return itemCache.get(kind); const out = [], M = { flat: 0, metal: 12, plank: 2, cloth: 11 };
     if (kind === 'can') { // 铜绿旧水壶：圆滚滚的壶身、一圈黄铜箍、长壶嘴、莲蓬头、拱起的提手
-      const body = [-0.17, 0.2, 0.17], C1 = hex('#6f9e94'), C2 = hex('#c8a860');
+      const body = [-0.2, 0.34, 0.22], C1 = hex('#6f9e94'), C2 = hex('#c8a860');
       tube(out, [body[0] - 0.12, body[1], body[2]], [body[0] + 0.1, body[1], body[2]], 0.12, 0.115, C1, M.metal, 20); ball(out, [body[0] - 0.12, body[1], body[2]], [0.03, 0.12, 0.12], C1, M.metal, 8, 20); ball(out, [body[0] + 0.1, body[1], body[2]], [0.02, 0.115, 0.115], C1, M.metal, 8, 20);
       tube(out, [body[0] - 0.02, body[1], body[2]], [body[0] + 0.02, body[1], body[2]], 0.124, 0.124, C2, M.metal, 20, false);
-      tube(out, [body[0] - 0.08, body[1] + 0.02, body[2]], [-0.5, 0.36, body[2]], 0.035, 0.018, C1, M.metal, 12); ball(out, [-0.51, 0.375, body[2]], [0.04, 0.05, 0.05], C2, M.metal, 8, 12);
+      tube(out, [body[0] - 0.08, body[1] + 0.02, body[2]], [-0.54, body[1] + 0.16, body[2]], 0.035, 0.018, C1, M.metal, 12); ball(out, [-0.55, body[1] + 0.175, body[2]], [0.04, 0.05, 0.05], C2, M.metal, 8, 12);
       torusArc(out, [body[0] + 0.04, body[1] + 0.06, body[2]], 0.13, 0.018, -0.2, 3.0, [1, 0, 0], [0, 1, 0], C1, M.metal, 18, 8); }
     else if (kind === 'pouch') { const C1 = hex('#c9a46c'), C2 = hex('#8a6438'); ball(out, [0, 0.2, 0.08], [0.11, 0.12, 0.1], (p) => mixc(C1, hex('#b08a58'), 0.5 + 0.5 * Math.sin(p[0] * 60) * Math.sin(p[1] * 60)), M.cloth, 12, 18); tube(out, [0, 0.3, 0.08], [0, 0.36, 0.08], 0.05, 0.065, C1, M.cloth, 14); torusArc(out, [0, 0.31, 0.08], 0.052, 0.01, 0, 6.2832, [1, 0, 0], [0, 0, 1], C2, M.plank, 16, 6);
       for (let i = 0; i < 6; i++) ball(out, [(i - 2.5) * 0.017, 0.36, 0.08 + ((i % 2) - 0.5) * 0.02], [0.012, 0.008, 0.01], i % 2 ? hex('#e8d090') : hex('#a8743a'), M.flat, 4, 6); }
