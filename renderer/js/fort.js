@@ -202,9 +202,9 @@
   const RELICS = (() => { if (!PP.CITY) return []; const Cc = PP.CITY, L2 = Cc.LM, at = (deg, r) => { const u = TC[0] + Math.cos(deg * D2R) * r, v = TC[1] + Math.sin(deg * D2R) * r; return [u, v, Cc.groundZ(u, v) + 0.4]; };
     return [['candle', '教堂的银烛台', '烛台底下刻着一行小字：「愿灯火替我们守着这座城。」', 'cath', '#e8eef8'], ['seal', '市政厅的铜印章', '印章上是一棵大树——原来这座城的城徽就是头顶这棵古树。', 'hall', '#e0a050'],
       ['shield', '领主的家徽盾', '盾上画着一块浮在云上的石头，下面写着「它托起了我们」。', 'keep', '#c8504a'], ['jar', '集市的钱罐', '罐子里是一枚枚刻着鱼的小铜币——那时候大家也拿小鱼干当钱吗？', 'mkt', '#d8b050'],
-      ['bell', '钟塔的钟锤', '钟锤上缠着水草。据说城沉下去那天，钟一直响到最后。', 'clock', '#b0a080'], ['astro', '天文台的星盘', '星盘上的星星连起来，正好是今晚头顶的那几颗。', 'obs', '#90c0f0'],
+      ['bell', '圆殿里的钟锤', '钟锤上缠着水草。据说城沉下去那天，钟一直响到最后——后来有人把它搬进了圆殿，放在正中间。', 'rotunda', '#b0a080'], ['astro', '天文台的星盘', '星盘上的星星连起来，正好是今晚头顶的那几颗。', 'obs', '#90c0f0'],
       ['boat', '桥下的船铃', '小船早就朽了，只剩一个铃。摇一下，声音在水里传得很远。', 'bridge', '#a0d0c0'], ['shard', '浮石的碎片', '一小块会发光的石头，轻得像羽毛——就是它让整座岛浮在天上。', null, '#7fd8ff']].map(([id, nm, desc, lmK, col], i) => {
-      const p = lmK ? at(L2[lmK][0], L2[lmK][1] - (lmK === 'obs' ? 9.5 : lmK === 'mkt' ? 0 : 4)) : at(Cc.CRACK.t, Cc.CRACK.r - 2.4); return { i, id, nm, desc, col, u: p[0], v: p[1], z: p[2] }; }); })();
+      const p = lmK === 'rotunda' ? [Cc.ROTUNDA.u, Cc.ROTUNDA.v, Cc.groundZ(Cc.ROTUNDA.u, Cc.ROTUNDA.v) + 3.2] : lmK ? at(L2[lmK][0], L2[lmK][1] - (lmK === 'obs' ? 9.5 : lmK === 'mkt' ? 0 : 4)) : at(Cc.CRACK.t, Cc.CRACK.r - 2.4); return { i, id, nm, desc, col, u: p[0], v: p[1], z: p[2] }; }); })();
   const GAL_LAMPS = () => { const out = []; for (const lv of [1, 2, 3]) { const R1 = GAL[lv], gaps = ROOMS.filter((q) => q.pod && q.lv === lv && !q.noShell).map((q) => q.deg * D2R).concat(lv === 2 ? [RM.store.deg * D2R] : []).concat([72 * D2R]);
       for (let i = 4; i < 48; i += 8) { const am = ((i + 0.5) / 48) * 6.2832; if (gaps.some((g) => Math.abs(Math.atan2(Math.sin(am - g), Math.cos(am - g))) < 0.24)) continue; out.push([TC[0] + Math.cos(am) * (R1 - 0.15), TC[1] + Math.sin(am) * (R1 - 0.15), Z[lv] + 4.85]); } } return out; };
   /* 神龛（0.36）：岛西边草地上一座小小的石台神龛，朝着大树；里面供着一尊小佛像，前面一张供桌、一只铜香炉、一块挂许愿牌的木架。
