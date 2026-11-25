@@ -1003,7 +1003,7 @@
       fpBarEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
       fpBarEl.addEventListener('click', (ev) => { const b = ev.target.closest('[data-a]'); if (b) fpAct(b.dataset.a, b); }); }
     const s = S(), on = (v) => (v ? 'class="on"' : ''), sp = fpSpd(), si = SPDS.indexOf(sp), d = fpDist(), se = fpSens();
-    const fk = [s.fpAutoJump, s.fpFull, fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
+    const fk = [s.fpHands, s.fpAutoJump, s.fpFull, fpMenu, !!bigMap, sp, d, fpFovD(), se, lookPref(), s.fpInvX, s.fpInvY, s.fpDrag, fpQ(), s.fpMap !== false].join(',');
     if (fpBarEl.dataset.k !== fk) { fpBarEl.dataset.k = fk;
       const I = (a, ic, key, tip, x = '') => `<button data-a="${a}" ${x} title="${tip}"><i>${ic}</i><small>${key}</small></button>`; /* 像原神：右上角一排圆图标，下面标着按键；小地图在左上角，点一下打开大地图 */
       fpBarEl.innerHTML = I('map', '🗺', 'Tab', '大地图：点哪儿就自动走过去', on(bigMap)) + I('menu', '⚙', 'P', '设置：视角、镜头、鼠标、画质', on(fpMenu)) + I('full', s.fpFull ? '🗗' : '⛶', 'F11', s.fpFull ? '回到小窗口' : '铺满整个窗口', on(s.fpFull)) + I('out', '✕', 'Q', '回到上帝视角', 'class="primary"')
@@ -1017,6 +1017,7 @@
           <div class="r"><span>左右反过来</span><button data-a="invx" ${on(s.fpInvX)}>${s.fpInvX ? '开' : '关'}</button><span>上下反过来</span><button data-a="invy" ${on(s.fpInvY)}>${s.fpInvY ? '开' : '关'}</button></div>
           <div class="r"><span>拖动 / 触屏滑</span><button data-a="drag" class="wide">${s.fpDrag === 'grab' ? '拽画面：往左拖 → 往右看' : '转镜头：往左滑 → 往左看'}</button></div>
           <div class="r"><span>画质</span><button data-a="qfine" ${on(fpQ() === 'fine')}>精细</button><button data-a="qpix" ${on(fpQ() === 'pixel')}>像素风</button><span>小地图</span><button data-a="mini" ${on(s.fpMap !== false)}>${s.fpMap !== false ? '开' : '关'}</button></div>
+          <div class="r"><span>显示手</span><button data-a="hands" ${on(s.fpHands === true)}>${s.fpHands === true ? '开' : '关'}</button><small>关掉时只显示手里拿的东西</small></div>
           <div class="r"><span>自动跳</span><button data-a="ajump" ${on(s.fpAutoJump !== false)}>${s.fpAutoJump !== false ? '开' : '关'}</button><small>碰到矮东西自己跳上去</small></div>
           <div class="help">按键和常见游戏一样（GTA / 我的世界 / 原神）：WASD 走 · 鼠标转向 · 空格 跳（跑起来跳更高；在空中再按一下打开叶子滑翔伞）· Shift 跑 · 按住 Ctrl 或按 C 蹲下（矮的门、缝要蹲着过）· 准星对着东西 E / F / 单击，自动做对的事（种菜、浇水、收菜、钓鱼、摸摸伙伴）· 滚轮 镜头远近 · B 自己吃点东西 · M 或 Tab 地图 · P 设置 · V 切换第一 / 第三人称（近、远）· Z 坐下 / 躺下 · 按住 Alt 放出鼠标 · R 跑到屋顶下不来时回到地面 · F11 全屏 · H 显示 / 隐藏左下角的按键说明 · Q 退出 · Esc 老板键</div>
         </div>` : '');
@@ -1044,6 +1045,7 @@
     else if (a === 'drag') { s.fpDrag = s.fpDrag === 'grab' ? 'look' : 'grab'; sv(); }
     else if (a === 'qfine' || a === 'qpix') { s.fpQ = a === 'qpix' ? 'pixel' : 'fine'; sv(); }
     else if (a === 'mini') { s.fpMap = s.fpMap === false; sv(); }
+    else if (a === 'hands') { s.fpHands = s.fpHands !== true; sv(); }
     else if (a === 'ajump') { s.fpAutoJump = s.fpAutoJump === false; sv(); }
     if (fp) fpBar();
   }
@@ -1495,7 +1497,8 @@
     /* 0.30 重画：袖子（针织袖口）盖住前臂，只露出一只圆圆的小爪子；两档平涂的明暗 + 一道亮边（像原神的卡通光），
        平时看到的是手背（自己的手从第一人称看就是手背），握东西时四个指头卷过来盖在东西前面 */
     const SLV = '#6fa7b4', SLV_D = '#4f8796', SLV_L = '#9cc9d2', CUFF = '#f3ead6', CUFF_D = '#d8ccb0';
-    function arm(st, mir, under) { g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k);
+    const showPaw = S().fpHands === true; /* 0.31：默认不画手（原神、塞尔达都不画），只画手里拿的东西；设置里可以打开 */
+    function arm(st, mir, under) { if (!showPaw) return; g.save(); g.translate(st.x * sx, st.y * sy); g.rotate(st.r); g.scale(st.k * mir, st.k);
       // 袖子：微微张开的筒，暗面在外侧
       g.beginPath(); g.moveTo(-7.4 * s, 5 * s); g.bezierCurveTo(-8.6 * s, 22 * s, -10.5 * s, 40 * s, -12 * s, 64 * s); g.lineTo(12.5 * s, 64 * s); g.bezierCurveTo(10.6 * s, 40 * s, 8.8 * s, 22 * s, 7.6 * s, 5 * s); g.closePath();
       g.fillStyle = SLV; g.fill(); g.save(); g.clip(); g.fillStyle = SLV_D; g.beginPath(); g.moveTo(2.5 * s, 5 * s); g.bezierCurveTo(4 * s, 24 * s, 5 * s, 44 * s, 5.5 * s, 64 * s); g.lineTo(14 * s, 64 * s); g.lineTo(14 * s, 0); g.closePath(); g.fill();
@@ -1513,7 +1516,7 @@
       g.beginPath(); g.moveTo(-6.3 * s, 3 * s); g.bezierCurveTo(-7.2 * s, -2 * s, -7 * s, -6.5 * s, -5.6 * s, -8.5 * s - (1 - gr) * 1.2 * s); g.bezierCurveTo(-3 * s, -11.5 * s, 3.2 * s, -11.8 * s, 5.8 * s, -8.6 * s - (1 - gr) * 1 * s); g.bezierCurveTo(7.2 * s, -6.5 * s, 7.4 * s, -2 * s, 6.5 * s, 3 * s); g.closePath();
       g.fillStyle = fur; g.fill(); g.save(); g.clip(); g.fillStyle = furD; g.beginPath(); g.ellipse(8.2 * s, 0.5 * s, 4.2 * s, 10 * s, -0.2, 0, 6.283); g.fill(); g.fillStyle = furL; g.globalAlpha = 0.7; g.beginPath(); g.ellipse(-3.4 * s, -6.6 * s, 2.6 * s, 1.5 * s, -0.5, 0, 6.283); g.fill(); g.globalAlpha = 1; g.restore();
       g.strokeStyle = line; g.lineWidth = 0.6 * s; g.stroke(); }
-    function fingers(st, front) { const gr = st.g; // 四个圆圆的指头：张开时在爪子顶上（指缝两道浅线），握东西时卷到前面一排
+    function fingers(st, front) { if (!showPaw) return; const gr = st.g; // 四个圆圆的指头：张开时在爪子顶上（指缝两道浅线），握东西时卷到前面一排
       const top = -8.6 * s + gr * 4.2 * s, ry = (2.3 - gr * 0.5) * s;
       for (let i = 0; i < 4; i++) { const fx = (-4.3 + i * 2.9) * s, fy = top - (i === 1 || i === 2 ? 0.7 * s : 0) * (1 - gr) - ry * 0.4 * (1 - gr);
         g.beginPath(); g.ellipse(fx, fy, 1.75 * s, ry, (i - 1.5) * 0.1 * (1 - gr), 0, 6.283); g.fillStyle = i === 3 ? furD : fur; g.fill(); g.strokeStyle = line; g.lineWidth = 0.55 * s; g.stroke();

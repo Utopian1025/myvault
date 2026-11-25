@@ -47,7 +47,7 @@
   const A = TC, B = TC; // 老代码里的塔心：现在就是树心
   const GAL = { 1: 11.5, 2: 11, 3: 11 }; // 树腰回廊的外半径（L1 树脚平台、L2、L3）
   const TRUNK = { r: 8, hole: 6, post: 1.6 };
-  const POD = (id, nm, lv, deg, rad, o = {}) => { const rc = o.rc != null ? o.rc : GAL[lv] + rad - 0.6, [u, v] = polarW(deg, rc); return R(id, nm, lv, Object.assign({ c: [u, v, rad], r: [u - rad, v - rad, u + rad, v + rad] /* 外接正方形：给按长方形算的家具代码用 */, deg, rc, pod: true, out: '#f7ebd0', om: M.plaster, in: '#f6e8cc', im: M.wallpaper, fl: '#b88a5a', fm: M.plank, roof: 'cone', h: 11 }, o)); };
+  const POD = (id, nm, lv, deg, rad, o = {}) => { const rc = o.rc != null ? o.rc : GAL[lv] + rad - 0.6, [u, v] = polarW(deg, rc); return R(id, nm, lv, Object.assign({ c: [u, v, rad], r: [u - rad, v - rad, u + rad, v + rad] /* 外接正方形：给按长方形算的家具代码用 */, deg, rc, pod: true, out: '#f7ebd0', om: M.plaster, in: '#f0d6a8', im: M.plaster, fl: '#b88a5a', fm: M.plank, roof: 'cone', h: 11 }, o)); };
   const ROOMS = [
     POD('hall', '门厅', 1, 90, 5.5, { fl: '#9a8a78', fm: M.stone }),
     POD('kitchen', '厨房', 1, 36, 5, { rc: 15.9, h: WH, fl: '#c8b098', fm: M.tile }),
@@ -58,11 +58,11 @@
     POD('workshop', '工坊', 1, 180, 6, { rc: 16.9, h: WH, in: '#e0ccb0', im: M.plank, fl: '#a8845a' }),
     POD('green', '温室', 1, 115, 5.5, { rc: 23.5, glass: true, noShell: true, fl: '#9a8a70', fm: M.stone, h: 9.5 }),
     POD('living', '起居室', 2, 180, 6, { rc: 16.9, shut: '#4a7a6a' }),
-    POD('library', '图书室', 2, 36, 5, { rc: 15.9, h: WH, in: '#d8c8a8', fl: '#8a5e3c' }),
-    POD('bedroom', '卧室', 3, -90, 6, { in: '#f4e0e8' }),
+    POD('library', '图书室', 2, 36, 5, { rc: 15.9, h: WH, in: '#d9b98a', fl: '#8a5e3c' }),
+    POD('bedroom', '卧室', 3, -90, 6, { in: '#f3d8c4' }),
     POD('bath', '浴室', 3, -126, 5.5, { rc: 16.4, stilts: true, in: '#cfe6ee', im: M.tile, fl: '#d8e8ec', fm: M.tile }),
     POD('attic', '阁楼', 3, 36, 5, { rc: 15.9, out: '#d8c4a0', om: M.plank, in: '#d8c4a0', im: M.plank, fl: '#9a7a58' }),
-    POD('cockpit', '驾驶室', 3, 135, 5, { rc: 15.4, in: '#e8dcc4', fl: '#7a5a3e' }),
+    POD('cockpit', '驾驶室', 3, 135, 5, { rc: 15.4, in: '#e6cfa4', fl: '#7a5a3e' }),
   ];
   const RM = {}; ROOMS.forEach((r) => { RM[r.id] = r; if (r.rot) r.rot *= Math.PI / 180; });
   const TERRACE = { lv: 2, c: RM.store.c.slice(0, 2), r0: 0, r1: RM.store.c[2] + 0.2 }; // 地窖的平屋顶 = 二层的小平台（蜂箱、长椅、鸟巢）
