@@ -330,7 +330,7 @@
     return [c[0], c[1], Math.cos(a), Math.sin(a), (x1 - x0) / 2 + 0.9, (y1 - y0) / 2 + 0.9, top, 0, lo];
   }
   let voxSent = null;
-  function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } }
+  function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } try { relicFit(); } catch (e) {} }
     const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
     return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * 1.12, F.LAKE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
@@ -1343,6 +1343,10 @@
     if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
   }
   /* 吊篮：挂在树干外面，每层回廊一站；点一下选去哪层，画面淡一下就到了（第一人称）；上帝视角里点它就让主角走过去坐 */
+  /* 古城遗物要游得过去、看得见：体素建好后，被房子、桥、根压着的就往旁边挪到最近的空地方 */
+  function relicFit() { for (const r of F.RELICS || []) { if (r.fit) continue; r.fit = true; if (!blocked(r.u, r.v, r.z + 2.5) && !blocked(r.u, r.v, r.z + 0.6)) continue;
+      outer: for (let rad = 1; rad <= 7; rad += 0.75) for (let k = 0; k < 16; k++) { const a = k / 16 * 6.2832, u = r.u + Math.cos(a) * rad, v = r.v + Math.sin(a) * rad; if (!F.inLake(u, v, 1)) continue; const g = surf(u, v, r.z + 4); if (!isFinite(g.z) || g.z > F.LAKE.z - 3) continue; if (blocked(u, v, g.z + 2.5) || blocked(u, v, g.z + 0.6)) continue; r.u = u; r.v = v; r.z = g.z + 0.4; break outer; } }
+    glowKey = ''; }
   function relicGet(r) {
     const e = E(), got = (e.relics = e.relics || {}); if (got[r.id]) return; got[r.id] = true; const n = F.RELICS.filter((q) => got[q.id]).length, all = F.RELICS.length;
     PP.econ.addFish(30, '找到古城遗物'); gain(fp.p, '+30 小鱼干'); fp.relicShow = { r, t: performance.now(), n, all }; PP.sfx && PP.sfx('pop'); PP.save.soon();

@@ -314,8 +314,8 @@
     float aoK=1.0, skyV=1.0;
     if(uVoxOn>0.5 && uPick<0.5 && !lakeW && m!=6 && m!=10){ vec3 nw=normalize(vec3(n.x*${MU},n.y*${MU},n.z*${MZ})); vec3 tA=normalize(cross(nw, abs(nw.z)<0.9?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0))), tB=cross(nw,tA); vec3 pp=vW+nw*0.35;
       float occ=vd(pp+nw*0.45)*0.28+vd(pp+nw*1.0)*0.22+vd(pp+nw*2.0)*0.14+vd(pp+nw*0.8+tA*0.9)*0.14+vd(pp+nw*0.8-tA*0.9)*0.14+vd(pp+nw*0.8+tB*0.9)*0.12+vd(pp+nw*0.8-tB*0.9)*0.12;
-      aoK=1.0-clamp(occ,0.0,1.0)*0.8;
-      float upB=max(max(vd(pp+vec3(0.0,0.0,2.5)),vd(pp+vec3(0.0,0.0,5.0))),max(vd(pp+vec3(0.0,0.0,9.0)),vd(pp+vec3(0.0,0.0,15.0)))); skyV=1.0-clamp(upB*1.3,0.0,1.0)*0.55; }
+      aoK=1.0-clamp(occ,0.0,1.0)*0.66;
+      float upB=max(max(vd(pp+vec3(0.0,0.0,2.5)),vd(pp+vec3(0.0,0.0,5.0))),max(vd(pp+vec3(0.0,0.0,9.0)),vd(pp+vec3(0.0,0.0,15.0)))); skyV=1.0-clamp(upB*1.3,0.0,1.0)*0.42; }
     amb*=aoK*skyV;
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
