@@ -474,6 +474,15 @@
       m.quad([A0[0], A0[1], z], [A1[0], A1[1], z], [A1[0], A1[1], top], [A0[0], A0[1], top], r.in, r.im);
       m.quad([B0[0], B0[1], z], [B1[0], B1[1], z], [B1[0], B1[1], top], [B0[0], B0[1], top], i % 3 ? r.out : shade(r.out, 0.88), r.om);
       m.quad([A0[0], A0[1], top], [A1[0], A1[1], top], [B1[0], B1[1], top], [B0[0], B0[1], top], shade(r.out, 0.75), r.om);
+      if (r.pod && !fc && !r.glass) { /* 屋里（0.31）：下半截一圈木护墙板 + 一道木线，每隔几段一根木柱；外面开窗的地方屋里也有一扇亮窗（白天透进天光、夜里是深蓝的夜色），带窗框窗台——屋里不再是一圈光秃秃的白墙 */
+        const W0 = pi(a, ri - 0.04), W1 = pi(b, ri - 0.04), wz = Math.min(3.2, top - z - 0.5); m.quad([W0[0], W0[1], z], [W1[0], W1[1], z], [W1[0], W1[1], z + wz], [W0[0], W0[1], z + wz], i % 2 ? '#b88350' : '#ad784a', M.plank);
+        const R0 = pi(a, ri - 0.1), R1 = pi(b, ri - 0.1); m.quad([R0[0], R0[1], z + wz], [R1[0], R1[1], z + wz], [R1[0], R1[1], z + wz + 0.28], [R0[0], R0[1], z + wz + 0.28], '#6e4a2c', M.plank);
+        if (i % 3 === 0) { const pp = pi(a, ri - 0.14); m.box(pp[0] - 0.14, pp[1] - 0.14, z, pp[0] + 0.14, pp[1] + 0.14, top, '#7a5432', M.plank); }
+        if (i % 4 === 2 && !ringGap(r, (i + 1) % n) && !ringGap(r, (i + n - 1) % n) && top - z > 6) { const g0 = pi(a + (b - a) * 0.14, ri - 0.08), g1 = pi(b - (b - a) * 0.14, ri - 0.08);
+          m.quad([g0[0], g0[1], z + 5.4], [g1[0], g1[1], z + 5.4], [g1[0], g1[1], z + 7.6], [g0[0], g0[1], z + 7.6], o.night ? '#33406a' : '#e2f2fa', o.night ? M.metal : M.glow);
+          const f0 = pi(a + (b - a) * 0.1, ri - 0.16), f1 = pi(b - (b - a) * 0.1, ri - 0.16), fm2 = pi(am, ri - 0.18), bx = (pp, z0, z1, w2) => m.box(pp[0] - w2, pp[1] - w2, z0, pp[0] + w2, pp[1] + w2, z1, '#7a5432', M.plank);
+          bx(f0, z + 5.2, z + 7.8, 0.12); bx(f1, z + 5.2, z + 7.8, 0.12); bx(fm2, z + 5.4, z + 7.6, 0.06); const tq = (zz, hh, c2) => m.quad([f0[0], f0[1], zz], [f1[0], f1[1], zz], [f1[0], f1[1], zz + hh], [f0[0], f0[1], zz + hh], c2, M.plank); tq(z + 7.6, 0.25, '#7a5432'); tq(z + 6.44, 0.12, '#7a5432');
+          const s0 = pi(a + (b - a) * 0.08, ri - 0.5), s1 = pi(b - (b - a) * 0.08, ri - 0.5); m.quad([f0[0], f0[1], z + 5.25], [f1[0], f1[1], z + 5.25], [s1[0], s1[1], z + 5.25], [s0[0], s0[1], z + 5.25], '#a87448', M.plank); } }
       if (r.pod) { /* 木头小屋：每隔几段一根木柱、半腰一圈木带、开几扇方窗（窗台上有花） */ const ro2 = rad + WT / 2;
         if (i % 3 === 0) { const p = pi(a, ro2 + 0.05); m.box(p[0] - 0.16, p[1] - 0.16, z, p[0] + 0.16, p[1] + 0.16, top, C.TIMBER, M.plank); }
         if (!fc) { const q0 = pi(a, ro2 + 0.04), q1 = pi(b, ro2 + 0.04); m.quad([q0[0], q0[1], z + 4.6], [q1[0], q1[1], z + 4.6], [q1[0], q1[1], z + 4.9], [q0[0], q0[1], z + 4.9], C.TIMBER, M.plank); }

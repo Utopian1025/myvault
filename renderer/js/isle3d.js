@@ -321,7 +321,7 @@
     lit=mix(lit, c*(0.9+0.5*emis), clamp(emis,0.0,1.0));
     if(uPost>0.0){ lit=pow(lit,vec3(0.92)); lit=floor(lit*uPost+0.5)/uPost; } // 像素画：颜色分档，暖一点
     if(uPost<0.5 && uPick<0.5){ // 调色：稍微鲜艳一点；第一人称里物体边上一圈淡淡的天光、远处融进天色（空气感）
-      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.2);
+      float lu=dot(lit,vec3(0.3,0.59,0.11)); lit=mix(vec3(lu),lit,1.13);
       if(uFP.w>0.0){ vec3 eyeW=uFP.xyz/vec3(${MU},${MU},${MZ}); vec3 dv=vW-eyeW; float dd=length(dv); vec3 Vd=dv/max(dd,0.001); float rim=pow(1.0-abs(dot(n,Vd)),3.0); lit+=rim*0.08*mix(uSkyBot,vec3(1.0,0.92,0.78),0.5)*(1.0-uLit*0.7)*(1.0-clamp(emis,0.0,1.0));
         float fk=smoothstep(40.0,230.0,dd)*0.55; lit=mix(lit, mix(uSkyBot,uSkyTop,0.2), fk); } }
     // 水下的东西：从水面上往下看，越深越融进深蓝绿里（只看得见浅处的屋顶、露出来的塔尖）；人潜在水下时按距离看不远（十几格以外就看不清了）

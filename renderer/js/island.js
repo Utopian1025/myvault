@@ -301,7 +301,7 @@
   function lightOn(i) { const r = F.ROOMS[i], a = autoLight(r), sw = (E().lightSw || {})[r.id]; if (sw && sw.base === a) return sw.on; if (sw) delete E().lightSw[r.id]; return a; }
   function toggleLight(i) { const e = E(), r = F.ROOMS[i], a = autoLight(r), now = lightOn(i); e.lightSw = e.lightSw || {}; e.lightSw[r.id] = { on: !now, base: a }; PP.save.soon(); if (PP.audio && PP.audio.sfx) try { PP.audio.sfx('click'); } catch (x) {} PP.ui.toast((now ? '关灯了' : '开灯了') + '：' + r.nm, 1.2); }
   function lightState() { const now = performance.now(), dt = Math.min(0.2, (now - (lightT || now)) / 1000); lightT = now; const B = F.lightBoxes(); for (let i = 0; i < B.length; i++) { const tg = lightOn(i) ? 1 : 0, c = lightK[i] == null ? tg : lightK[i]; lightK[i] = c + (tg - c) * Math.min(1, dt * 5); } return lightK; }
-  function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.26 : phase() === 'night' ? 0 : 0.16; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); if (k > 0.01) out.push({ a: B[i].a, b: B[i].b, k }); } return out.slice(0, 40); }
+  function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); if (k > 0.01) out.push({ a: B[i].a, b: B[i].b, k }); } return out.slice(0, 40); }
   function lightOpts() {
     const ph = phase(), fx = wfx(), dim = Math.min(1, (fx.cloud || 0) * 0.5 + (fx.rain ? 0.35 : 0) + (fx.snow ? 0.25 : 0) + (fx.dark || 0));
     let sun = [1.06, 0.97, 0.82], sky = [0.52, 0.6, 0.78], gnd = [0.46, 0.43, 0.34], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.22, 0.53, 0.92], bot = [0.7, 0.87, 0.99]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
@@ -1196,7 +1196,7 @@
           au.prog = (au.prog || 0) + Math.hypot(q.u - u0, q.v - v0); au.t = (au.t || 0) + dt; if (au.t > 1.2) { if (au.prog < 0.6) { /* 卡住了：先往左或右让开半步（擦着家具边的时候），再重新找路 */ { const tt = au.pts[au.i] || au.pts[au.pts.length - 1], ddu = tt.u - q.u, ddv = tt.v - q.v, dl = Math.hypot(ddu, ddv) || 1; for (const sd of [1, -1]) { const nu = q.u - ddv / dl * 0.6 * sd, nv = q.v + ddu / dl * 0.6 * sd, gg = surf(nu, nv, q.z + STEP); if (isFinite(gg.z) && Math.abs(gg.z - q.z) <= STEP && !blocked(nu, nv, gg.z)) { q.u = nu; q.v = nv; q.z = gg.z; break; } } } const last = au.pts[au.pts.length - 1], np = (au.retry || 0) < 3 && fpPlan(q, last.u, last.v, last.lv); if (np && np.length) fp.auto = { pts: np, i: 0, retry: (au.retry || 0) + 1 }; else { fp.auto = null; PP.ui.toast('前面过不去了，换个地方试试', 1.6); } } else { au.t = 0; au.prog = 0; } } } }
     }
     if (mv || st) {
-      const sp = (fp.glide ? RUN * 1.25 : fp.crouch ? SPEED * 0.4 : K.has('run') ? RUN : SPEED * 0.8) * fpSpd() * dt, c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), n = Math.hypot(mv, st) || 1;
+      const sp = (fp.glide ? 6.5 : fp.crouch ? SPEED * 0.4 : K.has('run') ? RUN : SPEED * 0.8) * fpSpd() * dt, c = Math.cos(fp.yaw), s2 = Math.sin(fp.yaw), n = Math.hypot(mv, st) || 1;
       // 往前 = (cos, sin)；往右 = (-sin, cos)
       const u0 = q.u, v0 = q.v, du = (c * mv - s2 * st) / n, dv = (s2 * mv + c * st) / n;
       fpMove(du * sp, dv * sp); if (!fp.air) fp.bob += dt * (K.has('run') ? 14 : 9);
@@ -1223,7 +1223,7 @@
     // 竖直方向：跳起来 / 掉下去 / 落地
     const stH = stepAt(q.u, q.v), g = surf(q.u, q.v, q.z + stH);
     if (fp.air) {
-      if (fp.glide) { fp.vz = Math.max(-3.4, fp.vz - GRAV * dt * 0.4); if (fp.vz > 0) fp.vz *= 0.9; } else fp.vz = Math.max(-70, fp.vz - GRAV * dt); let nz = q.z + fp.vz * dt; /* 叶子滑翔伞：慢慢往下飘 */
+      if (fp.glide) { fp.vz = Math.max(-4.5, fp.vz - GRAV * dt * 0.4); if (fp.vz > 0) fp.vz *= 0.9; } else fp.vz = Math.max(-70, fp.vz - GRAV * dt); let nz = q.z + fp.vz * dt; /* 叶子滑翔伞：慢慢往下飘 */
       if (!fp.glide && !fp.glideTold && fp.vz < -8 && !S().glideKnown) { const gb = surf(q.u, q.v, q.z); if (!isFinite(gb.z) || q.z - gb.z > 8) { fp.glideTold = true; PP.ui.toast('在往下掉——按一下空格，打开叶子滑翔伞慢慢飘下去', 2.6); } }
       /* 往上跳时头顶碰到天花板 / 楼板就停住往下掉（以前会穿过天花板，落到楼上或屋顶上，镜头卡在楼板里看着像屋顶消失、乱闪） */
       if (fp.vz > 0) { const hr = headroom(q.u, q.v, q.z); if (hr < 99) { const lim = q.z + Math.max(0, hr - (bodyNow + 0.2)); if (nz > lim) { nz = lim; fp.vz = 0; } } }
