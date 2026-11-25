@@ -39,6 +39,13 @@
         for (const da of [0, 1.57]) { const cx = Math.cos(a0 + da) * 0.28, cy = Math.sin(a0 + da) * 0.28; m.tri([u - cx, v - cy, z], [u + cx, v + cy, z], [u + cx * 0.2, v + cy * 0.2, z + hh], col, M.grass); m.tri([u + cx, v + cy, z], [u - cx, v - cy, z], [u - cx * 0.3, v - cy * 0.3, z + hh * 0.8], col, M.grass); }
         if (H(k, 25) < 0.16) { const fc = FL[k % 4]; m.tri([u - 0.14, v, z + hh], [u + 0.14, v, z + hh], [u, v + 0.14, z + hh + 0.06], fc, M.flat); m.tri([u - 0.14, v, z + hh], [u, v - 0.14, z + hh + 0.06], [u + 0.14, v, z + hh], fc, M.flat); } }
       m.sway = so; }
+    /* 岸边（0.31）：水边一丛丛芦苇（随风摆），水面上漂着睡莲叶，有的开着粉白的小花 */
+    if (!snow) { const so2 = m.sway, flat = (u, v) => ((PP.CITY && PP.CITY.FLAT) || []).some((q) => u > q[0] - 1 && u < q[2] + 1 && v > q[1] - 1 && v < q[3] + 1);
+      m.sway = 0.45; for (let k = 0; k < 150; k++) { const t = H(k, 41) * 6.2832, r = basR(t) - 0.3 - H(k, 42) * 1.6, [u, v] = P(t, r, 0); if (flat(u, v)) continue; const n = 3 + (k % 3);
+        for (let j = 0; j < n; j++) { const a = H(k, j + 50) * 6.28, ox = Math.cos(a) * 0.25, oy = Math.sin(a) * 0.25, hh = 2.2 + H(k, j + 60) * 1.8, lean = (H(k, j + 70) - 0.5) * 0.5; m.tri([u + ox - 0.06, v + oy, WL - 0.3], [u + ox + 0.06, v + oy, WL - 0.3], [u + ox + lean, v + oy + lean * 0.5, WL + hh], j % 2 ? '#7aa44a' : '#8cb456', M.grass); if (j === 0 && k % 2) m.box(u + ox + lean - 0.07, v + oy + lean * 0.5 - 0.07, WL + hh - 0.7, u + ox + lean + 0.07, v + oy + lean * 0.5 + 0.07, WL + hh - 0.05, '#7a5030', M.cloth); } }
+      m.sway = so2; for (let k = 0; k < 60; k++) { const t = H(k, 81) * 6.2832, r = basR(t) - 1.4 - H(k, 82) * 4.5, [u, v] = P(t, r, 0); if (flat(u, v) || r < 13) continue; const R2 = 0.5 + H(k, 83) * 0.4, n = 9;
+        for (let j = 0; j < n; j++) { if (j === 0) continue; const a0 = (j / n) * 6.2832, a1 = ((j + 1) / n) * 6.2832; m.tri([u, v, WL + 0.05], [u + Math.cos(a0) * R2, v + Math.sin(a0) * R2, WL + 0.05], [u + Math.cos(a1) * R2, v + Math.sin(a1) * R2, WL + 0.05], k % 3 ? '#4f8a3a' : '#5f9a44', M.flat); }
+        if (k % 4 === 0) { m.cyl(u + 0.1, v + 0.1, WL + 0.05, WL + 0.35, 0.24, 0.1, k % 8 ? '#f6d8e4' : '#fff6f0', M.flat, 6); m.ball(u + 0.1, v + 0.1, WL + 0.38, 0.09, 0.07, '#ffd95a', M.flat, 4, 6); } } }
   }
 
   /* ---------- 浮石：岛底，被一圈粗根抱着，发着蓝光 ---------- */

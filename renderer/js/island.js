@@ -1358,6 +1358,7 @@
     const K = lightK, got = E().relics || {}, key = K.map((k) => (k > 0.5 ? 1 : 0)).join('') + Object.keys(got).join(',');
     if (!glowPts || glowKey !== key) { glowKey = key; glowPts = [];
       for (const [u, v] of F.LAMPS) glowPts.push([u, v + 0.5, 5.1, [255, 214, 140], 1]);
+      if (F.GAL_LAMPS) for (const [u, v, z] of F.GAL_LAMPS()) glowPts.push([u, v, z, [255, 210, 140], 0.7]);
       for (const [lv, deg] of [[1, 90], [2, 180], [3, 270]]) for (const sg of [-1, 1]) { const a = deg * Math.PI / 180 + sg * 0.3; glowPts.push([24 + Math.cos(a) * 8.7, 24 + Math.sin(a) * 8.7, Z[lv] + 7, [255, 206, 130], 0.8]); }
       for (const r of F.RELICS || []) if (!got[r.id]) { const n2 = parseInt(r.col.slice(1), 16); glowPts.push([r.u, r.v, r.z + 1.6, [(n2 >> 16) & 255, (n2 >> 8) & 255, n2 & 255], 1.3, true]); }
       F.lightBoxes().forEach((b, i) => { if (K[i] > 0.5) { const c2 = b.a; glowPts.push([c2[0], c2[1], b.b[3] - 2.6, [255, 220, 160], 1.1]); } });
