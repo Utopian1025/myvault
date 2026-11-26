@@ -14,13 +14,13 @@
 
   // 以前认养的：搬进小天地（离不开水的除外）
   function moveInOld() { for (const p of G.all) if (!p.d.wild && !p.d.ownHome && PP.canMoveIn && PP.canMoveIn(p)) { p.d.ownHome = PP.MINE[0]; p.d.scene = PP.MINE[0]; p.d.inHome = false; } }
-  // 原来住在浮空岛的：浮空岛变成了你的城堡，它们搬到魔法学院（野外的回森林）
+  // 原来住在浮空岛的：浮空岛变成了你的浮岛，它们搬到魔法学院（野外的回森林）
   function fromSkyisle() { for (const p of G.all) { if (p.d.ownHome === 'skyisle') p.d.ownHome = PP.MINE[0]; if (p.d.scene === 'skyisle') { p.d.scene = p.d.wild ? 'forest' : p.d.ownHome || PP.MINE[0]; p.d.inHome = false; p.eco = null; } } }
-  // 城堡建好了：认养的伙伴都搬回城堡住（只搬一次；以后想住魔法学院 / 地底森林，右键它 → 搬家）
+  // 浮岛建好了：认养的伙伴都搬回浮岛住（只搬一次；以后想住魔法学院 / 地底森林，右键它 → 搬家）
   function toCastle() { const f = G.save.flags || (G.save.flags = {}); if (f.castleHome) return; f.castleHome = 1; for (const p of G.all) if (!p.d.wild && PP.canMoveIn && PP.canMoveIn(p) && (!p.d.ownHome || (PP.MINE || []).includes(p.d.ownHome))) { p.d.ownHome = 'castle'; p.d.scene = 'castle'; p.d.inHome = false; p.eco = null; } }
-  // 能住的地方：城堡（默认）+ 你的几个小天地
+  // 能住的地方：浮岛（默认）+ 你的几个小天地
   const HOMES = () => ['castle', ...(PP.MINE || [])];
-  const homeName = (k) => (k === 'castle' ? '飞行城堡' : PP.SCENES[k] ? PP.SCENES[k].name : k);
+  const homeName = (k) => (k === 'castle' ? '浮岛' : PP.SCENES[k] ? PP.SCENES[k].name : k);
   PP.homeName = homeName;
   function populate() {
     fromSkyisle(); moveInOld(); toCastle();
@@ -43,7 +43,7 @@
   function adoptPanel(p) {
     const ui = PP.ui;
     const box = $(`<div class="adopt-wild"><div class="top"><canvas width="96" height="96"></canvas><div><p><b>${esc(p.sp.name)}</b>${p.d.shiny ? ' ✨罕见花色' : ''}<br><span class="muted">${esc(PP.SPR.PAL[p.d.species][p.d.coat] ? PP.SPR.PAL[p.d.species][p.d.coat].name : '')} · 住在${esc(PP.SCENES[PP.HAB[p.d.species].home].name)}的${esc(PP.HOME_NAME[p.d.species] || '家')}</span></p>
-      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它就是你的伙伴了：先陪在你身边，之后住进你的飞行城堡（也可以选别的地方）。' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
+      <p class="muted" style="line-height:1.5">${PP.canMoveIn(p) ? '认养以后它就是你的伙伴了：先陪在你身边，之后住进你的浮岛（也可以选别的地方）。' : '它离不开水，认养以后还是住在原来的家；你给它取名字，它会更亲近你。'}</p>
       ${PP.canMoveIn(p) ? `<div class="row homes"><span class="muted">住在：</span>${HOMES().map((k, i) => `<button class="small ${i === 0 ? 'on' : ''}" data-h="${k}">${esc(homeName(k))}</button>`).join('')}</div>` : ''}</div></div>
       <div class="row"><input class="nm" maxlength="12" placeholder="给它取个名字"><button class="small dice" title="随机一个">🎲</button></div>
       <div class="row"><button class="primary go">认养</button></div></div>`);
@@ -63,7 +63,7 @@
       if (G.pets.includes(p)) { PP.hearts(p.x, p.y - 30 * G.S, 4); p._forceSay = true; p.say(U.pick(['以后就叫我' + name + '啦', '（开心地转圈）', '你好呀～']), 2.5); p._forceSay = false; }
       // 没有指定陪伴你的那只：就是它了
       if (!G.save.settings.mainId || !G.all.some((q) => q.d.id === G.save.settings.mainId && mine(q))) G.save.settings.mainId = p.d.id;
-      ui.closePanel(); ui.toast(p.d.ownHome === 'castle' ? `认养了${name}！它会住进你的飞行城堡（地图上点「飞行城堡」就能去看它）` : p.d.ownHome ? `认养了${name}（${p.sp.name}），它搬去了你的${homeName(p.d.ownHome)}` : `认养了${name}（${p.sp.name}）`, 3.5);
+      ui.closePanel(); ui.toast(p.d.ownHome === 'castle' ? `认养了${name}！它会住进你的浮岛（地图上点「浮岛」就能去看它）` : p.d.ownHome ? `认养了${name}（${p.sp.name}），它搬去了你的${homeName(p.d.ownHome)}` : `认养了${name}（${p.sp.name}）`, 3.5);
       if (PP.onboard) PP.onboard.step('adopted', p);
       PP.save.write(); PP.syncTray && PP.syncTray(true);
     };

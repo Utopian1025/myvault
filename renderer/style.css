@@ -619,3 +619,13 @@ body.fpon .hud, body.fpon .orb, body.fpon .dock, body.fpon .sdock, body.fpon .pe
 .shrinepop .wishform { display: flex; gap: 4px; padding: 4px 6px; } .shrinepop .wishin { flex: 1; min-width: 160px; }
 .shrinepop .wishrow { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 2px 6px; font-size: 12px; }
 .shrinepop .sp-sub { padding: 4px 6px 0; font-size: 11px; color: var(--muted); }
+/* 0.38 选择窗：键盘选中的那个亮一圈，左上角小数字是快捷键 */
+.seedpick .sp { position: relative; }
+.seedpick .sp.kfocus { outline: 3px solid #ffcf5a; outline-offset: -1px; background: #fff6dc; }
+.seedpick .sp .kn { position: absolute; left: 3px; top: 2px; font-style: normal; font-size: 9px; color: #9a8a70; }
+.seedpick .sp-foot { font-size: 10px; color: var(--muted); text-align: center; padding-top: 3px; }
+.seedpick { max-width: calc(100vw - 16px); }
+.craftpick { width: 420px; } .craftpick .sp-list { grid-template-columns: repeat(3, 1fr); max-height: 420px; }
+.craftpick .sp .ico { font-size: 20px; line-height: 1.1; }
+.craftpick .sp small.lack { color: #c0603a; } .craftpick .sp small { text-align: center; }
+.baitpick .sp em { font-size: 10px; text-align: center; }

@@ -14,7 +14,7 @@
     // 收起时的三种样子：极简（右下角）/ 任务栏 / 小岛
     if (m === 'bar' || m === 'isle') {
       s.taskbar = m === 'bar'; s.isle = m === 'isle';
-      if (old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); if (!quiet && m === 'isle') PP.ui.toast('城堡：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动'); return; }
+      if (old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); if (!quiet && m === 'isle') PP.ui.toast('浮岛：点地面让主角走过去，点菜箱选种子，点门进屋；按住浮岛可以拖动'); return; }
       m = 'mini';
     }
     if (refresh && old === 'mini') { applyBar(); PP.isle && PP.isle.sync(); drawOrb(); placeOrb(); PP.save.soon(); PP.syncTray && PP.syncTray(true); return; }
@@ -43,7 +43,7 @@
       }
       PP.eco.onView(PP.scene.view());
     }
-    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '风景', mini: s.taskbar ? '任务栏中：主角住进任务栏里，只待在没有图标的空白处（停在它身上一会儿才能点它）' : s.isle ? '城堡：点地面让主角走过去，点菜箱选种子，点门进屋；按住城堡可以拖动' : '极简：只留主角在右下角' }[m]);
+    if (!quiet) PP.ui.toast({ full: '全屏场景（Esc 退出，开始打字会自动收起）', band: '风景', mini: s.taskbar ? '任务栏中：主角住进任务栏里，只待在没有图标的空白处（停在它身上一会儿才能点它）' : s.isle ? '浮岛：点地面让主角走过去，点菜箱选种子，点门进屋；按住浮岛可以拖动' : '极简：只留主角在右下角' }[m]);
     drawOrb(); placeOrb(); setFullFlag(); applyBar(); PP.isle && PP.isle.sync(); PP.refreshInteractive(); PP.save.soon(); PP.syncTray && PP.syncTray(true); hideBar();
   };
   function setFullFlag() { if (api && api.setFullMode) api.setFullMode(S().mode === 'full'); applyOnTop(); }
@@ -242,10 +242,10 @@
     const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread(), p = PP.mainPet && PP.mainPet();
     return [
       ['mini', '极简：只留主角（任务栏上 / 任务栏中）'],
-      ['view', '换一种：小屋 / 城堡 / 风景'],
+      ['view', '换一种：小屋 / 浮岛 / 风景'],
       ['map', '地图：去别的地方看风景'],
       ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
-      ...(isle ? [[inside ? 'out' : 'home', inside ? '回到外面看整座城堡' : '进屋（起居室）']] : []),
+      ...(isle ? [[inside ? 'out' : 'home', inside ? '回到外面看整座浮岛' : '进屋（起居室）']] : []),
       ...(isle ? [['cam', '回到默认视角（按住 Ctrl + 左键拖动转视角，滚轮缩放）']] : []),
       ...(isle && inside === 'house' ? [['furn', '布置家具：拖动、转向、收起、添加']] : []),
       ...(p && !anchorPet() && !p.held ? [['call', `叫${p.name}出来`]] : []),
@@ -291,8 +291,8 @@
     const B = (on, attrs, txt, tip) => `<button class="small ${on ? 'on' : ''}" ${attrs} title="${tip || ''}">${txt}</button>`;
     pop = $(`<div class="orb-pop view-pop">
       <div class="vrow"><span>极简</span>${B(v === 'top', 'data-v="top"', '任务栏上', '主角在任务栏上面溜达，别的都收起来')}${B(v === 'in', 'data-v="in"', '任务栏中', '主角住进任务栏里：只待在没有图标的空白处，点击都穿透给任务栏')}</div>
-      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '只看起居室：镜头推近，像以前的小屋')}${B(v === 'isle', 'data-v="isle"', '城堡', '上帝视角：整座城堡能转能剖开，进每个房间，种地、钓鱼')}${B(false, 'data-fp="1"', '第一人称', '用主角的眼睛在城堡里走：方向键走，鼠标拖动转头，E 互动')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
-      ${s.isle && s.mode === 'mini' ? `<div class="vrow"><span>城堡大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动城堡可以放到任何地方">放回右下角</button></div><div class="vrow"><span>朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}<button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住按住 Ctrl + 左键拖动转视角；按住城堡拖动可以挪位置</div>` : ''}
+      <div class="vrow"><span>场景</span>${B(v === 'house', 'data-v="house"', '小屋', '只看起居室：镜头推近，像以前的小屋')}${B(v === 'isle', 'data-v="isle"', '浮岛', '上帝视角：整座浮岛能转能剖开，进每个房间，种地、钓鱼')}${B(false, 'data-fp="1"', '第一人称', '用主角的眼睛在浮岛里走：方向键走，鼠标拖动转头，E 互动')}${B(v === 'band', 'data-v="band"', '风景', '各地的风景，点地图换地方')}</div>
+      ${s.isle && s.mode === 'mini' ? `<div class="vrow"><span>浮岛大小</span><button class="small" data-izo="-1" title="缩小">－</button>${[[1, '小'], [2, '中'], [3, '大']].map(([z, n]) => B(Math.abs((s.isleZ || PP.isle.Z0) - PP.isle.SIZES[z]) < 0.05, `data-isz="${z}"`, n)).join('')}<button class="small" data-izo="1" title="放大">＋</button><button class="small" data-ipos="1" title="拖动浮岛可以放到任何地方">放回右下角</button></div><div class="vrow"><span>朝向</span>${B(!s.isleMirror, 'data-imir="0"', '朝左', '放在屏幕右边时用')}${B(!!s.isleMirror, 'data-imir="1"', '朝右（镜像）', '放在屏幕左边时用')}<button class="small" data-icam="1" title="回到默认的斜上方视角">回到默认视角</button></div><div class="hint">滚轮缩放；按住按住 Ctrl + 左键拖动转视角；按住浮岛拖动可以挪位置</div>` : ''}
       ${v === 'band' ? `<div class="hint">在风景上滚滚轮可以放大缩小</div>` : ''}
       ${v === 'in' ? `<div class="vrow"><span>住在</span>${B(s.barSide !== 'right', 'data-side="left"', '左边')}${B(s.barSide === 'right', 'data-side="right"', '右边')}</div>` : ''}</div>`);
     openPop('view');
@@ -320,17 +320,31 @@
   }
   function placePop() {
     if (!pop) return;
-    const pr = pop.getBoundingClientRect(), sb = PP.safeB ? PP.safeB() : G.H;
-    /* 大地图：放在屏幕正中间，看得清楚 */
-    if ((pop.classList.contains('map2') && pop.classList.contains('size-L')) || pop.classList.contains('seedpick')) { pop.style.left = Math.round((G.W - pr.width) / 2) + 'px'; pop.style.top = Math.round(Math.max(8, (sb - pr.height) / 2)) + 'px'; return; }
+    { const sb0 = PP.safeB ? PP.safeB() : G.H, zk0 = parseFloat(getComputedStyle(pop).zoom) || 1, lst = pop.querySelector('.sp-list'), r0 = pop.getBoundingClientRect(); if (lst && r0.height > sb0 - 8) { const lr = lst.getBoundingClientRect(); lst.style.maxHeight = Math.max(60, (lr.height - (r0.height - (sb0 - 8))) / zk0) + 'px'; lst.style.overflowY = 'auto'; } } // 窗口比屏幕还高：列表那一块变矮、可以滚动，整个窗口留在屏幕里
+    const pr = pop.getBoundingClientRect(), sb = PP.safeB ? PP.safeB() : G.H, zk = parseFloat(getComputedStyle(pop).zoom) || 1; /* 0.38：弹窗跟着场景缩放（zoom）时，left/top 也要按缩放换算，不然会跑到屏幕外面、显示不全 */
+    const setXY = (x, y) => { pop.style.left = Math.round(U.clamp(x, 4, Math.max(4, G.W - pr.width - 4)) / zk) + 'px'; pop.style.top = Math.round(U.clamp(y, 4, Math.max(4, sb - pr.height - 4)) / zk) + 'px'; };
+    /* 大地图、选种子 / 鱼饵 / 做东西这类选择窗：放在浮岛画面（没有就屏幕）的正中间，整个窗口都在屏幕里 */
+    if ((pop.classList.contains('map2') && pop.classList.contains('size-L')) || pop.classList.contains('seedpick')) { const R = G.isle && PP.isle && PP.isle.rect && PP.isle.rect(), cx = R ? (R.vx0 + R.vx1) / 2 : G.W / 2, cy = R ? (R.vy0 + R.vy1) / 2 : sb / 2; setXY(cx - pr.width / 2, cy - pr.height / 2); return; }
     let ax, ay0, ay1;
     if (popAt) { ax = popAt.x; ay0 = popAt.y - 8; ay1 = popAt.y + 8; }
     else { const b = (hud && hud.querySelector(`[data-h="${popKind}"]`)) || hud, r = b.getBoundingClientRect(); ax = r.left + r.width / 2; ay0 = r.top; ay1 = r.bottom; }
-    pop.style.left = Math.round(U.clamp(ax - pr.width / 2, 4, G.W - pr.width - 4)) + 'px';
-    pop.style.top = Math.round(ay0 - pr.height - 8 > 4 ? ay0 - pr.height - 8 : Math.min(ay1 + 8, sb - pr.height - 4)) + 'px';
+    setXY(ax - pr.width / 2, ay0 - pr.height - 8 > 4 ? ay0 - pr.height - 8 : Math.min(ay1 + 8, sb - pr.height - 4));
   }
+  /* 0.38：选择窗（种子、鱼饵、加工……）都能用键盘选：方向键移动、数字键直接选第几个、回车 / 空格 / E 确定、Esc 关掉；选中的那个有一圈亮边 */
+  function popButtons() { return pop ? [...pop.querySelectorAll('button.sp')].filter((b) => !b.disabled && b.offsetParent) : []; }
+  function popFocus(i) { const B = popButtons(); if (!B.length) return; i = (i + B.length) % B.length; B.forEach((b, k) => b.classList.toggle('kfocus', k === i)); B[i].scrollIntoView({ block: 'nearest' }); pop._ki = i; }
+  window.addEventListener('keydown', (e) => {
+    if (!pop || !pop.querySelector('button.sp')) return; if (/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) return;
+    const B = popButtons(); if (!B.length) return; let i = pop._ki != null ? pop._ki : -1; const cols = Math.max(1, Math.round((pop.querySelector('.sp-list') || pop).getBoundingClientRect().width / Math.max(1, B[0].getBoundingClientRect().width + 5)));
+    const k = e.key, hit = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+    if (k === 'ArrowRight' || k === 'd' || k === 'D') { hit(); popFocus(i + 1); } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') { hit(); popFocus(i < 0 ? 0 : i - 1); }
+    else if (k === 'ArrowDown' || k === 's' || k === 'S' || k === 'Tab') { hit(); popFocus(i < 0 ? 0 : i + cols); } else if (k === 'ArrowUp' || k === 'w' || k === 'W') { hit(); popFocus(i < 0 ? 0 : i - cols); }
+    else if (/^[1-9]$/.test(k) && B[+k - 1]) { hit(); popFocus(+k - 1); B[+k - 1].click(); }
+    else if (k === 'Enter' || k === ' ' || k === 'e' || k === 'E' || k === 'f' || k === 'F') { hit(); if (i < 0) popFocus(0); else B[i] && B[i].click(); }
+    else if (k === 'Escape') { hit(); hidePop(); }
+  }, true);
   PP.hud = {
-    pop(el, at) { hidePop(); PP.ui.closeMenu(); pop = el; pop.classList.add('orb-pop'); openPop('custom', at); },
+    pop(el, at) { hidePop(); PP.ui.closeMenu(); pop = el; pop.classList.add('orb-pop'); openPop('custom', at); if (pop.querySelector('button.sp')) { const sp = pop.querySelectorAll('button.sp'); sp.forEach((b, k) => { if (k < 9 && !b.querySelector('.kn')) { const n = document.createElement('i'); n.className = 'kn'; n.textContent = k + 1; b.prepend(n); } }); popFocus(0); requestAnimationFrame(placePop); } },
     close: () => hidePop(), isOpen: () => !!pop, refresh: () => { hudKey = ''; buildHud(); },
   };
   // ---------- 场景按钮：按主场景分组的场景切换 + 场景设置 ----------
@@ -433,7 +447,7 @@
     const s = S(), cur = PP.scene.active() ? PP.scene.view() : null, c = PP.wild ? PP.wild.census() : {};
     const regionOf = {}; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k]) => (regionOf[k] = r)));
     const all = []; (PP.REGIONS || []).forEach((r) => r.subs.forEach(([k, n]) => all.push([k, n, r])));
-    const castlePin = (() => { const p = MAP_POS.skyisle, on = !!(G.isle); return `<button class="pin castle ${on ? 'on' : ''}" data-s="castle" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="castle"></i><span>飞行城堡</span></button>`; })();
+    const castlePin = (() => { const p = MAP_POS.skyisle, on = !!(G.isle); return `<button class="pin castle ${on ? 'on' : ''}" data-s="castle" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="castle"></i><span>浮岛</span></button>`; })();
     const pins = castlePin + all.map(([k, n]) => { const p = MAP_POS[k] || [0.5, 0.5], cnt = c[k] ? Object.values(c[k]).reduce((a, b) => a + (b.n || 0), 0) : 0; return `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}" style="left:${(p[0] * 100).toFixed(1)}%;top:${(p[1] * 100).toFixed(1)}%"><i data-ico="${k}"></i><span>${esc(n)}</span>${cnt ? `<em>${cnt}</em>` : ''}</button>`; }).join('');
     const tabs = [['map', '地图'], ['sound', '声音'], ['set', '设置']].map(([k, n]) => `<button class="tab ${popTab === k ? 'on' : ''}" data-tab="${k}">${n}</button>`).join('');
     let body = '';
@@ -456,7 +470,7 @@
     if (pv) pop.querySelectorAll('.pin').forEach((b) => {
       b.addEventListener('mouseenter', () => {
         const k = b.dataset.s; pv.innerHTML = '';
-        if (k === 'castle') { pv.innerHTML = '<div><b>飞行城堡</b><br><span>你的家：一座飘在天上的城堡（就是浮空岛）。点一下进去</span></div>'; pv.style.left = b.style.left; pv.style.top = b.style.top; pv.classList.add('show'); pv.classList.toggle('up', false); pv.classList.toggle('left', true); return; }
+        if (k === 'castle') { pv.innerHTML = '<div><b>浮岛</b><br><span>你的家：一座飘在天上的浮岛（就是浮空岛）。点一下进去</span></div>'; pv.style.left = b.style.left; pv.style.top = b.style.top; pv.classList.add('show'); pv.classList.toggle('up', false); pv.classList.toggle('left', true); return; }
         try { const t = PP.scene.thumb(k, 132, 120), im = document.createElement('canvas'); im.width = 132; im.height = 120; im.getContext('2d').drawImage(t, 0, 0); pv.appendChild(im); } catch (err) {}
         const r = regionOf[k], nm = PP.SCENES[k] ? PP.SCENES[k].name : k, who = PP.wild ? PP.wild.censusText(k, c[k]) : '';
         pv.insertAdjacentHTML('beforeend', `<div><b>${esc((r && r.subs.length > 1 ? r.name + ' · ' : '') + nm)}</b>${PP.NEST && PP.NEST[k] ? '<small>（在' + esc(PP.SCENES[PP.NEST[k]].name) + '里）</small>' : ''}<br><span>${esc(who || '现在没人')}</span></div>`);
@@ -531,10 +545,10 @@
     if (dockOn()) return []; // 小场景 / 小岛：这些按钮在框旁边那一条里
     const s = S(), isle = !!G.isle, inside = isle && PP.isle.inside(), n = PP.econ && PP.econ.unread();
     // 极简：换场景放最前面（最常用），其余只留背包、视图、退出极简
-    if (miniBar(p)) return [['view', '换到场景：小屋 / 城堡 / 风景'], ['map', '地图：去别的地方看风景'], ['bag', n ? `背包（${n} 封新信）` : '背包 · 商店']];
+    if (miniBar(p)) return [['view', '换到场景：小屋 / 浮岛 / 风景'], ['map', '地图：去别的地方看风景'], ['bag', n ? `背包（${n} 封新信）` : '背包 · 商店']];
     return [
       [isPure() ? 'expand' : 'mini', isPure() ? '退出极简（回到刚才的样子）' : '极简：只留主角'],
-      ['view', '视图：任务栏上 / 任务栏中 · 小屋 / 城堡 / 风景'],
+      ['view', '视图：任务栏上 / 任务栏中 · 小屋 / 浮岛 / 风景'],
       ...(s.mode !== 'mini' ? [['map', '地图 · 季节 · 声音']] : []),
       ['bag', n ? `背包 · 商店（${n} 封新信）` : '背包 · 商店 · 探险'],
       ...(isle ? [[inside ? 'out' : 'home', inside ? '回到外面' : '进屋']] : []),

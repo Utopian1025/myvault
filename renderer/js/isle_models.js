@@ -1,4 +1,4 @@
-// 小岛的模型：一座「东拼西凑的浮空小城堡」。不是一层层一样大的千层饼——
+// 小岛的模型：一座「东拼西凑的浮空小浮岛」。不是一层层一样大的千层饼——
 // 每个模块有自己的占地和自己的层高，贴在一起：小屋（二层 + 悬挑卧室舱）、石头储藏楼（屋顶上顶着玻璃花房）、
 // 外挂楼梯、抬高的树台（底下吊着地窖舱）、下沉的石头露台（篝火、热气球）、挑出去的鱼塘台、高低不一的菜箱……
 // 植物和建筑长在一起：爬藤、垂下来的藤蔓、屋顶的苔藓、树篱代替栏杆。
@@ -128,7 +128,7 @@
   }
 
 
-  // ---------- 城堡：老树是骨架，各种房子块东一块西一块钉在树干周围 ----------
+  // ---------- 浮岛：老树是骨架，各种房子块东一块西一块钉在树干周围 ----------
   // 一层 = 原来的石头小屋（门厅）；屋顶是露台（lv1）；露台上是厨房、浴室，中间穿过老树干；
   // 左边架在小河上的高脚「窝楼」和露台、二层连成一片；再往上是木平台（lv2）；最上面是前面的瞭望台（lv3）：锅炉、热气球码头。
   // 每只动物一间自己的窝，分散在窝楼、二层和瞭望台上。树冠盖在最顶上。动物大约 8 格高，层高都按这个来。
@@ -144,10 +144,10 @@
     R12: { u0: 15.4, u1: 23.6, v0: 16.6, v1: 18.4, axis: 'u', lo: 23.6, hi: 15.4, a: 1, b: 2 },
     R23: { u0: 15.4, u1: 23.6, v0: 18.6, v1: 20.4, axis: 'u', lo: 15.4, hi: 23.6, a: 2, b: 3 },
     CHIM: { u: 12.0, v: 14.9 },
-    // 装饰用的圆塔（城堡的轮廓）：[u, v, 半径, 塔身顶高, 屋顶颜色]
+    // 装饰用的圆塔（浮岛的轮廓）：[u, v, 半径, 塔身顶高, 屋顶颜色]
     TOWERS: [[2.6, 19.4, 1.5, 22, '#4a6a9a'], [25.4, 6.4, 1.6, 30, '#b8503c'], [8.2, 5.6, 1.3, 33, '#5a8a6a']],
     BOILER: { u: 21.4, v: 20.9 },
-    // 平台上的小房子（让城堡看起来是一栋栋房子拼起来的，不是光秃秃的木台）：[层, u0, v0, u1, v1, 墙高, 墙色, 屋顶色, 屋顶方向]
+    // 平台上的小房子（让浮岛看起来是一栋栋房子拼起来的，不是光秃秃的木台）：[层, u0, v0, u1, v1, 墙高, 墙色, 屋顶色, 屋顶方向]
     BLOCKS: [[1, 3.8, 7.3, 11.6, 11.4, 8.4, '#e8d6b4', '#5a7a8a', 'u'], [2, 9.2, 6.8, 16.9, 10.7, 8, '#f0e2c4', '#b8503c', 'u'], [2, 20.7, 6.8, 24.5, 10.7, 7.4, '#cfe0e8', '#4a6a9a', 'v'], [3, 20.8, 13.2, 23.7, 16.6, 5.6, '#e8d6b4', '#5a8a6a', 'v'], [1, 3.8, 13.4, 6.6, 16.6, 6.4, '', '', 'v'], [2, 9.4, 11.2, 11.6, 13.2, 4.6, '', '', 'u']],
     // 小窝：[层, u0, v0, u1, v1, 门朝哪边]（'v' = 门朝前，'u' = 门朝右）
     DENS: [[2, 9.3, 6.9, 12.9, 10.6, 'v'], [1, 7.8, 7.4, 11.4, 11.4, 'v'], [2, 13.2, 6.9, 16.8, 10.6, 'v'], [1, 3.8, 7.4, 7.4, 11.4, 'v'], [2, 20.8, 6.9, 24.4, 10.6, 'v'],
@@ -214,15 +214,18 @@
     else { t.box(-X, -Y, 0, X, Y, 5, '#d8b888', M.plank); t.gable(-X, -Y, X, Y, 5, 2.4, 'u', '#7a5a8a', M.tile, 0.35, '#d8b888', M.plank); door('#8a5a3a'); }
   }
   function slab(m, P, z, top, edge) { m.box(P[0], P[1], z - 0.6, P[2], P[3], z, top, M.plank); m.box(P[0] - 0.2, P[1] - 0.2, z - 1.6, P[2] + 0.2, P[3] + 0.2, z - 0.6, edge || '#7c4632', M.metal); for (let u = P[0] + 0.4; u < P[2]; u += 0.9) m.box(u - 0.06, P[3] + 0.18, z - 1.25, u + 0.06, P[3] + 0.26, z - 1.0, '#e0b070', M.metal); for (let v = P[1] + 0.4; v < P[3]; v += 0.9) m.box(P[2] + 0.18, v - 0.06, z - 1.25, P[2] + 0.26, v + 0.06, z - 1.0, '#e0b070', M.metal); }
-  // ---------- 拼凑的移动城堡：把任意一组形状绕一个点转一转、歪一歪 ----------
+  // ---------- 拼凑的移动浮岛：把任意一组形状绕一个点转一转、歪一歪 ----------
   const ZS = 1.155 / 2.83;
   function warp(m, P, yaw, tu, tv, fn) {
     const cy = Math.cos(yaw), sy = Math.sin(yaw), cu = Math.cos(tu), su = Math.sin(tu), cv = Math.cos(tv), sv = Math.sin(tv);
     const T = (q) => { const x = q[0] - P[0], y = q[1] - P[1], z = (q[2] - P[2]) * ZS; const x1 = x * cy - y * sy, y1 = x * sy + y * cy; const x2 = x1 * cu + z * su, z2 = -x1 * su + z * cu; const y3 = y1 * cv + z2 * sv, z3 = -y1 * sv + z2 * cv; return [x2 + P[0], y3 + P[1], z3 / ZS + P[2]]; };
     const own = Object.prototype.hasOwnProperty.call(m, 'tri'), o = m.tri; m.tri = function (a, b, c, col, mat) { return o.call(this, T(a), T(b), T(c), col, mat); };
-    try { fn(); } finally { if (own) m.tri = o; else delete m.tri; }
+    /* 带法线的三角形（苔藓、光滑曲面）也跟着转：位置照转，法线只转方向 */
+    const ownN = Object.prototype.hasOwnProperty.call(m, 'triN'), oN = m.triN, Tn = (n) => { const q = T([P[0] + n[0], P[1] + n[1], P[2] + n[2]]); const d = [q[0] - P[0], q[1] - P[1], q[2] - P[2]], l = Math.hypot(...d) || 1; return d.map((x) => x / l); };
+    if (oN) m.triN = function (a, b, c, na, nb, nc, ca, cb, cc, mat) { return oN.call(this, T(a), T(b), T(c), Tn(na), Tn(nb), Tn(nc), ca, cb, cc, mat); };
+    try { fn(); } finally { if (own) m.tri = o; else delete m.tri; if (oN) { if (ownN) m.triN = oN; else delete m.triN; } }
   }
-  const HW = { IRON: '#6f9e8c', IRON2: '#5b8778', RUST: '#9a8268', RUST2: '#857058', COP: '#6f9e8c', COP2: '#5b8778', CREAM: '#f0e6d2', CREAM2: '#e2d4ba', TILE: '#5f7482', TILE2: '#53677a', SHING: '#6f8a66', GOLD: '#d4b46a', STONEW: '#b8ae9a', WING: '#f4f0e6', WING2: '#d6cfbf' }; // 跟城堡的「林间白石城」配色一致：圆顶是生了铜绿的铜，翅膀是白的
+  const HW = { IRON: '#6f9e8c', IRON2: '#5b8778', RUST: '#9a8268', RUST2: '#857058', COP: '#6f9e8c', COP2: '#5b8778', CREAM: '#f0e6d2', CREAM2: '#e2d4ba', TILE: '#5f7482', TILE2: '#53677a', SHING: '#6f8a66', GOLD: '#d4b46a', STONEW: '#b8ae9a', WING: '#f4f0e6', WING2: '#d6cfbf' }; // 跟浮岛的「林间白石城」配色一致：圆顶是生了铜绿的铜，翅膀是白的
   // 横着伸出去的管子 / 炮管：从 (u,v,z) 朝 yaw 方向伸 len 格
   function pipeOut(m, u, v, z, yaw, len, r, col, up = 0) { warp(m, [u, v, z], yaw, Math.PI / 2 - up, 0, () => { m.cyl(u, v, z, z + len / ZS, r, r * 0.92, col, M.metal, 8); m.cyl(u, v, z + len / ZS - 0.3, z + len / ZS + 0.4, r * 1.35, r * 1.35, shade(col, 0.8), M.metal, 8, true, '#1e1a22'); }); }
   // 一圈城垛（石头矮墙，上面一个个垛口）
@@ -270,7 +273,7 @@
   function fin(m, u, v, z, yaw, len, n, out) { warp(m, [u, v, z], yaw, 0, 0, () => { for (let i = 0; i < n; i++) { const a = u + (i * len) / n, b = a + len / n, hh = 5 + Math.sin((i / n) * Math.PI) * 4; m.quad([a, v, z], [b, v, z], [b - 0.2, v + out, z - hh + 1], [a + 0.1, v + out * 0.9, z - hh], i % 3 ? HW.WING : HW.WING2, M.cloth); m.tri([a, v, z + 0.1], [a + 0.15, v + out * 0.9, z - hh], [a + 0.1, v + out + 0.2, z - hh - 0.8], '#c8a050', M.metal); } }); }
   // 铆钉铜铁的大身子（一段一段圆台叠起来，接缝处一圈铆钉带）
   function hull(m, u, v, z0, segs, col) { let z = z0; segs.forEach(([r0, r1, h, du, dv], i) => { const cu = u + (du || 0), cv = v + (dv || 0); m.cyl(cu, cv, z, z + h, r0, r1, i % 2 ? col : shade(col, 0.9), M.metal, 16); m.cyl(cu, cv, z + h - 0.4, z + h, r1 + 0.12, r1 + 0.12, shade(col, 0.7), M.metal, 16); for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.2832; m.box(cu + Math.cos(a) * (r1 + 0.13) - 0.06, cv + Math.sin(a) * (r1 + 0.13) - 0.06, z + h - 0.3, cu + Math.cos(a) * (r1 + 0.13) + 0.06, cv + Math.sin(a) * (r1 + 0.13) + 0.06, z + h - 0.1, '#e0b070', M.metal); } z += h; }); return z; }
-  // 城堡后背的「身子」：三坨铆钉铜铁叠起来，后面挤满歪房子、铜管、圆顶（只在平台后面，不挡宠物走路）
+  // 浮岛后背的「身子」：三坨铆钉铜铁叠起来，后面挤满歪房子、铜管、圆顶（只在平台后面，不挡宠物走路）
   CA.HULLS = [[9, 3.4, 3], [16.6, 3, 3.3], [23.9, 3.7, 2.7]];
   function heap(m, o, c) {
     const { snow } = c, Z1 = CA.Z[1], Z2 = CA.Z[2], Z3 = CA.Z[3], tz = K.T.terrain, S = (u, v, z, w, d, h, x) => hut(m, u, v, z, w, d, h, Object.assign({ snow, seed: Math.round(u * 7 + v) }, x));
@@ -322,7 +325,7 @@
     fin(m, 3.2, 8.2, Z1 - 0.8, Math.PI / 2, 10, 10, 1.3);
     fin(m, 25.9, 21.2, Z3 - 1.2, -Math.PI / 2, 6.5, 6, 1.4);
     fin(m, A[0] - 2.4, A[1] - A[2], Z2 - 1, Math.PI, 4, 4, 1);
-    // 窝楼前沿底下吊着两栋小房子（悬在小河上空），像挂在城堡肚子上
+    // 窝楼前沿底下吊着两栋小房子（悬在小河上空），像挂在浮岛肚子上
     { const W1 = CA.WING1; hut(m, W1[0] + 2, W1[3] - 1.2, Z1 - 6.4, 2.4, 2, 4.4, { ax: 'u', snow, seed: 21, yaw: 0.08, tv: 0.04 }); hut(m, W1[0] + 6, W1[3] - 1, Z1 - 5.6, 2, 1.8, 3.8, { ax: 'v', snow, seed: 22, yaw: -0.1, roof: HW.TILE2 }); for (const u of [W1[0] + 2, W1[0] + 6]) m.box(u - 0.08, W1[3] - 1.1, Z1 - 3, u + 0.08, W1[3] - 0.9, Z1 - 1.5, '#3a3448', M.metal); }
     // 屋顶之间拉的晾衣绳和小旗
     for (let k = 0; k < 7; k++) { const t = k / 6, u = 13.4 + t * 5, v = 4.4 - t * 0.4, zz = zt + 5.2 - Math.sin(t * Math.PI) * 0.9; m.tri([u - 0.3, v, zz], [u + 0.3, v, zz], [u, v, zz - 0.9], ['#e0604a', '#ffd36a', '#5aa6d8', '#f4ead8'][k % 4], M.cloth); }
@@ -428,7 +431,7 @@
       const a = grid[i][j], b = grid[i][j + 1], c = grid[i + 1][j + 1], d = grid[i + 1][j], cu = (a[0] + c[0]) / 2, cv = (a[1] + c[1]) / 2, [col, mt] = colAt(cu, cv, 0);
       m.quad(a, b, c, d, col, mt);
     }
-    // —— 底座：岩石和泥土往下收成一个尖，树根垂下来，里面嵌着一点黄铜管子和舷窗（像飞行城堡的底） ——
+    // —— 底座：岩石和泥土往下收成一个尖，树根垂下来，里面嵌着一点黄铜管子和舷窗（像浮岛的底） ——
     const rim = []; for (let j = 0; j <= NA; j++) rim.push(grid[NR][j % NA]);
     const RINGS = [[1, -1.6, 0], [0.97, -3.6, 1], [0.86, -6.8, 2], [0.66, -10, 2], [0.42, -13, 2], [0.18, -15.6, 2]];
     let prev = rim;

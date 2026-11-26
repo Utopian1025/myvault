@@ -25,7 +25,7 @@
   PP.NEST = { cave: 'mountain' };
   PP.ISOLATED = { academy: 1, undergrove: 1 };
   PP.MINE = ['academy', 'undergrove'];
-  // 浮空岛这个场景去掉了：你的飞行城堡就是那座浮空岛（地图上原来的位置换成城堡，点了直接去城堡）
+  // 浮空岛这个场景去掉了：你的浮岛就是那座浮空岛（地图上原来的位置换成浮岛，点了直接去浮岛）
   PP.CHAIN = PP.WORLD.map((w) => w[0]).filter((k) => !PP.NEST[k] && !PP.ISOLATED[k]);
   PP.SCENE_ICON = { castle: 'isleIco', skyisle: 'isleIco', academy: 'castleIco', undergrove: 'shroomIco', antarctic: 'penguinIco', snow: 'ice', mountain: 'peak', cave: 'caveIco', forest: 'tree', jungle: 'palmIco', meadow: 'flowerIco', savanna: 'acaciaIco', desert: 'cactusIco', farm: 'barnIco', lake: 'lakeIco', beach: 'shellIco', sea: 'coralIco' };
   PP.HOME_NAME = {

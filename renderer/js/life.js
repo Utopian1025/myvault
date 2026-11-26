@@ -1,4 +1,4 @@
-// 城堡里的生活：更多作物（按季节）、花房里的稀有植物、植物图鉴（每种 4 个生长阶段的精细像素画）、
+// 浮岛里的生活：更多作物（按季节）、花房里的稀有植物、植物图鉴（每种 4 个生长阶段的精细像素画）、
 // 厨房菜谱（用作物 / 鸡蛋 / 蜂蜜 / 小鱼干做菜）、便当（带去探险有加成）、工作间（用收成做摆设和装扮）、
 // 种子从哪儿来：探险带回当地的稀有种子、在风景里散步偶尔捡到。
 (function () {
@@ -330,7 +330,7 @@
   };
   PP.tripExtra = (open, p) => {
     const ds = Object.keys(E().bag).filter((k) => I[k] && I[k].kind === 'dish' && E().bag[k] > 0);
-    if (!ds.length) return `<div class="sec">便当</div><p class="muted">背包里还没有做好的菜：去城堡厨房做一份，带着出门有加成。</p>`;
+    if (!ds.length) return `<div class="sec">便当</div><p class="muted">背包里还没有做好的菜：去浮岛厨房做一份，带着出门有加成。</p>`;
     return `<div class="sec">带一份便当</div><div class="row wrap"><button class="chip ${!open.bento ? 'on' : ''}" data-bento="">不带</button>${ds.map((k) => `<button class="chip ${open.bento === k ? 'on' : ''}" data-bento="${k}">${esc(I[k].name)}（${E().bag[k]}）<small>${TRIPN[DISH[k.slice(2)].trip]}</small></button>`).join('')}</div>`;
   };
   PP.LIFE = { PL, PLANTS, CROPS_IDS, RARE_IDS, DISH, CRAFT, art, artCanvas, cook, craft, potInfo, potSow, potWater, potPollinate, potHarvest, setTemp, ghKey, ghTick, seen, harvested, season, findSeed, TEMPN };

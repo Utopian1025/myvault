@@ -22,7 +22,7 @@
       '-',
       wild ? { id: `pet:${id}:adopt`, label: '认养它（取个名字）…' } : { id: `pet:${id}:main`, label: '让它陪着我（极简模式、提醒、陪打字）', type: 'radio', checked: main },
       ...(wild ? [] : [{ id: `pet:${id}:note`, label: d.note ? '撕掉头顶便签' : '贴一张头顶便签' }, { id: `pet:${id}:coat`, label: '换花色' }, { id: `pet:${id}:rename`, label: '改名字…' }]),
-      { id: `pet:${id}:goto`, label: `去它在的地方看看（${d.scene === 'castle' ? '飞行城堡' : PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
+      { id: `pet:${id}:goto`, label: `去它在的地方看看（${d.scene === 'castle' ? '浮岛' : PP.SCENES[d.scene] ? PP.SCENES[d.scene].name : ''}）`, enabled: !here },
       '-',
       { id: `pet:${id}:profile`, label: '查看档案' },
       ...(wild || !PP.canMoveIn(p) ? [] : [{ id: `pet:${id}:move`, label: '搬家…' }]),
@@ -39,7 +39,7 @@
     return list;
   }
 
-  const TRAY_ITEMS = [['view', '视图'], ['isle', '去城堡'], ['bag', '背包 · 商店'], ['pets', '我认养的'], ['quiet', '工作模式'], ['pomo', '番茄钟'], ['remind', '提醒'], ['weather', '天气和季节'], ['sound', '环境声音'], ['settings', '设置'], ['hide', '暂时隐藏全部']];
+  const TRAY_ITEMS = [['view', '视图'], ['isle', '去浮岛'], ['bag', '背包 · 商店'], ['pets', '我认养的'], ['quiet', '工作模式'], ['pomo', '番茄钟'], ['remind', '提醒'], ['weather', '天气和季节'], ['sound', '环境声音'], ['settings', '设置'], ['hide', '暂时隐藏全部']];
   const TRAY_DEFAULT = ['view', 'bag', 'pomo', 'settings'];
   PP.menuModel = function (focus, forTray) {
     const s = G.save.settings;
@@ -92,8 +92,8 @@
     const ec = PP.econ && PP.econ.E();
     const econMenu = ec ? { label: '小鱼干 · 成长', hint: T(`${ec.fish} 条${PP.econ.unread() ? ' · 有信' : ''}`), sub: [
       { id: 'econ:bag', label: '背包（零食、收成、装扮）' }, { id: 'econ:shop', label: '商店' }, { id: 'econ:trip', label: '探险' },
-      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:plant', label: '植物图鉴' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和城堡' },
-      '-', { id: 'mode:isle', label: '去城堡（种地、进小屋）' },
+      { id: 'econ:book', label: '图鉴 & 明信片' }, { id: 'econ:plant', label: '植物图鉴' }, { id: 'econ:mail', label: `信箱${PP.econ.unread() ? `（${PP.econ.unread()} 封新信）` : ''}` }, { id: 'econ:home', label: '布置小屋和浮岛' },
+      '-', { id: 'mode:isle', label: '去浮岛（种地、进小屋）' },
     ] } : null;
     const viewMenu = { label: '显示', hint: T(PP.scene.active() ? `${modeName} · ${PP.SCENES[PP.scene.view()].name}` : modeName), sub: [
         ...modes, '-',
@@ -127,7 +127,7 @@
       const on = new Set(s.trayItems || TRAY_DEFAULT), pomoOn = PP.F && PP.F.pomo.phase !== 'off';
       const parts = {
         view: { label: `视图：${modeName}`, sub: modes },
-        isle: { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开城堡' : '去城堡' },
+        isle: { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开浮岛' : '去浮岛' },
         bag: econMenu ? { id: 'econ:bag', label: `背包 · 商店${PP.econ.unread() ? '（有信）' : ''}` } : null,
         pets: petsMenu, quiet: { id: 'quiet', label: '工作模式（安静）', type: 'checkbox', checked: !!s.quiet },
         pomo: { id: 'pomo', label: pomoOn ? '停止番茄钟' : `番茄钟 ${s.pomo.focus} 分钟` },
@@ -141,7 +141,7 @@
     // 第一层只放常用的；天气、声音、勿扰、提醒、照顾和回忆收进“更多”
     const pomoOn = PP.F && PP.F.pomo.phase !== 'off';
     items.push(petsMenu, ...(econMenu ? [econMenu] : []),
-      { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开城堡（回风景）' : '去我的飞行城堡' },
+      { id: curMode === 'isle' ? 'mode:band' : 'mode:isle', label: curMode === 'isle' ? '离开浮岛（回风景）' : '去我的浮岛' },
       viewMenu,
       { id: 'pomo', label: pomoOn ? '停止番茄钟' : `开始番茄钟（${s.pomo.focus} 分钟）` },
       { id: 'settings', label: '设置…' },
@@ -243,7 +243,7 @@
     }
   };
   // 老板键：一键收成极简。
-  // 窗口有焦点（你正点着城堡 / 风景）时按一下 Esc；在别的软件里干活时连按两下 Esc（只是“听到”，不拦截，那个软件照样收到 Esc）
+  // 窗口有焦点（你正点着浮岛 / 风景）时按一下 Esc；在别的软件里干活时连按两下 Esc（只是“听到”，不拦截，那个软件照样收到 Esc）
   let escT = 0;
   PP.panic = function () {
     const v = PP.curView && PP.curView(); if ((v === 'top' || v === 'in') && !PP.fpOn) return false;

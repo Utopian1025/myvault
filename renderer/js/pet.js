@@ -525,9 +525,30 @@
       }
     }
 
+    /* 0.38：当前这一帧的像素（给浮岛里的 3D 形象用：把它「吹鼓」成立体的） */
+    frameBuf() {
+      let eyes = this.eyes, mouth = this.mouth;
+      if (this.expr) { eyes = this.expr.eyes || eyes; mouth = this.expr.mouth || mouth; }
+      if (this.dizzy > 0 && !this.sleeping) eyes = 'dizzy';
+      if (this.blinking > 0 && (eyes === 'open' || eyes === 'wide' || eyes === 'angry')) eyes = this.blinking > 0.09 || this.blinking < 0.03 ? 'sleepy' : 'closed'; // 眨眼：半闭→闭→半闭
+      const hol = PP.holiday();
+      const hat = this.hat || this.d.outfit || (hol && hol.hat) || null;
+      const buf = PP.SPR.drawPet({
+        species: this.d.species, pal: this.pal, coatKey: this.d.shiny ? 'shiny' : this.d.coat, facing: this.facing, anim: this.anim, t: this.t,
+        eyes, mouth, look: this.look, blush: this.blush || this.petting > 0, ears: this.ears, wag: this.wag,
+        hat, cheeks: this.cheeks, squash: this.squash, stretch: this.stretch, struggle: this.struggle,
+        transform: this.transform, lop: this.d.lop,
+        jelly: { sy: 1 + this.jy, sx: 1 - this.jy * 0.55, skew: this.jsk + (this.purr > 0 ? Math.sin(this.t * 55) * 0.25 : 0), sway: this.tsw },
+        heat: this.heat || 0, hunting: this.hunting, custom: this.d.custom || null,
+        scene: !this.held && G.save && (G.isle || (G.save.settings.mode === 'band' && !G.save.settings.sceneHidden)),
+        vyaw: PP.VOX && PP.VOX.has(this.d.species) ? PP.VOX.yawFor(this) : null, petting: this.petting, back: !!this._backView,
+      });
+      return buf;
+    }
     // ---------- 渲染 ----------
     render(ctx) {
       if (this.inDoor || this.outing || this.inDen || this.isleHide) return;
+      if (G.isle && this._3d && !this.held) return; // 浮岛里已经按 3D 画在场景里了
       const S = G.S;
       let eyes = this.eyes, mouth = this.mouth;
       if (this.expr) { eyes = this.expr.eyes || eyes; mouth = this.expr.mouth || mouth; }
@@ -567,7 +588,7 @@
     }
     renderOverlay(ctx) {
       if (this.inDoor || this.outing) return;
-      /* 城堡里看不见它（在别的房间 / 别的层）：说的话也不挂在半空 */
+      /* 浮岛里看不见它（在别的房间 / 别的层）：说的话也不挂在半空 */
       if (this.isleHide || this.inDen) return;
       /* 第一人称时：头顶的气泡、图标是按俯视的位置算的，会飘在画面里，先不画 */
       if (PP.fpOn && G.isle && !this._fpDraw) return;

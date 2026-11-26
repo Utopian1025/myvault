@@ -517,7 +517,7 @@
         continue;
       }
       if (S().mode === 'mini' && p === main) continue;
-      // 住在城堡里的：不在风景里跑来跑去，你一离开那个风景它就回城堡；在城堡里由城堡带着过日子
+      // 住在浮岛里的：不在风景里跑来跑去，你一离开那个风景它就回浮岛；在浮岛里由浮岛带着过日子
       if (!p.d.wild && p.d.ownHome === 'castle') { if (p.d.scene !== 'castle') { p.d.scene = 'castle'; p.d.inHome = false; changed = true; } p.decay(step); continue; }
       p.decay(step);
       if (p.bubble) p.bubble = null;

@@ -38,6 +38,7 @@
     }
     // 圆柱 / 圆台 / 圆锥（r 以格为单位）
     cyl(u, v, z0, z1, r0, r1, col, mat = 0, n = 14, cap = true, capCol) {
+      if (n >= 8 && Math.max(r0, r1) > 0.08) n = Math.min(48, Math.round(n * (Math.max(r0, r1) > 1.2 ? 2.2 : 1.7))); // 0.38：圆的东西面数加密（柱子、桶、塔），边缘圆滑，不再一棱一棱
       for (let i = 0; i < n; i++) {
         const a = (i / n) * 6.2832, b = ((i + 1) / n) * 6.2832, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
         const p0 = [u + ca * r0, v + sa * r0, z0], p1 = [u + cb * r0, v + sb * r0, z0], p2 = [u + cb * r1, v + sb * r1, z1], p3 = [u + ca * r1, v + sa * r1, z1];
@@ -105,8 +106,30 @@
     leaf(c, a, tilt, s, col, sw = 1) {
       const ca = Math.cos(a), sa = Math.sin(a), t1 = [-sa * s * 0.5, ca * s * 0.5, 0], t2 = [ca * s * 0.42 * Math.cos(tilt), sa * s * 0.42 * Math.cos(tilt), s * 1.15 * Math.sin(tilt)];
       const P = (i, j) => [c[0] + t1[0] * i + t2[0] * j, c[1] + t1[1] * i + t2[1] * j, c[2] + t1[2] * i + t2[2] * j];
-      const o = this.sway; this.sway = sw; const N = 7, ctr = P(0, 0.05); for (let k = 0; k < N; k++) { const a0 = (k / N) * 6.2832, a1 = ((k + 1) / N) * 6.2832; this.tri(ctr, P(Math.cos(a0) * 1.05, Math.sin(a0) * 1.15), P(Math.cos(a1) * 1.05, Math.sin(a1) * 1.15), col, 8); } this.sway = o; return this; // 圆润的叶片（七边形，像一片小圆叶），不尖
+      /* 0.38：叶子是有厚度的：正面中间鼓起来、背面也鼓一点（像一颗扁扁的豆荚），边上微微往下卷——从侧面看也是圆润的一片，不是一张纸 */
+      const nx = t1[1] * t2[2] - t1[2] * t2[1], ny = t1[2] * t2[0] - t1[0] * t2[2], nz = t1[0] * t2[1] - t1[1] * t2[0], nl = Math.hypot(nx, ny, nz) || 1, sg = nz < 0 ? -1 : 1, th = s * 0.16, N0 = [sg * nx / nl * th, sg * ny / nl * th, sg * nz / nl * th];
+      const o = this.sway; this.sway = sw; const N = 6, c0 = P(0, 0.05), top = [c0[0] + N0[0], c0[1] + N0[1], c0[2] + N0[2]], bot = [c0[0] - N0[0] * 0.55, c0[1] - N0[1] * 0.55, c0[2] - N0[2] * 0.55], back = (Array.isArray(col) ? col : C(col)).map((x) => x * 0.8);
+      const ring = []; for (let k = 0; k < N; k++) { const a0 = (k / N) * 6.2832, e = P(Math.cos(a0) * 1.05, Math.sin(a0) * 1.15), curl = Math.abs(Math.cos(a0)) * 0.35; ring.push([e[0] - N0[0] * curl, e[1] - N0[1] * curl, e[2] - N0[2] * curl]); }
+      for (let k = 0; k < N; k++) { const a = ring[k], b = ring[(k + 1) % N]; this.tri(top, a, b, col, 8); this.tri(bot, b, a, back, 8); } this.sway = o; return this; // 圆润的叶片，不尖
     }
+    /* 一团苔藓（0.38，照动漫里那种苔）：圆鼓鼓的一个软包，边上挤着几个小包；底下深绿、顶上嫩黄绿，法线是光滑的（看起来软软的、毛茸茸的）；
+       大一点的顶上还冒出几根细细的孢子柄，头上一颗小小的褐色孢蒴。nrm 是长出来的方向（地上朝上，树皮上朝外） */
+    moss(c, nrm, r, h, seed = 1) { const R = (i) => { const x = Math.sin(seed * 12.9898 + i * 78.233) * 43758.5; return x - Math.floor(x); };
+      const nl = Math.hypot(...nrm) || 1, N = nrm.map((x) => x / nl), up = Math.abs(N[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; let X = [N[1] * up[2] - N[2] * up[1], N[2] * up[0] - N[0] * up[2], N[0] * up[1] - N[1] * up[0]]; const xl = Math.hypot(...X); X = X.map((v) => v / xl); const Y = [N[1] * X[2] - N[2] * X[1], N[2] * X[0] - N[0] * X[2], N[0] * X[1] - N[1] * X[0]];
+      const W = (o, a, b, n) => [o[0] + X[0] * a + Y[0] * b + N[0] * n, o[1] + X[1] * a + Y[1] * b + N[1] * n, o[2] + X[2] * a + Y[2] * b + N[2] * n], Wn = (a, b, n) => { const v = [X[0] * a + Y[0] * b + N[0] * n, X[1] * a + Y[1] * b + N[1] * n, X[2] * a + Y[2] * b + N[2] * n], l = Math.hypot(...v) || 1; return v.map((q) => q / l); };
+      const BASE = [0.24, 0.36, 0.15], MID = [0.4, 0.56, 0.22], TOP = [0.66, 0.76, 0.36], mix = (a, b, t) => a.map((x, i) => x + (b[i] - x) * t);
+      const dome = (o, rr, hh, sd, la = 4, lo = 10) => { const P = [], Nn = [], Cc = []; for (let i = 0; i <= la; i++) { const ph = (i / la) * Math.PI / 2, cp = Math.cos(ph), sp = Math.sin(ph); const rowP = [], rowN = [], rowC = []; for (let j = 0; j < lo; j++) { const th = (j / lo) * 6.2832, bump = 1 + (i < la ? 0.13 * (Math.sin(th * 3 + sd * 5) * 0.5 + Math.sin(th * 5 + i * 1.7 + sd) * 0.5) * cp : 0), ca = Math.cos(th), sa = Math.sin(th);
+          rowP.push(W(o, ca * cp * rr * bump, sa * cp * rr * bump, sp * hh - hh * 0.12)); rowN.push(Wn(ca * cp / rr, sa * cp / rr, sp / hh)); const t = Math.pow(sp, 0.8), col = t < 0.5 ? mix(BASE, MID, t * 2) : mix(MID, TOP, (t - 0.5) * 2); rowC.push(col.map((x) => x * (0.93 + 0.12 * R(sd * 31 + i * 13 + j)))); } P.push(rowP); Nn.push(rowN); Cc.push(rowC); }
+        for (let i = 0; i < la; i++) for (let j = 0; j < lo; j++) { const j2 = (j + 1) % lo; this.triN(P[i][j], P[i][j2], P[i + 1][j2], Nn[i][j], Nn[i][j2], Nn[i + 1][j2], Cc[i][j], Cc[i][j2], Cc[i + 1][j2], MAT.moss); this.triN(P[i][j], P[i + 1][j2], P[i + 1][j], Nn[i][j], Nn[i + 1][j2], Nn[i + 1][j], Cc[i][j], Cc[i + 1][j2], Cc[i + 1][j], MAT.moss); } };
+      dome(c, r, h, seed, 5, 12);
+      const nsub = 2 + Math.floor(R(1) * 3); for (let k = 0; k < nsub; k++) { const a = R(k + 2) * 6.2832, d = r * (0.7 + R(k + 7) * 0.35), rr = r * (0.38 + R(k + 12) * 0.25); dome(W(c, Math.cos(a) * d, Math.sin(a) * d, -h * 0.05), rr, h * (0.45 + R(k + 17) * 0.3), seed + k + 1, 3, 8); }
+      if (r > 0.35) { const ns = Math.min(7, Math.round(r * 6)); for (let k = 0; k < ns; k++) { const a = R(k + 30) * 6.2832, d = r * 0.6 * Math.sqrt(R(k + 40)), base = W(c, Math.cos(a) * d, Math.sin(a) * d, h * Math.sqrt(Math.max(0, 1 - (d / r) ** 2)) * 0.82), hh = h * (0.35 + R(k + 50) * 0.35) + 0.12, tip = W(base, (R(k + 60) - 0.5) * 0.06, (R(k + 70) - 0.5) * 0.06, hh);
+          const sw0 = this.sway; this.sway = 0.4; this.stem(base, tip, 0.014, 0.01, '#b08a4a', MAT.flat); this.stem(tip, W(tip, 0.02, 0, 0.07), 0.028, 0.02, '#8a5a2a', MAT.flat); this.sway = sw0; } }
+      return this; }
+    // 一段圆的细茎（藤蔓、草茎）：五边形断面，两头粗细可以不同
+    stem(a, b, r0, r1, col, mat = 2, nSide) { const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(...d) || 1, t = d.map((x) => x / L), up = Math.abs(t[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; let x = [t[1] * up[2] - t[2] * up[1], t[2] * up[0] - t[0] * up[2], t[0] * up[1] - t[1] * up[0]]; const xl = Math.hypot(...x); x = x.map((v) => v / xl); const y = [t[1] * x[2] - t[2] * x[1], t[2] * x[0] - t[0] * x[2], t[0] * x[1] - t[1] * x[0]], n = nSide || (Math.max(r0, r1) > 0.25 ? 10 : Math.max(r0, r1) > 0.05 ? 7 : 4);
+      const R = (p, r) => Array.from({ length: n }, (_, k) => { const q = (k / n) * 6.2832, c = Math.cos(q) * r, s2 = Math.sin(q) * r; return [p[0] + x[0] * c + y[0] * s2, p[1] + x[1] * c + y[1] * s2, p[2] + x[2] * c + y[2] * s2]; }), A = R(a, r0), B = R(b, r1);
+      for (let k = 0; k < n; k++) { const j = (k + 1) % n; this.tri(A[k], A[j], B[j], col, mat); this.tri(A[k], B[j], B[k], col, mat); } return this; }
     // 一蓬叶子：n 片叶子贴在椭球面上，颜色深浅不一；里面垫一个暗色的芯，不会透
     foliage(u, v, z, r, rz, cols, n = 60, seed = 1, ls = 0.7) {
       // 大一点的树冠不是一个球：拆成几团（团和团之间有凹进去的缝），叶子按面积铺满，上面亮、下面和里面暗
@@ -165,6 +188,7 @@
     }
     // 光滑的球（顶点法线朝外）：像素画里一团叶子、一块圆石头，光照会是一圈圈干净的明暗
     ball(u, v, z, r, rz, col, mat = 0, la = 6, lo = 12, bump = 0, seed = 1, top = false) {
+      if (lo >= 8 && Math.max(r, rz) > 0.12) { const k = Math.max(r, rz) > 1 ? 2 : 1.6; la = Math.min(24, Math.round(la * k)); lo = Math.min(40, Math.round(lo * k)); } // 0.38：球面加密
       col = C(col); const P = [], N = [];
       for (let i = 0; i <= la; i++) for (let j = 0; j <= lo; j++) { const t = (i / la) * (top ? Math.PI / 2 : Math.PI), /* top：只画上半个（穹顶），不往下穿进屋里 */ f = (j / lo) * 6.2832, k = 1 + bump * Math.sin(seed * 7.1 + i * 2.3 + (j % lo) * 1.7); const x = Math.sin(t) * Math.cos(f), y = Math.sin(t) * Math.sin(f), zz = Math.cos(t); P.push([u + x * r * k, v + y * r * k, z + zz * rz * k]); let nx = x / (r * MU), ny = y / (r * MU), nz = zz / (rz * MZ); const l = Math.hypot(nx, ny, nz) || 1; N.push([nx / l, ny / l, nz / l]); }
       const W = lo + 1, put = (a) => { const q = P[a], n = N[a]; this.p.push(q[0] + this.ox, q[1] + this.oy, q[2] + this.oz); this.n.push(n[0], n[1], n[2]); this.c.push(col[0], col[1], col[2]); this.m.push(mat + 32 * this.pick); this.w.push(this.sway); };
@@ -319,7 +343,7 @@
       const vec2 PD[12]=vec2[12](vec2(-0.326,-0.406),vec2(-0.840,-0.074),vec2(-0.696,0.457),vec2(-0.203,0.621),vec2(0.962,-0.195),vec2(0.473,-0.480),vec2(0.519,0.767),vec2(0.185,-0.893),vec2(0.507,0.064),vec2(0.896,0.412),vec2(-0.322,-0.933),vec2(-0.792,-0.598));
       float s=0.0; for(int i=0;i<12;i++) s+=texture(uSh, vec3(vS.xy+PD[i]*(2.4/2048.0), vS.z-0.0025)); sh=s/12.0; }
     vec3 amb=mix(uGndCol,uSkyCol,n.z*0.5+0.5);
-    /* 体素「光追」（0.31）：整座城堡做成一张 3D 体素图，每个点沿法线和两侧打几条短光线，看身边被东西挡住多少（墙角、桌底、屋檐下变暗）；
+    /* 体素「光追」（0.31）：整座浮岛做成一张 3D 体素图，每个点沿法线和两侧打几条短光线，看身边被东西挡住多少（墙角、桌底、屋檐下变暗）；
        再往正上方打一条光线看头顶有没有屋顶、树冠（有的话天光进不来，屋里、树荫下自然暗一层） */
     float aoK=1.0, skyV=1.0;
     if(uVoxOn>0.5 && uPick<0.5 && !lakeW && m!=6 && m!=10){ vec3 nw=normalize(vec3(n.x*${MU},n.y*${MU},n.z*${MZ})); vec3 tA=normalize(cross(nw, abs(nw.z)<0.9?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0))), tB=cross(nw,tA); vec3 pp=vW+nw*0.35;
@@ -442,7 +466,7 @@
       gl.disable(gl.POLYGON_OFFSET_FILL); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     }
     if (o.pickAt) { if (!pickFb) { pickFb = gl.createFramebuffer(); const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); const rb = gl.createRenderbuffer(); gl.bindRenderbuffer(gl.RENDERBUFFER, rb); gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, 1, 1); gl.bindFramebuffer(gl.FRAMEBUFFER, pickFb); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb); } gl.bindFramebuffer(gl.FRAMEBUFFER, pickFb); gl.viewport(-Math.round(o.pickAt[0]), -Math.round(H - 1 - o.pickAt[1]), W, H); }
-    else { gl.viewport(0, 0, W, H); var ms = o.msaa && !o.mode && !o.cutPass && !o.scissor && !o.occ && !o.pickAt ? msaaFb(W, H) : null; /* 0.32：城堡视图精细画质也开 4 倍抗锯齿 */ if (ms) gl.bindFramebuffer(gl.FRAMEBUFFER, ms); }
+    else { gl.viewport(0, 0, W, H); var ms = o.msaa && !o.mode && !o.cutPass && !o.scissor && !o.occ && !o.pickAt ? msaaFb(W, H) : null; /* 0.32：浮岛视图精细画质也开 4 倍抗锯齿 */ if (ms) gl.bindFramebuffer(gl.FRAMEBUFFER, ms); }
     if (o.scissor) { gl.enable(gl.SCISSOR_TEST); const s = o.scissor; gl.scissor(Math.floor(s[0]), Math.floor(H - s[1] - s[3]), Math.ceil(s[2]), Math.ceil(s[3])); } else gl.disable(gl.SCISSOR_TEST);
     gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.useProgram(prog); setL(prog);

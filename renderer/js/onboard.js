@@ -1,7 +1,7 @@
 // 第一次玩的引导：一张一直挂着的小卡片（可以关掉），跟着你的进度走三步
 //   1. 指着一只野生动物：点它 → 认养
 //   2. 认养以后：它是你的伙伴了，摸摸它、拖着它走
-//   3. 它的新家是飞行城堡：带你去看看
+//   3. 它的新家是浮岛：带你去看看
 // 做完（或关掉）就不再出现；进度记在存档 flags.onboard 里
 (function () {
   const PP = (window.PP = window.PP || {});
@@ -13,7 +13,7 @@
   function show(html, buttons) {
     if (!card) { card = document.createElement('div'); card.className = 'guide'; document.getElementById('ui').appendChild(card);
       card.addEventListener('mousedown', (e) => e.stopPropagation());
-      card.addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; const a = b.dataset.g; if (a === 'close') finish(true); else if (a === 'castle') { finish(); PP.setView && PP.setView('isle'); setTimeout(() => PP.ui.toast('这是你的飞行城堡：左上角那列小按钮能剖开看每一层、进房间；按 F 用主角的眼睛走进去', 6), 1500); } else if (a === 'next') go(3); }); }
+      card.addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; const a = b.dataset.g; if (a === 'close') finish(true); else if (a === 'castle') { finish(); PP.setView && PP.setView('isle'); setTimeout(() => PP.ui.toast('这是你的浮岛：左上角那列小按钮能剖开看每一层、进房间；按 F 用主角的眼睛走进去', 6), 1500); } else if (a === 'next') go(3); }); }
     card.innerHTML = `<button class="x" data-g="close" title="不用引导了">×</button><div class="t">${html}</div>${buttons || ''}<i class="arrow"></i>`;
     place();
   }
@@ -42,7 +42,7 @@
       show(`<b>${esc(pet ? pet.name : '它')}现在是你的伙伴了！</b><br>它会一直陪着你。试试：鼠标在它身上来回蹭蹭（摸摸）、按住拖着它走、双击它。`, '<div class="row"><button class="primary small" data-g="next">知道了，下一步</button></div>');
     } else if (step === 3) {
       target = pet;
-      show(`<b>它的新家在飞行城堡</b><br>城堡里有菜园、厨房、卧室……它会在家里过日子。右键它或者左下角的爪子，能打开所有功能（番茄钟、提醒、商店、地图）。`, '<div class="row"><button class="primary small" data-g="castle">带我去城堡看看</button><button class="small" data-g="close">以后再说</button></div>');
+      show(`<b>它的新家在浮岛</b><br>浮岛里有菜园、厨房、卧室……它会在家里过日子。右键它或者左下角的爪子，能打开所有功能（番茄钟、提醒、商店、地图）。`, '<div class="row"><button class="primary small" data-g="castle">带我去浮岛看看</button><button class="small" data-g="close">以后再说</button></div>');
     }
   }
   function finish(skipped) { F().onboard = 9; PP.save.soon(); clearInterval(timer); timer = 0; if (card) { card.remove(); card = null; } target = null; PP.refreshInteractive && PP.refreshInteractive(); if (skipped) PP.ui.toast('好的，有需要可以右键动物或者点左下角的爪子', 2.5); }

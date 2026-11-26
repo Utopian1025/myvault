@@ -398,7 +398,7 @@ ipcMain.handle('load', () => readSave());
 ipcMain.on('quit', () => app.quit());
 ipcMain.on('tray-menu', (_e, json) => { try { trayModel = JSON.parse(json); rebuildTray(); } catch {} });
 ipcMain.on('hide-window', () => setHidden(true));
-// 第一人称要收键盘：点进城堡时让窗口拿到焦点
+// 第一人称要收键盘：点进浮岛时让窗口拿到焦点
 ipcMain.on('blur-win', () => { try { if (win && !win.isDestroyed() && win.isFocused()) win.blur(); } catch (e) {} });
 ipcMain.on('focus-win', () => { try { if (win && !win.isDestroyed()) { win.setIgnoreMouseEvents(false); win.focus(); } } catch (e) {} });
 ipcMain.on('beat', () => { lastBeat = Date.now(); });

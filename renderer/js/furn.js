@@ -79,7 +79,7 @@
 
 
   // ---------- 家具库：按房间分类，所有能进去的房间都能摆 ----------
-  const PICK0 = 170; // 点选编号：170 起（城堡里的固定陈设用到 168）
+  const PICK0 = 170; // 点选编号：170 起（浮岛里的固定陈设用到 168）
   const CATS = [['living', '起居'], ['bedroom', '卧室'], ['kitchen', '厨房'], ['dining', '餐厅'], ['bath', '浴室'], ['study', '书房'], ['work', '工作间'], ['garden', '花草'], ['attic', '阁楼杂物'], ['common', '通用']];
   const CAT0 = { armchair: 'living', rocker0: 'living', flamp: 'living', cattree: 'living', yarn: 'living', cushions: 'living', rug0: 'common', stool: 'common', bed: 'bedroom', desk: 'study', trunk: 'attic', potplant: 'garden', rug: 'common', lamp: 'common', table: 'living', plant: 'garden', shelf: 'study', piano: 'living', rocker: 'living', sofa: 'living', petbed: 'bedroom', beanbag: 'living', gramophone: 'living' };
   for (const k in CAT0) if (D[k]) D[k].cat = CAT0[k];
@@ -150,7 +150,7 @@
     for (let k = 0; k < 3; k++) { const z = 0.7 + k * 1.55; t.box(-2.3, 1.2, z, 2.3, 1.28, z + 1.35, '#b88a5a', M.plank); for (const x of [-1.1, 1.1]) t.box(x - 0.2, 1.28, z + 0.55, x + 0.2, 1.36, z + 0.8, '#e0b060', M.metal); }
     t.cyl(-1.4, -0.2, 5.7, 7, 0.45, 0.3, '#7ab0c8', 0, 8); for (const [dx, c] of [[-0.2, '#f08aa0'], [0.2, '#f6e060'], [0, '#ffffff']]) t.flower(-1.4 + dx, -0.2 + dx * 0.5, 7, 1.6, c);
     t.box(0.6, -0.4, 5.7, 2, -0.2, 7.3, '#5a3a24', M.plank); t.box(0.75, -0.42, 5.85, 1.85, -0.18, 7.15, '#a8d0e8', 0); } });
-  nd('lowshelf', 'study', { name: '矮书架', w: 5, d: 1.6, use: 'read', act: '抽一本书看', say: ['这本讲的是会飞的城堡', '书页里夹着一片干树叶'], build(t) {
+  nd('lowshelf', 'study', { name: '矮书架', w: 5, d: 1.6, use: 'read', act: '抽一本书看', say: ['这本讲的是会飞的浮岛', '书页里夹着一片干树叶'], build(t) {
     t.box(-2.5, -0.8, 0, 2.5, 0.8, 0.3, DARK, M.plank); t.box(-2.5, -0.8, 6.2, 2.5, 0.8, 6.5, DARK, M.plank); for (const x of [-2.5, 2.3]) t.box(x, -0.8, 0, x + 0.2, 0.8, 6.2, '#8a5a3a', M.plank); t.box(-2.5, -0.8, 0, 2.5, -0.65, 6.2, '#7a4e30', M.plank);
     for (const z of [0.3, 2.3, 4.3]) { t.box(-2.3, -0.65, z, 2.3, 0.8, z + 0.15, '#a8784a', M.plank); books(t, -2.2, 2.2, -0.05, z + 0.15, 1.7, Math.round(z * 3)); } t.cyl(1.6, 0, 6.5, 7.2, 0.35, 0.3, '#c86a5a', 0, 8); t.foliage(1.6, 0, 7.6, 0.6, 0.5, ['#5a9a4a', '#7ab060'], 24); } });
   nd('vase', 'common', { name: '插花', w: 1.8, d: 1.8, use: 'sniff', act: '闻闻花香', say: ['好香！', '今天的花开得真好'], build(t) {
@@ -190,7 +190,7 @@
     return e.layout;
   }
   // 世界里的占地矩形 [u0, v0, u1, v1]
-  let SC = 1; // 城堡里的家具比原来的小屋小一号
+  let SC = 1; // 浮岛里的家具比原来的小屋小一号
   function rect(it, pad = 0) { const d = D[it.f], odd = it.r % 2; const hw = (odd ? d.d : d.w) / 2 * SC + pad, hd = (odd ? d.w : d.d) / 2 * SC + pad; return [it.u - hw, it.v - hd, it.u + hw, it.v + hd]; }
   // 正面前面站的位置（宠物走到这儿再用它）
   function front(it, dist) { const d = D[it.f], k = d.d / 2 + (dist == null ? 1.8 : dist) / SC; return new TM(null, it.u, it.v, it.r, 0, SC).p(0, k); }

@@ -21,15 +21,29 @@
     { id: 'puffer', name: '河豚', rare: 2, size: [10, 18], season: ['summer'], look: ['#c8c070', '#f8f4d8', '#8a8040', 'spot', 'p'], eff: 'puff', n: 20, say: '一碰就鼓成一个球，把大家都逗笑了', tip: '夏天' },
     { id: 'catfish', name: '鲶鱼', rare: 2, size: [30, 70], when: 'night', rain: 1, look: ['#5a5a6a', '#9a9aa8', '#3a3a48', '', 'l'], eff: 'grow', n: 30, say: '大胡子鲶鱼，翻了翻塘底的泥，菜长得更快了', tip: '晚上、下雨天' },
     { id: 'trout', name: '虹鳟', rare: 3, size: [25, 45], season: ['autumn', 'winter'], when: 'dawn', look: ['#8aa0a8', '#f0e8e0', '#e07a8a', 'rainbow', 'l'], eff: 'funAll', n: 20, say: '身上一道彩虹，大家看了都好开心', tip: '秋冬的清晨' },
-    { id: 'glowfish', name: '萤光鱼', rare: 3, size: [6, 10], when: 'night', look: ['#6ad8c8', '#d8fff8', '#3aa8a0', 'glow', 'n'], eff: 'glow', n: 30, say: '会发光的小鱼！今晚城堡上飞满了萤火虫', tip: '晚上' },
+    { id: 'glowfish', name: '萤光鱼', rare: 3, size: [6, 10], when: 'night', look: ['#6ad8c8', '#d8fff8', '#3aa8a0', 'glow', 'n'], eff: 'glow', n: 30, say: '会发光的小鱼！今晚浮岛上飞满了萤火虫', tip: '晚上' },
     { id: 'koi', name: '锦鲤', rare: 3, size: [30, 60], look: ['#f4f0e8', '#ffffff', '#e04a3a', 'koi', 'n'], eff: 'luck', n: 30, say: '锦鲤！接下来半小时运气超好', tip: '一年四季都有，很少见' },
     { id: 'icefish', name: '冰鱼', rare: 3, size: [8, 14], season: ['winter'], look: ['#d8eef8', '#ffffff', '#a8d0e8', 'clear', 'l'], eff: 'energyAll', n: 50, say: '透明得像冰一样，大家都精神了', tip: '冬天' },
-    { id: 'sakura', name: '樱花鱼', rare: 3, size: [8, 14], season: ['spring'], when: 'day', look: ['#f4b8c8', '#fff0f4', '#e88aa8', 'petal', 'r'], eff: 'petal', n: 25, say: '花瓣一样的鱼，城堡下了一场花瓣雨', tip: '春天的白天' },
+    { id: 'sakura', name: '樱花鱼', rare: 3, size: [8, 14], season: ['spring'], when: 'day', look: ['#f4b8c8', '#fff0f4', '#e88aa8', 'petal', 'r'], eff: 'petal', n: 25, say: '花瓣一样的鱼，浮岛下了一场花瓣雨', tip: '春天的白天' },
     { id: 'bottle', name: '漂流瓶', rare: 3, size: [20, 22], look: ['#9ad4c8', '#e8fff8', '#5a8a7a', '', 'o'], eff: 'letter', n: 8, say: '瓶子里有一封信！', tip: '偶尔会漂过来' },
     { id: 'goldcarp', name: '金鳞鲤', rare: 4, size: [40, 80], when: 'dawn', look: ['#f0c030', '#fff0a0', '#d89020', 'scale', 'n'], eff: 'gold', n: 30, say: '传说中的金鳞鲤！闪闪发光', tip: '传说：清晨' },
     { id: 'mooneel', name: '月光鳗', rare: 4, size: [60, 100], when: 'night', look: ['#3a4a8a', '#a8b8f0', '#d8e0ff', 'glow', 'e'], eff: 'xpGlow', n: 150, say: '月光一样的鳗鱼，游过的地方都亮了', tip: '传说：深夜' },
   ];
   const BY = Object.fromEntries(FISH.map((f) => [f.id, f]));
+  /* 0.38 鱼饵和咬钩：每种鱼爱吃什么饵（like 很爱、ok 也吃），从游过来到咬钩要多久（wait 秒）、先试探着啄几下（nib）、
+     真咬住的时候给你多长时间收竿（win 秒）——鲤鱼谨慎、要啄好几下；虹鳟、鳜鱼是一口猛冲；小龙虾慢吞吞夹住不放 */
+  const BAIT = {
+    worm: { name: '蚯蚓', desc: '菜园堆肥里翻出来的，几乎什么鱼都吃，鲶鱼、黄颡鱼、泥鳅最爱' },
+    dough: { name: '面团', desc: '玉米面揉的，鲫鱼、鳑鲏、金鱼、樱花鱼爱吃' },
+    sweetcorn: { name: '蜜玉米粒', desc: '玉米粒用蜂蜜泡过，鲤鱼、锦鲤、金鳞鲤闻着就来' },
+    leaf: { name: '菜叶团', desc: '卷心菜叶揉成一团，草鱼专吃这个' },
+    jerky: { name: '肉干', desc: '小龙虾、河豚、鲶鱼爱咬' },
+    lure: { name: '木头小拟饵', desc: '刻成小鱼样子、涂了颜色，专钓会追小鱼的鳜鱼、虹鳟（能用好多次）' },
+  };
+  const PREF = { crucian: ['dough', 'worm'], minnow: ['worm', 'dough'], bitterling: ['dough'], loach: ['worm'], crayfish: ['jerky'], medaka: ['dough'], boot: [], carp: ['sweetcorn', 'dough'], grass: ['leaf'], yellowcat: ['worm', 'jerky'], mandarin: ['lure'], goldfish: ['dough'], puffer: ['jerky'], catfish: ['worm', 'jerky'], trout: ['lure', 'worm'], glowfish: ['worm'], koi: ['sweetcorn'], icefish: ['worm'], sakura: ['dough'], bottle: [], goldcarp: ['sweetcorn'], mooneel: ['worm'] };
+  const BITE = { crucian: [3, 8, 2, 1.3], minnow: [2, 5, 3, 0.9], bitterling: [3, 7, 2, 1.0], loach: [4, 10, 1, 1.4], crayfish: [6, 14, 2, 3.0], medaka: [2, 6, 3, 0.8], boot: [6, 12, 0, 2.5], carp: [10, 24, 4, 1.5], grass: [8, 18, 3, 1.4], yellowcat: [5, 12, 2, 1.2], mandarin: [5, 12, 0, 0.8], goldfish: [4, 9, 2, 1.2], puffer: [5, 11, 3, 1.3], catfish: [8, 20, 2, 1.8], trout: [2, 6, 0, 0.7], glowfish: [4, 9, 2, 1.0], koi: [12, 26, 4, 1.4], icefish: [4, 9, 1, 1.0], sakura: [4, 9, 2, 1.0], bottle: [8, 16, 0, 2.5], goldcarp: [15, 30, 5, 1.2], mooneel: [12, 26, 2, 1.6] };
+  /* 这一竿：按鱼饵挑一条鱼（爱吃的 ×4，也吃的 ×1.5，不对胃口的 ×0.25；空钩只有很少的鱼来、来得也慢） */
+  function rollBait(bait) { const P = pool().map(([f, w]) => { const pr = PREF[f.id] || []; let k = !bait ? (f.eff === 'junk' ? 2 : 0.35) : pr[0] === bait ? 4 : pr.includes(bait) ? 1.5 : pr.length ? 0.25 : 0.6; if (bait === 'lure' && !pr.includes('lure')) k *= 0.3; return [f, w * k]; }).filter(([, w]) => w > 0); const tot = P.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot; for (const [f, w] of P) if ((r -= w) <= 0) return f; return P[0][0]; }
   const RARE = ['', '常见', '少见', '稀有', '传说'], RCOL = ['', '#8a9a8a', '#4a90c8', '#a060c8', '#e0a020'];
   const E = () => PP.econ.E();
   const D = () => { const e = E(); e.dex = e.dex || {}; return e.dex; };
@@ -124,12 +138,12 @@
   }
   const fmtEff = {
     gold: (f) => `换 ${f.n} 条小鱼干${f.rare >= 4 ? '，接下来 20 分钟好运' : ''}`, fun: (f) => `主角心情 +${f.n}`, funAll: (f) => `所有小伙伴心情 +${f.n}`, energy: (f) => `主角体力 +${f.n}`, energyAll: (f) => `所有小伙伴体力 +${f.n}`,
-    xp: (f) => `主角经验 +${f.n}`, xpGlow: (f) => `经验 +${f.n}，城堡上萤火虫飞 40 分钟`, grow: (f) => `菜地里的菜提前 ${f.n} 分钟长好`, cook: (f) => `得到 ${f.n} 个鱼罐头（放进背包）`, tank: () => '放进小屋的鱼缸里养着',
-    puff: (f) => `大家被逗笑，心情 +${f.n}`, luck: () => '30 分钟内更容易钓到稀有的鱼', glow: () => '今晚城堡上飞满萤火虫（40 分钟）', petal: (f) => `下一场花瓣雨，大家心情 +${f.n}`, letter: (f) => `${f.n} 条小鱼干 + 一封漂流来的信`, junk: () => '没什么用……但也算一种收藏',
+    xp: (f) => `主角经验 +${f.n}`, xpGlow: (f) => `经验 +${f.n}，浮岛上萤火虫飞 40 分钟`, grow: (f) => `菜地里的菜提前 ${f.n} 分钟长好`, cook: (f) => `得到 ${f.n} 个鱼罐头（放进背包）`, tank: () => '放进小屋的鱼缸里养着',
+    puff: (f) => `大家被逗笑，心情 +${f.n}`, luck: () => '30 分钟内更容易钓到稀有的鱼', glow: () => '今晚浮岛上飞满萤火虫（40 分钟）', petal: (f) => `下一场花瓣雨，大家心情 +${f.n}`, letter: (f) => `${f.n} 条小鱼干 + 一封漂流来的信`, junk: () => '没什么用……但也算一种收藏',
   };
   // 钓到：记进图鉴、给效果、弹一张小卡片
-  function caught(p) {
-    const f = roll(), d = D(), size = Math.round(U.rand(f.size[0], f.size[1])), rec = d[f.id] || { n: 0, best: 0, first: Date.now() }, isNew = !rec.n;
+  function caught(p, forced) {
+    const f = forced || roll(), d = D(), size = Math.round(U.rand(f.size[0], f.size[1])), rec = d[f.id] || { n: 0, best: 0, first: Date.now() }, isNew = !rec.n;
     rec.n++; if (size > rec.best) rec.best = size; d[f.id] = rec;
     apply(f, p, size);
     card(f, size, isNew, size >= rec.best && rec.n > 1);
@@ -141,8 +155,8 @@
   function card(f, size, isNew, record) {
     if (cardEl) cardEl.remove(); clearTimeout(cardT);
     cardEl = document.createElement('div'); cardEl.className = 'fishcard r' + f.rare;
-    cardEl.innerHTML = `<canvas width="66" height="36"></canvas><div><b>${f.name}</b>${isNew ? '<i class="new">新！</i>' : record ? '<i class="new">最大纪录</i>' : ''}<small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)} ${RARE[f.rare]} · ${size} 厘米</small><p>${f.say}</p><small class="eff">${fmtEff[f.eff](f)}</small></div>`;
-    const c = cardEl.querySelector('canvas').getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(sprite(f.id), 0, 0, 66, 36);
+    cardEl.innerHTML = `<canvas width="264" height="144" style="width:132px;height:72px"></canvas><div><b>${f.name}</b>${isNew ? '<i class="new">新！</i>' : record ? '<i class="new">最大纪录</i>' : ''}<small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)} ${RARE[f.rare]} · ${size} 厘米</small><p>${f.say}</p><small class="eff">${fmtEff[f.eff](f)}</small></div>`;
+    const c = cardEl.querySelector('canvas').getContext('2d'); c.drawImage(PP.AQUA ? PP.AQUA.paint(f.id, 264, 144) : sprite(f.id), 0, 0, 264, 144);
     document.getElementById('ui').appendChild(cardEl); requestAnimationFrame(() => cardEl && cardEl.classList.add('in'));
     cardT = setTimeout(() => { if (cardEl) { cardEl.classList.remove('in'); const el = cardEl; setTimeout(() => el.remove(), 300); cardEl = null; } }, isNew ? 6500 : 4500);
   }
@@ -150,9 +164,9 @@
   function html() {
     const d = D(), got = FISH.filter((f) => d[f.id]).length;
     const L = lucky() ? `<span class="good">好运中：还有 ${Math.ceil((E().luckUntil - Date.now()) / 60000)} 分钟</span>` : '';
-    return `<div class="sec">钓鱼图鉴 ${got}/${FISH.length} ${L}</div><p class="muted">在城堡的鱼塘钓鱼（点鱼塘，咬钩时点一下浮漂帮它收竿）。不同季节、时间、天气能钓到的鱼不一样。现在：${({ dawn: '清晨', day: '白天', dusk: '傍晚', night: '晚上' })[phase()]} · ${({ spring: '春', summer: '夏', autumn: '秋', winter: '冬' })[season()] || ''}${raining() ? ' · 下雨' : ''}</p>
-      <div class="fishdex">${FISH.map((f) => { const r = d[f.id]; return `<div class="fd ${r ? '' : 'unk'}" title="${r ? f.say : '还没钓到过'}"><canvas data-fish="${f.id}" data-unk="${r ? '' : 1}" width="66" height="36"></canvas><b>${r ? f.name : '？？？'}</b><small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)}</small><small>${r ? `钓到 ${r.n} 次 · 最大 ${r.best} 厘米` : f.tip}</small>${r ? `<small class="eff">${fmtEff[f.eff](f)}</small>` : ''}</div>`; }).join('')}</div>`;
+    return `<div class="sec">钓鱼图鉴 ${got}/${FISH.length} ${L}</div><p class="muted">在浮岛的鱼塘钓鱼（点鱼塘，咬钩时点一下浮漂帮它收竿）。不同季节、时间、天气能钓到的鱼不一样。现在：${({ dawn: '清晨', day: '白天', dusk: '傍晚', night: '晚上' })[phase()]} · ${({ spring: '春', summer: '夏', autumn: '秋', winter: '冬' })[season()] || ''}${raining() ? ' · 下雨' : ''}</p>
+      <div class="fishdex">${FISH.map((f) => { const r = d[f.id]; return `<div class="fd ${r ? '' : 'unk'}" title="${r ? f.say : '还没钓到过'}"><canvas data-fish="${f.id}" data-unk="${r ? '' : 1}" width="200" height="110" style="width:100px;height:55px"></canvas><b>${r ? f.name : '？？？'}</b><small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)}</small><small>${r ? `钓到 ${r.n} 次 · 最大 ${r.best} 厘米` : f.tip}</small>${r ? `<small class="eff">${fmtEff[f.eff](f)}</small>` : ''}</div>`; }).join('')}</div>`;
   }
-  function bind(root) { root.querySelectorAll('canvas[data-fish]').forEach((cv) => { const c = cv.getContext('2d'); c.imageSmoothingEnabled = false; c.drawImage(sprite(cv.dataset.fish, !!cv.dataset.unk), 0, 0, cv.width, cv.height); }); }
-  PP.FISHDEX = { FISH, BY, caught, html, bind, sprite, lucky, phase, pool };
+  function bind(root) { root.querySelectorAll('canvas[data-fish]').forEach((cv) => { const c = cv.getContext('2d'); if (PP.AQUA) c.drawImage(PP.AQUA.paint(cv.dataset.fish, cv.width, cv.height, { dark: !!cv.dataset.unk }), 0, 0); else { c.imageSmoothingEnabled = false; c.drawImage(sprite(cv.dataset.fish, !!cv.dataset.unk), 0, 0, cv.width, cv.height); } }); }
+  PP.FISHDEX = { FISH, BY, BAIT, PREF, BITE, rollBait, caught, html, bind, sprite, lucky, phase, pool };
 })();
