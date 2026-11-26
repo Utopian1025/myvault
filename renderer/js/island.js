@@ -1878,11 +1878,14 @@
   function fpFrame(ctx) {
     const now = performance.now(), dt = Math.min(0.05, (now - fp.last) / 1000); fp.last = now;
     fpTick(dt); if (!fp) return;
+    if (PP.ECO && now - (fp._pickT || 0) > 400) { fp._pickT = now; try { const msg = PP.ECO.nearPick(fp.q.u, fp.q.v); if (msg) gain(fp.p, msg); } catch (e) {} } /* 走到陨石、蘑菇圈、熟了的野草莓、神树的果子、野蜂窝底下：自动捡起来 */
     const lo = lightOpts(), x0 = L.vx0, y0 = L.vy0, w = L.vw, h = L.vh, c3 = (a) => `rgb(${a.map((v) => Math.round(v * 255)).join(',')})`;
     ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
     // 天空
     const sg = ctx.createLinearGradient(0, y0, 0, y0 + h); sg.addColorStop(0, c3(lo.skyTop || [0.48, 0.72, 0.91])); sg.addColorStop(1, c3(lo.skyBot || [0.81, 0.92, 0.98])); ctx.fillStyle = sg; ctx.fillRect(x0, y0, w, h);
     try { drawBelow(ctx, x0, y0, w, h, now, lo); } catch (e) {}
+    try { const E0 = PP.ECO && PP.ECO.st(); if (E0 && E0.rainbow > Date.now()) { /* 雨后的彩虹：挂在东边的天上，走着转身才看得到 */ const cm = fpCam(), d = Math.atan2(Math.sin(0.4 - cm.yaw), Math.cos(0.4 - cm.yaw)), cxr = x0 + w / 2 + d / (cm.fov * 0.9) * w, hy = y0 + h * 0.5 + cm.pitch * h * 0.9, R = h * 0.75, k = Math.min(1, (E0.rainbow - Date.now()) / 300000);
+      if (Math.abs(d) < 2.2) { ctx.save(); ctx.globalAlpha = 0.28 * k; ctx.lineWidth = R * 0.028; ['#ff5050', '#ffa040', '#ffe060', '#60d060', '#50a0ff', '#6060e0', '#a060d0'].forEach((c, i) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(cxr, hy, R - i * ctx.lineWidth, Math.PI, 0); ctx.stroke(); }); ctx.restore(); } } } catch (e) {}
     const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), eye: [fp.q.u, fp.q.v, fp.q.z + (fp.swim ? SWE : EYE)], under: !!fp.under, bite: fishBite(now), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
     try { const cm = fpCam(), cy0 = Math.cos(cm.yaw), sy0 = Math.sin(cm.yaw); pets3d(dm, [-sy0, cy0], [-cy0, -sy0], (o) => o === fp.p && cm.third < 0.6, true); } catch (e) {}
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null; lastScenes = [s.gpu, dynMesh]; lastLO = lo;

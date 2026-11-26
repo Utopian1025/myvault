@@ -405,7 +405,7 @@
   }
   // 水面：整个盆地一层（第二遍半透明画，看得见底下的城）
   function water(m, o, PKF) {
-    if (PKF != null) m.pk(PKF); m.quad([POND.u0, POND.v0, WL], [POND.u1, POND.v0, WL], [POND.u1, POND.v1, WL], [POND.u0, POND.v1, WL], o.snow ? '#7fb8c8' : '#3f9aa8', M.lake); m.pk(0); // 水面只在池塘里
+    if (PKF != null) m.pk(PKF); m.quad([POND.u0, POND.v0, WL], [POND.u1, POND.v0, WL], [POND.u1, POND.v1, WL], [POND.u0, POND.v1, WL], o.snow ? '#7fb8c8' : o.eco && o.eco.algae > 0.2 ? '#5a9a4a' : '#3f9aa8', M.lake); /* 藻华的时候池水发绿 */ m.pk(0); // 水面只在池塘里
   }
   // 出水口：东边城墙的缺口，水流过岩顶，挂成瀑布从峭壁落下去
   function outflow(m, o) {

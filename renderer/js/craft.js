@@ -21,6 +21,8 @@
     jam: { kind: 'snack', name: '草莓果酱', icon: 'berry', xp: 70, aff: 3, hunger: 30, desc: '自己熬的果酱，+70 经验，好感涨' },
     seeds: { kind: 'snack', name: '炒瓜子', icon: 'seed', xp: 18, aff: 1, hunger: 10, desc: '向日葵籽炒的，嗑着玩，+18 经验' },
     dryflower: { kind: 'crop', name: '干花束', icon: 'flower', xp: 30, aff: 4, desc: '郁金香晾的干花，送给它好感大涨' },
+    starstone: { kind: 'crop', name: '陨石碎片', icon: 'star', sell: 60, aff: 2, xp: 10, desc: '流星雨那天落在岛上的小陨石，摸着还有点温，发着淡淡的光' },
+    treefruit: { kind: 'snack', name: '神树的果子', icon: 'apple', xp: 200, aff: 6, hunger: 40, thirst: 20, desc: '好几年才结一次的金色果子，甜得很：+200 经验，好感大涨' },
     mushroom: { kind: 'snack', name: '蘑菇', icon: 'leaf', xp: 25, hunger: 20, desc: '秋雨后树根边长出来的，+25 经验' },
   };
   /* 配方：in 用掉什么（背包里的东西；fuel 是石炉的柴），out 得到什么，cd 冷却（分钟，堆肥里的蚯蚓要等它们再钻出来），t 做多久（秒） */

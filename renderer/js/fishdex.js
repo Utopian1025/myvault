@@ -141,19 +141,22 @@
   // 钓到：记进图鉴、给效果、弹一张小卡片
   function caught(p, forced) {
     const f = forced || roll(), d = D(), size = Math.round(U.rand(f.size[0], f.size[1])), rec = d[f.id] || { n: 0, best: 0, first: Date.now() }, isNew = !rec.n;
-    rec.n++; if (size > rec.best) rec.best = size; d[f.id] = rec; if (PP.ECO) PP.ECO.caught(f.id);
-    apply(f, p, size);
-    card(f, size, isNew, size >= rec.best && rec.n > 1);
+    /* 0.40 罕见的个体：每条鱼都是独一无二的，偶尔会钓到金色的、白化的、特别大的（世界本来就有这样的随机） */
+    let vr = null; if (PP.ECO && f.eff !== 'junk' && f.look[4] !== 'o') { const r = PP.ECO.rng(); vr = r < 0.012 ? 'gold' : r < 0.025 ? 'albino' : r < 0.05 ? 'giant' : null; }
+    const size2 = vr === 'giant' ? Math.round(size * 1.7) : size; if (vr) { rec.vars = rec.vars || {}; rec.vars[vr] = (rec.vars[vr] || 0) + 1; }
+    rec.n++; if (size2 > rec.best) rec.best = size2; d[f.id] = rec; if (PP.ECO) PP.ECO.caught(f.id); f._var = vr; f._size = size2;
+    apply(f, p, size2);
+    card(f, size2, isNew, size2 >= rec.best && rec.n > 1, vr);
     PP.save && PP.save.soon && PP.save.soon();
     if (PP.quest) PP.quest.on('fish', f);
     return f;
   }
   let cardEl = null, cardT = 0;
-  function card(f, size, isNew, record) {
+  function card(f, size, isNew, record, vr) {
     if (cardEl) cardEl.remove(); clearTimeout(cardT);
     cardEl = document.createElement('div'); cardEl.className = 'fishcard r' + f.rare;
-    cardEl.innerHTML = `<canvas width="264" height="144" style="width:132px;height:72px"></canvas><div><b>${f.name}</b>${isNew ? '<i class="new">新！</i>' : record ? '<i class="new">最大纪录</i>' : ''}<small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)} ${RARE[f.rare]} · ${size} 厘米</small><p>${f.say}</p><small class="eff">${fmtEff[f.eff](f)}</small></div>`;
-    const c = cardEl.querySelector('canvas').getContext('2d'); c.drawImage(PP.AQUA ? PP.AQUA.paint(f.id, 264, 144) : sprite(f.id), 0, 0, 264, 144);
+    cardEl.innerHTML = `<canvas width="264" height="144" style="width:132px;height:72px"></canvas><div><b>${f.name}</b>${vr ? `<i class="new">罕见！${({ gold: '金色个体', albino: '白化个体', giant: '巨型个体' })[vr]}</i>` : isNew ? '<i class="new">新！</i>' : record ? '<i class="new">最大纪录</i>' : ''}<small style="color:${RCOL[f.rare]}">${'★'.repeat(f.rare)} ${RARE[f.rare]} · ${size} 厘米</small><p>${f.say}</p><small class="eff">${fmtEff[f.eff](f)}</small></div>`;
+    const cvv = cardEl.querySelector('canvas'); if (vr === 'gold') cvv.style.filter = 'sepia(1) saturate(3) hue-rotate(-12deg) brightness(1.15)'; else if (vr === 'albino') cvv.style.filter = 'grayscale(1) brightness(1.45) sepia(.25) hue-rotate(-30deg)'; const c = cvv.getContext('2d'); c.drawImage(PP.AQUA ? PP.AQUA.paint(f.id, 264, 144) : sprite(f.id), 0, 0, 264, 144);
     document.getElementById('ui').appendChild(cardEl); requestAnimationFrame(() => cardEl && cardEl.classList.add('in'));
     cardT = setTimeout(() => { if (cardEl) { cardEl.classList.remove('in'); const el = cardEl; setTimeout(() => el.remove(), 300); cardEl = null; } }, isNew ? 6500 : 4500);
   }

@@ -149,6 +149,12 @@
     for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.2832, b = [Math.cos(a) * 0.2, Math.sin(a) * 0.2, -0.02]; tube(t, [b, [b[0] * 1.05, b[1] * 1.05, -0.15], [b[0] * 0.95, b[1] * 0.95, -0.3]], 0.006, 0.002, '#e8f4f0', M.glow, 3); }
     return t;
   }
+  /* ---------- 野鸭（绿头鸭）：公的绿脑袋、白颈环、褐色胸脯，母的一身麻褐 ---------- */
+  function duckT(male) { const t = T(), M = MAT(), b1 = male ? '#9a9a90' : '#8a6a46', b2 = male ? '#7a5a3a' : '#6a5034';
+    ell(t, [0, 0, 0.12], [0.32, 0.17, 0.13], (d) => (d[0] > 0.6 ? b2 : d[2] < -0.3 ? '#d8d0c0' : d[0] < -0.75 ? '#2a2a2a' : b1), M.flat, 6, 12);
+    ell(t, [0.27, 0, 0.32], [0.1, 0.085, 0.1], (d) => (male ? (d[2] < -0.6 ? '#f4f4f0' : '#2a6a3a') : '#7a5a3a'), M.flat, 5, 10); tube(t, [[0.24, 0, 0.16], [0.27, 0, 0.27]], 0.07, 0.06, male ? '#2a6a3a' : '#7a5a3a', M.flat, 6);
+    ell(t, [0.38, 0, 0.3], [0.07, 0.035, 0.02], () => (male ? '#e8c040' : '#c8883a'), M.flat, 4, 8); for (const sd of [-1, 1]) eye(t, [0.31, sd * 0.07, 0.34], 0.015, [0.4, sd, 0.2]);
+    ell(t, [-0.05, 0.1, 0.2], [0.2, 0.04, 0.06], () => (male ? '#4a4a8a' : '#5a6a9a'), M.flat, 4, 8); ell(t, [-0.05, -0.1, 0.2], [0.2, 0.04, 0.06], () => (male ? '#4a4a8a' : '#5a6a9a'), M.flat, 4, 8); return t; }
   /* ---------- 靴子、漂流瓶 ---------- */
   function bootT() { const t = T(), M = MAT(); ell(t, [-0.15, 0, 0.25], [0.14, 0.12, 0.3], () => '#6a4a34', M.flat, 6, 10); ell(t, [0.08, 0, 0.06], [0.28, 0.12, 0.08], (d) => (d[2] < -0.5 ? '#3a2a20' : '#6a4a34'), M.flat, 5, 10); tube(t, [[-0.15, 0, 0.55], [-0.15, 0, 0.56]], 0.14, 0.14, '#5a3a28', M.flat, 10); return t; }
   function bottleT() { const t = T(), M = MAT(); ell(t, [0, 0, 0], [0.32, 0.12, 0.12], (d) => (d[2] > 0.6 ? '#e8fff8' : '#9ad4c8'), M.flat, 6, 12); tube(t, [[0.3, 0, 0], [0.48, 0, 0]], 0.06, 0.05, '#9ad4c8', M.flat, 8); tube(t, [[0.48, 0, 0], [0.55, 0, 0]], 0.055, 0.055, '#a8784a', M.flat, 8); ell(t, [0, 0, 0], [0.18, 0.06, 0.06], () => '#f4ead8', M.flat, 4, 8); return t; }
@@ -157,7 +163,7 @@
   function tpl(id, lod = 1) {
     const k = id + ':' + lod; if (cache[k]) return cache[k];
     const F = PP.FISHDEX && PP.FISHDEX.BY && PP.FISHDEX.BY[id]; let t;
-    if (id === 'crab') t = crabT(); else if (id === 'snail') t = snailT(); else if (id === 'mussel') t = musselT(); else if (id === 'turtle') t = turtleT(); else if (id === 'frog') t = frogT(); else if (id === 'tadpole') t = tadpoleT(); else if (id === 'jelly') t = jellyT(); else if (id === 'shrimp') t = shrimpT(['#c8d0c0', '#e8ece0', '#a8b4a8'], false);
+    if (id === 'crab') t = crabT(); else if (id === 'snail') t = snailT(); else if (id === 'mussel') t = musselT(); else if (id === 'turtle') t = turtleT(); else if (id === 'frog') t = frogT(); else if (id === 'tadpole') t = tadpoleT(); else if (id === 'jelly') t = jellyT(); else if (id === 'duckM') t = duckT(true); else if (id === 'duckF') t = duckT(false); else if (id === 'shrimp') t = shrimpT(['#c8d0c0', '#e8ece0', '#a8b4a8'], false);
     else if (F) { const sh = F.look[4]; t = sh === 'c' ? shrimpT(F.look, true) : sh === 'b' ? bootT() : sh === 'o' ? bottleT() : fishT(id, F.look, lod); }
     else t = fishT(id, ['#9aa8a0', '#d8dccc', '#7a8a84', '', 'n'], lod);
     // 摊平成数组，画的时候快
