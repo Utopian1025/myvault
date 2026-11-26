@@ -277,8 +277,8 @@
   function farmKey() { return PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? inf.crop + inf.stage + ((E().farm[i].water || 0) > 0 ? 'w' : '') : '-'; }).join(','); }
   const potList = () => [0, 1, 2, 3].map((i) => { const f = PP.LIFE && PP.LIFE.potInfo(i); return f ? { id: f.id, stage: f.stage, wet: f.wet } : null; });
   const eggOut = () => fort().egg !== today() && new Date().getHours() >= 6;
-  function opts(c) { const e = E(); return { cut: c, focus: c ? focus : null, season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }), furn: FURN.layout(e), skip: fdrag ? fdrag.i : undefined, pinkBed: !!(e.room || {}).bed, egg: eggOut(), pots: potList() }; }
-  function baseKey() { const e = E(); return [season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, JSON.stringify(FURN.layout(e)), fdrag ? fdrag.i : '', eggOut() ? 1 : 0, JSON.stringify(potList()), dirtyK].join('|'); }
+  function opts(c) { const e = E(); return { eco: PP.ECO ? PP.ECO.snap() : null, cut: c, focus: c ? focus : null, season: season(), snow: snowy(), deco: e.isleDeco, tripping: tripping(), farm: PLOTS.map((_, i) => { const inf = PP.econ.plotInfo(i); return inf ? { crop: inf.crop, stage: inf.stage, wet: (e.farm[i].water || 0) > 0 } : null; }), furn: FURN.layout(e), skip: fdrag ? fdrag.i : undefined, pinkBed: !!(e.room || {}).bed, egg: eggOut(), pots: potList() }; }
+  function baseKey() { const e = E(); return [PP.ECO ? PP.ECO.key() : '', season(), snowy() ? 1 : 0, (e.isleDeco || []).join(','), farmKey(), tripping() ? 1 : 0, JSON.stringify(FURN.layout(e)), fdrag ? fdrag.i : '', eggOut() ? 1 : 0, JSON.stringify(potList()), dirtyK].join('|'); }
   // 外部的轮廓（算画框用）：只在季节、摆设变了的时候重算一次
   function ensureExt() {
     if (!G.save || !PP.econ) return;
@@ -1350,7 +1350,7 @@
     const f = fp.fish, now = performance.now(), p = fp.p;
     if (f) { // 收竿
       if (f.ph === 'bite') { const d = day(); let got = null; if (PP.FISHDEX) { got = PP.FISHDEX.caught(p, f.sp); if (got.eff !== 'junk' && d.fish < 14) d.fish++; } else { PP.econ.addFish(1, '钓到一条鱼'); d.fish++; }
-        fp.catchShow = { id: got && got.id, name: got ? got.name : '小鱼', t: now }; gain(p, got ? '钓到了 ' + got.name + '！' : '钓到一条鱼！'); }
+        fp.catchShow = { id: got && got.id, name: got ? got.name : '小鱼', t: now }; gain(p, got ? '钓到了 ' + got.name + '！' : '钓到一条鱼！'); if (got && (got.id === 'minnow' || got.id === 'medaka')) { PP.econ.give('bait_minnow', 1); setTimeout(() => PP.ui.toast('小' + got.name + '放进了活饵桶——能当活饵钓鳜鱼、鲶鱼', 2.2), 1200); } }
       else if (f.ph === 'nibble') PP.ui.toast('太早了——它还在试探，鱼吓跑了', 1.6);
       else if (f.ph === 'fly' || f.ph === 'wait' || f.ph === 'come') PP.ui.toast('收竿了——还没咬钩呢，再耐心等等', 1.4);
       ripple(f.u, f.v); fp.fish = null; p.tool = null; return;
@@ -1515,27 +1515,31 @@
   function workshopPop(x, y) {
     const CR = PP.CRAFT; if (!CR) return; const e = E(), I = PP.econ.ITEMS;
     const el = document.createElement('div'); el.className = 'seedpick craftpick';
-    el.innerHTML = `<div class="sp-head"><b>加工工坊</b><span class="muted">柴 ${Math.round(fort().fuel)}</span></div><div class="sp-list">${CR.RECIPES.map((r) => { const ls = CR.lack(r); return `<button class="sp" data-r="${r.id}" ${ls.length ? 'disabled' : ''} title="${esc(r.how)}"><span class="ico">${r.icon}</span><b>${esc(r.name)}</b><small>${esc(CR.inText(r))}</small><em>→ ${esc(CR.outText(r))}</em>${ls.length ? `<small class="lack">还差：${esc(ls.join('、'))}</small>` : ''}</button>`; }).join('')}</div><div class="sp-foot">方向键选 · 回车做 · Esc 关　　背包里：${['bait_worm', 'bait_dough', 'bait_corn', 'bait_leaf', 'bait_lure'].filter((k) => e.bag[k]).map((k) => I[k].name + ' ' + e.bag[k]).join(' · ') || '还没有鱼饵'}</div>`;
-    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b || b.disabled) return; const r = CR.RECIPES.find((q) => q.id === b.dataset.r); PP.hud && PP.hud.close(); if (!r) return;
+    el.innerHTML = `<div class="sp-head"><b>加工工坊</b><span class="muted">找鱼饵 · 做东西 · 柴 ${Math.round(fort().fuel)}</span></div><div class="sp-list">${CR.FIND.filter((f) => f.where === 'work').map((f) => { const ls = CR.findLack(f); return `<button class="sp find" data-f="${f.id}" ${ls.length ? 'disabled' : ''} title="${esc(f.how)}"><img class="bico" src="${CR.iconURL(f.icon)}"><b>${esc(f.name)}</b><small>${ls.length ? esc(ls.join('、')) : '现在' + (PP.ECO ? ['很少', '不多', '挺多', '很多'][Math.min(3, Math.floor(PP.ECO.st().pop[f.pop] * 4))] : '')}</small><em>岛上找的</em></button>`; }).join('')}${CR.RECIPES.map((r) => { const ls = CR.lack(r); const ok = Object.keys(r.out)[0]; return `<button class="sp" data-r="${r.id}" ${ls.length ? 'disabled' : ''} title="${esc(r.how)}">${/^bait_/.test(ok) ? `<img class="bico" src="${CR.iconURL(ok)}">` : `<span class="ico">${r.icon}</span>`}<b>${esc(r.name)}</b><small>${esc(CR.inText(r))}</small><em>→ ${esc(CR.outText(r))}</em>${ls.length ? `<small class="lack">还差：${esc(ls.join('、'))}</small>` : ''}</button>`; }).join('')}</div><div class="sp-foot">方向键选 · 回车做 · Esc 关　　背包里的鱼饵：${Object.keys(I).filter((k) => I[k].kind === 'bait' && e.bag[k]).map((k) => I[k].name + ' ' + e.bag[k]).join(' · ') || '还没有'}</div>`;
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b || b.disabled) return; if (b.dataset.f) { PP.hud && PP.hud.close(); const f = CR.FIND.find((q) => q.id === b.dataset.f), p2 = mainP(); if (fp) fp.work = { t0: performance.now(), dur: f.t * 1000, label: '正在' + f.name }; setTimeout(() => { const r2 = CR.findDo(f); if (r2) { if (p2) gain(p2, r2); else PP.ui.toast(r2, 2); } }, f.t * 1000); return; } const r = CR.RECIPES.find((q) => q.id === b.dataset.r); PP.hud && PP.hud.close(); if (!r) return;
       const p = mainP(); if (p) { p.tool = { k: 'work', t0: performance.now() }; } if (fp) fp.work = { t0: performance.now(), dur: r.t * 1000, label: '正在' + r.name };
       setTimeout(() => { if (p && p.tool && p.tool.k === 'work') p.tool = null; if (CR.make(r)) { if (p) gain(p, '做好了：' + CR.outText(r)); else PP.ui.toast('做好了：' + CR.outText(r), 2); } else PP.ui.toast('材料不够了', 1.4); }, r.t * 1000); });
     if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
   }
   /* 抛竿前选鱼饵：背包里有的鱼饵一个个列出来（写着哪些鱼爱吃），上次用的排第一；也能不挂饵（很难有鱼来） */
-  const BAIT_ITEM = { worm: 'bait_worm', dough: 'bait_dough', sweetcorn: 'bait_corn', leaf: 'bait_leaf', jerky: 'jerky', lure: 'bait_lure' };
+  const BAIT_ITEM = { worm: 'bait_worm', blood: 'bait_blood', shrimp: 'bait_shrimp', hopper: 'bait_hopper', cricket: 'bait_cricket', duck: 'bait_duck', minnow: 'bait_minnow', dough: 'bait_dough', sweetcorn: 'bait_corn', leaf: 'bait_leaf', jerky: 'jerky', lure: 'bait_lure' };
   function baitPop(go) {
     const e = E(), D = PP.FISHDEX, have = Object.keys(BAIT_ITEM).filter((k) => (e.bag[BAIT_ITEM[k]] || 0) > 0).sort((a, b) => (b === S().bait) - (a === S().bait));
-    if (!have.length) { PP.ui.toast('没有鱼饵：空钩很难有鱼来咬（池塘东边的加工工坊能做鱼饵）', 2.6); go(null); return; }
-    const fans = (k) => D.FISH.filter((f) => (D.PREF[f.id] || [])[0] === k).map((f) => f.name).slice(0, 4).join('、');
+    if (!have.length) { PP.ui.toast('没有鱼饵：空钩很难有鱼来咬。池边能捞红虫、浮萍、放虾笼；工坊能翻蚯蚓、捉虫、做面团', 3.2); go(null); return; }
+    const fans = (k) => D.FISH.filter((f) => (D.PREF[f.id] || []).includes(k)).sort((a, b) => (D.PREF[a.id].indexOf(k)) - (D.PREF[b.id].indexOf(k))).map((f) => f.name).slice(0, 4).join('、');
     const el = document.createElement('div'); el.className = 'seedpick baitpick';
-    el.innerHTML = `<div class="sp-head"><b>挂什么饵？</b><span class="muted">不同的鱼爱吃不同的饵</span></div><div class="sp-list">${have.map((k) => `<button class="sp" data-b="${k}"><b>${esc(D.BAIT[k].name)}</b><small>有 ${k === 'lure' ? (e.lureUses || 8) + ' 次' : e.bag[BAIT_ITEM[k]] + ' 个'}</small><em>${esc(fans(k) || '杂鱼')} 爱吃</em></button>`).join('')}<button class="sp" data-b=""><b>不挂饵</b><small>空钩</small><em>很少有鱼来</em></button></div><div class="sp-foot">方向键选 · 回车抛竿 · Esc 不钓了</div>`;
+    el.innerHTML = `<div class="sp-head"><b>挂什么饵？</b><span class="muted">不同的鱼爱吃不同的饵</span></div><div class="sp-list">${have.map((k) => `<button class="sp" data-b="${k}"><img class="bico" src="${PP.CRAFT ? PP.CRAFT.iconURL(BAIT_ITEM[k]) : ''}"><b>${esc(D.BAIT[k].name)}</b><small>有 ${k === 'lure' ? (e.lureUses || 8) + ' 次' : e.bag[BAIT_ITEM[k]] + ' 个'}</small><em>${esc(fans(k) || '杂鱼')} 爱吃</em></button>`).join('')}<button class="sp" data-b=""><b>不挂饵</b><small>空钩</small><em>很少有鱼来</em></button></div><div class="sp-foot">方向键选 · 回车抛竿 · Esc 不钓了</div>`;
     el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b) return; PP.hud && PP.hud.close(); const k = b.dataset.b || null; if (k) S().bait = k; go(k); });
     if (PP.hud) PP.hud.pop(el, { x: L.vx0 + L.vw / 2, y: L.vy0 + L.vh / 2 }); popCheck();
   }
   function pondPop(x, y) {
     const el = document.createElement('div'); el.className = 'seedpick';
-    el.innerHTML = `<div class="sp-head"><b>古城之池</b></div><div class="sp-list"><button class="sp" data-a="fish">🎣<b>钓鱼</b></button><button class="sp" data-a="dive">🤿<b>下潜</b></button></div>`;
-    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b) return; PP.hud && PP.hud.close(); if (b.dataset.a === 'fish') fpFish(); else pondDive(); });
+    const CR = PP.CRAFT, tr = CR && CR.trap(), th = tr ? (Date.now() - tr.t) / 3600000 : 0, F2 = CR ? CR.FIND.filter((f) => f.where === 'pond') : [];
+    el.innerHTML = `<div class="sp-head"><b>古城之池</b><span class="muted">池边找鱼饵</span></div><div class="sp-list"><button class="sp" data-a="fish">🎣<b>钓鱼</b><small>先选鱼饵</small></button><button class="sp" data-a="dive">🤿<b>下潜</b><small>水下古城</small></button>${F2.map((f) => { const ls = CR.findLack(f); return `<button class="sp" data-f="${f.id}" ${ls.length ? 'disabled' : ''} title="${esc(f.how)}"><img class="bico" src="${CR.iconURL(f.icon)}"><b>${esc(f.name)}</b><small>${ls.length ? esc(ls.join('、')) : '现在' + (PP.ECO ? ['很少', '不多', '挺多', '很多'][Math.min(3, Math.floor(PP.ECO.st().pop[f.pop] * 4))] : '')}</small></button>`; }).join('')}<button class="sp" data-a="trap" title="${esc(CR ? CR.SHRIMP.how : '')}"><img class="bico" src="${CR ? CR.iconURL('bait_shrimp') : ''}"><b>${tr ? '收虾笼' : '放虾笼'}</b><small>${tr ? '放了 ' + (th < 1 ? Math.round(th * 60) + ' 分钟' : th.toFixed(1) + ' 小时') : '过几个小时来收'}</small></button></div>`;
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b || b.disabled) return; PP.hud && PP.hud.close(); const p = mainP();
+      if (b.dataset.f) { const f = CR.FIND.find((q) => q.id === b.dataset.f); if (fp) fp.work = { t0: performance.now(), dur: f.t * 1000, label: '正在' + f.name }; setTimeout(() => { const r = CR.findDo(f); if (r) { if (p) gain(p, r); else PP.ui.toast(r, 2); } }, f.t * 1000); return; }
+      if (b.dataset.a === 'trap') { if (!CR.trap()) { CR.trapSet(); PP.ui.toast('虾笼放进池子里了，挂了点菜叶——过几个小时再来收', 2.4); } else { const r = CR.trapGet(); PP.ui.toast(r.n ? `收虾笼：小河虾 ×${r.n}` : '笼子放得太短，还没有虾进去', 2.2); } return; }
+      if (b.dataset.a === 'fish') fpFish(); else pondDive(); });
     if (PP.hud) PP.hud.pop(el, { x, y }); popCheck();
   }
   function fpUse(at) {

@@ -355,7 +355,10 @@
     const e = E(), inf = plotInfo(i); if (!inf || inf.stage < 3) return false;
     const c = CROPS[inf.crop], n = Math.round(U.rand(c.n[0], c.n[1]));
     give(c.item, n); e.farm[i] = null; if (PP.quest) PP.quest.on('harvest');
-    PP.ui.toast(`收获了 ${n} 个${ITEMS[c.item].name}！（在背包里：可以喂它，也可以卖成小鱼干）`, 'gift');
+    /* 0.39 留种：种子是从收下的菜里来的——向日葵花盘、南瓜西瓜番茄草莓里都有籽，玉米留几粒；胡萝卜、卷心菜要等一棵抽薹开花才结籽（不是每次都有）；郁金香的球茎会分球 */
+    const SEED = { sunflower: ['s_sun', 2, 3], pumpkin: ['s_pumpkin', 1, 2], melon: ['s_melon', 1, 2], tomato: ['s_tomato', 1, 2], berry: ['s_berry', 1, 2], corn: ['s_corn', 1, 1], tulip: ['s_tulip', 1, 1], carrot: ['s_carrot', 0, 1], cabbage: ['s_cabbage', 0, 1] }[inf.crop];
+    let sn = 0; if (SEED) { sn = Math.round(U.rand(SEED[1], SEED[2] + 0.49)); if (sn) give(SEED[0], sn); }
+    PP.ui.toast(`收获了 ${n} 个${ITEMS[c.item].name}！${sn ? `顺手留了 ${sn} 颗${ITEMS[SEED[0]].name}，下一茬接着种` : ''}`, 'gift');
     save(); refreshOpen(); return true;
   }
   function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; pl.water = (pl.water || 0) + 1; if (PP.quest) PP.quest.on('water'); save(); return true; }
@@ -414,7 +417,7 @@
     return `<div class="lvrow"><b>${esc(p.name)}</b> Lv${lv}<div class="xpbar"><i style="width:${(k * 100).toFixed(0)}%"></i></div><small>${p.d.xp || 0}/${need(lv)}</small></div><div class="lvsub">${st}${nx ? ` · Lv${nx} 解锁：${esc(UNLOCK[nx])}` : ''}</div>`;
   }
   /* 面板分成四组，每组里再分小页，不用在一排十几个按钮里找 */
-  const GROUPS = [['care', '照顾它', ['bag', 'shop', 'home', 'mail']], ['farm', '种地做饭', ['plant', 'cook', 'craft', 'gh']], ['out', '出门玩', ['quest', 'trip', 'fish']], ['col', '收藏图鉴', ['book']]];
+  const GROUPS = [['care', '照顾它', ['bag', 'shop', 'home', 'mail']], ['farm', '种地做饭', ['plant', 'cook', 'craft', 'gh']], ['out', '出门玩', ['quest', 'trip', 'fish']], ['col', '收藏图鉴', ['book', 'eco']]];
   function render() {
     if (!open || !open.el.isConnected) { open = null; return; }
     const e = E(), tab = open.tab, body = open.el.querySelector('.body');
@@ -427,12 +430,13 @@
     if (tab === 'bag') {
       const ids = Object.keys(e.bag).filter((k) => e.bag[k] > 0 && ITEMS[k]);
       h += (p ? lvBar(p) : '') + petPick(p && p.d.id);
-      h += ids.length ? `<div class="grid items">${ids.map((k) => { const it = ITEMS[k]; const acts = it.kind === 'snack' || it.kind === 'crop' || it.kind === 'dish' ? `<button class="small" data-feed="${k}">喂${p ? esc(p.name) : ''}</button>` : it.kind === 'seed' || it.kind === 'rseed' ? `<button class="small" data-goisle="1">去种</button>` : it.kind === 'egg' ? `<button class="small" data-incub="1" ${e.incub ? 'disabled' : ''}>孵蛋</button>` : ''; return `<div class="cell"><i data-ico="${it.icon}"></i><b>${esc(it.name)} ×${e.bag[k]}</b><small>${esc(it.desc || '')}</small><div>${acts}${it.sell ? `<button class="small" data-sell="${k}">卖 ${it.sell}</button>` : ''}</div></div>`; }).join('')}</div>` : '<p class="muted">背包空空的。去商店逛逛，或者派伙伴去探险。</p><div class="row"><button class="small" data-tab="shop">去商店看看</button><button class="small" data-tab="trip">去探险</button></div>';
+      h += ids.length ? `<div class="grid items">${ids.map((k) => { const it = ITEMS[k]; const acts = it.kind === 'snack' || it.kind === 'crop' || it.kind === 'dish' ? `<button class="small" data-feed="${k}">喂${p ? esc(p.name) : ''}</button>` : it.kind === 'seed' || it.kind === 'rseed' ? `<button class="small" data-goisle="1">去种</button>` : it.kind === 'egg' ? `<button class="small" data-incub="1" ${e.incub ? 'disabled' : ''}>孵蛋</button>` : ''; return `<div class="cell">${it.pic && PP.CRAFT ? `<img class="bico" src="${PP.CRAFT.iconURL(k)}">` : `<i data-ico="${it.icon}"></i>`}<b>${esc(it.name)} ×${e.bag[k]}</b><small>${esc(it.desc || '')}</small><div>${acts}${it.sell ? `<button class="small" data-sell="${k}">卖 ${it.sell}</button>` : ''}</div></div>`; }).join('')}</div>` : '<p class="muted">背包空空的。去商店逛逛，或者派伙伴去探险。</p><div class="row"><button class="small" data-tab="shop">去商店看看</button><button class="small" data-tab="trip">去探险</button></div>';
       if (e.incub) h += `<p class="good">神秘蛋孵化中：还有 ${fmtLeft(e.incub.end - Date.now())}</p>`;
       const hats = Object.keys(e.owned).filter((k) => ITEMS[k] && ITEMS[k].kind === 'hat');
       if (p && hats.length) h += `<div class="sec">装扮 ${esc(p.name)}</div><div class="row">${['', ...hats].map((k) => `<button class="chip ${(p.d.outfit || '') === k ? 'on' : ''}" data-wear="${k}">${k ? esc(ITEMS[k].name) : '不戴'}</button>`).join('')}</div>`;
     } else if (tab === 'shop') {
       const sub = open.sub || 'snack';
+      h += `<p class="muted">货郎的热气球隔几天就飘过浮岛一次，用小鱼干跟他换岛上没有的东西：别处的种子、零食、家具。岛上自己就有的（留下的种子、找来的鱼饵）不用买。</p>`;
       h += `<div class="row">${SHOP_TABS.map(([k, n]) => `<button class="chip ${sub === k ? 'on' : ''}" data-sub="${k}">${n}</button>`).join('')}</div>`;
       const ids = Object.keys(ITEMS).filter((k) => ITEMS[k].kind === sub && ITEMS[k].price);
       h += `<div class="grid items">${ids.map((k) => { const it = ITEMS[k], own = e.owned[k]; return `<div class="cell"><i data-ico="${it.icon}"></i><b>${esc(it.name)}</b><small>${esc(it.desc || '')}</small><div><button class="small ${e.fish >= it.price && !own ? '' : 'dim'}" data-buy="${k}" ${own ? 'disabled' : ''}>${own ? '已拥有' : it.price + ' 小鱼干'}</button>${(e.bag[k] || 0) ? `<small> 有 ${e.bag[k]}</small>` : ''}</div></div>`; }).join('')}</div>`;

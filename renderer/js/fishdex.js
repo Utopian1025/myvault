@@ -33,17 +33,14 @@
   /* 0.38 鱼饵和咬钩：每种鱼爱吃什么饵（like 很爱、ok 也吃），从游过来到咬钩要多久（wait 秒）、先试探着啄几下（nib）、
      真咬住的时候给你多长时间收竿（win 秒）——鲤鱼谨慎、要啄好几下；虹鳟、鳜鱼是一口猛冲；小龙虾慢吞吞夹住不放 */
   const BAIT = {
-    worm: { name: '蚯蚓', desc: '菜园堆肥里翻出来的，几乎什么鱼都吃，鲶鱼、黄颡鱼、泥鳅最爱' },
-    dough: { name: '面团', desc: '玉米面揉的，鲫鱼、鳑鲏、金鱼、樱花鱼爱吃' },
-    sweetcorn: { name: '蜜玉米粒', desc: '玉米粒用蜂蜜泡过，鲤鱼、锦鲤、金鳞鲤闻着就来' },
-    leaf: { name: '菜叶团', desc: '卷心菜叶揉成一团，草鱼专吃这个' },
-    jerky: { name: '肉干', desc: '小龙虾、河豚、鲶鱼爱咬' },
-    lure: { name: '木头小拟饵', desc: '刻成小鱼样子、涂了颜色，专钓会追小鱼的鳜鱼、虹鳟（能用好多次）' },
+    worm: { name: '蚯蚓', item: 'bait_worm' }, blood: { name: '红虫', item: 'bait_blood' }, shrimp: { name: '小河虾', item: 'bait_shrimp' }, hopper: { name: '蚱蜢', item: 'bait_hopper' }, cricket: { name: '蟋蟀', item: 'bait_cricket' },
+    duck: { name: '浮萍', item: 'bait_duck' }, minnow: { name: '活麦穗鱼', item: 'bait_minnow' }, dough: { name: '面团', item: 'bait_dough' }, sweetcorn: { name: '蜜玉米粒', item: 'bait_corn' }, leaf: { name: '菜叶团', item: 'bait_leaf' }, lure: { name: '木头小拟饵', item: 'bait_lure' }, jerky: { name: '肉干', item: 'jerky' },
   };
-  const PREF = { crucian: ['dough', 'worm'], minnow: ['worm', 'dough'], bitterling: ['dough'], loach: ['worm'], crayfish: ['jerky'], medaka: ['dough'], boot: [], carp: ['sweetcorn', 'dough'], grass: ['leaf'], yellowcat: ['worm', 'jerky'], mandarin: ['lure'], goldfish: ['dough'], puffer: ['jerky'], catfish: ['worm', 'jerky'], trout: ['lure', 'worm'], glowfish: ['worm'], koi: ['sweetcorn'], icefish: ['worm'], sakura: ['dough'], bottle: [], goldcarp: ['sweetcorn'], mooneel: ['worm'] };
+  /* 每种鱼爱吃什么（第一个最爱）：按真的食性——鲫鱼杂食、鲤鱼爱甜香、草鱼吃草、鳜鱼只吃活鱼虾、虹鳟追水面的虫子、鲶鱼黄颡夜里找荤的 */
+  const PREF = { crucian: ['dough', 'blood', 'worm'], minnow: ['blood', 'worm', 'dough'], bitterling: ['dough', 'blood'], loach: ['worm', 'blood'], crayfish: ['jerky', 'shrimp'], medaka: ['blood', 'dough'], boot: [], carp: ['sweetcorn', 'dough', 'worm'], grass: ['leaf', 'duck', 'hopper'], yellowcat: ['worm', 'shrimp', 'minnow'], mandarin: ['minnow', 'shrimp', 'lure'], goldfish: ['blood', 'dough'], puffer: ['shrimp', 'jerky'], catfish: ['minnow', 'worm', 'jerky'], trout: ['hopper', 'cricket', 'lure'], glowfish: ['blood', 'worm'], koi: ['sweetcorn', 'dough'], icefish: ['blood', 'worm'], sakura: ['dough', 'blood'], bottle: [], goldcarp: ['sweetcorn'], mooneel: ['minnow', 'worm'] };
   const BITE = { crucian: [3, 8, 2, 1.3], minnow: [2, 5, 3, 0.9], bitterling: [3, 7, 2, 1.0], loach: [4, 10, 1, 1.4], crayfish: [6, 14, 2, 3.0], medaka: [2, 6, 3, 0.8], boot: [6, 12, 0, 2.5], carp: [10, 24, 4, 1.5], grass: [8, 18, 3, 1.4], yellowcat: [5, 12, 2, 1.2], mandarin: [5, 12, 0, 0.8], goldfish: [4, 9, 2, 1.2], puffer: [5, 11, 3, 1.3], catfish: [8, 20, 2, 1.8], trout: [2, 6, 0, 0.7], glowfish: [4, 9, 2, 1.0], koi: [12, 26, 4, 1.4], icefish: [4, 9, 1, 1.0], sakura: [4, 9, 2, 1.0], bottle: [8, 16, 0, 2.5], goldcarp: [15, 30, 5, 1.2], mooneel: [12, 26, 2, 1.6] };
   /* 这一竿：按鱼饵挑一条鱼（爱吃的 ×4，也吃的 ×1.5，不对胃口的 ×0.25；空钩只有很少的鱼来、来得也慢） */
-  function rollBait(bait) { const P = pool().map(([f, w]) => { const pr = PREF[f.id] || []; let k = !bait ? (f.eff === 'junk' ? 2 : 0.35) : pr[0] === bait ? 4 : pr.includes(bait) ? 1.5 : pr.length ? 0.25 : 0.6; if (bait === 'lure' && !pr.includes('lure')) k *= 0.3; return [f, w * k]; }).filter(([, w]) => w > 0); const tot = P.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot; for (const [f, w] of P) if ((r -= w) <= 0) return f; return P[0][0]; }
+  function rollBait(bait) { const P = pool().map(([f, w]) => { const pr = PREF[f.id] || []; let k = !bait ? (f.eff === 'junk' ? 2 : 0.35) : pr[0] === bait ? 4 : pr.includes(bait) ? 1.5 : pr.length ? 0.25 : 0.6; if (bait === 'lure' && !pr.includes('lure')) k *= 0.3; return [f, w * k * (PP.ECO ? PP.ECO.fishK(f.id) : 1)]; }).filter(([, w]) => w > 0); /* 水里这种鱼多不多也算进去（钓得多了会少） */ const tot = P.reduce((a, [, w]) => a + w, 0); let r = Math.random() * tot; for (const [f, w] of P) if ((r -= w) <= 0) return f; return P[0][0]; }
   const RARE = ['', '常见', '少见', '稀有', '传说'], RCOL = ['', '#8a9a8a', '#4a90c8', '#a060c8', '#e0a020'];
   const E = () => PP.econ.E();
   const D = () => { const e = E(); e.dex = e.dex || {}; return e.dex; };
@@ -144,7 +141,7 @@
   // 钓到：记进图鉴、给效果、弹一张小卡片
   function caught(p, forced) {
     const f = forced || roll(), d = D(), size = Math.round(U.rand(f.size[0], f.size[1])), rec = d[f.id] || { n: 0, best: 0, first: Date.now() }, isNew = !rec.n;
-    rec.n++; if (size > rec.best) rec.best = size; d[f.id] = rec;
+    rec.n++; if (size > rec.best) rec.best = size; d[f.id] = rec; if (PP.ECO) PP.ECO.caught(f.id);
     apply(f, p, size);
     card(f, size, isNew, size >= rec.best && rec.n > 1);
     PP.save && PP.save.soon && PP.save.soon();

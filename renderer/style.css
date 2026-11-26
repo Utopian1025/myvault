@@ -629,3 +629,14 @@ body.fpon .hud, body.fpon .orb, body.fpon .dock, body.fpon .sdock, body.fpon .pe
 .craftpick .sp .ico { font-size: 20px; line-height: 1.1; }
 .craftpick .sp small.lack { color: #c0603a; } .craftpick .sp small { text-align: center; }
 .baitpick .sp em { font-size: 10px; text-align: center; }
+/* 0.39 鱼饵小图、浮岛生长面板 */
+img.bico { width: 40px; height: 40px; image-rendering: auto; }
+.econ .cell img.bico, .panel .cell img.bico { width: 32px; height: 32px; }
+.sec2 { font-weight: bold; margin: 8px 0 3px; color: #6a5a3a; }
+.ecorow { margin: 3px 0; line-height: 1.6; } .ecorow small { color: var(--muted); }
+.ecofishes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 8px; font-size: 11px; }
+.ecofish { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
+.ecosrc { margin: 2px 0 2px 16px; padding: 0; font-size: 12px; line-height: 1.6; }
+.ecolog { font-size: 12px; }
+.ecorow .pbar, .ecofish .pbar { display: inline-block; height: 7px; border-radius: 4px; background: rgba(0, 0, 0, .12); overflow: hidden; vertical-align: middle; }
+.ecorow .pbar > i, .ecofish .pbar > i { display: block; height: 100%; border-radius: 4px; }
