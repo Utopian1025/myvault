@@ -37,13 +37,14 @@
     toward('blood', T < 6 ? 0.1 : 0.85, 0.2); toward('shrimp', T < 8 ? 0.2 : T < 30 ? 0.9 : 0.6, 0.15); toward('duck', T < 10 ? 0.05 : 0.95, 0.12);
     toward('hopper', (se === 'summer' || se === 'autumn') && T > 14 ? 0.9 : 0.02, 0.3); toward('cricket', (m >= 6 && m <= 9) && T > 12 ? 0.9 : 0.02, 0.3);
     // 鱼：各自按 logistic 慢慢长回去；春天水温合适的时候产卵（长得快）；冬天几乎不长
-    if (PP.FISHDEX) for (const f of PP.FISHDEX.FISH) { if (f.eff === 'junk' || f.id === 'bottle') continue; const K = FISH_K[f.rare] || 10, n = fishPop(f.id), rr = (T < 6 ? 0.02 : se === 'spring' && T > 14 ? 3.0 : 0.6) / 365 * (5 - f.rare); s.fish[f.id] = Math.max(0.3, n + rr * n * (1 - n / K) * dt * 30); }
+    if (PP.FISHDEX) for (const f of PP.FISHDEX.FISH) { if (f.eff === 'junk' || f.id === 'bottle') continue; const K = FISH_K[f.rare] || 10, n = fishPop(f.id), rr = (T < 6 ? 0.02 : se === 'spring' && T > 14 ? 3.0 : 0.6) / 365 * (5 - f.rare) * (PP.CIV && PP.CIV.has('stocking') ? 2 : 1); s.fish[f.id] = Math.max(0.3, n + rr * n * (1 - n / K) * dt * 30); }
     // 小树林：每棵树按生长日长大；春天成材的树落种，旁边冒新苗；四十多年的老树遇上暴风雨会倒
     const G = s.grove; if (G) { for (const g of G) if (g.on) g.age += r * dt / YEAR_GD * 1.0;
       if (se === 'spring' && T > 10 && rng() < 0.022 * dt) { const mature = G.filter((g) => g.on && g.age > 6); if (mature.length) { const free = G.filter((g) => !g.on && !g.dead); if (free.length) { const k = free[Math.floor(rng() * free.length)]; k.on = true; k.age = 0.05; k.sp = newSpecies(); k.lean = (rng() - 0.5) * 0.9; k.hk = 0.7 + rng() * 0.6; if (live) note('春天到了：成材的树落下的种子，在岛边冒出了一棵小树苗'); } } }
       if (storm) { const old = G.filter((g) => g.on && g.age > 42); if (old.length && rng() < 0.3) { const k = old[0]; k.on = false; k.dead = true; k.deadAt = s.days; note('一场暴风雨，岛边一棵四十多年的老树倒了——倒木会慢慢长满苔、长出蘑菇，几年后烂掉的地方又会冒出新苗'); } }
       for (const g of G) if (g.dead && s.days - g.deadAt > 3 * 365) { g.dead = false; g.burnt = false; g.on = true; g.age = 0.05; g.sp = newSpecies(); } }
     randomEvents(dt, T, rain, snow, storm, m, live);
+    if (PP.CIV) try { PP.CIV.day(dt, T, rain, snow, m, live, live ? curMM : null); } catch (er) { console.error(er); }
     // 暴风雨吹断枯枝：捡回来就是柴
     if (storm && rng() < 0.5) { const f = E().fort; if (f) f.fuel = Math.min(100, f.fuel + 6); note('暴风雨吹断了好些枯枝，捡回来添进了柴堆（柴 +6）'); }
     // 候鸟：春秋两季路过的鸟在岛上歇脚，粪里带着别处的草籽、果核（真的有一部分能种出来）
@@ -111,11 +112,11 @@
     unlockAdds();
   }
   function unlockAdds() { const s = st(), y = yearsGrown(); for (const [yy, k, msg] of ADDS) if (y >= yy && !s.add[k]) { s.add[k] = Date.now(); note(msg); } }
-  let lastLive = 0;
+  let lastLive = 0, curMM = null;
   function liveTick() {
     const s = st(), now = Date.now(); if (!s.last) s.last = now; const dt = (now - s.last) / DAY; if (dt < 0.003) return; // 4 分钟左右算一次
     let T = 18, kind = 'clear'; try { const e = PP.env.get(); T = e.weather.temp != null ? e.weather.temp : CLIM_T[new Date().getMonth()]; kind = e.weather.kind || 'clear'; } catch (e) {}
-    const rain = /rain|drizzle|storm/.test(kind), snow = /snow/.test(kind), storm = kind === 'storm', m = new Date().getMonth(), seed = Math.floor(now / 600000);
+    const rain = /rain|drizzle|storm/.test(kind), snow = /snow/.test(kind), storm = kind === 'storm', m = new Date().getMonth(), seed = Math.floor(now / 600000); curMM = ({ drizzle: 3, rain: 10, heavyrain: 25, storm: 30, snow: 4, heavysnow: 8 })[kind] || 0;
     step(dt, T, rain, snow, storm && now - lastLive > 3 * 3600000, m, true, seed); { const h = new Date().getHours(); skyTick(kind, h >= 7 && h < 18); } if (storm) lastLive = now; s.last = now; s.why = reasons(T, kind); unlockAdds(); PP.save && PP.save.soon && PP.save.soon();
   }
   function reasons(T, kind) { const s = st(), out = []; const m = new Date().getMonth(), se = seasonOf(m); out.push(({ spring: '春天，万物生长', summer: '夏天，长得旺', autumn: '秋天，慢慢收着长', winter: '冬天，大多在休眠' })[se]); out.push(`现在 ${Math.round(T)}°`); if (/rain|drizzle/.test(kind)) out.push('在下雨，喝饱了水'); else if (kind === 'storm') out.push('暴风雨'); else if (/snow/.test(kind)) out.push('下雪'); if (s.dry > 10 && T > 22) out.push(`已经 ${Math.round(s.dry)} 天没下雨，有点旱`); return out; }

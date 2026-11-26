@@ -230,7 +230,7 @@
     const it = ITEMS[id], e = E(); if (!it || !it.price) return;
     if (e.fish < it.price) { PP.ui.toast(`小鱼干不够（还差 ${it.price - e.fish}）`); return; }
     if ((it.kind === 'furn' || it.kind === 'deco' || it.kind === 'hat') && e.owned[id]) { PP.ui.toast('已经有啦'); return; }
-    e.fish -= it.price;
+    e.fish -= it.price; if (PP.CIV && (it.kind === 'snack' || it.kind === 'seed')) PP.CIV.tally('buy', 1); /* 0.41 从货郎那买的算「外来的」，自给率里扣掉 */
     if (it.kind === 'furn' || it.kind === 'deco' || it.kind === 'hat') {
       e.owned[id] = 1;
       if (it.kind === 'furn') { if (it.slot === 'bed' || it.slot === 'wall') e.room[it.slot] = id; else if (PP.isle && PP.isle.furnAdd) PP.isle.furnAdd(id); } // 买了直接摆进小屋（之后可以在小屋里点「布置」随便挪）
@@ -304,7 +304,7 @@
     for (const p of G.all) {
       const t = p.d.trip; if (!t || Date.now() < t.end) continue;
       p.d.trip = null;
-      const rew = rollTrip(p, t);
+      const rew = rollTrip(p, t); if (PP.CIV) try { PP.CIV.onTrip(p, t, rew); } catch (er) {}
       const parts = [`${rew.fish} 条小鱼干`].concat(rew.souv.map((s) => s[1]));
       if (rew.seed) parts.push(ITEMS[rew.seed].name);
       if (rew.card) parts.push('一张明信片');
@@ -353,7 +353,7 @@
   }
   function harvest(i) {
     const e = E(), inf = plotInfo(i); if (!inf || inf.stage < 3) return false;
-    const c = CROPS[inf.crop], n = Math.round(U.rand(c.n[0], c.n[1]));
+    const c = CROPS[inf.crop], n = Math.max(1, Math.round(U.rand(c.n[0], c.n[1]) * (PP.CIV ? PP.CIV.yieldK(i, inf.crop) : 1))); /* 0.41 地力、轮作、节气影响收成 */ if (PP.CIV) PP.CIV.onHarvest(i, inf.crop, n);
     give(c.item, n); e.farm[i] = null; if (PP.quest) PP.quest.on('harvest');
     /* 0.39 留种：种子是从收下的菜里来的——向日葵花盘、南瓜西瓜番茄草莓里都有籽，玉米留几粒；胡萝卜、卷心菜要等一棵抽薹开花才结籽（不是每次都有）；郁金香的球茎会分球 */
     const SEED = { sunflower: ['s_sun', 2, 3], pumpkin: ['s_pumpkin', 1, 2], melon: ['s_melon', 1, 2], tomato: ['s_tomato', 1, 2], berry: ['s_berry', 1, 2], corn: ['s_corn', 1, 1], tulip: ['s_tulip', 1, 1], carrot: ['s_carrot', 0, 1], cabbage: ['s_cabbage', 0, 1] }[inf.crop];
@@ -361,7 +361,7 @@
     PP.ui.toast(`收获了 ${n} 个${ITEMS[c.item].name}！${sn ? `顺手留了 ${sn} 颗${ITEMS[SEED[0]].name}，下一茬接着种` : ''}`, 'gift');
     save(); refreshOpen(); return true;
   }
-  function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; pl.water = (pl.water || 0) + 1; if (PP.quest) PP.quest.on('water'); save(); return true; }
+  function waterPlot(i) { const pl = E().farm[i]; if (!pl || (pl.water || 0) >= 3) return false; if (PP.CIV && !PP.CIV.useWater(PP.CIV.waterCost())) { PP.ui.toast('水窖见底了，浇不了地——等下雨把水窖接满（学会「集雨水窖」「滴灌」会好很多）', 3); return false; } pl.water = (pl.water || 0) + 1; if (PP.quest) PP.quest.on('water'); save(); return true; }
 
   // ---------- 每分钟：认真干活攒小鱼干、吃饱喝足长经验、检查探险和孵蛋 ----------
   let lastMin = Date.now();
@@ -417,7 +417,7 @@
     return `<div class="lvrow"><b>${esc(p.name)}</b> Lv${lv}<div class="xpbar"><i style="width:${(k * 100).toFixed(0)}%"></i></div><small>${p.d.xp || 0}/${need(lv)}</small></div><div class="lvsub">${st}${nx ? ` · Lv${nx} 解锁：${esc(UNLOCK[nx])}` : ''}</div>`;
   }
   /* 面板分成四组，每组里再分小页，不用在一排十几个按钮里找 */
-  const GROUPS = [['care', '照顾它', ['bag', 'shop', 'home', 'mail']], ['farm', '种地做饭', ['plant', 'cook', 'craft', 'gh']], ['out', '出门玩', ['quest', 'trip', 'fish']], ['col', '收藏图鉴', ['book', 'eco']]];
+  const GROUPS = [['care', '照顾它', ['bag', 'shop', 'home', 'mail']], ['farm', '种地做饭', ['plant', 'cook', 'craft', 'gh']], ['out', '出门玩', ['quest', 'trip', 'fish']], ['col', '收藏图鉴', ['book', 'eco', 'civ']]];
   function render() {
     if (!open || !open.el.isConnected) { open = null; return; }
     const e = E(), tab = open.tab, body = open.el.querySelector('.body');

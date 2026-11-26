@@ -27,6 +27,14 @@
   };
   /* 配方：in 用掉什么（背包里的东西；fuel 是石炉的柴），out 得到什么，cd 冷却（分钟，堆肥里的蚯蚓要等它们再钻出来），t 做多久（秒） */
   const RECIPES = [
+    { id: 'prune', icon: '🪓', name: '修剪林子', act: () => { const n = PP.CIV ? PP.CIV.prune() : 0; return n ? `修下了一捆枝条，柴 +${n}（林子会慢一点长）` : '岛边还没有成材的树可以修'; }, in: {}, out: {}, cd: 24 * 60, t: 4, how: '把大树太密的侧枝锯下来当柴——砍得太勤，林子就长得慢' },
+    { id: 'compost', icon: '🟫', name: '翻堆肥养地', need: 'compost', act: () => { PP.CIV.compost(); return '堆肥翻进了菜地，地力养回来了'; }, in: {}, out: {}, cd: 3 * 24 * 60, t: 4, how: '堆肥箱里烂好的黑土翻出来撒进菜地' },
+    { id: 'smoke', icon: '🔥', name: '熏鱼', need: 'smoke', in: { fish_fresh: 2, fuel: 3 }, out: { smoked_fish: 2 }, t: 5, how: '鲜鱼挂在烟里熏一整天' },
+    { id: 'dryfish', icon: '☀️', name: '晒鱼干', need: 'drying', cond: () => (/rain|drizzle|storm|snow/.test((PP.env && PP.env.get().weather.kind) || '') ? '下雨天晒不了' : ''), in: { fish_fresh: 2 }, out: { dried_fish: 2 }, t: 3, how: '剖开晾在竹架上，晴天才行' },
+    { id: 'saltfish', icon: '🧂', name: '腌咸鱼', need: 'salt', in: { fish_fresh: 2, salt: 1 }, out: { salted_fish: 2 }, t: 3, how: '一层鱼一层盐码进坛子' },
+    { id: 'pickle', icon: '🥬', name: '腌酸菜', need: 'ferment', in: { cabbage: 2 }, out: { pickle: 3 }, t: 3, how: '卷心菜压进坛子，自己发酵变酸' },
+    { id: 'flour', icon: '🌽', name: '磨玉米面', need: 'mill', in: { corn: 2 }, out: { flour: 3 }, t: 4, how: '玉米粒放进石磨，一圈圈推' },
+    { id: 'flatbread', icon: '🫓', name: '烤玉米饼', need: 'mill', in: { flour: 2, fuel: 2 }, out: { flatbread: 2 }, t: 4, how: '玉米面和水拍成饼，在石炉上烤' },
     { id: 'dough', icon: '🥣', name: '揉面团', in: { corn: 1 }, out: { bait_dough: 5 }, t: 3, how: '玉米磨成面，加水揉成小团' },
     { id: 'sweetcorn', icon: '🌽', name: '泡蜜玉米粒', in: { corn: 1, honeyjar: 1 }, out: { bait_corn: 6 }, t: 3, how: '剥下玉米粒，用蜂蜜泡着' },
     { id: 'leaf', icon: '🥬', name: '揉菜叶团', in: { cabbage: 1 }, out: { bait_leaf: 5 }, t: 2, how: '卷心菜叶撕碎揉成团' },
@@ -79,16 +87,16 @@
   const iconURL = (k) => { try { return icon(k, 64).toDataURL(); } catch (e) { return ''; } };
   const fuelNow = () => { const f = E().fort; return f ? f.fuel : 0; };
   const nameOf = (k) => (k === 'fuel' ? '柴' : (PP.econ.ITEMS[k] || {}).name || k);
-  function lack(r) { const e = E(), out = []; for (const k in r.in) { const n = r.in[k], have = k === 'fuel' ? fuelNow() : e.bag[k] || 0; if (have < n) out.push(nameOf(k) + (k === 'fuel' ? '' : ' ×' + (n - have))); } const cd = cdLeft(r); if (cd > 0) out.push(Math.ceil(cd) + ' 分钟后才有新的蚯蚓'); return out; }
+  function lack(r) { const e = E(), out = []; if (r.need && !(PP.CIV && PP.CIV.has(r.need))) return ['还不会「' + PP.CIV.KNOW[r.need].name + '」（去' + PP.CIV.KNOW[r.need].where.join('/') + '学）']; if (r.cond) { const c = r.cond(); if (c) out.push(c); } for (const k in r.in) { const n = r.in[k], have = k === 'fuel' ? fuelNow() : e.bag[k] || 0; if (have < n) out.push(nameOf(k) + (k === 'fuel' ? '' : ' ×' + (n - have))); } const cd = cdLeft(r); if (cd > 0) out.push(cd > 120 ? Math.ceil(cd / 60) + ' 小时后再来' : Math.ceil(cd) + ' 分钟后再来'); return out; }
   function cdLeft(r) { if (!r.cd) return 0; const t = (E().craftT || {})[r.id] || 0; return (t + r.cd * 60000 - Date.now()) / 60000; }
   function make(r) {
-    if (lack(r).length) return false; const e = E();
+    if (lack(r).length) return false; const e = E(); if (r.act) { e.craftT = e.craftT || {}; if (r.cd) e.craftT[r.id] = Date.now(); const msg = r.act(); PP.save && PP.save.soon && PP.save.soon(); return msg || true; }
     for (const k in r.in) { if (k === 'fuel') { if (e.fort) e.fort.fuel = Math.max(0, e.fort.fuel - r.in[k]); } else PP.econ.give(k, -r.in[k]); }
     for (const k in r.out) { PP.econ.give(k, r.out[k]); if (k === 'bait_lure') e.lureUses = (e.lureUses || 0) + 8 * r.out[k]; }
     if (r.cd) { e.craftT = e.craftT || {}; e.craftT[r.id] = Date.now(); }
     PP.save && PP.save.soon && PP.save.soon(); return true;
   }
-  const outText = (r) => Object.keys(r.out).map((k) => nameOf(k) + ' ×' + r.out[k]).join('、'), inText = (r) => Object.keys(r.in).length ? Object.keys(r.in).map((k) => nameOf(k) + (k === 'fuel' ? ' ' + r.in[k] : ' ×' + r.in[k])).join(' + ') : '不用材料';
+  const outText = (r) => r.act ? '' : Object.keys(r.out).map((k) => nameOf(k) + ' ×' + r.out[k]).join('、'), inText = (r) => r.act ? r.how : Object.keys(r.in).length ? Object.keys(r.in).map((k) => nameOf(k) + (k === 'fuel' ? ' ' + r.in[k] : ' ×' + r.in[k])).join(' + ') : '不用材料';
   function install() { if (!PP.econ || !PP.econ.ITEMS) return setTimeout(install, 50); Object.assign(PP.econ.ITEMS, ITEMS_ADD); }
   install();
   PP.CRAFT = { RECIPES, FIND, SHRIMP, lack, make, outText, inText, cdLeft, findLack, findDo, trap, trapSet, trapGet, icon, iconURL, night };

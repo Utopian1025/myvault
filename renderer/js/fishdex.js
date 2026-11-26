@@ -146,6 +146,7 @@
     const size2 = vr === 'giant' ? Math.round(size * 1.7) : size; if (vr) { rec.vars = rec.vars || {}; rec.vars[vr] = (rec.vars[vr] || 0) + 1; }
     rec.n++; if (size2 > rec.best) rec.best = size2; d[f.id] = rec; if (PP.ECO) PP.ECO.caught(f.id); f._var = vr; f._size = size2;
     apply(f, p, size2);
+    if (PP.econ && f.eff !== 'junk' && f.eff !== 'tank' && f.id !== 'bottle') { PP.econ.give('fish_fresh', 1); if (PP.CIV) PP.CIV.tally('made', 1.5); } /* 0.41 钓上来的鱼也是吃的（鲜鱼，会坏） */
     card(f, size2, isNew, size2 >= rec.best && rec.n > 1, vr);
     PP.save && PP.save.soon && PP.save.soon();
     if (PP.quest) PP.quest.on('fish', f);
