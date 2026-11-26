@@ -7,7 +7,7 @@
   const C = (c) => (typeof c === 'string' ? hex(c) : c);
   const MAT = { flat: 0, tile: 1, plank: 2, stone: 3, grass: 4, glass: 5, glow: 6, soil: 7, leaf: 8, plaster: 9, water: 10, cloth: 11, metal: 12, wallpaper: 13, snow: 14,
     // 像素画用的材质：花纹都是“成块”的，放大缩小都不会变成噪点
-    pgrass: 15, pstone: 16, pplank: 17, pdirt: 18, psand: 19, pleaf: 20, proof: 21, pwater: 22, psnow: 23, pcrys: 24, pice: 25, pbrick: 26, pthatch: 27, prock: 28, lake: 29 };
+    pgrass: 15, pstone: 16, pplank: 17, pdirt: 18, psand: 19, pleaf: 20, proof: 21, pwater: 22, psnow: 23, pcrys: 24, pice: 25, pbrick: 26, pthatch: 27, prock: 28, lake: 29, bark: 30, moss: 31 };
 
   // ---------- 网格 ----------
   class Mesh {
@@ -238,6 +238,11 @@
       float row=vW.z/2.1; float r=floor(row); float t=hc*1.25+mod(r,2.0)*0.5; float id=h1(vec2(floor(t),r));
       float fy=fract(row), fx=fract(t)-0.5; float edge=smoothstep(0.0,0.28,fy-0.42*fx*fx*4.0*0.35);
       c*=0.80+0.34*id; c=mix(c*0.52,c,edge); c*=1.0-0.14*smoothstep(0.38,0.5,abs(fx)); if(id>0.9) c=mix(c,vec3(0.45,0.58,0.36),0.4);
+    } else if(m==30){ // 树皮（0.37）：顺着树干竖着的深裂纹、一条条鳞片似的厚皮，颜色深浅交错；不分正面侧面（世界坐标里连续，不会在 45° 出接缝）
+      float s1=vW.x+vW.y, s2=vW.x-vW.y; float f1=ns(vec2(s1*1.7, vW.z*0.28)), f2=ns(vec2(s2*1.7, vW.z*0.28+7.0)), f3=ns(vec2((s1+s2*0.6)*4.2, vW.z*0.9));
+      float ridge=mix(f1,f2,0.5+0.5*sin(s1*0.37)); c*=0.84+0.3*ridge; c*=1.0-0.42*smoothstep(0.62,0.86,f3)*(wall?1.0:0.4); c*=0.94+0.12*ns(vec2(s2*0.4, vW.z*0.06));
+    } else if(m==31){ // 苔藓：绒绒的，颜色一小块一小块深浅不一，边上迎着光有一层浅浅的绒光
+      c*=0.84+0.28*ns(vec2(vW.x+vW.y*0.7, vW.z+vW.y)*2.6); c=mix(c, c*vec3(1.08,1.06,0.82), ns(vW.xy*0.7+vW.z*0.3)*0.5); c+=pow(1.0-max(dot(n,V),0.0),3.0)*vec3(0.1,0.13,0.04);
     } else if(m==2){ // 木板
       float t=wall? hc*1.6 : (vW.x*0.9); float id=h1(vec2(floor(t),floor((wall?vW.z*0.08:vW.y*0.25)+h1(vec2(floor(t),3.0))*3.0)));
       c*=0.86+0.24*id; c*=1.0-0.30*smoothstep(0.42,0.5,abs(fract(t)-0.5)); c*=0.95+0.1*ns(vec2(t*0.7, (wall?vW.z:vW.y)*2.0));
@@ -323,8 +328,20 @@
       float upB=max(max(vd(pp+vec3(0.0,0.0,2.5)),vd(pp+vec3(0.0,0.0,5.0))),max(vd(pp+vec3(0.0,0.0,9.0)),vd(pp+vec3(0.0,0.0,15.0)))); skyV=1.0-clamp(upB*1.3,0.0,1.0)*0.42; }
     amb*=aoK*skyV;
     /* 苔藓（0.36）：露天的石头、瓦、木头、树根朝上的那面，一片一片长着苔（世界坐标里的低频花纹，不闪）；屋里的地板头顶有顶（skyV 低）就不长 */
-    if(uPick<0.5 && !lakeW && (m==3||m==16||m==1||m==21||m==2||m==17) && n.z>0.45 && (uVoxOn>0.5 ? skyV>0.82 : (m==1||m==21))){ float mz=ns(vW.xy*0.32+vec2(vW.z*0.11,0.0))*0.65+ns(vW.xy*1.1)*0.35; float mk=smoothstep(0.5,0.72,mz)*smoothstep(0.45,0.85,n.z)*(m==2||m==17?0.6:0.85);
+    if(uPick<0.5 && !lakeW && (m==3||m==16||m==1||m==21||m==2||m==17||m==30) && n.z>0.45 && (uVoxOn>0.5 ? skyV>0.82 : (m==1||m==21))){ float mz=ns(vW.xy*0.32+vec2(vW.z*0.11,0.0))*0.65+ns(vW.xy*1.1)*0.35; float mk=smoothstep(0.5,0.72,mz)*smoothstep(0.45,0.85,n.z)*(m==2||m==17?0.6:0.85);
       c=mix(c, mix(vec3(0.36,0.52,0.25), vec3(0.47,0.6,0.3), ns(vW.xy*2.3)), mk); }
+    /* 阴暗潮湿的地方也长苔（0.37）：贴着地面的墙脚、水下古城、屋檐和树荫底下、墙角缝里、树干背阴的北面；屋里不长（按每间房的范围判断） */
+    if(uPick<0.5 && !lakeW && n.z>-0.35 && (m==3||m==16||m==28||m==2||m==17||m==30||m==1||m==21||m==26||m==9)){
+      bool indoor=false; for(int i=0;i<40;i++){ if(i>=uNRL) break; vec4 a=uRLa[i], b=uRLb[i]; if(vW.z<b.z-0.3||vW.z>b.w+0.3) continue; vec2 d=vW.xy-a.xy;
+        if(b.x<0.0){ if(length(d)<-b.x+0.25){ indoor=true; break; } } else { vec2 l=vec2(d.x*a.z+d.y*a.w, -d.x*a.w+d.y*a.z); if(abs(l.x)<b.x+0.25&&abs(l.y)<b.y+0.25){ indoor=true; break; } } }
+      if(!indoor){ float gz=vW.z+0.15, damp=(1.0-smoothstep(0.0,4.5,gz))*(m==9?0.45:1.0);
+        if(vW.z<-1.3) damp=m==9?0.6:0.95;
+        if(uVoxOn>0.5) damp=max(damp, (1.0-smoothstep(0.62,0.84,skyV))*0.7+(1.0-smoothstep(0.5,0.85,aoK))*0.45);
+        if(m==30) damp=max(damp, 0.22+smoothstep(0.1,0.75,-n.y)*0.6);
+        if(n.z>0.6 && (m==2||m==17) && vW.z>-1.3) damp*=0.5; // 走的木地板上少一点
+        float mz=ns(vec2(vW.x+vW.y, vW.z*1.3)*0.45)*0.55+ns(vec2(vW.x-vW.y*0.7, vW.z*0.8+vW.x*0.3)*1.3)*0.45; float thr=mix(0.8,0.34,clamp(damp,0.0,1.0));
+        float mk2=smoothstep(thr,thr+0.12,mz)*min(0.92,damp*1.2)*(0.75+0.25*max(n.z,0.0));
+        c=mix(c, mix(vec3(0.3,0.45,0.22), vec3(0.44,0.57,0.28), ns(vec2(vW.x+vW.y,vW.z)*2.1)), mk2); } }
     float L=nl*sh; vec3 lit;
     if(uCel>0.5){ // 像素画的光：只分三档；亮部偏暖，暗部偏青紫
       float b=L>0.5?1.0:(L>0.18?0.58:0.22); lit=c*(amb*1.05+uSunCol*b); lit*=mix(vec3(0.93,0.95,1.08), vec3(1.05,1.0,0.9), b);

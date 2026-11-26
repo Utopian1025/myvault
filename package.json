@@ -1,7 +1,7 @@
 {
   "name": "pixel-nest",
   "productName": "Desktopia",
-  "version": "0.36.0",
+  "version": "0.37.0",
   "description": "Desktopia 桌面乌托邦：住在你桌面上的一群小动物和一座漂浮的小城堡。",
   "author": "Pixel Nest",
   "main": "main.js",

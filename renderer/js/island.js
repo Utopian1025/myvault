@@ -145,6 +145,8 @@
     L.vx0 = Math.max(0, L.x0); L.vy0 = Math.max(0, L.y0); L.vx1 = Math.min(G.W, L.x1); L.vy1 = Math.min(G.H, L.y1); L.vw = Math.max(1, L.vx1 - L.vx0); L.vh = Math.max(1, L.vy1 - L.vy0);
     /* 第一人称全屏（F）：画面铺满整个屏幕 */
     if (fp && S().fpFull) { L.vx0 = 0; L.vy0 = 0; L.vx1 = G.W; L.vy1 = sb; L.vw = G.W; L.vh = sb; }
+    /* 第一人称小窗口：拖边框自由缩放（0.37），大小记在 fpBox（占屏幕的比例） */
+    else if (fp && S().fpBox) { const b = S().fpBox; L.vx0 = Math.round(U.clamp(b.x0, 0, 0.95) * G.W); L.vy0 = Math.round(U.clamp(b.y0, 0, 0.95) * sb); L.vx1 = Math.round(U.clamp(b.x1, b.x0 + 0.05, 1) * G.W); L.vy1 = Math.round(U.clamp(b.y1, b.y0 + 0.05, 1) * sb); L.vw = Math.max(160, L.vx1 - L.vx0); L.vh = Math.max(120, L.vy1 - L.vy0); L.vx1 = L.vx0 + L.vw; L.vy1 = L.vy0 + L.vh; }
     const rs = document.documentElement.style; rs.setProperty('--isk', U.clamp(u / Z0, 0.55, 1.5).toFixed(3)); rs.setProperty('--isR', Math.max(4, G.W - L.x1) + 'px'); rs.setProperty('--isB', Math.max(4, G.H - L.y0 + 6) + 'px');
     try { if (cbar) setTimeout(cBar, 0); else if (tagsEl) setTimeout(placeTags, 0); } catch (e) {}
     return L;
@@ -221,7 +223,7 @@
     const w = want();
     document.body.classList.toggle('isle', !!w);
     if (w && !G.isle) { G.isle = {}; cut = null; migrateFurn(); layout(); fit(true); for (const ms of [250, 700, 1500]) setTimeout(() => { if (G.isle) fit(false); }, ms); }
-    else if (!w && G.isle) { if (fp) { lookFree(); fp = null; PP.fpOn = false; if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; } if (hotEl) { hotEl.remove(); hotEl = null; } document.body.classList.remove('fpon'); } G.isle = null; cut = null; focus = null; fbC = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; window.dispatchEvent(new Event('resize')); }
+    else if (!w && G.isle) { if (fp) { lookFree(); fp = null; PP.fpOn = false; if (fpBarEl) { fpBarEl.remove(); fpBarEl = null; } if (hotEl) { hotEl.remove(); hotEl = null; } document.body.classList.remove('fpon'); } G.isle = null; cut = null; focus = null; fbC = null; cBar(); for (const p of G.all) { p.isleSpot = null; p.ip = null; p.iw = null; p.lane = null; p.fishing = null; p.isleLv = 0; p.tool = null; p.isleHide = false; } document.body.style.cursor = 'default'; if (petBarEl) { petBarEl.remove(); petBarEl = null; petBarK = ''; } PP.syncPets && PP.syncPets(); window.dispatchEvent(new Event('resize')); }
   }
   function fit(moveIn) {
     layout(); G.ground = groundY();
@@ -301,7 +303,7 @@
   function lightOn(i) { const r = F.ROOMS[i], a = autoLight(r), sw = (E().lightSw || {})[r.id]; if (sw && sw.base === a) return sw.on; if (sw) delete E().lightSw[r.id]; return a; }
   function toggleLight(i) { const e = E(), r = F.ROOMS[i], a = autoLight(r), now = lightOn(i); e.lightSw = e.lightSw || {}; e.lightSw[r.id] = { on: !now, base: a }; PP.save.soon(); if (PP.audio && PP.audio.sfx) try { PP.audio.sfx('click'); } catch (x) {} PP.ui.toast((now ? '关灯了' : '开灯了') + '：' + r.nm, 1.2); }
   function lightState() { const now = performance.now(), dt = Math.min(0.2, (now - (lightT || now)) / 1000); lightT = now; const B = F.lightBoxes(); for (let i = 0; i < B.length; i++) { const tg = lightOn(i) ? 1 : 0, c = lightK[i] == null ? tg : lightK[i]; lightK[i] = c + (tg - c) * Math.min(1, dt * 5); } return lightK; }
-  function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); if (k > 0.01) out.push({ a: B[i].a, b: B[i].b, k }); } return out.slice(0, 40); }
+  function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); out.push({ a: B[i].a, b: B[i].b, k }); /* 关着的灯也传：着色器靠这些范围判断「屋里」（屋里不长苔） */ } return out.slice(0, 40); }
   function lightOpts() {
     const ph = phase(), fx = wfx(), dim = Math.min(1, (fx.cloud || 0) * 0.5 + (fx.rain ? 0.35 : 0) + (fx.snow ? 0.25 : 0) + (fx.dark || 0));
     let sun = [1.02, 0.96, 0.86], sky = [0.58, 0.63, 0.74], gnd = [0.5, 0.47, 0.4], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.38, 0.62, 0.88], bot = [0.8, 0.9, 0.97]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
@@ -432,11 +434,11 @@
     const rows = pets.map((p) => { const n = p.n, why = PP.econ.canTrip ? PP.econ.canTrip(p) : null, lv = PP.econ.lvOf ? PP.econ.lvOf(p) : '';
       return `<div class="prow"><b>${esc(p.name)}</b><small>Lv${lv}</small><span title="饱腹">🍙${bar(n.hunger, '#7ab85a')}</span><span title="口渴">💧${bar(n.thirst, '#5aa8d8')}</span><span title="精力">⚡${bar(n.energy, '#c8a84a')}</span><span title="快乐">😊${bar(n.fun, '#e88ab0')}</span>
         <button data-feed="${p.uid != null ? p.uid : esc(p.name)}">喂</button><em class="${why ? 'no' : 'ok'}">${why ? '探险：' + esc(why) : p.d.trip ? '在外面探险' : '探险：✓ 可以出门'}</em></div>`; }).join('');
-    const k = rows + (fp ? 'f' : 'i') + [L.vx0, L.vy0, L.vw].join(',');
+    const sc = U.clamp(Math.min(L.vw, L.vh) / 560, 0.7, 1.4), k = rows + (fp ? 'f' : 'i') + [L.vx0, L.vy0, L.vw, sc.toFixed(3)].join(',');
     if (!petBarEl) { petBarEl = document.createElement('div'); petBarEl.className = 'petbar'; document.getElementById('ui').appendChild(petBarEl);
       petBarEl.addEventListener('mousedown', (ev) => ev.stopPropagation());
       petBarEl.addEventListener('click', (ev) => { const b = ev.target.closest('button[data-feed]'); if (!b) return; const p = G.pets.find((q) => String(q.uid != null ? q.uid : q.name) === b.dataset.feed); if (fp) lookFree(); PP.econ.openPanel('bag', { pet: p }); }); }
-    if (k !== petBarK) { petBarK = k; petBarEl.innerHTML = rows; petBarEl.style.left = (L.vx0 + L.vw / 2) + 'px'; petBarEl.style.top = (L.vy0 + (fp ? 8 : 6)) + 'px'; PP.refreshInteractive && PP.refreshInteractive(); }
+    if (k !== petBarK) { petBarK = k; petBarEl.innerHTML = rows; petBarEl.style.left = (L.vx0 + L.vw / 2) + 'px'; petBarEl.style.top = (L.vy0 + (fp ? 8 : 6)) + 'px'; petBarEl.style.transformOrigin = 'center top'; petBarEl.style.transform = `translateX(-50%) scale(${sc.toFixed(3)})`; petBarEl.style.maxWidth = Math.round(L.vw * 0.96 / sc) + 'px'; PP.refreshInteractive && PP.refreshInteractive(); }
   }
   function renderBack(ctx) {
     try { petBar(); } catch (e) {}
@@ -1007,6 +1009,23 @@
     /* 默认锁住鼠标：移动鼠标就转向，准星对准东西单击就用；按住 Alt 放出鼠标 */
     if (lookPref() && lastPT !== 'touch') lookGrab();
   }
+  /* 拖第一人称小窗口的边框改大小：鼠标没锁住时，靠近边框 7 像素内出现双箭头，按住拖 */
+  let fpRz = null;
+  function fpEdge(x, y) {
+    if (!fp || S().fpFull || document.pointerLockElement || !L) return '';
+    const d = 7, inX = x > L.vx0 - d && x < L.vx1 + d, inY = y > L.vy0 - d && y < L.vy1 + d; if (!inX || !inY) return '';
+    let e = ''; if (Math.abs(y - L.vy0) < d) e += 'n'; else if (Math.abs(y - L.vy1) < d) e += 's'; if (Math.abs(x - L.vx0) < d) e += 'w'; else if (Math.abs(x - L.vx1) < d) e += 'e';
+    return e;
+  }
+  window.addEventListener('mousedown', (ev) => { if (ev.button !== 0) return; const e = fpEdge(ev.clientX, ev.clientY); if (!e) return; ev.stopImmediatePropagation(); ev.preventDefault(); fpRz = { e, x: ev.clientX, y: ev.clientY, r: [L.vx0, L.vy0, L.vx1, L.vy1] }; G.uiDrag = true; }, true);
+  window.addEventListener('mousemove', (ev) => {
+    if (!fpRz) { if (fp && !document.pointerLockElement) { const e = fpEdge(ev.clientX, ev.clientY); if (e) document.body.style.cursor = (e === 'n' || e === 's' ? 'ns' : e === 'e' || e === 'w' ? 'ew' : e === 'nw' || e === 'se' ? 'nwse' : 'nesw') + '-resize'; else if (/resize/.test(document.body.style.cursor)) document.body.style.cursor = 'default'; } return; }
+    ev.stopImmediatePropagation(); const sb = safeB(), dx = ev.clientX - fpRz.x, dy = ev.clientY - fpRz.y; let [x0, y0, x1, y1] = fpRz.r;
+    if (fpRz.e.includes('w')) x0 = U.clamp(x0 + dx, 0, x1 - 200); if (fpRz.e.includes('e')) x1 = U.clamp(x1 + dx, x0 + 200, G.W);
+    if (fpRz.e.includes('n')) y0 = U.clamp(y0 + dy, 0, y1 - 150); if (fpRz.e.includes('s')) y1 = U.clamp(y1 + dy, y0 + 150, sb);
+    S().fpBox = { x0: x0 / G.W, y0: y0 / sb, x1: x1 / G.W, y1: y1 / sb }; layout();
+  }, true);
+  window.addEventListener('mouseup', () => { if (!fpRz) return; fpRz = null; G.uiDrag = false; document.body.style.cursor = 'default'; camChanged(); PP.save.soon(); if (fp) fpBar(); PP.refreshInteractive(); }, true);
   function fpFullToggle() { S().fpFull = !S().fpFull; PP.save.soon(); layout(); camChanged(); if (fp) fpBar(); PP.refreshInteractive(); PP.ui.toast(S().fpFull ? '全屏（再点右上角 ⛶ 回到小窗口）' : '小窗口（右上角 ⛶ 全屏）', 1.4); }
   function fpStop(quiet) {
     if (!fp) return; lookFree(); fpRemember(); const p = fp.p, q = fp.q; fp = null; PP.fpOn = false; vOpen = false; fpMenu = false; bigMap = null;
