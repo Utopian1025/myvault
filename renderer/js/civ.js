@@ -77,7 +77,7 @@
       if (p.n.hunger < 35) { const order = Object.keys(FOOD).filter((k) => e.bag[k] > 0).sort((a, b) => FOOD[b][1] - FOOD[a][1]); if (order.length) { PP.econ.feedItem(p, order[0]); tally('ate', FOOD[order[0]][0]); } }
       if (p.n.thirst < 35 && s.water >= 1) { s.water -= 0.5; p.n.thirst = Math.min(100, p.n.thirst + 40); } }
     // 在看哪个风景：待满 3 分钟，就从那儿学会一门本事
-    try { const S = G().save.settings; if (S.mode === 'band' && PP.scene) { const v = PP.scene.view(); s.seen[v] = (s.seen[v] || 0) + 1; if (s.seen[v] >= 3) for (const k in KNOW) if (KNOW[k].where.includes(v) && learn(k)) break; } } catch (er) {}
+    try { const S = G().save.settings; if (S.dest || (S.mode === 'band' && PP.scene)) { const v = S.dest || PP.scene.view(); s.seen[v] = (s.seen[v] || 0) + 1; if (s.seen[v] >= 3) for (const k in KNOW) if (KNOW[k].where.includes(v) && learn(k)) break; } } catch (er) {}
   }
   /* 探险回来：从去的地方学本事、带回当地的东西（海边带盐） */
   function onTrip(p, t, rew) { rew.extra = rew.extra || []; for (const k in KNOW) if (KNOW[k].where.includes(t.to) && !has(k)) { learn(k); rew.extra.push('学会了「' + KNOW[k].name + '」'); break; } if (t.to === 'beach' || t.to === 'sea') { const n = 2 + Math.floor(Math.random() * 3); PP.econ.give('salt', n); rew.extra.push('盐 ×' + n); } }

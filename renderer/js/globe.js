@@ -131,5 +131,5 @@
     }
     requestAnimationFrame(frame);
   }
-  PP.GLOBE = { mount, GEO };
+  PP.GLOBE = { mount, GEO, biome };
 })();

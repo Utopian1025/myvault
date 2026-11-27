@@ -163,6 +163,8 @@
   function zone() { if (!L) layout(); return [L.vx0 + 4, L.vx1 - 4]; }
   const start = () => HALL_OUT;
   function setIp(p, u, v, lv) { const a = area(); lv = a.z[lv] != null ? lv : 1; p.ip = { u, v, lv, z: Zf(a, lv) }; p.isleLv = lv; p.x = scrU(u, v); }
+  /* 0.42：现在人在哪儿——浮岛（null），还是传送门那头的某个地方（风景 id） */
+  const destId = () => (G.save && S().dest && PP.DEST && PP.DEST.B[S().dest] ? S().dest : null);
   function ipOf(p) { if (!p.ip) { const s = start(); setIp(p, s.u + U.rand(-1, 1), s.v + U.rand(0, 1), s.lv); } return p.ip; }
   /* 0.38：浮岛里的动物画成 3D（把像素画吹鼓成立体，跟场景一起画：有光照、会被墙和家具挡住）。right / toward：精灵往右、朝镜头的方向 */
   const ZK3 = 2.83 / 1.155;
@@ -171,7 +173,10 @@
     for (const p of G.pets) { if (p.held || (!inFp && p.isleHide) || p.inDoor || p.outing || p.inDen || (skip && skip(p))) continue;
       const me = fp && p === fp.p, sp = p.isleSpot, q = me ? fp.q : sp ? { u: sp.u, v: sp.v, z: sp.z != null ? sp.z : (p.ip ? p.ip.z : 0) } : ipOf(p); if (!q) continue;
       const z = q.z != null ? q.z : Z[q.lv || 1]; let buf; const bv = p._backView; p._backView = !!me; try { buf = p.frameBuf(); } catch (e) { p._backView = bv; continue; } p._backView = bv;
-      const human = PP.SPR.HUMAN && PP.SPR.HUMAN.has(p.d.species), k = (PH / (human ? 37 : 28)) / ZK3 * (p.scale3d || 1); try { PP.PET3D.put(dm, buf, [q.u, q.v, z], right, toward, k); p._3d = true; } catch (e) {} } }
+      const human = PP.SPR.HUMAN && PP.SPR.HUMAN.has(p.d.species);
+      if (PP.PET3DM) { /* 0.42 真正的 3D 模型：面朝它走的方向（停下来就保持最后的朝向；刚开始按它在画面上朝左还是朝右） */ const pv = p._3dPrev, du = pv ? q.u - pv[0] : 0, dv = pv ? q.v - pv[1] : 0; if (Math.hypot(du, dv) > 0.01) p._3dYaw = Math.atan2(dv, du); else if (p._3dYaw == null) p._3dYaw = Math.atan2(right[1], right[0]) + (p.facing < 0 ? Math.PI : 0); p._3dPrev = [q.u, q.v];
+        const SPc = PP.PET3DM.SP[p.d.species] || {}, plan = human ? 'upright' : SPc.plan || 'quad', hgt = PH * (plan === 'upright' ? 0.95 : plan === 'round' ? 0.5 : plan === 'bird' ? 0.6 : plan === 'octo' ? 0.6 : 0.78) * (p.scale3d || 1); try { PP.PET3DM.put(dm, p, q.u, q.v, z, p._3dYaw, hgt); p._3d = true; } catch (e) { console.error(e); } continue; }
+      const k = (PH / (human ? 37 : 28)) / ZK3 * (p.scale3d || 1); try { PP.PET3D.put(dm, buf, [q.u, q.v, z], right, toward, k); p._3d = true; } catch (e) {} } }
   function uvOf(p) { if (p.isleSpot) return [p.isleSpot.u, p.isleSpot.v]; const q = ipOf(p); return [q.u, q.v]; }
   const seenLv = (lv) => cut == null ? lv >= 1 : lv <= cut;
   function cellList() {
@@ -289,10 +294,10 @@
   }
   function scene() {
     ensureExt();
-    const key = [fp ? null : cut, cut == null || fp ? '' : focus ? focus + ':' + Math.round((+S().isleYaw || 0) / (Math.PI / 12)) : quad(), baseKey()].join('#'); // 详细视图：边转边换（每 15° 重算一次哪几面墙朝着你）
+    const key = [destId() || '', fp ? null : cut, cut == null || fp ? '' : focus ? focus + ':' + Math.round((+S().isleYaw || 0) / (Math.PI / 12)) : quad(), baseKey()].join('#'); // 详细视图：边转边换（每 15° 重算一次哪几面墙朝着你）
     const s = meshes.main;
     if (s && s.key === key) return s;
-    const m = F.build(opts(cutO()));
+    const m = destId() ? PP.DEST.build(destId(), { season: season(), snow: snowy() }) : F.build(opts(cutO()));
     const r = (meshes.main = { key, gpu: g3.upload(m, s && s.gpu), cpu: m }); // cpu：第一人称拿它当碰撞（看得见的才挡）
     return r;
   }
@@ -311,7 +316,7 @@
   function lightOn(i) { const r = F.ROOMS[i], a = autoLight(r), sw = (E().lightSw || {})[r.id]; if (sw && sw.base === a) return sw.on; if (sw) delete E().lightSw[r.id]; return a; }
   function toggleLight(i) { const e = E(), r = F.ROOMS[i], a = autoLight(r), now = lightOn(i); e.lightSw = e.lightSw || {}; e.lightSw[r.id] = { on: !now, base: a }; PP.save.soon(); if (PP.audio && PP.audio.sfx) try { PP.audio.sfx('click'); } catch (x) {} PP.ui.toast((now ? '关灯了' : '开灯了') + '：' + r.nm, 1.2); }
   function lightState() { const now = performance.now(), dt = Math.min(0.2, (now - (lightT || now)) / 1000); lightT = now; const B = F.lightBoxes(); for (let i = 0; i < B.length; i++) { const tg = lightOn(i) ? 1 : 0, c = lightK[i] == null ? tg : lightK[i]; lightK[i] = c + (tg - c) * Math.min(1, dt * 5); } return lightK; }
-  function rlights() { const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); out.push({ a: B[i].a, b: B[i].b, k }); /* 关着的灯也传：着色器靠这些范围判断「屋里」（屋里不长苔） */ } return out.slice(0, 40); }
+  function rlights() { if (destId()) return []; const K = lightState(), B = F.lightBoxes(), dayK = phase() === 'night' ? 1 : phase() === 'day' ? 0.4 : 0.75, out = [], bounce = phase() === 'day' ? 0.36 : phase() === 'night' ? 0 : 0.2; /* 白天屋里有从窗户进来的暖光（原神的室内是暖的，不是阴影里的灰蓝） */ for (let i = 0; i < B.length; i++) { const k = Math.max(K[i] * dayK, bounce); out.push({ a: B[i].a, b: B[i].b, k }); /* 关着的灯也传：着色器靠这些范围判断「屋里」（屋里不长苔） */ } return out.slice(0, 40); }
   function lightOpts() {
     const ph = phase(), fx = wfx(), dim = Math.min(1, (fx.cloud || 0) * 0.5 + (fx.rain ? 0.35 : 0) + (fx.snow ? 0.25 : 0) + (fx.dark || 0));
     let sun = [1.02, 0.96, 0.86], sky = [0.58, 0.63, 0.74], gnd = [0.5, 0.47, 0.4], lit = 0, dir = [-0.55, 0.42, 0.72], top = [0.38, 0.62, 0.88], bot = [0.8, 0.9, 0.97]; /* 天空之城 / 原神的白天：很蓝很透的天、暖暖的太阳，阴影是带蓝的而不是灰的 */
@@ -343,11 +348,11 @@
   function viewOpts() { if (vox && vox !== voxSent && g3.setVox) { voxSent = vox; try { g3.setVox(vox, VX, VZ); } catch (e) { console.warn(e); } try { relicFit(); } catch (e) {} }
     const k = cam(), q = pixK(), W = Math.ceil(L.w / q), Wv = Math.ceil(L.vw / q), dx = L.vx0 - L.x0, dy = L.vy0 - L.y0, kk = L.u / q;
     const ox = mir() ? org()[0] - (W - Wv) / kk + dx / L.u : org()[0] - dx / L.u;
-    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), msaa: !pixOn(), clip: clipOf(), lake: F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * (PP.CITY && PP.CITY.POND ? 0.99 : 1.12), F.LAKE.z] : null, /* 0.36：水下的光只在水洞里，岛外面的岩壁不算 */ pond: PP.CITY && PP.CITY.POND ? [PP.CITY.POND.u0, PP.CITY.POND.v0, PP.CITY.POND.u1, PP.CITY.POND.v1] : null, day: phase() === 'night' ? 0 : phase() === 'day' ? 1 : 0.5, stone: PP.CITY ? [PP.CITY.CEN[0] + Math.cos(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.CEN[1] + Math.sin(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.STONE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
+    return Object.assign({ w: Wv, h: Math.ceil(L.vh / q), ox, oy: org()[1] - dy / L.u, k: kk, mirror: mir(), yaw: k.yaw, pitch: [k.A, k.B], camC: CEN, posterize: pixOn() ? 26 : 0, cel: pixOn(), msaa: !pixOn(), clip: clipOf(), lake: !destId() && F.LAKE ? [F.LAKE.u, F.LAKE.v, Math.max(F.LAKE.rx, F.LAKE.ry) * (PP.CITY && PP.CITY.POND ? 0.99 : 1.12), F.LAKE.z] : null, /* 0.36：水下的光只在水洞里，岛外面的岩壁不算 */ pond: !destId() && PP.CITY && PP.CITY.POND ? [PP.CITY.POND.u0, PP.CITY.POND.v0, PP.CITY.POND.u1, PP.CITY.POND.v1] : null, day: phase() === 'night' ? 0 : phase() === 'day' ? 1 : 0.5, stone: !destId() && PP.CITY ? [PP.CITY.CEN[0] + Math.cos(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.CEN[1] + Math.sin(PP.CITY.CRACK.t) * PP.CITY.CRACK.r, PP.CITY.STONE.z] : null }, lastLO); } // lake：湖水半透明、湖底光斑
   function render3d() {
     const s = scene(), t = performance.now() / 1000;
-    const dm = F.dyn({ t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
-    try { const X0 = L.x0 + L.w / 2, Y0 = L.y0 + L.h / 2, a = toUV(X0, Y0, 0), b = toUV(X0 + 10, Y0, 0), c = toUV(X0, Y0 + 10, 0), nr = (d) => { const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; }; pets3d(dm, nr([b[0] - a[0], b[1] - a[1]]), nr([c[0] - a[0], c[1] - a[1]])); } catch (e) {}
+    const dm = destId() ? PP.DEST.dyn(destId(), { t, open: destOpen(performance.now()) }) : F.dyn({ gate: gateState(performance.now()), t, cut: cutO(), cooking, fire: fort().fuel / 100, power: power(), drag: fdrag ? fdrag.it : null, pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
+    if (!destId()) try { const X0 = L.x0 + L.w / 2, Y0 = L.y0 + L.h / 2, a = toUV(X0, Y0, 0), b = toUV(X0 + 10, Y0, 0), c = toUV(X0, Y0 + 10, 0), nr = (d) => { const l = Math.hypot(d[0], d[1]) || 1; return [d[0] / l, d[1] / l]; }; pets3d(dm, nr([b[0] - a[0], b[1] - a[1]]), nr([c[0] - a[0], c[1] - a[1]])); } catch (e) {}
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null;
     lastScenes = [s.gpu, dynMesh]; lastLO = lightOpts();
     rips = rips.filter((r) => t - r[2] < 4);
@@ -451,7 +456,7 @@
   }
   function renderBack(ctx) {
     try { petBar(); } catch (e) {}
-    for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && hidden(p); }
+    for (const p of G.all) { if (p.inDen && (p.action !== 'isleUse' || !G.isle)) p.inDen = false; p.isleHide = !!G.isle && (destId() ? true : hidden(p)); } // 在传送门那头：2D 形象一律不画（第三人称时主角按 3D 画）
     if (G.isle) { followTick(); watchdog(); }
     if (!G.isle) return;
     if (!fp && !warm.on && !PP.noWarm) { warm.on = true; setTimeout(warmLoop, 400); }
@@ -1001,7 +1006,7 @@
     if (fedit) furnEdit(false);
     if (cut != null || focus) setCut(null, true);
     // 位置是连续的：主角现在在哪儿（菜地边、床上、正在走的路上），第一人称就从哪儿开始
-    const m = S().fpLast, mOK = m && [0, 1, 2, 3].includes(m.lv) && isFinite(m.u) && isFinite(m.v);
+    const m = destId() ? Object.assign({ lv: 1, t: Date.now(), z: PP.DEST.surfZ(destId(), PP.DEST.SPAWN.u, PP.DEST.SPAWN.v) }, PP.DEST.SPAWN) : S().fpLast, mOK = m && [0, 1, 2, 3].includes(m.lv) && isFinite(m.u) && isFinite(m.v); /* 在传送门那头：第一人称从门口开始 */
     /* 按 Esc（老板键）或 Q 出去，再进来：回到上次第一人称站的地方、朝着上次的方向（像游戏读档），不跟着主角后来自己溜达到哪儿 */
     const recent = mOK && m.t && Date.now() - m.t < 12 * 3600e3;
     const q0 = recent ? m : p.isleSpot ? { u: p.isleSpot.u, v: p.isleSpot.v, lv: p.isleLv != null ? p.isleLv : 1 } : p.ip ? { u: p.ip.u, v: p.ip.v, lv: p.ip.lv } : mOK ? m : ipOf(p);
@@ -1259,7 +1264,7 @@
       if (!fp.air && S().fpAutoJump !== false && Math.hypot(q.u - u0, q.v - v0) < sp * 0.3) { const nu = q.u + du * 0.45, nv = q.v + dv * 0.45, g2 = surf(nu, nv, q.z + 3.2); if (isFinite(g2.z) && g2.z > q.z + stepAt(q.u, q.v) && !blocked(nu, nv, g2.z) && headroom(nu, nv, g2.z) > bodyNow + 0.3 && wideTop(nu, nv, g2.z, du, dv)) fpJump(); }
     }
     // ---- 游泳 / 潜水：在林中湖里（身子泡在水面以下） ----
-    const LK = F.LAKE, inWater = !!(LK && F.inLake(q.u, q.v, 0.2) && q.z < LK.z - 0.25); /* 脚一泡进水里就是在游泳（以前要比水面低 1.2，踩在浅处的屋顶上半泡在水里，既不能游也不能潜） */
+    const LK = F.LAKE, inWater = !destId() && !!(LK && F.inLake(q.u, q.v, 0.2) && q.z < LK.z - 0.25); /* 脚一泡进水里就是在游泳（以前要比水面低 1.2，踩在浅处的屋顶上半泡在水里，既不能游也不能潜） */
     if (inWater && !fp.swim) { fp.glide = false; fp.swim = true; fp.air = false; fp.vz = Math.max(fp.vz || 0, -6); fp.crouchT = false; PP.ui.toast('掉进湖里啦——在游泳：方向键游，按住空格往上浮，按住 C / Ctrl 往下沉', 3); }
     if (fp.swim && !inWater && !(LK && F.inLake(q.u, q.v, -0.4))) fp.swim = false;
     if (fp.swim) {
@@ -1329,7 +1334,8 @@
   function hotFromId(id) {
     if (id == null || id < 0) return null;
     if (F.RELICS && id >= PK.relic && id < PK.relic + F.RELICS.length) { const r = F.RELICS[id - PK.relic]; return (E().relics || {})[r.id] ? null : { k: 'relic', r, label: `古城遗物：${r.nm}（游过去点一下捡起来）` }; }
-    if (FIXK[id]) return Object.assign({}, FIXK[id]);
+    if (destId()) { if (id === PP.DEST.PK.gate) return { k: 'dgate', label: '门：推开，回浮岛', cur: 'use' }; if (id === PP.DEST.PK.lmk) { const K = PP.CIV && PP.CIV.KNOW[PP.DEST.B[destId()].know]; return { k: 'lmk', label: K ? (PP.CIV.has(PP.DEST.B[destId()].know) ? `${PP.DEST.N(destId())}的人：「${K.name}」你已经会了` : `走近看看当地人怎么做：能学会「${K.name}」`) : '当地人的地方', cur: 'use' }; } return null; }
+    if (FIXK[id]) { const h0 = Object.assign({}, FIXK[id]); if (h0.k === 'gate') h0.label = `门：推开，去「${PP.DEST.N(gSel())}」`; if (h0.k === 'globe') h0.label = `地球转盘：点一下转到下一个地方（现在指着「${PP.DEST.N(gSel())}」）`; return h0; }
     if (id >= F.SW_PK && id < F.SW_PK + F.ROOMS.length) { const i = id - F.SW_PK, r = F.ROOMS[i]; return { k: 'switch', i, label: (lightOn(i) ? '电灯开关：关灯' : '电灯开关：开灯') + '（' + r.nm + '）' }; }
     if (id >= PK.plot && id < PK.plot + 6) { const i = id - PK.plot, inf = PP.econ.plotInfo(i); return { k: 'plot', i, label: !inf ? '菜地：播种' : inf.stage === 3 ? '菜地：收获' : '菜地：浇水' }; }
     if (id >= PK.deco && id < PK.deco + 6) { const i = id - PK.deco, d = (E().isleDeco || [])[i]; if (['bench', 'swing', 'hay'].includes(d)) return { k: 'deco', i, id: d, label: { bench: '长椅：坐一会儿', swing: '秋千：荡一荡', hay: '干草垛：趴一会儿' }[d] }; return null; }
@@ -1532,6 +1538,44 @@
     el.addEventListener('click', (ev) => { const b = ev.target.closest('button.sp'); if (!b) return; PP.hud && PP.hud.close(); const k = b.dataset.b || null; if (k) S().bait = k; go(k); });
     if (PP.hud) PP.hud.pop(el, { x: L.vx0 + L.vw / 2, y: L.vy0 + L.vh / 2 }); popCheck();
   }
+  /* ---------- 传送门（0.42）----------
+     地球就是门的转盘：拖着转、点一个地方，再推门就到了；也可以「随便去哪儿」。去了的地方是一整块 3D 的土地，
+     脚下有一扇同款的门，推开就回浮岛。 */
+  /* 门和转盘的状态：地球转到选中的地方正对着来人；拉杆拉下去地球飞快地乱转、停下就是去处；门板慢慢推开 */
+  const gs = { open: 0, openT: 0, opening: false, rot: 0, spinUntil: 0, leverT: 0, dOpenT: 0, dOpening: false };
+  const gSel = () => { const k = S().gateSel; return PP.DEST && PP.DEST.B[k] ? k : 'forest'; };
+  const GATE_FRONT = 55 * Math.PI / 180; // 地球正面朝着吊桥那边（来人的方向）
+  function gateState(now) { const G2 = PP.GLOBE && PP.GLOBE.GEO, sel = gSel(), tgt = GATE_FRONT - ((G2 && G2[sel] ? G2[sel][1] : 0) * Math.PI / 180);
+    if (now < gs.spinUntil) gs.rot += 0.35 * Math.min(1, (gs.spinUntil - now) / 800) + 0.02; else { const d = Math.atan2(Math.sin(tgt - gs.rot), Math.cos(tgt - gs.rot)); gs.rot += d * 0.08; }
+    const o = gs.opening ? Math.min(1, (now - gs.openT) / 900) : Math.max(0, 1 - (now - gs.openT) / 600); gs.open = o; const lv = Math.max(0, 1 - Math.abs((now - gs.leverT) / 350 - 1)); return { sel, rot: gs.rot, open: o, lever: lv }; }
+  function destOpen(now) { return gs.dOpening ? Math.min(1, (now - gs.dOpenT) / 900) : 0; }
+  // 点地球：转到下一个地方（按经度顺序，像真的转了一格）
+  function globeNext() { const G2 = PP.GLOBE.GEO, L2 = PP.DEST.LIST.filter((k) => G2[k]).sort((a, b) => G2[a][1] - G2[b][1]), i = L2.indexOf(gSel()); S().gateSel = L2[(i + 1) % L2.length]; PP.save.soon(); PP.ui.toast(`地球转了一格——门现在通到「${PP.DEST.N(S().gateSel)}」`, 1.8); }
+  function leverPull() { const now = performance.now(), L2 = PP.DEST.LIST.filter((k) => k !== gSel()), pick = L2[Math.floor(Math.random() * L2.length)]; gs.leverT = now; gs.spinUntil = now + 2400; setTimeout(() => { S().gateSel = pick; PP.save.soon(); PP.ui.toast(`地球慢慢停下来……停在了「${PP.DEST.N(pick)}」。推开门就过去`, 2.6); }, 2000); PP.ui.toast('哗啦——地球飞快地转起来了', 1.4); }
+  function doorPush(home) { const now = performance.now(); if (home) { gs.dOpening = true; gs.dOpenT = now; } else { gs.opening = true; gs.openT = now; }
+    if (!fp) setTimeout(() => { travel(home ? null : gSel()); }, 1000); else PP.ui.toast(home ? '门开了——走进门洞就回浮岛' : `门开了，门洞里是「${PP.DEST.N(gSel())}」的光——走进去`, 2.2); }
+  /* 第一人称：门开着的时候走进门洞，就到那头了 */
+  function doorWalk() { if (!fp) return; const d = destId(); if (d) { if (gs.dOpening && performance.now() - gs.dOpenT > 700 && Math.hypot(fp.q.u - PP.DEST.GATE.u, fp.q.v - PP.DEST.GATE.v) < 2.8) travel(null); } else if (gs.opening && performance.now() - gs.openT > 700 && F.GATEI && Math.hypot(fp.q.u - F.GATEI.door[0], fp.q.v - F.GATEI.door[1]) < 2.8) travel(gSel()); }
+  function gatePop() {
+    const L2 = PP.DEST.LIST, cur = destId(), el = document.createElement('div'); el.className = 'orb-pop map2 size-L gatepop';
+    const pins = L2.map((k) => `<button class="pin ${cur === k ? 'on' : ''}" data-s="${k}"><span>${esc(PP.DEST.N(k))}</span>${PP.CIV && PP.CIV.has(PP.DEST.B[k].know) ? '' : '<em>能学</em>'}</button>`).join('');
+    el.innerHTML = `<div class="sp-head"><b>传送门</b><span class="muted">转动地球（按住拖），点一个地方，门就通到那儿</span></div><div class="mapwrap"><canvas class="worldmap" width="520" height="330"></canvas>${pins}</div><div class="gaterow"><span class="gpick">还没选地方</span><button class="small" data-a="rand">🎲 随便去哪儿</button><button class="small on" data-a="go" disabled>推开门</button></div>`;
+    let pick = null; const set = (k) => { pick = k; el.querySelectorAll('.pin').forEach((b) => b.classList.toggle('on', b.dataset.s === k)); el.querySelector('.gpick').textContent = '门那头：' + PP.DEST.N(k); el.querySelector('[data-a=go]').disabled = false; };
+    el.addEventListener('mousedown', (ev) => ev.stopPropagation());
+    el.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; if (b.dataset.s) { set(b.dataset.s); return; } if (b.dataset.a === 'rand') { const opts = L2.filter((k) => k !== cur); set(opts[Math.floor(Math.random() * opts.length)]); PP.hud && PP.hud.close(); travel(pick); return; } if (b.dataset.a === 'go' && pick) { PP.hud && PP.hud.close(); travel(pick); } });
+    if (PP.hud) PP.hud.pop(el, null); try { PP.GLOBE && PP.GLOBE.mount(el.querySelector('.mapwrap')); } catch (e) {} popCheck();
+  }
+  function travel(id) {
+    const s = S(), from = destId(); s.dest = id || null; PP.save.soon(); gs.opening = false; gs.dOpening = false; gs.openT = 0; gs.open = 0; meshes.main = null; cells = {}; bndC = null;
+    const nm = id ? PP.DEST.N(id) : '浮岛';
+    if (fp) { let q; if (id) { const sp = PP.DEST.SPAWN; q = { u: sp.u, v: sp.v, lv: 1, z: PP.DEST.surfZ(id, sp.u, sp.v) }; fp.yaw = sp.yaw; } else { const G2 = F.GATEI; q = { u: G2.front[0], v: G2.front[1], lv: 1, z: G2.z }; fp.yaw = Math.atan2(-Math.sin(235 * Math.PI / 180), -Math.cos(235 * Math.PI / 180)); }
+      Object.assign(fp.q, q); fp.safe = Object.assign({}, q); fp.okUV = [q.u, q.v]; fp.air = false; fp.vz = 0; fp.swim = false; fp.auto = null; fp.pitch = 0; fp.camZ = null; fp.fade = performance.now(); fp._roomK = null; }
+    PP.ui.toast(id ? `推开门——${nm}到了。${PP.CIV && !PP.CIV.has(PP.DEST.B[id].know) ? '那边有当地人的地方，过去看看能学到本事。' : ''}脚下这扇门推开就回浮岛` : '推开门，回到浮岛了', 3.2);
+    if (PP.ECO && id) PP.ECO.note(`推开传送门去了一趟${nm}`); if (!fp && id && lookPref && 0) {}
+    try { if (PP.CIV && id) PP.CIV.st().seenAt = { id, t: Date.now() }; } catch (e) {}
+    void from; camChanged();
+  }
+  function lmkUse() { const id = destId(); if (!id || !PP.CIV) return; const k = PP.DEST.B[id].know, K = PP.CIV.KNOW[k]; if (!K) return; if (PP.CIV.has(k)) { PP.ui.toast(`「${K.name}」你已经学会了：${K.does}`, 2.4); return; } PP.CIV.learn(k); const p = mainP(); if (p) gain(p, `学会了「${K.name}」`); if (k === 'salt') { PP.econ.give('salt', 3); PP.ui.toast('当地人还送了你三包盐', 2); } }
   function pondPop(x, y) {
     const el = document.createElement('div'); el.className = 'seedpick';
     const CR = PP.CRAFT, tr = CR && CR.trap(), th = tr ? (Date.now() - tr.t) / 3600000 : 0, F2 = CR ? CR.FIND.filter((f) => f.where === 'pond') : [];
@@ -1552,6 +1596,9 @@
     if (h && h.k === 'fish') { const P0 = PP.CITY && PP.CITY.POND; if (P0 && Math.hypot(fp.q.u - (P0.u0 + P0.u1) / 2, fp.q.v - (P0.v0 + P0.v1) / 2) > 9) { PP.ui.toast('走到池边再用', 1.4); return; } pondPop(at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; } // 对着池塘点一下：钓鱼还是下潜
     if (!h) { if (!at) PP.ui.toast('准星对着能用的东西（床、椅子、菜地、鱼塘……）再按 E', 1.6); return; }
     if (h.k === 'relic') { const r = h.r; if (Math.hypot(r.u - fp.q.u, r.v - fp.q.v) > REACH + 2.5 || Math.abs(r.z - fp.q.z) > 9) { PP.ui.toast('游近一点再捡', 1.4); return; } relicGet(r); return; }
+    if (h.k === 'gate') { doorPush(false); return; } if (h.k === 'globe') { globeNext(); return; } if (h.k === 'lever') { leverPull(); return; }
+    if (h.k === 'dgate') { doorPush(true); return; }
+    if (h.k === 'lmk') { lmkUse(); return; }
     if (h.k === 'workshop') { const WS = F.WORKSHOP; if (WS && Math.hypot(WS.bench[0] - fp.q.u, WS.bench[1] - fp.q.v) > REACH + 3.5) { PP.ui.toast('走到工作台跟前再做', 1.4); return; } workshopPop(at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; }
     if (h.k === 'shrine') { const S2 = F.SHRINE; if (S2 && Math.hypot(S2.u + 1.3 - fp.q.u, S2.v - fp.q.v) > REACH + 3) { PP.ui.toast('走到神龛前面再拜', 1.4); return; } shrinePop(at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; }
     if (h.k === 'lift') { const LF = F.LIFT; if (Math.hypot(LF.u - fp.q.u, LF.v - fp.q.v) > REACH + 2) { PP.ui.toast('走到吊篮跟前再坐', 1.4); return; } liftPop(h.lv, at ? at[0] : L.vx0 + x, at ? at[1] : L.vy0 + y); return; }
@@ -1580,6 +1627,7 @@
     return out;
   };
   function drawMap(ctx, x, y, w, h, lv, big) {
+    if (destId()) { if (!big) { ctx.save(); ctx.fillStyle = 'rgba(30,24,40,.45)'; ctx.beginPath(); ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, 6.2832); ctx.fill(); ctx.fillStyle = '#fff6d8'; ctx.font = PP.FONT(Math.max(10, w / 9)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(PP.DEST.N(destId()), x + w / 2, y + h / 2 - w * 0.08); ctx.font = PP.FONT(Math.max(8, w / 13)); ctx.fillText('门在南边', x + w / 2, y + h / 2 + w * 0.12); ctx.restore(); } return; }
     const md = mapData();
     if (!md) { ctx.fillStyle = 'rgba(28,24,40,.62)'; ctx.beginPath(); if (big) ctx.rect(x, y, w, h); else ctx.arc(x + w / 2, y + h / 2, w / 2, 0, 6.2832); ctx.fill(); ctx.fillStyle = '#fff6d8'; ctx.font = PP.FONT(12); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('地图准备中…', x + w / 2, y + h / 2); return null; }
     const [u0, v0, u1, v1] = md.box, sc = Math.min(w / (u1 - u0), h / (v1 - v0)) * (big && bigMap ? bigMap.z || 1 : 1);
@@ -1878,7 +1926,8 @@
   function fpFrame(ctx) {
     const now = performance.now(), dt = Math.min(0.05, (now - fp.last) / 1000); fp.last = now;
     fpTick(dt); if (!fp) return;
-    if (PP.ECO && now - (fp._pickT || 0) > 400) { fp._pickT = now; try { const msg = PP.ECO.nearPick(fp.q.u, fp.q.v); if (msg) gain(fp.p, msg); } catch (e) {} } /* 走到陨石、蘑菇圈、熟了的野草莓、神树的果子、野蜂窝底下：自动捡起来 */
+    try { doorWalk(); } catch (e) {}
+    if (PP.ECO && !destId() && now - (fp._pickT || 0) > 400) { fp._pickT = now; try { const msg = PP.ECO.nearPick(fp.q.u, fp.q.v); if (msg) gain(fp.p, msg); } catch (e) {} } /* 走到陨石、蘑菇圈、熟了的野草莓、神树的果子、野蜂窝底下：自动捡起来 */
     const lo = lightOpts(), x0 = L.vx0, y0 = L.vy0, w = L.vw, h = L.vh, c3 = (a) => `rgb(${a.map((v) => Math.round(v * 255)).join(',')})`;
     ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
     // 天空
@@ -1886,8 +1935,8 @@
     try { drawBelow(ctx, x0, y0, w, h, now, lo); } catch (e) {}
     try { const E0 = PP.ECO && PP.ECO.st(); if (E0 && E0.rainbow > Date.now()) { /* 雨后的彩虹：挂在东边的天上，走着转身才看得到 */ const cm = fpCam(), d = Math.atan2(Math.sin(0.4 - cm.yaw), Math.cos(0.4 - cm.yaw)), cxr = x0 + w / 2 + d / (cm.fov * 0.9) * w, hy = y0 + h * 0.5 + cm.pitch * h * 0.9, R = h * 0.75, k = Math.min(1, (E0.rainbow - Date.now()) / 300000);
       if (Math.abs(d) < 2.2) { ctx.save(); ctx.globalAlpha = 0.28 * k; ctx.lineWidth = R * 0.028; ['#ff5050', '#ffa040', '#ffe060', '#60d060', '#50a0ff', '#6060e0', '#a060d0'].forEach((c, i) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(cxr, hy, R - i * ctx.lineWidth, Math.PI, 0); ctx.stroke(); }); ctx.restore(); } } } catch (e) {}
-    const s = scene(), t = now / 1000, dm = F.dyn({ t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), eye: [fp.q.u, fp.q.v, fp.q.z + (fp.swim ? SWE : EYE)], under: !!fp.under, bite: fishBite(now), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
-    try { const cm = fpCam(), cy0 = Math.cos(cm.yaw), sy0 = Math.sin(cm.yaw); pets3d(dm, [-sy0, cy0], [-cy0, -sy0], (o) => o === fp.p && cm.third < 0.6, true); } catch (e) {}
+    const s = scene(), t = now / 1000, dm = destId() ? PP.DEST.dyn(destId(), { t, open: destOpen(now) }) : F.dyn({ gate: gateState(now), t, cut: null, cooking, fire: fort().fuel / 100, power: power(), pinkBed: !!(E().room || {}).bed, lights: lightK.map((k) => (k > 0.5 ? 1 : 0)), bob: (fishTick(now), bobNow(now)), eye: [fp.q.u, fp.q.v, fp.q.z + (fp.swim ? SWE : EYE)], under: !!fp.under, bite: fishBite(now), relics: E().relics || {}, incense: Date.now() - ((E().shrine || {}).incense || 0) < 30 * 60000 });
+    try { const cm = fpCam(), cy0 = Math.cos(cm.yaw), sy0 = Math.sin(cm.yaw); pets3d(dm, [-sy0, cy0], [-cy0, -sy0], (o) => (o === fp.p && cm.third < 0.6) || (destId() && o !== fp.p), true); } catch (e) {}
     dynMesh = dm.p.length ? Object.assign(g3.upload(dm, dynMesh), { noShadow: true }) : null; lastScenes = [s.gpu, dynMesh]; lastLO = lo;
     const pix = fpQ() === 'pixel'; let vmM = null; try { const hm = S().fpHands !== false && fpCam().third < 0.6 ? buildVM() : null; vmM = hm && hm.p.length ? (vmGpu = g3.upload(hm, vmGpu)) : null; } catch (e) { vmM = null; fp._herr = String(e && e.stack || e); }
     let cv = g3.draw(lastScenes, fpOpts(vmM ? { vm: vmM } : null)); if (cv && pix && pixOn()) cv = outline(cv);
@@ -1895,7 +1944,7 @@
     // 动物：同一个房间（或者都在外面）才看得见，按远近画成立着的纸片；第三人称时也画出主角自己
     const cam = fpCam(), cyw = Math.cos(cam.yaw), syw = Math.sin(cam.yaw), cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch), f = 1 / Math.tan(cam.fov / 2), myRoom = F.roomAt(fp.q.u, fp.q.v, fp.q.lv);
     const vis = [];
-    for (const o of G.pets) { if (o.held) continue; const me = o === fp.p; if (me && cam.third < 0.6) continue;
+    for (const o of G.pets) { if (o.held) continue; const me = o === fp.p; if (me && cam.third < 0.6) continue; if (destId() && !me) continue;
       const q = me ? fp.q : o.isleSpot ? { u: o.isleSpot.u, v: o.isleSpot.v, z: o.isleSpot.z, lv: o.isleLv } : o.ip; if (!q) continue;
       if (!me && !sees(o, cam.eye, q)) continue;
       const mx = (q.u - cam.eye[0]) * 2.83, my = (q.v - cam.eye[1]) * 2.83, mz = ((q.z != null ? q.z : Z[q.lv]) - cam.eye[2]) * 1.155;
@@ -1965,7 +2014,7 @@
         ctx.font = PP.FONT(fs * 0.78); ctx.fillStyle = 'rgba(255,248,232,.85)'; const words = [...rs.r.desc]; let line = '', ly = by + fs * 3.6; for (const ch2 of words) { if (ctx.measureText(line + ch2).width > cw - fs * 4.3) { ctx.fillText(line, bx + fs * 3.3, ly); line = ''; ly += fs * 1.05; } line += ch2; } ctx.fillText(line, bx + fs * 3.3, ly); ctx.restore(); } }
     if (fp.under && F.RELICS) { const got = E().relics || {}, n = F.RELICS.filter((q) => got[q.id]).length; ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.8); const tx = `◆ 古城遗物 ${n} / ${F.RELICS.length}`, tw = ctx.measureText(tx).width + 20; ctx.fillStyle = 'rgba(16,40,52,.55)'; ctx.fillRect(cx0 - tw / 2, y0 + 10, tw, fs * 0.8 + 10); ctx.fillStyle = '#bfefff'; ctx.fillText(tx, cx0, y0 + 15); ctx.restore(); } // 水下：顶上显示找到几件了
     // 小地图（右上角）+ 在哪儿
-    const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = `${F.NAME[fp.q.lv]} · ${fp.under ? '古城之池 · 水下古城' : rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;
+    const rm = F.roomAt(fp.q.u, fp.q.v, fp.q.lv), under = PP.SCENES && PP.SCENES[underScene()] ? PP.SCENES[underScene()].name : '', where = destId() ? `${PP.DEST.N(destId())} · 传送门那头（南边那扇门推开就回浮岛）` : `${F.NAME[fp.q.lv]} · ${fp.under ? '古城之池 · 水下古城' : rm ? rm.nm : '外面'}${under ? ' · 飘在' + under + '上空' : ''}`;
     if (S().fpMap !== false && !bigMap) { const ms = Math.round(U.clamp(Math.min(w, h) * 0.24, 92, 190)), mx = x0 + 12, my = y0 + 12; drawMap(ctx, mx, my, ms, ms, fp.q.lv, false); miniR = [mx, my, ms, ms]; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.78); const tw = ctx.measureText(where).width + 16; ctx.fillStyle = 'rgba(20,24,36,.45)'; ctx.fillRect(mx, my + ms + 6, tw, fs * 0.78 + 8); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.fillText(where, mx + 8, my + ms + 10); }
     else if (!bigMap) { miniR = null; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.font = PP.FONT(fs * 0.85); ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(where, x0 + 12, y0 + 12); }
     // 大地图
@@ -2078,7 +2127,7 @@
     for (const lv of order) { const [gu, gv] = toUV(x, y, a.z[lv]); if (!free(a, gu, gv, lv)) continue; if (cut == null && F.roomAt(gu, gv, lv)) continue; return { k: 'ground', u: gu, v: gv, z: a.z[lv], lv }; }
     return null;
   }
-  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '古城之池：钓鱼 / 下潜（往下看，水底是一整座古城）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' }, [PK.shrine]: { k: 'shrine', label: '神龛：上香 · 许愿 · 还愿', cur: 'use' }, [PK.workshop]: { k: 'workshop', label: '加工工坊：做鱼饵、熬果酱、留种、晾干花', cur: 'use' }, [PK.lift + 1]: { k: 'lift', lv: 1, label: '吊篮：坐上去，到二层、三层', cur: 'use' }, [PK.lift + 2]: { k: 'lift', lv: 2, label: '吊篮站：去一层、三层', cur: 'use' }, [PK.lift + 3]: { k: 'lift', lv: 3, label: '吊篮站：去一层、二层', cur: 'use' } };
+  const FIXK = { [PK.mail]: { k: 'mail', label: '信箱：看信', cur: 'mail' }, [PK.tap]: { k: 'tap', label: '水龙头：打水喝（解渴）', cur: 'water' }, [PK.balloon]: { k: 'balloon', label: '热气球：出门探险', cur: 'trip' }, [PK.fish]: { k: 'fish', label: '古城之池：钓鱼 / 下潜（往下看，水底是一整座古城）', cur: 'fish' }, [PK.hive]: { k: 'hive', label: '蜂箱：收蜂蜜', cur: 'use' }, [PK.shrine]: { k: 'shrine', label: '神龛：上香 · 许愿 · 还愿', cur: 'use' }, [PK.gate]: { k: 'gate', label: '门', cur: 'use' }, [PK.globe]: { k: 'globe', label: '地球转盘', cur: 'use' }, [PK.lever]: { k: 'lever', label: '随机拉杆：拉一下，地球乱转，停在哪儿门就通到哪儿', cur: 'use' }, [PK.workshop]: { k: 'workshop', label: '加工工坊：做鱼饵、熬果酱、留种、晾干花', cur: 'use' }, [PK.lift + 1]: { k: 'lift', lv: 1, label: '吊篮：坐上去，到二层、三层', cur: 'use' }, [PK.lift + 2]: { k: 'lift', lv: 2, label: '吊篮站：去一层、三层', cur: 'use' }, [PK.lift + 3]: { k: 'lift', lv: 3, label: '吊篮站：去一层、二层', cur: 'use' } };
   function hot(x, y) {
     hover = null;
     if (fp) { if (L && x >= L.vx0 && x <= L.vx1 && y >= L.vy0 && y <= L.vy1) return (hover = { k: 'fp', isle: true, cur: 'crosshair' }); return null; }
@@ -2135,6 +2184,7 @@
     const m = r.c ? [r.c[0], r.c[1] + 1] : r.rot ? F.toW(r, (r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2) : [(r.r[0] + r.r[2]) / 2, (r.r[1] + r.r[3]) / 2 + 1]; const c = nearFree(area(), m[0], m[1], r.lv); return { u: c[0], v: c[1], lv: r.lv }; };
   function click(h, x, y) {
     if (!h) return;
+    if (destId() && !['dgate', 'lmk'].includes(h.k)) { PP.ui.toast(`在${PP.DEST.N(destId())}：按 F 用第一人称走走看；脚下那扇门推开就回浮岛`, 2.6); return; }
     const p = mainP(), go = (name, fn, ...args) => { if (p) { p.interrupt(true); p.inDoor = false; p.fishing = null; p.tool = null; p.run(name, fn, ...args); p._byYou = true; p._stayUntil = performance.now() + 25000; } };
     /* 它正在干你让它干的活（种菜、浇水、收菜、钓鱼……）：点到地面不打断它，免得一不小心就跑走了 */
     const WORK = ['isleSow', 'isleWater', 'isleHarvest', 'isleFish', 'isleHive', 'isleUse', 'isleDrink', 'isleMail'];
@@ -2149,6 +2199,7 @@
     if (h.k === 'deco') { go('isleSit', A.isleSit, { id: h.id, i: h.i, u: SLOTS[h.i][0], v: SLOTS[h.i][1] }); return; }
     if (h.k === 'shrine') { shrinePop(x, y); return; }
     if (h.k === 'workshop') { workshopPop(x, y); return; }
+    if (h.k === 'gate') { doorPush(false); return; } if (h.k === 'globe') { globeNext(); return; } if (h.k === 'lever') { leverPull(); return; } if (h.k === 'dgate') { doorPush(true); return; } if (h.k === 'lmk') { lmkUse(); return; }
     if (h.k === 'lift') { if (fp) liftPop(h.lv, x, y); else PP.ui.toast('吊篮：进第一人称（👁 → 第一人称）后点它，就能直接去别的楼层', 2.4); return; }
     if (h.k === 'mail') { go('isleMail', A.isleMail); PP.econ.openPanel('mail'); return; }
     if (h.k === 'fish') { if (p && p.fishing) { if (p.fishing.ph === 'bite') p.fishing.helped = true; return; } go('isleFish', A.isleFish); return; }
@@ -2506,6 +2557,6 @@
     };
     if (!G.isle) { PP.setView && PP.setView('isle'); setTimeout(run, 1400); } else run();
   }
-  Object.assign(fpDebug, { dive: () => pondDive(), out: () => pondOut(), shrine: () => shrinePop(300, 200), liftGo: (lv) => liftGo(lv), glide: () => fpGlideKey(), hot: () => (fp ? hotFromId(fpPick(L.vw / 2, L.vh / 2)) : null), use: () => fpUse(null), relicGet: (i) => relicGet(F.RELICS[i]), props: () => props(), fish: () => fpFish(), workshop: () => workshopPop(300, 200), fishState: () => fp && fp.fish, fishTick: (t) => fishTick(t) }); // 试玩脚本用
-  PP.isle = { questGo, fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
+  Object.assign(fpDebug, { dive: () => pondDive(), out: () => pondOut(), shrine: () => shrinePop(300, 200), liftGo: (lv) => liftGo(lv), glide: () => fpGlideKey(), hot: () => (fp ? hotFromId(fpPick(L.vw / 2, L.vh / 2)) : null), use: () => fpUse(null), relicGet: (i) => relicGet(F.RELICS[i]), props: () => props(), fish: () => fpFish(), doorPush: (h) => doorPush(h), globeNext: () => globeNext(), lever: () => leverPull(), workshop: () => workshopPop(300, 200), fishState: () => fp && fp.fish, fishTick: (t) => fishTick(t) }); // 试玩脚本用
+  PP.isle = { gatePop, travel, dest: () => destId(), questGo, fpDebug, fpStart, fpStop, fpOn: () => !!fp, looking: lookOn, fpState: () => fp, camChanged, setFocus, focus: () => focus, neighbours, cookAnim, furnEdit, furnAdd, furnEditing: () => fedit, resetCam, props, doorX, floorY, sync, layout, groundY, zone, renderBack, renderFront, hot, click, down, cmd, dirty, inside: insideV, setInside, setCut, cut: () => cut, rect: () => L, scale: () => (L ? L.u : zoomOf()) * 0.34 * F.FS, zoom: () => (L ? L.u : zoomOf()), setSize, setZoom, resetPos, setMirror, mirror: mir, SIZES, Z0, safeB, SLOT_NAME, seedPicker, pressing: () => !!press, uvOf, walking: (p) => !!p.iw, step, gotoX, cells: cellList, areas: { fort: AREA }, free: (u, v, lv) => free(area(), u, v, lv), fort, power };
 })();

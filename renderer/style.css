@@ -640,3 +640,11 @@ img.bico { width: 40px; height: 40px; image-rendering: auto; }
 .ecolog { font-size: 12px; }
 .ecorow .pbar, .ecofish .pbar { display: inline-block; height: 7px; border-radius: 4px; background: rgba(0, 0, 0, .12); overflow: hidden; vertical-align: middle; }
 .ecorow .pbar > i, .ecofish .pbar > i { display: block; height: 100%; border-radius: 4px; }
+/* 0.42 传送门 */
+.gatepop { padding: 8px 10px 10px; }
+.gatepop .gaterow { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.gatepop .gpick { flex: 1; font-weight: bold; color: #3b2a4c; }
+.gatepop .pin em { background: #6ab06a; }
+.gatepop .pin span { display: inline; }
+.gatepop .pin em { font-size: 9px; }
+.gatepop .mapwrap { width: 520px; height: 330px; }

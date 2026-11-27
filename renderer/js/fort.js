@@ -196,7 +196,7 @@
   const BAL_L = { u: 24, v: 55.2 }, NEST_L = (([u, v]) => ({ u, v }))(lp('store', -1.6, -3.4));
   const BALLOON = { u: BAL_L.u, v: BAL_L.v }, NEST = { u: NEST_L.u, v: NEST_L.v };
   const GPOTS = [lp('green', 1.8, 2.6), lp('green', -0.6, 2.6), lp('green', 1.8, -0.4), lp('green', -0.6, 0.2)];
-  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13, lift: 170, relic: 180, shrine: 175, workshop: 190 };
+  const PK = { balloon: 6, fish: 8, mail: 3, tap: 4, hive: 12, plot: 20, deco: 30, lamp: 10, nest: 13, lift: 170, relic: 180, shrine: 175, workshop: 190, gate: 200, globe: 203, lever: 204 };
   /* 吊篮：挂在树干外面（θ72°，楼梯门旁边），一、二、三层回廊上各一站；坐上去直接到别的层（从高处掉下来不用绕一大圈走回去） */
   /* 古城遗物：八件东西散在水下古城的地标前面，发着微光，潜下去才拿得到（像原神的宝箱、塞尔达的呀哈哈）；拿了就记进 E().relics */
   const RELICS = (() => { if (!PP.CITY) return []; const Cc = PP.CITY, L2 = Cc.LM, at = (deg, r) => { const u = TC[0] + Math.cos(deg * D2R) * r, v = TC[1] + Math.sin(deg * D2R) * r; return [u, v, Cc.groundZ(u, v) + 0.4]; };
@@ -1343,6 +1343,39 @@
     for (let i = 0; i < 2; i++) m.ball(u + 0.2 + i * 0.7, v + 1.7, z0 + 0.75, 0.38, 0.6, '#c8b088', M.cloth, 5, 9); // 两袋玉米
     m.box(u - 2.75, v - 2.4, z0 + 5.6, u - 2.6, v - 1.0, z0 + 6.6, '#c89a5a', M.plank); m.box(u - 2.78, v - 2.1, z0 + 5.8, u - 2.74, v - 1.3, z0 + 6.4, '#5a3a22', M.plank); // 门口的小木牌
   }
+  /* 传送门之岛（0.42）：浮岛西北边外面一座单独的小浮岩，一座带灯笼的木吊桥连过去。岛上铺着一圈石台，
+     中间一座四根石柱、铜绿圆顶的小殿，殿里一架黄铜的环托着一颗地球——这就是门的转盘：转到哪儿，门就通到哪儿；
+     最外头立着那扇门（石头拱券、两扇木门、门楣上四颗颜色的宝石，像哈尔城堡门上的色盘），推开就过去了 */
+  const GATE_A = 235 * D2R, GD = [Math.cos(GATE_A), Math.sin(GATE_A)];
+  const GATEI = (() => { if (!CITY) return null; const R0 = CITY.rimR(GATE_A), c = [TC[0] + GD[0] * (R0 + 12), TC[1] + GD[1] * (R0 + 12)]; return { R0, c, r: 7, z: 0.45, globe: [c[0], c[1]], door: [c[0] + GD[0] * 4.6, c[1] + GD[1] * 4.6], front: [c[0] - GD[0] * 2.6, c[1] - GD[1] * 2.6], yaw: Math.atan2(GD[0], -GD[1]) }; })();
+  function gateIsle(m, o) {
+    const G = GATEI; if (!G) return; const [cx, cy] = G.c, z = G.z, S = '#c8bea8', W = '#7a5a3a', W2 = '#6a4a30', COPPER = '#6f9e8c', snow = o.snow;
+    // 浮岩：顶上一层草皮，往下一圈圈收成尖
+    const NR = 40, rr = (t) => G.r * (1 + 0.06 * Math.sin(3 * t + 1) + 0.04 * Math.sin(5 * t)); for (let k = 0; k < NR; k++) { const t0 = (k / NR) * 6.2832, t1 = ((k + 1) / NR) * 6.2832, P = (t, r, zz) => [cx + Math.cos(t) * r, cy + Math.sin(t) * r, zz];
+      m.tri([cx, cy, z], P(t0, rr(t0), z), P(t1, rr(t1), z), snow ? '#eef4fa' : k % 2 ? '#7aa45a' : '#6e9a52', snow ? M.snow : M.grass);
+      const rings = [[1, z], [0.96, -1.5], [0.85, -4], [0.65, -8], [0.4, -12], [0.1, -16]]; for (let i = 0; i + 1 < rings.length; i++) m.quad(P(t0, rr(t0) * rings[i][0], rings[i][1]), P(t1, rr(t1) * rings[i][0], rings[i][1]), P(t1, rr(t1) * rings[i + 1][0], rings[i + 1][1]), P(t0, rr(t0) * rings[i + 1][0], rings[i + 1][1]), ['#a48c6a', '#95805f', '#b09776', '#8a7558'][(k + i) % 4], M.stone); }
+    for (let k = 0; k < 6; k++) { const a = k * 1.1 + 0.5; m.moss([cx + Math.cos(a) * G.r * 0.97, cy + Math.sin(a) * G.r * 0.97, z - 0.6], [Math.cos(a), Math.sin(a), 0.3], 0.6, 0.25, k + 900); } // 岩边的苔
+    // 石台：中间一圈圆，外面放射的石板
+    for (let r2 = 0; r2 < 3; r2++) { const ri = 1.2 + r2 * 1.35, ro = ri + 1.3, n = 10 + r2 * 6; for (let i = 0; i < n; i++) { const a0 = (i / n) * 6.2832 + r2 * 0.2, a1 = ((i + 0.94) / n) * 6.2832 + r2 * 0.2, P = (a, r) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z + 0.08]; m.quad(P(a0, ri), P(a1, ri), P(a1, ro - 0.06), P(a0, ro - 0.06), (i + r2) % 3 ? '#cfc6b2' : '#bdb39d', M.stone); } }
+    m.cyl(cx, cy, z, z + 0.09, 1.2, 1.2, '#d8cfb8', M.stone, 24);
+    // 门殿：四根石柱、一圈檐、铜绿的圆顶，顶上一个小尖
+    for (let i = 0; i < 4; i++) { const a = i * 1.5708 + 0.785, x = cx + Math.cos(a) * 2.6, y = cy + Math.sin(a) * 2.6; m.cyl(x, y, z, z + 0.5, 0.42, 0.42, S, M.stone, 12); m.cyl(x, y, z + 0.5, z + 8.4, 0.3, 0.27, '#e0d6c2', M.stone, 12); m.cyl(x, y, z + 8.4, z + 8.9, 0.36, 0.44, S, M.stone, 12); }
+    m.cyl(cx, cy, z + 8.9, z + 9.5, 3.4, 3.4, '#cfc5ae', M.stone, 28); m.ball(cx, cy, z + 9.5, 3.2, 2.4, snow ? '#eef4fa' : COPPER, snow ? M.snow : M.metal, 10, 24, 0, 5, true); m.cyl(cx, cy, z + 11.8, z + 13.2, 0.2, 0.03, '#c8a858', M.metal, 8);
+    // 转盘的座：一根黄铜柱子托着地球（地球本身和拉杆会动，画在每一帧里：见 gateDyn）
+    m.pk(PK.globe); m.cyl(cx, cy, z, z + 2.6, 0.5, 0.35, '#8a6a3a', M.metal, 12); m.cyl(cx, cy, z + 2.6, z + 2.8, 0.9, 0.9, '#c8a858', M.metal, 16); m.pk(0);
+    { const lx = cx - GD[1] * 1.6, ly = cy + GD[0] * 1.6; m.pk(PK.lever); m.box(lx - 0.35, ly - 0.35, z, lx + 0.35, ly + 0.35, z + 1.4, '#8a6a3a', M.metal); m.box(lx - 0.45, ly - 0.45, z + 1.4, lx + 0.45, ly + 0.45, z + 1.55, '#c8a858', M.metal); m.pk(0); } // 随机拉杆的底座
+    // 门：石头拱券是固定的，两扇门板会开（gateDyn）
+    const [dx, dy] = G.door, warp = P2().warp; if (warp && PP.DEST) warp(m, [dx, dy, z], G.yaw, 0, 0, () => PP.DEST.doorFrame(m, dx, dy, z, PK.gate));
+    // 两边的石灯笼、几丛花和小树
+    for (const sd of [-1, 1]) { const x = cx - GD[0] * 1 + -GD[1] * sd * 4.6, y = cy - GD[1] * 1 + GD[0] * sd * 4.6; m.box(x - 0.35, y - 0.35, z, x + 0.35, y + 0.35, z + 0.3, '#a8a090', M.stone); m.cyl(x, y, z + 0.3, z + 1.6, 0.14, 0.12, '#b0a898', M.stone, 8); m.box(x - 0.3, y - 0.3, z + 1.6, x + 0.3, y + 0.3, z + 2.2, '#f2c070', M.glow); m.cyl(x, y, z + 2.2, z + 2.7, 0.55, 0.05, '#9a9284', M.stone, 8); }
+    if (!snow) for (let k = 0; k < 5; k++) { const a = GATE_A + Math.PI * 0.5 + (k - 2) * 0.55, x = cx + Math.cos(a) * 5.8, y = cy + Math.sin(a) * 5.8; m.foliage(x, y, z + 0.6, 0.8, 0.6, LEAF(o), 14, k + 950, 0.5); }
+    // 吊桥：从浮岛外沿伸到小岛，木板 + 两边扶手 + 一路的灯笼
+    const r0 = G.R0 - 1.2, r1 = G.R0 + 12 - G.r * 0.95, n = Math.ceil((r1 - r0) / 0.5), nx = -GD[1], ny = GD[0];
+    for (let i = 0; i < n; i++) { const ra = r0 + (r1 - r0) * i / n, rb = r0 + (r1 - r0) * (i + 0.85) / n, sag = Math.sin(Math.PI * i / n) * 0.35, A = [TC[0] + GD[0] * ra, TC[1] + GD[1] * ra], Bq = [TC[0] + GD[0] * rb, TC[1] + GD[1] * rb], zz = z + 0.05 - sag;
+      m.quad([A[0] - nx * 1.1, A[1] - ny * 1.1, zz], [A[0] + nx * 1.1, A[1] + ny * 1.1, zz], [Bq[0] + nx * 1.1, Bq[1] + ny * 1.1, zz], [Bq[0] - nx * 1.1, Bq[1] - ny * 1.1, zz], i % 2 ? W : '#8a6a46', M.plank); m.quad([A[0] - nx * 1.1, A[1] - ny * 1.1, zz - 0.15], [Bq[0] - nx * 1.1, Bq[1] - ny * 1.1, zz - 0.15], [Bq[0] + nx * 1.1, Bq[1] + ny * 1.1, zz - 0.15], [A[0] + nx * 1.1, A[1] + ny * 1.1, zz - 0.15], W2, M.plank);
+      if (i % 3 === 0) for (const sd of [-1, 1]) { const px = A[0] + nx * sd * 1.15, py = A[1] + ny * sd * 1.15; m.box(px - 0.07, py - 0.07, zz, px + 0.07, py + 0.07, zz + 3.4, W2, M.plank); if (i % 6 === 0) { m.cyl(px, py, zz + 3.4, zz + 3.75, 0.16, 0.22, '#f2c070', M.glow, 8); } } }
+    for (const sd of [-1, 1]) { const a = [TC[0] + GD[0] * r0 + nx * sd * 1.15, TC[1] + GD[1] * r0 + ny * sd * 1.15], b = [TC[0] + GD[0] * r1 + nx * sd * 1.15, TC[1] + GD[1] * r1 + ny * sd * 1.15]; m.stem([a[0], a[1], z + 3.2], [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z + 2.8], 0.05, 0.05, '#c8b088', M.cloth, 5); m.stem([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z + 2.8], [b[0], b[1], z + 3.2], 0.05, 0.05, '#c8b088', M.cloth, 5); }
+  }
   /* 随机长出来、落下来的东西（0.40，PP.ECO 的 feat）：野花一小片一小片、蘑菇圈、陨石、神树的果子、野蜂窝、挂在树上的风筝 */
   function ecoFeats(m, o) {
     const L = (o.eco && o.eco.feat) || []; if (!L.length || !CITY) return; const GX = (PP.FORT && PP.FORT.GROVE_XY) || [], zAt = (u, v) => { const t = Math.atan2(v - TC[1], u - TC[0]), r = Math.hypot(u - TC[0], v - TC[1]); return r < CITY.basR(t) ? CITY.GT : 0.4; };
@@ -1370,12 +1403,12 @@
     if (A.has('treehut')) { const a = 25 * D2R, r = 12, x = TC[0] + Math.cos(a) * r, y = TC[1] + Math.sin(a) * r, z = 52; m.box(x - 1.4, y - 1.4, z, x + 1.4, y + 1.4, z + 0.2, WD, M.plank); m.box(x - 1.2, y - 1.2, z + 0.2, x + 1.2, y + 1.2, z + 2.4, '#b8945a', M.plank); m.gable(x - 1.6, y - 1.6, x + 1.6, y + 1.6, z + 2.4, 1.3, 'u', '#8a5a3a', M.plank, 0.2); m.box(x + 1.21, y - 0.3, z + 1.0, x + 1.25, y + 0.3, z + 1.7, '#2a2018', 0); } // 观鸟屋
   }
   function build(o) {
-    if (CITY) CITY.BUSY = ROOMS.filter((r) => r.c && r.lv === 1).map((r) => [r.c[0], r.c[1], r.c[2] + 1.2]).concat([[TC[0], TC[1], 12.2], [SHRINE.u, SHRINE.v, 3.6], [WORKSHOP.u, WORKSHOP.v, 3.6]]);
+    if (CITY) CITY.BUSY = ROOMS.filter((r) => r.c && r.lv === 1).map((r) => [r.c[0], r.c[1], r.c[2] + 1.2]).concat([[TC[0], TC[1], 12.2], [SHRINE.u, SHRINE.v, 3.6], [WORKSHOP.u, WORKSHOP.v, 3.6]].concat(GATEI ? [[TC[0] + GD[0] * (GATEI.R0 - 2), TC[1] + GD[1] * (GATEI.R0 - 2), 2.4]] : []));
     if (CITY) CITY.FLAT = MODS.filter((q) => q.kind === 'dock' || q.kind === 'walk' || q.kind === 'farm').map((q) => { const fr = mFrame(q), [a, b, c, d] = q.r, P4 = [[a, b], [c, b], [c, d], [a, d]].map(([x, y]) => toW(fr, x, y)); return [Math.min(...P4.map((p) => p[0])) - 0.8, Math.min(...P4.map((p) => p[1])) - 0.8, Math.max(...P4.map((p) => p[0])) + 0.8, Math.max(...P4.map((p) => p[1])) + 0.8]; });
     const m = new Mesh(), cut = o.cut || null;
     // 详细视图：只看一个房间，外面的船体、甲板模块、植物都不用建（反正也被裁掉），转视角时重建得快
     const F1 = o.focus && RM[o.focus];
-    if (!F1) { if (CITY) CITY.build(m, o, { pkFish: PK.fish }); else deckAndHull(m, cut, o); if (o.cityOnly || PP.CITY_ONLY) return m; treeHome(m, cut, o); if (!cut || cut.lv >= 1) { workshop(m, o); adds(m, o); } modules(m, cut, o); } // 底层：古树水城的岩体、浮石、水下古城、水面
+    if (!F1) { if (CITY) CITY.build(m, o, { pkFish: PK.fish }); else deckAndHull(m, cut, o); if (o.cityOnly || PP.CITY_ONLY) return m; treeHome(m, cut, o); if (!cut || cut.lv >= 1) { workshop(m, o); adds(m, o); gateIsle(m, o); } modules(m, cut, o); } // 底层：古树水城的岩体、浮石、水下古城、水面
     for (const r of ROOMS) if (showLv(cut, r.lv) && (!F1 || r === F1)) { if (isRound(r)) roundRoom(m, r, cut, o); else inFrame(m, r.rot ? r : null, () => leanWrap(m, Z[r.lv], r.lean, () => rectRoom(m, r, cut, o))); }
     for (const p of PASS) if (showLv(cut, p.lv)) inFrame(m, p.F, () => passage(m, p, cut, o));
     for (const op of OPEN) { if (!showLv(cut, op[0])) continue; const z = Z[op[0]]; inFrame(m, frameOf(op[6]), () => { m.box(op[1], op[2], z - 1, op[3], op[4], z, '#8a7e70', M.stone, o.snow ? '#eef4fa' : '#9a8a6e', o.snow ? M.snow : M.stone); for (let a = op[1] + 1.2; a < op[3] - 0.6; a += 2.6) for (const b of [op[2] + 1, op[4] - 1]) if (!roomAt(...toW(frameOf(op[6]), a, b), op[0] - 1)) /* 底下就是房间（屋顶花园在餐厅顶上）就不用斜撑 */ m.quad([a, b, z - 1], [a + 0.25, b, z - 1], [a + 0.25 + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], [a + (a - (op[1] + op[3]) / 2) * 0.12, b, z - 7], C.TIMBER, M.plank); }); }
@@ -1571,6 +1604,20 @@
     if (night && (mo === 4 || mo === 5) && (E0.ff || 0) > 0.05) { const n = Math.round(E0.ff * 40); for (let i = 0; i < n; i++) { const a = H(i, 501) * 6.28, r = 13 + H(i, 502) * 12, u = TC[0] + Math.cos(a + t * 0.02) * r + Math.sin(t * 0.7 + i) * 0.8, v = TC[1] + Math.sin(a + t * 0.02) * r + Math.cos(t * 0.6 + i) * 0.8, on = Math.sin(t * 2.3 + i * 1.7) > 0.2; if (on) m.ball(u, v, 1.2 + H(i, 503) * 4 + Math.sin(t + i) * 0.4, 0.06, 0.06, '#e8ff7a', M.glow, 3, 5); } }
     if (!night && h > 7 && h < 18 && mo >= 3 && mo <= 8) for (const f of feat) { if (f.k !== 'wild' || f.u == null) continue; for (let i = 0; i < 2; i++) { const a = t * 0.6 + i * 3 + f.u, u = f.u + Math.cos(a) * 1.2, v = f.v + Math.sin(a * 1.3) * 1.2, z = CITY.GT + 1.0 + Math.sin(t * 1.7 + i) * 0.4, fl = Math.sin(t * 18 + i) * 0.8, col = ['#f4f0e0', '#f0c040', '#e88a3a'][(i + Math.round(f.u)) % 3]; m.tri([u, v, z], [u + 0.18, v + 0.05, z + 0.18 * fl], [u + 0.05, v + 0.2, z + 0.12 * fl], col, M.flat); m.tri([u, v, z], [u - 0.18, v + 0.05, z + 0.18 * fl], [u - 0.05, v + 0.2, z + 0.12 * fl], col, M.flat); } }
   }
+  /* 传送门的转盘地球（真的模型：陆地、海、冰盖按真实的地图上色；每个能去的地方插着一颗小金钉，选中的那个插一面小红旗），
+     会转到选中的地方正对着你；拉杆拉下去时地球飞快地转；门板按 open 打开 */
+  let globeC = null;
+  function gateDyn(m, o) {
+    const G = GATEI, gs = o.gate; if (!G || !gs || !PP.GLOBE || !PP.GLOBE.biome) return; const [cx, cy] = G.c, z = G.z, cz = z + 5.35, R = 1.0, rot = gs.rot || 0, cr = Math.cos(rot), sr = Math.sin(rot);
+    if (!globeC) { globeC = []; const LA = 24, LO = 40; for (let i = 0; i <= LA; i++) { const row = []; for (let j = 0; j <= LO; j++) { const lat = 90 - (i / LA) * 180, lon = -180 + (j / LO) * 360; row.push([lat, lon, g3.C ? null : null, PP.GLOBE.biome(lon, lat)]); } globeC.push(row); } }
+    const P = (lat, lon, r = R) => { const la = lat * D2R, lo = lon * D2R, x = Math.cos(la) * Math.cos(lo) * r, y = Math.cos(la) * Math.sin(lo) * r; return [cx + x * cr - y * sr, cy + x * sr + y * cr, cz + Math.sin(la) * r * 2.45]; };
+    m.pk(PK.globe); for (let i = 0; i + 1 < globeC.length; i++) for (let j = 0; j + 1 < globeC[i].length; j++) { const a = globeC[i][j], b = globeC[i][j + 1], c = globeC[i + 1][j + 1], d = globeC[i + 1][j]; m.quad(P(a[0], a[1]), P(b[0], b[1]), P(c[0], c[1]), P(d[0], d[1]), a[3], M.flat); }
+    const GEO = PP.GLOBE.GEO; for (const k in GEO) { const [la, lo] = GEO[k], sel = k === gs.sel, p0 = P(la, lo, R), p1 = P(la, lo, R + (sel ? 0.45 : 0.12)); if (sel) { m.stem(p0, p1, 0.025, 0.02, '#4a3a2a', M.flat, 4); m.tri(p1, [p1[0], p1[1], p1[2] - 0.5], [p1[0] + 0.25, p1[1] + 0.25, p1[2] - 0.25], '#e83a3a', M.glow); } else m.ball(p1[0], p1[1], p1[2], 0.05, 0.05, '#e8c040', M.metal, 3, 5); }
+    for (let i = 0; i < 24; i++) { const a0 = (i / 24) * 6.2832, a1 = ((i + 1) / 24) * 6.2832, R2 = 1.32; m.stem([cx + Math.cos(a0) * R2, cy + Math.sin(a0) * R2, cz], [cx + Math.cos(a1) * R2, cy + Math.sin(a1) * R2, cz], 0.07, 0.07, '#d8b868', M.metal, 5); } // 赤道那圈黄铜环（不转）
+    m.stem([cx, cy, cz - R * 2.45 - 0.1], [cx, cy, z + 2.8], 0.08, 0.08, '#c8a858', M.metal, 6); m.pk(0);
+    { const lx = cx - GD[1] * 1.6, ly = cy + GD[0] * 1.6, la = (gs.lever || 0) * 1.1, tip = [lx + GD[0] * Math.sin(la) * 1.2, ly + GD[1] * Math.sin(la) * 1.2, z + 1.55 + Math.cos(la) * 1.2]; m.pk(PK.lever); m.stem([lx, ly, z + 1.55], tip, 0.06, 0.05, '#c8a858', M.metal, 6); m.ball(tip[0], tip[1], tip[2], 0.18, 0.18, '#a83a3a', M.flat, 5, 8); m.pk(0); } // 拉杆
+    const [dx, dy] = G.door, warp = P2().warp; if (warp && PP.DEST) warp(m, [dx, dy, z], G.yaw, 0, 0, () => PP.DEST.doorLeaves(m, dx, dy, z, gs.open || 0, PK.gate));
+  }
   let aquaRoster = null, aquaKey = '';
   function aquaLife(m, o, t) {
     const A = PP.AQUA, D = PP.FISHDEX, U = PP.U; if (!A || !D || !CITY) return;
@@ -1623,6 +1670,7 @@
       m.pk(0); }
     if (showLv(cut, 1)) aquaLife(m, o, t);
     if (showLv(cut, 1)) try { ecoDyn(m, o, t); } catch (e) {}
+    if (!cut || cut.lv >= 1) try { gateDyn(m, o); } catch (e) { console.error(e); }
     drawLights(m, o);
     // 壁炉里的火（一直在跳）；炉台正中一座座钟，指着现在的时间
     for (const id in HEARTH) { const r = RM[id], hr = HEARTH[id]; if (!showLv(cut, r.lv) || (cut && cut.lv > r.lv && false)) continue; inFrame(m, r.rot ? r : null, () => { const zz = Z[r.lv], [fu, fv] = hr.fire, along = hr.sp.ax === 'v';
@@ -1640,5 +1688,5 @@
   }
   const FALL = CITY ? (([u, v]) => [u, v])(polarW(-8, 31)) : [50, 38]; // 东边的瀑布
   const DECK = { v1: DK.v1 };
-  PP.FORT = { WORKSHOP, SHRINE, GAL_LAMPS, RELICS, LIFT, LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
+  PP.FORT = { GATEI, WORKSHOP, SHRINE, GAL_LAMPS, RELICS, LIFT, LAKE, inLake, wallSpans, HEARTH, POOL_L, pondFrame: () => null, lightBoxes, switches, SW_PK, _tree: (m, o, u, v, z, h, seed, l) => tree(m, o, u, v, z, h, seed, l), roomH, joinRuns, FALL, MODS, MD, inMod, plotStand, plotC, hiveStand, mailStand, tapStand, HIVE_Z, toW, toL, frameOf, rectObs, wBox, Z, NAME, WH, FS, DECK, CEN, inDeck, ROOMS, RM, OPEN, PASS, ENTRIES, RAMPS, PLOTS, PS, POOL, FISH, BOB, HIVES, MAILB, TAP, LAMPS, SLOTS, BALLOON, NEST, GPOTS, FIX, PK, AREA, WING_ROOTS, build, dyn, roomAt, roomLv, floorAt, inRoom, bbox, C, shade };
 })();
