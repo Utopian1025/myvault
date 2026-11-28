@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "product": "maas-wps",
+  "version": "0.9.0.4",
+  "name": "Maas_WPS_v0.9.0.4.zip",
+  "size": 5592638,
+  "sha256": "263bc0b4af50074d0a7b326108d9cf730b8e0afbce979f2dd1c5c2bc249fb472",
+  "url": "https://github.com/Utopian1025/myvault/releases/download/maas-wps-v0.9.0.4/Maas_WPS_v0.9.0.4.zip",
+  "notes": "修正 QF 小窗裁切和 WN 跨簿公式返回，内含 Word 0.3.27。",
+  "parts": [
+    {
+      "index": 0,
+      "size": 5592638,
+      "sha256": "263bc0b4af50074d0a7b326108d9cf730b8e0afbce979f2dd1c5c2bc249fb472",
+      "url": "https://raw.githubusercontent.com/Utopian1025/myvault/4703c1759f365aa720ab54eaab7e7b88cd18acfe/maas/updates/wps/0.9.0.4/parts/0000.bin"
+    }
+  ],
+  "commit": "4703c1759f365aa720ab54eaab7e7b88cd18acfe"
+}
